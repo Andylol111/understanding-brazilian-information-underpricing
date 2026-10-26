@@ -48,6 +48,7 @@ The TSE server rate-limits (429) at high concurrency; keep `--concurrency` ≤ 8
 | `brunder.stats` | event-cluster bootstrap, Holm and Benjamini–Hochberg |
 | `brunder.registry` | pre-registration and the holdout vault |
 | `brunder.verify` | price-history point-in-time check against trades |
+| `brunder.live` | forward-test recorder: discovery, book polling, live signals, book-walk fills, gated verdict |
 
 ## Analyses
 
@@ -72,4 +73,7 @@ uv run brunder observations              # shocks / horizon observations / label
 uv run brunder study prereg/<spec>.toml  # discovery split, run at will
 uv run brunder register prereg/<spec>.toml          # spec must be committed; records its hash
 uv run brunder study prereg/<spec>.toml --split holdout   # opens only for registered, unchanged specs; every look is logged
+uv run brunder live run prereg/forward_v1.toml            # forward test: live signals + order books (run detached)
+uv run brunder live status prereg/forward_v1.toml         # counts only; not a look
+uv run brunder live evaluate prereg/forward_v1.toml       # one verdict, after the spec's stopping rule
 ```

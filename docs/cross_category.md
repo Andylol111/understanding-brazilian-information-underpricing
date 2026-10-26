@@ -144,6 +144,38 @@ more than its cost in the holdout only in mentions (+7.5% per $, [+1.8, +13.0]) 
 - Not supported: a general under-reaction in deep markets. The Brazil count-night lag is a case
   study, not a pattern this sample can detect.
 
-Next: order-book snapshots (not trades) for executable size, a fresh holdout (events after
-2026-10-26) for mentions with a new spec id, and a power analysis for deep_continuation before
-spending another look on it.
+## Power: is "deep markets don't under-react" a real null? (`analysis/power.py`)
+
+Drift after shocks has sd 0.415 per signal; design effect from event clustering is 1.03.
+
+| question | signals needed (80% power) | available |
+|---|---|---|
+| deep continuation ≥ +3 pt, pooled across categories | 1,217 | 2,242 |
+| deep continuation ≥ +2 pt, pooled | 2,737 | 2,242 |
+| deep continuation ≥ +3 pt in one category (Holm, 10 categories) | 2,298 per category | 41–440 per category |
+
+Pooled over all categories and both splits, the deep-market drift is −0.07 pt [−1.9, +1.7]
+(exploratory: pooling was chosen after the per-category tests). So per category the test is under-powered,
+but pooled the data rule out a systematic deep-market under-reaction larger than about 2 pt. At the current
+sampling rate (66 deep shocks a month across categories), a per-category test is not feasible; the
+question is better answered by pooling or by targeting a single deep category.
+
+## Forward test (`prereg/forward_v1.toml`, `brunder live`)
+
+A fresh holdout that cannot leak: signals are recorded live, before outcomes exist, with the order
+book at that moment, so executable size and price come from the book, not from trades.
+
+- Primary tests (Holm across 3): mentions late-certainty, mentions thin-fade, geopolitics
+  thin-fade, each as net return per $ at the book-walk cost for a $100 stake (also $25 and $500).
+  Politics, economy and tech-science are recorded for description.
+- Stopping rule fixed in the spec: the verdict opens once 1,800 mentions late-certainty signals have
+  resolved (80% power for +2.1% per $; about 25 mentions events a week × ~6 signals each, so roughly
+  12 weeks) or on 2027-02-28, whichever comes first. One look.
+- `brunder live status` reports counts and resolution status only, never wins or losses, so
+  monitoring is not a look. `brunder live evaluate` refuses to run before the stopping rule is met
+  and logs the look in `prereg/holdout_runs.jsonl`.
+- Live price = book midpoint if the spread is ≤ 10¢, else the last trade (Polymarket's displayed-price
+  convention, assumed to match the historical series). Every poll's top of book is stored under
+  `data/live/tops/`, which builds the order-book dataset the historical study lacked.
+
+Started 2026-10-26 17:38 UTC, tracking ~2,000 open markets every 2 minutes.
