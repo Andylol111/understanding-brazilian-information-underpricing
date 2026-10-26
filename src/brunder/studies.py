@@ -55,11 +55,13 @@ def _market_obs(m, px: pd.DataFrame) -> tuple[list[dict], list[dict], dict]:
     g = pd.date_range((E + WINDOW[0]).ceil(GRID), E + WINDOW[1], freq=GRID)
     g = g[(g >= pd.Timestamp(T[0], tz="UTC") + pd.Timedelta("6h")) & (g <= last_ok)]
     shocks = []
+    lag = np.timedelta64(int(pit.OBS_LAG.total_seconds()), "s")
+    delay = np.timedelta64(int(pit.EXEC_DELAY.total_seconds()), "s")
     if len(g):
         q = g.tz_convert(None).to_numpy(dtype="datetime64[ns]")
-        p = pit.asof(T, V, q)
-        p1 = pit.asof(T, V, q - np.timedelta64(1, "h"))
-        pe = pit.asof(T, V, q + np.timedelta64(int(pit.EXEC_DELAY.total_seconds()), "s"))
+        p = pit.asof(T, V, q - lag)
+        p1 = pit.asof(T, V, q - lag - np.timedelta64(1, "h"))
+        pe = pit.asof(T, V, q + delay)
         ok = (p >= LO) & (p <= HI) & np.isfinite(p1) & np.isfinite(pe)
         m1 = p - p1
         for thr in THRESHOLDS:
@@ -74,8 +76,8 @@ def _market_obs(m, px: pd.DataFrame) -> tuple[list[dict], list[dict], dict]:
         if t > last_ok or t < pd.Timestamp(T[0], tz="UTC") + pd.Timedelta("6h"):
             continue
         q = np.array([t.tz_convert(None).to_datetime64()])
-        p = pit.asof(T, V, q)[0]
-        pe = pit.asof(T, V, q + np.timedelta64(int(pit.EXEC_DELAY.total_seconds()), "s"))[0]
+        p = pit.asof(T, V, q - lag)[0]
+        pe = pit.asof(T, V, q + delay)[0]
         if np.isfinite(p) and np.isfinite(pe) and LO <= p <= HI:
             horizons.append({**base, "horizon": name, "t": t, "p": p, "p_entry": pe})
     return shocks, horizons, label

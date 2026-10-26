@@ -39,7 +39,7 @@ async def _one(client, sem, m) -> dict | None:
     tr = tr.sort_values("timestamp")
     T = tr["timestamp"].to_numpy()
     P = tr["p_yes"].to_numpy()
-    q = (px["time"].astype("int64") // 10**9).to_numpy()
+    q = ((px["time"] - pd.Timestamp(0, tz="UTC")) // pd.Timedelta("1s")).to_numpy()
     i = np.searchsorted(T, q, side="right")
     ok = (i > 0) & (i < len(T))
     before, after = P[np.clip(i - 1, 0, None)][ok], P[np.clip(i, None, len(T) - 1)][ok]

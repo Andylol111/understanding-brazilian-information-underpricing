@@ -45,14 +45,15 @@ def _market(scheduled, closed):
 
 def test_shock_signal_uses_only_the_past_and_enters_after_the_delay():
     E = pd.Timestamp("2026-06-10 12:00", tz="UTC")
+    jump = E - pd.Timedelta("2h")
     times = pd.date_range(E - pd.Timedelta("8D"), E + pd.Timedelta("1D"), freq="5min")
-    price = np.where(times < E - pd.Timedelta("2h"), 0.30, 0.55)          # +25pt jump at E−2h
-    price = np.where(times >= E - pd.Timedelta("2h") + pd.Timedelta("5min"), 0.60, price)
+    price = np.select([times < jump, times < jump + pd.Timedelta("35min")], [0.30, 0.55], 0.60)
     px = pd.DataFrame({"time": times, "price": price})
     shocks, _, _ = studies._market_obs(_market(E, E + pd.Timedelta("20h")), px)
     s10 = next(s for s in shocks if s["threshold"] == 0.10)
-    assert s10["t"] >= E - pd.Timedelta("2h")            # cannot fire before the move happened
-    assert s10["p"] == 0.55 and s10["p_entry"] == 0.60   # signal price ≠ execution price
+    assert s10["t"] - pit.OBS_LAG >= jump                # the move was visible OBS_LAG before the signal
+    assert s10["t"] == jump + pd.Timedelta("30min")      # first 30-min grid point satisfying that
+    assert s10["p"] == 0.55 and s10["p_entry"] == 0.60   # entry at the later price, not the signal's
 
 
 def test_no_observation_or_entry_after_the_market_closed():
