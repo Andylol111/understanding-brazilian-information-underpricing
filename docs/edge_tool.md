@@ -100,6 +100,29 @@ Considered and set aside: Brazil 2022 presidential (Polymarket price history no 
 São Paulo mayor 2024 (market's candidate labels don't map cleanly to outcomes; zone-level units
 needed), 2026 governor first rounds (multi-candidate outright-majority races need a different prior).
 
+### How the 7 runoff replays will be read (written 2026-10-26, before any result exists)
+
+They are a **method sanity check, not an edge estimate.**
+- Not independent: all seven races share one night, one publication system and partly one national
+  swing; the presidential and governor counts arrive in the same sections.
+- Tiny trade sample: at most one gated, favoured-side entry per race (≤ 7 trades), in markets with
+  $27k–$161k lifetime volume. A mean return over ≤ 7 bets is dominated by one or two outcomes.
+
+Primary, in this order:
+1. **Settle lead:** minutes between the model and the market each staying ≥ 0.9 on the eventual
+   winner, per race (positive = model first). Reported for all 7 with the median.
+2. **Calibration of P along the count:** share of ticks (1–95% counted) whose 90% interval contains
+   the final share, and mean z, per race and pooled. Tells whether τ = 0.015 transfers from the
+   presidential first round to new races.
+
+Reported but **not** used for any claim: P&L of the gated signals, and hit rate. **No edge claim will
+rest on P&L from these replays**, whichever way it comes out. An edge claim needs the forward record:
+live, pre-registered, with book-walk fills (`forward_v1`, `brunder night live` on the next election).
+
+What would count against the method: a negative median settle lead, or 90% intervals covering the final
+share well below ~80% of ticks in most races. Either is reported as such, without re-tuning these
+frozen configs.
+
 ## Roadmap (project)
 
 | step | what | status |
