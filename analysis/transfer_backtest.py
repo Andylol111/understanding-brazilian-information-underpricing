@@ -68,7 +68,23 @@ def main() -> None:
     px = pd.read_parquet(POLYMARKET / "brazil-presidential-election" / "prices" / f"{LULA_MKT}.parquet")
     px = px[(px["time"] >= "2026-10-05") & (px["time"] < "2026-10-25 20:00")].set_index("time")["price"]
     daily = px.resample("1D").last()
-    print("\nPolymarket P(Lula) between rounds, daily close:", daily.round(3).to_dict())
+
+    # The benchmark depends on two unknowns: the national error σ and the transfer rate θ of the
+    # eliminated candidates' voters (2014–2022 range 0.32–0.63; α, β held at the 2022 fit).
+    d26 = m[2026]
+    grid = []
+    for theta in (0.32, 0.43, 0.50, 0.63):
+        t = transfer.Transfers(fits[2022].alpha, fits[2022].beta, theta, 2022)
+        share = transfer.national(d26, transfer.project(d26, t))
+        for s in (0.02, 0.03, sigma):
+            pm = norm.cdf((share - 0.5) / s)
+            grid.append({"theta": theta, "share": share, "sigma": s, "P_model": pm,
+                         "days_market_below": int((daily < pm).sum()), "days": int(daily.notna().sum()),
+                         "mean_gap(P_model−p)": float((pm - daily).mean())})
+    g = pd.DataFrame(grid)
+    g.to_csv(RES / "transfer_benchmark_grid.csv", index=False)
+    print("\nbenchmark grid (θ = others→Lula, σ = national error) vs daily market close, Oct 5–24:")
+    print(g.assign(share=g["share"] * 100, sigma=g["sigma"] * 100).round(3).to_string(index=False))
     fig, ax = plt.subplots(figsize=(10, 4.5))
     ax.step(px.index, px, where="post", color="k", lw=1.2, label="Polymarket P(Lula)")
     for s, ls in ((sigma, "-"), (0.02, "--")):

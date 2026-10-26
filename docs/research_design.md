@@ -259,8 +259,15 @@ before running). At 17:26 BRT, 1.70% of sections counted:
 |---|---|---|
 | national file (raw) | 42.19 | −2.97 pt |
 | state partials weighted by size | 43.49 | −1.67 pt |
-| **state nowcast (κ = 200k)** | **45.44 ± 1.17** | **+0.28 pt** |
+| **state nowcast (κ = 200k)** | **45.44** | **+0.28 pt** |
 | sensitivity: κ = 0 / 50k / ∞ | 43.64 / 45.18 / 45.70 | −1.52 / +0.02 / +0.54 |
+
+The fair test here is the point estimate only. An earlier version reported "± 1.17" using a
+within-state σ taken from this same snapshot (in-sample) and no shared national error. The model
+now uses inputs from other data: σ_swing = 6.6 pt (between-state dispersion of the PT first-round
+swing, 2018 → 2022) and a correlated national error τ = 1 pt (not yet calibrated on a state-level
+path). With those, the band at this snapshot is ± 2.17 pt (state 1.93, national 0.98). τ must be
+calibrated before the model's p_win is used for any count-night lag claim.
 
 A public, ex-ante method applied to the state files would have been within 0.3 pt of the final
 first-round result at 1.7% counted, against a 3-pt error in the raw national number. This is one
@@ -283,12 +290,29 @@ In-sample θ (others → PT): 2014 0.43, 2018 0.63, 2022 0.32, **2026 0.69**. El
 candidates' voters broke for Lula far more than in 2022, which no first-round-night projection
 based on past transfers could know.
 
-Implied P(Lula) on first-round night: 0.12–0.28 (transfers) or 0.27–0.38 (proportional) for a
-national error σ of 2–4.1 pt (4.1 = out-of-sample RMS of 2018 and 2022: two cycles). Polymarket
-traded Lula at 0.10–0.25 between rounds. Polls published 18–20 Oct were split but leaned Flávio
-(Datafolha 51–49, PoderData 52–48, RealTime Big Data 52–48 for Flávio; Vox Brasil 51–49 for Lula; as
-reported by UOL, CNN Brasil, Portal 6). **H1 is not supported:** between rounds the market was in line with what public first-round
-data and polls implied. The under-weighting in this election is a count-night phenomenon.
+The benchmark rests on two unknowns: the national error σ (4.1 pt is the out-of-sample RMS of only
+two cycles) and the transfer rate θ of eliminated candidates' voters, which swung from 0.32 (2022)
+to 0.69 (2026). Model P(Lula) against the 21 daily market closes, Oct 5–24
+(`results/transfer_benchmark_grid.csv`, α and β held at the 2022 fit):
+
+| θ (others → Lula) | projected share | P_model at σ = 2 / 3 / 4.1 pt | days the market was below P_model (of 21) | mean gap P_model − p |
+|---|---|---|---|---|
+| 0.32 (2022) | 47.66 | 0.12 / 0.22 / 0.29 | 2 / 15 / 21 | −0.06 / +0.04 / +0.11 |
+| 0.43 (2014) | 48.52 | 0.23 / 0.31 / 0.36 | 17 / 21 / 21 | +0.05 / +0.13 / +0.18 |
+| 0.50 | 49.07 | 0.32 / 0.38 / 0.41 | 21 / 21 / 21 | +0.14 / +0.20 / +0.23 |
+| 0.63 (2018) | 50.08 | 0.52 / 0.51 / 0.51 | 21 / 21 / 21 | +0.34 / +0.33 / +0.33 |
+
+The market (0.105–0.25; 0.105–0.16 for most of Oct 5–16) sat at or below most of this grid. Only
+the lowest past transfer rate with a tight σ puts the model below the market. Polls published 18–20 Oct were
+split but leaned Flávio (Datafolha 51–49, PoderData 52–48, RealTime Big Data 52–48 for Flávio;
+Vox Brasil 51–49 for Lula; as reported by UOL, CNN Brasil, Portal 6).
+
+**H1 is inconclusive.** Whether the market under-priced Lula between rounds depends almost entirely
+on the transfer assumption, which past cycles do not pin down (θ 0.32–0.63 before 2026), and σ
+rests on two cycles. The grid leans toward "the market was low", but this is a sensitivity table, not
+a test. Making it one needs a defensible ex-ante θ: poll-reported second choices of each eliminated
+candidate's voters, or transfer rates by candidate ideology across more elections. The count-night
+evidence is currently the stronger of the two.
 
 ## Count-night section: what the paper can claim now
 

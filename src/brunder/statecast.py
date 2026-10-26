@@ -6,14 +6,18 @@ the national aggregate. Per state u with prior share s0_u, expected valid votes 
 observed share o_u and sections-counted fraction f_u:
 
   national swing     δ   = Σ_{domestic} n_u (o_u − s0_u) / Σ n_u
-  state swing        δ_u = (n_u (o_u − s0_u) + κ δ) / (n_u + κ)        (thin states shrink to δ)
+  state swing        δ_u = λ_u (o_u − s0_u) + (1 − λ_u) δ,   λ_u = n_u / (n_u + κ)
   final state share  S_u = f_u o_u + (1 − f_u)(s0_u + δ_u)
-  national           S   = Σ V_u S_u / Σ V_u
-  variance           Var S = Σ (V_u/ΣV)² (1 − f_u)² σ²_state  +  ((Σ V_u (1 − f_u) λ_u)/ΣV)² σ²_δ
+  national           S   = Σ w_u S_u,   w_u = V_u / Σ V
 
-σ_state: dispersion of a state's early share around its final share (3.5 pt from the one archived
-R1 cross-section — an estimate from one moment, not a curve). σ_δ: sampling error of the pooled
-swing. Abroad ('zz') is its own unit and stays out of δ.
+Uncertainty of the uncounted votes, w̃_u = w_u (1 − f_u):
+  state-specific     Σ w̃_u² [ (1 − λ_u) σ²_swing + λ_u σ²_within ]   (independent across states)
+  shared national    (Σ w̃_u)² τ²                                      (one error common to all states:
+                                                                         reporting-order / turnout bias)
+Defaults are set from data other than any count being scored:
+  σ_swing  = 6.6 pt: between-state dispersion of the PT first-round swing, 2018 → 2022.
+  σ_within = σ_swing (no ex-ante estimate of within-state early-vs-final error; conservative).
+  τ        = 1 pt, as in nowcast.py; not yet calibrated on a state-level count path.
 """
 
 from __future__ import annotations
@@ -28,7 +32,9 @@ from scipy.stats import norm
 @dataclass(frozen=True)
 class Params:
     kappa: float = 200_000.0     # pseudo-votes: a state needs ~this many counted votes to move off δ
-    sigma_state: float = 0.035   # one-cross-section estimate (docs/research_design.md)
+    sigma_swing: float = 0.066
+    sigma_within: float = 0.066
+    tau: float = 0.01
 
 
 def nowcast(states: pd.DataFrame, prior: pd.DataFrame, p: Params = Params()) -> dict:
@@ -42,11 +48,12 @@ def nowcast(states: pd.DataFrame, prior: pd.DataFrame, p: Params = Params()) -> 
     d["lam"] = d["n"] / (d["n"] + p.kappa)
     d["delta_u"] = d["lam"] * d["dev"] + (1 - d["lam"]) * delta
     d["S"] = np.where(d["n"] > 0, d["f"] * d["o"].fillna(0) + (1 - d["f"]) * (d["s0"] + d["delta_u"]), d["s0"] + delta)
-    W = d["V"] / d["V"].sum()
-    S = float((W * d["S"]).sum())
-    sig_delta = p.sigma_state / np.sqrt(max(len(dom), 1))
-    var = float(((W * (1 - d["f"])) ** 2).sum() * p.sigma_state**2
-                + ((W * (1 - d["f"]) * (1 - d["lam"])).sum() * sig_delta) ** 2)
-    sd = np.sqrt(var)
-    return {"share": S, "sd": sd, "p_win": float(norm.cdf((S - 0.5) / sd)) if sd > 0 else float(S > 0.5),
-            "swing": delta, "counted_frac": float((d["n"]).sum() / d["V"].sum())}
+    w = d["V"] / d["V"].sum()
+    S = float((w * d["S"]).sum())
+    wt = w * (1 - d["f"])
+    var_state = float((wt**2 * ((1 - d["lam"]) * p.sigma_swing**2 + d["lam"] * p.sigma_within**2)).sum())
+    var_nat = float(wt.sum() ** 2 * p.tau**2)
+    sd = np.sqrt(var_state + var_nat)
+    return {"share": S, "sd": sd, "sd_state": np.sqrt(var_state), "sd_national": np.sqrt(var_nat),
+            "p_win": float(norm.cdf((S - 0.5) / sd)) if sd > 0 else float(S > 0.5),
+            "swing": delta, "counted_frac": float(d["n"].sum() / d["V"].sum())}
