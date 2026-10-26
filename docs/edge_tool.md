@@ -85,6 +85,21 @@ downloads the files when TSE publishes them; then
 A genuine forward test needs the next election: a config registered before polls open, and the count
 recorded live (`brunder tse-watch`) with `brunder night live` logging model and market as it happens.
 
+### Proxy replays: the six governor runoffs of the same night (`configs/governor_r2/`, registered)
+
+AC, AM, DF, ES, RN and TO held governor runoffs on 25 Oct 2026, each with a resolved Polymarket
+winner market. Each config copies night_r2_v1's settings unchanged (municipal model, τ = 0.015, 1%
+gate, favoured side only, 5¢ minimum edge); the prior is that race's own first round by municipality;
+A is the first-round leader (who won in four states and lost in RN and TO). The method was never
+developed on governor races, and neither the count paths nor the intra-night price paths have been
+examined, so these test the *method* on races it was not built on (outcomes known, so not blind).
+They run from the same runoff BU-web files (now parsed with governor rows) as soon as TSE publishes
+them. Together with the presidential runoff: 7 races scored once each.
+
+Considered and set aside: Brazil 2022 presidential (Polymarket price history no longer served),
+São Paulo mayor 2024 (market's candidate labels don't map cleanly to outcomes; zone-level units
+needed), 2026 governor first rounds (multi-candidate outright-majority races need a different prior).
+
 ## Roadmap (project)
 
 | step | what | status |
