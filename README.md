@@ -1,8 +1,13 @@
-# brunder — Brazilian election information underpricing on Polymarket
+# brunder — underpricing of information on Polymarket
 
-Does Polymarket underweight public, cheaply computable election projections? Case: Brazil 2026
-(1st round 2026-10-04, runoff 2026-10-25, Lula d. Flávio Bolsonaro 51.79–48.21). Research design,
-hypotheses and model math: [docs/research_design.md](docs/research_design.md).
+Two parts:
+
+1. **Brazil 2026 case study.** Did Polymarket under-weight public, cheaply computable projections of
+   the presidential race (1st round 2026-10-04, runoff 2026-10-25, Lula d. Flávio Bolsonaro
+   51.79–48.21)? Design, hypotheses and model math: [docs/research_design.md](docs/research_design.md).
+2. **Cross-category edge program.** Which Polymarket categories under-weight information, how, and
+   is it tradable after costs, under pre-registered, out-of-sample tests with no look-ahead?
+   Method and results: [docs/cross_category.md](docs/cross_category.md).
 
 ## Setup
 
@@ -37,6 +42,12 @@ The TSE server rate-limits (429) at high concurrency; keep `--concurrency` ≤ 8
 | `brunder.nowcast` | count-progress model → P(win), national or per state (`uf=`) |
 | `brunder.edge` | model-vs-market alignment, crossing delays, lead–lag, scores, cost-aware backtest, Kelly |
 | `brunder.microstructure` | wallet concentration, flows, wash round-trips, price-impact persistence, capacity |
+| `brunder.universe` | category × week sampled universe of resolved markets; 5-min price paths; pre-signal volume; fill checks |
+| `brunder.pit` | point-in-time rules: `asof`, execution delay, embargoed discovery/holdout split, taker cost |
+| `brunder.studies` | observation builder and the study kinds (`shock_drift`, `favourite_tilt`, `late_certainty`) |
+| `brunder.stats` | event-cluster bootstrap, Holm and Benjamini–Hochberg |
+| `brunder.registry` | pre-registration and the holdout vault |
+| `brunder.verify` | price-history point-in-time check against trades |
 
 ## Analyses
 
@@ -50,8 +61,15 @@ for τ ∈ {0.005, 0.01, 0.02}. Writes `results/r2_night.png`, `results/r2_night
 `analysis/flows.py` — wallet flows, concentration, PnL to resolution, wash/self-trade checks and
 price-impact persistence for the Lula/Flávio winner markets. → `results/flows_*.csv`
 
-`analysis/figures.py` — paper figures from the outputs above → `results/fig1…fig5_*.png`.
+`analysis/figures.py` — paper figures from the outputs above → `results/fig1…fig6_*.png`.
 
-`analysis/track_record.py` — cross-election test over every resolved Polymarket election market
-(`uv run brunder crawl` first: catalogue + 5-min prices into `data/raw/polymarket_crawl/`, resumable)
-→ `results/track_*.csv`, `results/fig7_track_record.png`.
+## Cross-category workflow
+
+```sh
+uv run brunder universe all              # sample events per category × week; fetch 5-min price paths (resumable)
+uv run brunder verify                    # price-history points vs trades (point-in-time check)
+uv run brunder observations              # shocks / horizon observations / label-conflict flags
+uv run brunder study prereg/<spec>.toml  # discovery split, run at will
+uv run brunder register prereg/<spec>.toml          # spec must be committed; records its hash
+uv run brunder study prereg/<spec>.toml --split holdout   # opens only for registered, unchanged specs; every look is logged
+```

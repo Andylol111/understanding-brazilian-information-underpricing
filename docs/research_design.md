@@ -213,7 +213,12 @@ Verification status:
   municipality until 19:56. A claim about a call "at 3% in Amapá" can't be checked from the
   archived data yet.
 
-## Track record across all Polymarket election markets (`brunder crawl`, `analysis/track_record.py`)
+## Election-market track record — exploratory (Oct 2026)
+
+> Historical record of the exploration that motivated `prereg/shock_depth_v1.toml`. The scripts
+> were replaced by the pre-registered pipeline ([cross_category.md](cross_category.md)); their
+> anchor used min(scheduled end, close), which leaks resolution timing into the near/far windows.
+> Treat these numbers as hypothesis generation, not evidence.
 
 Universe: 1,957 closed events tagged elections / global-elections / world-elections; 9,215
 resolved binary markets ≥ $1k volume; 9,205 with prices (5-min, anchor A = min(scheduled end,
@@ -239,10 +244,10 @@ Readings (post-hoc, superseded by the pre-registered test below):
   +7.1 pt [−0.8, +14.8], p_Holm = 0.135 — **not significant**. Lifetime volume is also endogenous
   (markets that trend into news attract volume afterwards).
 
-### Pre-registered test (`analysis/track_robust.py`)
+### Depth test (exploratory; specified after seeing the slices above)
 
-Specification fixed in the script docstring before running: Brazil events excluded; signal =
-first ≥10-pt one-hour move; depth = log10(1 + taker notional in the 7 days *before* the signal,
+Brazil events excluded; signal = first ≥10-pt one-hour move; depth = log10(1 + taker notional in
+the 7 days *before* the signal,
 from data-api trades — known at entry); outcome = drift s·(y − p); H1: drift rises with depth.
 
 | threshold | markets | events | drift per 10× pre-signal volume | 95% CI | p (b ≤ 0) |
