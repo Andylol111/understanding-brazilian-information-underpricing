@@ -120,32 +120,60 @@ async def snapshot(cycle: str, ele: int, cargo: int = 1, concurrency: int = 8,
 
 
 async def watch(cycle: str, ele: int, cargo: int = 1, interval: float = 30.0, concurrency: int = 32):
-    """Poll during the count. Each time the national file changes, snapshot all UF progress
-    files plus municipality files whose counted-section total changed since the last poll."""
+    """Poll during the count, state files first. Every `interval` seconds fetch the national and all
+    27 UF (+ abroad) vote files; whenever any of them changed, write a snapshot dir with the changed
+    UF files, their progress files, and the municipality files whose counted sections changed.
+
+    State files are published before the national aggregate (2026 R1 cross-section: up to ~75 s
+    earlier), so triggering on the national file alone would record the count late."""
     u = _urls(cycle, ele, cargo)
-    last_idg = None
+    last_idg: dict[str, str] = {}
     last_st: dict[tuple[str, str], str] = {}
+    sem = asyncio.Semaphore(concurrency)
+
+    async def get(url):
+        async with sem:
+            return await _http.aget_bytes(client, url)
+
     async with _http.aclient() as client:
-        cm = json.loads(await _http.aget_bytes(client, u["cm"]))
+        cm_raw = await _http.aget_bytes(client, u["cm"])
+        cm = json.loads(cm_raw)
         ufs = [a["cd"].lower() for a in cm["abr"]]
         while True:
-            br = json.loads(await _http.aget_bytes(client, u["u"]("br")))
-            if br["idg"] != last_idg:
-                abs_ = await asyncio.gather(*(_http.aget_bytes(client, u["ab"](uf)) for uf in ufs))
-                changed = set()
-                for uf, raw in zip(ufs, abs_):
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            units = ["br", *ufs]
+            raws = dict(zip(units, await asyncio.gather(*(get(u["u"](x)) for x in units))))
+            changed_ufs = [x for x, raw in raws.items() if raw and json.loads(raw)["idg"] != last_idg.get(x)]
+            if changed_ufs:
+                out = _snapshot_dir(cycle, ele, cargo) / stamp
+                out.mkdir(parents=True, exist_ok=True)
+                (out / "cm.json").write_bytes(cm_raw)
+                for x in changed_ufs:
+                    (out / x).mkdir(exist_ok=True)
+                    (out / x / "u.json").write_bytes(raws[x])
+                    last_idg[x] = json.loads(raws[x])["idg"]
+                state_ufs = [x for x in changed_ufs if x != "br"]
+                abs_ = dict(zip(state_ufs, await asyncio.gather(*(get(u["ab"](x)) for x in state_ufs))))
+                muns = []
+                for x, raw in abs_.items():
                     if raw is None:
                         continue
-                    for x in json.loads(raw)["abr"]:
-                        if x["tpabr"] == "mun" and last_st.get((uf, x["cdabr"])) != x["s"]["st"]:
-                            changed.add((uf, x["cdabr"]))
-                            last_st[(uf, x["cdabr"])] = x["s"]["st"]
-                out = await snapshot(cycle, ele, cargo, concurrency, only_muns=changed)
-                last_idg = br["idg"]
-                print(f"{out.name}: national {br['s']['pst']}% sections, {len(changed)} munis changed", flush=True)
-                if br.get("tf") == "s":
-                    print("totalização finalizada; stopping", flush=True)
-                    return
+                    (out / x / "ab.json").write_bytes(raw)
+                    for a in json.loads(raw)["abr"]:
+                        if a["tpabr"] == "mun" and last_st.get((x, a["cdabr"])) != a["s"]["st"]:
+                            last_st[(x, a["cdabr"])] = a["s"]["st"]
+                            muns.append((x, a["cdabr"]))
+                bodies = await asyncio.gather(*(get(u["u"](x, mun)) for x, mun in muns))
+                for (x, mun), body in zip(muns, bodies):
+                    if body is not None:
+                        (out / x / f"{mun}.json").write_bytes(body)
+                br = json.loads(raws["br"]) if raws.get("br") else {}
+                print(f"{stamp}: {len(state_ufs)} UFs changed, {len(muns)} munis; national "
+                      f"{br.get('s', {}).get('pst', '?')}% sections", flush=True)
+            br = json.loads(raws["br"]) if raws.get("br") else {}
+            if br.get("tf") == "s" and not changed_ufs:
+                print("totalização finalizada and no state changes; stopping", flush=True)
+                return
             await asyncio.sleep(interval)
 
 

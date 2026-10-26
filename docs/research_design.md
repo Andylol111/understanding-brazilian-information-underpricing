@@ -213,6 +213,38 @@ Verification status:
   municipality until 19:56. A claim about a call "at 3% in Amapá" can't be checked from the
   archived data yet.
 
+### Third-party captures of the TSE feed (Wayback Machine, `data/raw/wayback/`)
+
+What was recorded during the counts, by someone other than us:
+
+| round | mid-count captures | content |
+|---|---|---|
+| R1 (6257) | 17:26 BRT (1.70% of sections): national + all 27 state files + abroad; 21:43 BRT (99.57%) national | the only mid-count state cross-section found |
+| R1 national file | the other 16 captures are pre-count (zeros) or ≥ 99.9% counted | no usable national path |
+| R2 (6258) | national only, at 21:55 BRT (near-final) | no mid-count state or municipal data |
+
+One snapshot cannot calibrate a bias-vs-%-counted curve. What it does show is *where* the early error
+comes from. At 17:26 BRT on R1:
+
+| view | Lula | vs final 45.16 |
+|---|---|---|
+| national file (includes abroad: 58% counted, Lula 52.8%) | 42.19 | −3.0 pt |
+| domestic, pooled across states | 40.90 | −4.3 pt |
+| early state mix evaluated at each state's *final* share | — | −4.95 pt (composition) |
+| within-state deviation, early vs final, weighted by counted votes | — | +0.7 pt |
+| state-weighted projection (each state's partial share × its electorate) | 43.49 | −1.7 pt |
+
+The early national number is wrong mainly because of **which states report first** (Paraná, DF,
+Tocantins, Rondônia: Bolsonaro-leaning, high early %), not because early ballots within a state
+differ from that state's final result. Re-weighting state partials by state size removes ~40% of the
+gap at 1.7% counted even with no model; the remainder comes from states with ~0.04% counted (SP, RJ)
+whose partial shares are noise and need shrinking toward a prior. So the projection should be built
+from **state files**, which are also published first: in this cross-section state files carry
+timestamps 17:25:14–17:26:24 BRT, the national aggregate 17:26:29 (up to 75 s later).
+
+`brunder tse-watch` now polls the national and all state files every interval and snapshots whenever
+*any* state changes (it previously waited for the national file).
+
 ## Election-market track record — exploratory (Oct 2026)
 
 > Historical record of the exploration that motivated `prereg/shock_depth_v1.toml`. The scripts
