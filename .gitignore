@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+# data is reproducible from the CLI except data/raw/tse_live (ephemeral upstream) — back that up separately
+data/
+results/
+logs/

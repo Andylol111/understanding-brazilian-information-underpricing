@@ -1,0 +1,24 @@
+id = "shock_depth_v1"
+kind = "shock_drift"
+hypothesis = """
+Large one-hour price moves are information that is under-weighted when the market had real
+depth before the move (the price keeps moving toward the outcome: continuation), and noise that
+over-shoots when the market was thin (the move reverts: reversal).
+"""
+origin = """
+Parameters come from the October 2026 election-market analysis (Brazil runoff + all Polymarket
+election markets). That analysis saw election markets from every period, so the ELECTIONS holdout
+is not a clean out-of-sample test; every other category is.
+"""
+categories = "all"
+
+[params]
+threshold = 0.10          # |p_t − p_{t−1h}| that defines a shock
+depth_split_usd = 10000   # taker $ in the 7 days before the shock: deep ≥, thin <
+depth_window = "7D"
+half_spread = 0.01        # paid on entry, on top of each market's taker fee
+
+[primary]
+tests = ["deep_continuation", "thin_reversal"]   # per category
+alpha = 0.05
+correction = "holm"       # across all categories × tests in this spec

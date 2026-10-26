@@ -1,0 +1,19 @@
+id = "favourite_tilt_v1"
+kind = "favourite_tilt"
+hypothesis = """
+Close to the scheduled information time, prices are not extreme enough: the more a side is
+favoured, the more it beats its price (excess return y − p rises with p − ½). A positive slope
+means available information is under-weighted; a negative slope is the classic
+favourite–longshot bias (long shots over-priced).
+"""
+origin = "Specified before any run on the cross-category universe."
+categories = "all"
+
+[params]
+horizons = ["1d", "6h", "1h"]   # observations at E − h, one per market per horizon
+half_spread = 0.01
+
+[primary]
+tests = ["favourite_slope"]
+alpha = 0.05
+correction = "holm"

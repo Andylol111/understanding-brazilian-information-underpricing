@@ -1,0 +1,20 @@
+id = "late_certainty_v1"
+kind = "late_certainty"
+hypothesis = """
+Shortly before the scheduled information time, a side priced 80–97¢ is under-priced: buying it
+returns more than its all-in cost (price + half-spread + taker fee). This is the most directly
+tradable form of "the outcome is mostly known but the price has not caught up".
+"""
+origin = "Specified before any run on the cross-category universe."
+categories = "all"
+
+[params]
+horizons = ["6h", "1h"]   # first qualifying horizon per market, in this order
+lead_lo = 0.80
+lead_hi = 0.97
+half_spread = 0.01
+
+[primary]
+tests = ["net_return"]
+alpha = 0.05
+correction = "holm"
