@@ -23,6 +23,7 @@ Does Polymarket under-price public information? Three parts:
 Headline results so far: thin-market shocks revert in 6 of 10 categories (holdout, Holm-corrected);
 mentions markets under-price favourites; election-night replays are development or pre-specified
 (outcomes known), not yet a forward test. Figures are in [docs/figures](docs/figures).
+
 ## Setup
 
 ```sh
