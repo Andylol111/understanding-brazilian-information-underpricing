@@ -249,6 +249,57 @@ timestamps 17:25:14–17:26:24 BRT, the national aggregate 17:26:29 (up to 75 s 
 `brunder tse-watch` now polls the national and all state files every interval and snapshots whenever
 *any* state changes (it previously waited for the national file).
 
+### State-level nowcast on the archived R1 cross-section (`brunder.statecast`)
+
+Prior per state = Lula's 2022 R1 share, expected votes = 2022 R1 valid votes (both known ex ante);
+each state's swing shrinks toward the pooled domestic swing with κ = 200,000 counted votes (set
+before running). At 17:26 BRT, 1.70% of sections counted:
+
+| method | projected Lula R1 share | error vs final 45.16 |
+|---|---|---|
+| national file (raw) | 42.19 | −2.97 pt |
+| state partials weighted by size | 43.49 | −1.67 pt |
+| **state nowcast (κ = 200k)** | **45.44 ± 1.17** | **+0.28 pt** |
+| sensitivity: κ = 0 / 50k / ∞ | 43.64 / 45.18 / 45.70 | −1.52 / +0.02 / +0.54 |
+
+A public, ex-ante method applied to the state files would have been within 0.3 pt of the final
+first-round result at 1.7% counted, against a 3-pt error in the raw national number. This is one
+snapshot: it shows the information was in the state files, not how the error evolves through the
+count. The runoff has no archived state path, so the same model cannot yet be run on count night.
+
+## H1 — between rounds: vote-transfer projection (`brunder.transfer`, `analysis/transfer_backtest.py`)
+
+Runoff two-party share per municipality = α·(PT R1 share) + β·(opponent R1 share) + θ·(others' R1
+share), fitted by bounded weighted ecological regression; applied out of sample (transfers from
+cycle c project cycle c + 4 from its first round only).
+
+| target | proportional split | transfers from previous cycle | actual | in-sample fit |
+|---|---|---|---|---|
+| 2018 (Haddad) | 38.08 (−6.8) | 39.78 (−5.1, 2014 transfers) | 44.87 | 44.92 |
+| 2022 (Lula) | 52.67 (+1.8) | 53.74 (+2.8, 2018 transfers) | 50.90 | 51.09 |
+| **2026 (Lula)** | **48.76 (−3.0)** | **47.64 (−4.1, 2022 transfers)** | **51.79** | 51.50 |
+
+In-sample θ (others → PT): 2014 0.43, 2018 0.63, 2022 0.32, **2026 0.69**. Eliminated
+candidates' voters broke for Lula far more than in 2022, which no first-round-night projection
+based on past transfers could know.
+
+Implied P(Lula) on first-round night: 0.12–0.28 (transfers) or 0.27–0.38 (proportional) for a
+national error σ of 2–4.1 pt (4.1 = out-of-sample RMS of 2018 and 2022: two cycles). Polymarket
+traded Lula at 0.10–0.25 between rounds. Polls published 18–20 Oct were split but leaned Flávio
+(Datafolha 51–49, PoderData 52–48, RealTime Big Data 52–48 for Flávio; Vox Brasil 51–49 for Lula; as
+reported by UOL, CNN Brasil, Portal 6). **H1 is not supported:** between rounds the market was in line with what public first-round
+data and polls implied. The under-weighting in this election is a count-night phenomenon.
+
+## Count-night section: what the paper can claim now
+
+[removed: figure derived from unlicensed third-party data]
+[removed: figure derived from unlicensed third-party data]
+[removed: figure derived from unlicensed third-party data]
+2. The raw count was predictably biased by which states report first; a state-level nowcast built
+   from public state files and ex-ante priors removes that bias (R1 test: −2.97 → +0.28 pt).
+3. Whether that model called the runoff earlier than the market needs the runoff state files over
+   time. Requests: [data_requests.md](data_requests.md).
+
 ## Election-market track record — exploratory (Oct 2026)
 
 > Historical record of the exploration that motivated `prereg/shock_depth_v1.toml`. The scripts
