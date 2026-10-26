@@ -168,67 +168,89 @@ async def run(spec_path, interval: float = 120.0) -> None:
     horizons = {h: pd.Timedelta(h) for h in P["horizons"]}
     signaled = {(s["kind"], s["condition_id"]) for s in _read(LIVE / "signals.jsonl")}
     checked = {(c["condition_id"], c["horizon"]) for c in _read(LIVE / "checks.jsonl")}
-    hist: dict[str, deque] = {}
+    hist: dict[str, deque] = _recent_history()
     tracked: dict[str, Tracked] = {}
     last_disc = pd.Timestamp(0, tz="UTC")
     buffer = []
+
+    async def poll(client) -> None:
+        nonlocal tracked, last_disc, buffer
+        now = _now()
+        if now - last_disc >= REDISCOVER:
+            found = await discover(client, spec["categories"])
+            if found:                                   # an outage returns nothing: keep the old set
+                tracked = found
+                last_disc = now
+            print(f"{now:%m-%d %H:%M} tracking {len(tracked)} markets", flush=True)
+        books = await fetch_books(client, [m.yes_token for m in tracked.values()])
+        now = _now()
+        for cid, m in tracked.items():
+            book = books.get(m.yes_token)
+            if not book:
+                continue
+            tp = top(book)
+            buffer.append({"t": now, "condition_id": cid, **{k: tp[k] for k in ("best_bid", "bid_size", "best_ask", "ask_size", "last", "price")}})
+            p = tp["price"]
+            if not np.isfinite(p):
+                continue
+            h = hist.setdefault(cid, deque())
+            h.append((now, p))
+            while h and now - h[0][0] > pd.Timedelta("2h"):
+                h.popleft()
+            # late certainty
+            if ("late", cid) not in signaled:
+                for name, hz in horizons.items():
+                    if (cid, name) in checked or not (m.scheduled - hz <= now < m.scheduled - hz + GRACE):
+                        continue
+                    lead = max(p, 1 - p)
+                    ok = P["lead_lo"] <= lead <= P["lead_hi"]
+                    checked.add((cid, name))
+                    _append(LIVE / "checks.jsonl", {"condition_id": cid, "horizon": name, "t": now, "price": p, "qualified": ok})
+                    if ok:
+                        signaled.add(("late", cid))
+                        await _record(client, spec, "late", m, book, tp, p >= 0.5, {"horizon": name})
+                        break
+            # shock
+            if ("shock", cid) not in signaled and m.scheduled - pd.Timedelta("7D") <= now <= m.scheduled + pd.Timedelta("2D") \
+                    and 0.03 <= p <= 0.97:
+                past = [(t, v) for t, v in h if t <= now - pd.Timedelta("1h")]
+                if past and now - pd.Timedelta("1h") - past[-1][0] <= pd.Timedelta("10min"):
+                    move = p - past[-1][1]
+                    if abs(move) >= P["threshold"]:
+                        signaled.add(("shock", cid))
+                        try:
+                            fills, capped = await universe._trades_window(
+                                client, cid, int((now - pd.Timedelta(P["depth_window"])).timestamp()), int(now.timestamp()), 40)
+                            pre_vol = sum(float(x["size"]) * float(x["price"]) for x in fills)
+                        except RuntimeError:
+                            pre_vol, capped = np.nan, False
+                        thin = bool(pre_vol < P["depth_split_usd"]) if np.isfinite(pre_vol) else None
+                        side_yes = (move < 0) if thin else (move > 0)
+                        await _record(client, spec, "shock", m, book, tp, side_yes,
+                                      {"move": move, "pre_vol": pre_vol, "pre_vol_capped": capped, "thin": thin})
+        if len(buffer) >= 20_000:
+            _flush(buffer)
+            buffer = []
+
     async with _http.aclient() as client:
         while True:
-            now = _now()
-            if now - last_disc >= REDISCOVER:
-                tracked = await discover(client, spec["categories"])
-                last_disc = now
-                print(f"{now:%m-%d %H:%M} tracking {len(tracked)} markets", flush=True)
-            books = await fetch_books(client, [m.yes_token for m in tracked.values()])
-            now = _now()
-            for cid, m in tracked.items():
-                book = books.get(m.yes_token)
-                if not book:
-                    continue
-                tp = top(book)
-                buffer.append({"t": now, "condition_id": cid, **{k: tp[k] for k in ("best_bid", "bid_size", "best_ask", "ask_size", "last", "price")}})
-                p = tp["price"]
-                if not np.isfinite(p):
-                    continue
-                h = hist.setdefault(cid, deque())
-                h.append((now, p))
-                while h and now - h[0][0] > pd.Timedelta("2h"):
-                    h.popleft()
-                # late certainty
-                if ("late", cid) not in signaled:
-                    for name, hz in horizons.items():
-                        if (cid, name) in checked or not (m.scheduled - hz <= now < m.scheduled - hz + GRACE):
-                            continue
-                        lead = max(p, 1 - p)
-                        ok = P["lead_lo"] <= lead <= P["lead_hi"]
-                        checked.add((cid, name))
-                        _append(LIVE / "checks.jsonl", {"condition_id": cid, "horizon": name, "t": now, "price": p, "qualified": ok})
-                        if ok:
-                            signaled.add(("late", cid))
-                            await _record(client, spec, "late", m, book, tp, p >= 0.5, {"horizon": name})
-                            break
-                # shock
-                if ("shock", cid) not in signaled and m.scheduled - pd.Timedelta("7D") <= now <= m.scheduled + pd.Timedelta("2D") \
-                        and 0.03 <= p <= 0.97:
-                    past = [(t, v) for t, v in h if t <= now - pd.Timedelta("1h")]
-                    if past and now - pd.Timedelta("1h") - past[-1][0] <= pd.Timedelta("10min"):
-                        move = p - past[-1][1]
-                        if abs(move) >= P["threshold"]:
-                            signaled.add(("shock", cid))
-                            try:
-                                fills, capped = await universe._trades_window(
-                                    client, cid, int((now - pd.Timedelta(P["depth_window"])).timestamp()), int(now.timestamp()), 40)
-                                pre_vol = sum(float(x["size"]) * float(x["price"]) for x in fills)
-                            except RuntimeError:
-                                pre_vol, capped = np.nan, False
-                            thin = bool(pre_vol < P["depth_split_usd"]) if np.isfinite(pre_vol) else None
-                            side_yes = (move < 0) if thin else (move > 0)
-                            await _record(client, spec, "shock", m, book, tp, side_yes,
-                                          {"move": move, "pre_vol": pre_vol, "pre_vol_capped": capped, "thin": thin})
-            if len(buffer) >= 20_000:
-                _flush(buffer)
-                buffer = []
-            await asyncio.sleep(max(0.0, interval - (_now() - now).total_seconds()))
+            start = _now()
+            try:
+                await poll(client)
+            except Exception as e:                      # a 12-week recording must not die on one bad poll
+                print(f"{start:%m-%d %H:%M} poll error, continuing: {type(e).__name__}: {e}", flush=True)
+            await asyncio.sleep(max(0.0, interval - (_now() - start).total_seconds()))
+
+
+def _recent_history(window: pd.Timedelta = pd.Timedelta("2h")) -> dict[str, deque]:
+    """Rebuild the last `window` of prices from flushed top-of-book files, so a restart does not
+    blind the shock detector for an hour."""
+    files = sorted((LIVE / "tops").glob("*/*.parquet"))[-6:]
+    if not files:
+        return {}
+    d = pd.concat(pd.read_parquet(f, columns=["t", "condition_id", "price"]) for f in files)
+    d = d[(d["t"] >= _now() - window) & np.isfinite(d["price"])].sort_values("t")
+    return {cid: deque(zip(g["t"], g["price"])) for cid, g in d.groupby("condition_id")}
 
 
 def _flush(rows: list[dict]) -> None:
