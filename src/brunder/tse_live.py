@@ -130,50 +130,75 @@ async def watch(cycle: str, ele: int, cargo: int = 1, interval: float = 30.0, co
     last_idg: dict[str, str] = {}
     last_st: dict[tuple[str, str], str] = {}
     sem = asyncio.Semaphore(concurrency)
+    FAILED = object()
 
     async def get(url):
+        """Body, None on 404, or FAILED on any network/HTTP error (retried next poll)."""
         async with sem:
-            return await _http.aget_bytes(client, url)
+            try:
+                return await _http.aget_bytes(client, url)
+            except (httpx.HTTPError, OSError) as e:
+                print(f"  fetch failed, will retry next poll: {url.rsplit('/', 1)[-1]} ({type(e).__name__})", flush=True)
+                return FAILED
+
+    pending: dict[tuple[str, str], str] = {}        # (uf, mun) → counted-sections value still to save
+
+    async def poll(cm_raw: bytes, ufs: list[str]) -> bool:
+        """One poll. Returns True when the count is final, nothing changed and nothing is pending."""
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")   # unique even for sub-second polls
+        out = _snapshot_dir(cycle, ele, cargo) / stamp
+        units = ["br", *ufs]
+        raws = dict(zip(units, await asyncio.gather(*(get(u["u"](x)) for x in units))))
+        ok = {x: r for x, r in raws.items() if r is not FAILED and r is not None}
+        changed_ufs = [x for x, raw in ok.items() if json.loads(raw)["idg"] != last_idg.get(x)]
+        if changed_ufs or pending:
+            out.mkdir(parents=True, exist_ok=True)
+            (out / "cm.json").write_bytes(cm_raw)
+        for x in changed_ufs:
+            (out / x).mkdir(exist_ok=True)
+            (out / x / "u.json").write_bytes(ok[x])
+        if "br" in changed_ufs:
+            last_idg["br"] = json.loads(ok["br"])["idg"]
+        state_ufs = [x for x in changed_ufs if x != "br"]
+        abs_ = dict(zip(state_ufs, await asyncio.gather(*(get(u["ab"](x)) for x in state_ufs))))
+        for x, raw in abs_.items():
+            if raw is FAILED or raw is None:
+                continue                          # last_idg[x] not advanced → whole UF re-polled next time
+            (out / x / "ab.json").write_bytes(raw)
+            last_idg[x] = json.loads(ok[x])["idg"]
+            for a in json.loads(raw)["abr"]:
+                if a["tpabr"] == "mun" and last_st.get((x, a["cdabr"])) != a["s"]["st"]:
+                    pending[(x, a["cdabr"])] = a["s"]["st"]
+        muns = list(pending.items())
+        bodies = await asyncio.gather(*(get(u["u"](x, mun)) for (x, mun), _ in muns))
+        for ((x, mun), st), body in zip(muns, bodies):
+            if body is FAILED:
+                continue                          # stays pending → retried next poll
+            del pending[(x, mun)]
+            last_st[(x, mun)] = st
+            if body is not None:
+                (out / x).mkdir(parents=True, exist_ok=True)
+                (out / x / f"{mun}.json").write_bytes(body)
+        br = json.loads(ok["br"]) if "br" in ok else {}
+        if changed_ufs or muns:
+            print(f"{stamp}: {len(state_ufs)} UFs changed, {len(muns) - len(pending)} munis saved, "
+                  f"{len(pending)} pending; national {br.get('s', {}).get('pst', '?')}% sections", flush=True)
+        return br.get("tf") == "s" and not changed_ufs and not pending
 
     async with _http.aclient() as client:
-        cm_raw = await _http.aget_bytes(client, u["cm"])
-        cm = json.loads(cm_raw)
-        ufs = [a["cd"].lower() for a in cm["abr"]]
+        cm_raw = None
+        while cm_raw is None or cm_raw is FAILED:
+            cm_raw = await get(u["cm"])
+            if cm_raw is None or cm_raw is FAILED:
+                await asyncio.sleep(interval)
+        ufs = [a["cd"].lower() for a in json.loads(cm_raw)["abr"]]
         while True:
-            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-            units = ["br", *ufs]
-            raws = dict(zip(units, await asyncio.gather(*(get(u["u"](x)) for x in units))))
-            changed_ufs = [x for x, raw in raws.items() if raw and json.loads(raw)["idg"] != last_idg.get(x)]
-            if changed_ufs:
-                out = _snapshot_dir(cycle, ele, cargo) / stamp
-                out.mkdir(parents=True, exist_ok=True)
-                (out / "cm.json").write_bytes(cm_raw)
-                for x in changed_ufs:
-                    (out / x).mkdir(exist_ok=True)
-                    (out / x / "u.json").write_bytes(raws[x])
-                    last_idg[x] = json.loads(raws[x])["idg"]
-                state_ufs = [x for x in changed_ufs if x != "br"]
-                abs_ = dict(zip(state_ufs, await asyncio.gather(*(get(u["ab"](x)) for x in state_ufs))))
-                muns = []
-                for x, raw in abs_.items():
-                    if raw is None:
-                        continue
-                    (out / x / "ab.json").write_bytes(raw)
-                    for a in json.loads(raw)["abr"]:
-                        if a["tpabr"] == "mun" and last_st.get((x, a["cdabr"])) != a["s"]["st"]:
-                            last_st[(x, a["cdabr"])] = a["s"]["st"]
-                            muns.append((x, a["cdabr"]))
-                bodies = await asyncio.gather(*(get(u["u"](x, mun)) for x, mun in muns))
-                for (x, mun), body in zip(muns, bodies):
-                    if body is not None:
-                        (out / x / f"{mun}.json").write_bytes(body)
-                br = json.loads(raws["br"]) if raws.get("br") else {}
-                print(f"{stamp}: {len(state_ufs)} UFs changed, {len(muns)} munis; national "
-                      f"{br.get('s', {}).get('pst', '?')}% sections", flush=True)
-            br = json.loads(raws["br"]) if raws.get("br") else {}
-            if br.get("tf") == "s" and not changed_ufs:
-                print("totalização finalizada and no state changes; stopping", flush=True)
-                return
+            try:
+                if await poll(cm_raw, ufs):
+                    print("totalização finalizada and no state changes; stopping", flush=True)
+                    return
+            except Exception as e:                # never let one bad poll end a once-only recording
+                print(f"poll error, continuing: {type(e).__name__}: {e}", flush=True)
             await asyncio.sleep(interval)
 
 

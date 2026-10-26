@@ -231,14 +231,18 @@ comes from. At 17:26 BRT on R1:
 | national file (includes abroad: 58% counted, Lula 52.8%) | 42.19 | −3.0 pt |
 | domestic, pooled across states | 40.90 | −4.3 pt |
 | early state mix evaluated at each state's *final* share | — | −4.95 pt (composition) |
-| within-state deviation, early vs final, weighted by counted votes | — | +0.7 pt |
+| within-state deviation, early vs final: mean (weighted by counted votes) | — | +0.7 pt |
+| within-state deviation: spread across the 26 states with counts | — | weighted sd 3.5 pt, unweighted sd 6.7 pt, range −11.1 (RJ) to +21.5 (RR) |
 | state-weighted projection (each state's partial share × its electorate) | 43.49 | −1.7 pt |
 
-The early national number is wrong mainly because of **which states report first** (Paraná, DF,
-Tocantins, Rondônia: Bolsonaro-leaning, high early %), not because early ballots within a state
-differ from that state's final result. Re-weighting state partials by state size removes ~40% of the
-gap at 1.7% counted even with no model; the remainder comes from states with ~0.04% counted (SP, RJ)
-whose partial shares are noise and need shrinking toward a prior. So the projection should be built
+The systematic part of the early national error is **which states report first** (Paraná, DF,
+Tocantins, Rondônia: Bolsonaro-leaning, high early %): composition alone is −4.95 pt. Within states
+the early-vs-final deviation averages out (+0.7 pt) but is large state by state: sd 3.4 pt even
+among the 9 states with ≥ 2% counted (PB +4.5, RO +6.4, MT +5.5, AM −3.8), and wilder below 2%. That
+dispersion is the state-level variance term the model needs (σ_state ≈ 3.5 pt at 1–12% counted, from
+one cross-section). Re-weighting state partials by state size removes ~40% of the national gap at
+1.7% counted even with no model; the remainder comes from states with ~0.04% counted (SP, RJ) whose
+partial shares are noise and need shrinking toward a prior. So the projection should be built
 from **state files**, which are also published first: in this cross-section state files carry
 timestamps 17:25:14–17:26:24 BRT, the national aggregate 17:26:29 (up to 75 s later).
 
