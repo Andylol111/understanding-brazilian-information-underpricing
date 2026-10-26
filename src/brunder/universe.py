@@ -34,12 +34,12 @@ DIR = RAW / "universe"
 
 PRIORITY: list[tuple[str, tuple[str, ...]]] = [
     ("elections", ("elections", "global-elections", "world-elections")),
+    ("mentions", ("mention-markets",)),       # "what will X say": usually also tagged politics / culture
     ("geopolitics", ("geopolitics",)),
     ("politics", ("politics",)),
     ("economy", ("economy", "finance")),
     ("crypto", ("crypto",)),
     ("weather", ("weather",)),
-    ("mentions", ("mentions",)),
     ("tech-science", ("tech", "science", "ai")),
     ("business", ("business",)),
     ("sports", ("sports",)),

@@ -21,7 +21,7 @@ resolution happened.
 
 1. **Universe sampled ex ante.** For each category and ISO week (2024-01 → now), every closed event
    ending that week is listed; each event gets one primary category from its own tags by a fixed
-   priority (elections > geopolitics > politics > economy > crypto > weather > mentions >
+   priority (elections > mentions > geopolitics > politics > economy > crypto > weather >
    tech-science > business > sports > culture); up to 12 events per category-week are drawn by a
    seed derived from (category, week), and up to 20 resolved binary markets per event. No volume
    filter: lifetime volume is only known after the fact.
