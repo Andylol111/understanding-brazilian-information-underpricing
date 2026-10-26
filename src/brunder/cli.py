@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import polymarket, registry, studies, tse_live, tse_open, universe, verify
+from . import live, polymarket, registry, studies, tse_live, tse_open, universe, verify
 from .paths import PROCESSED
 
 
@@ -66,6 +66,10 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--split", choices=["discovery", "holdout"], default="discovery")
     s.add_argument("--fills", action=argparse.BooleanOptionalAction, default=None,
                    help="check executability against trades (default: holdout only)")
+    s = sub.add_parser("live", help="forward test: record signals + order books live; status; final verdict")
+    s.add_argument("step", choices=["run", "status", "evaluate"])
+    s.add_argument("spec", type=Path)
+    s.add_argument("--interval", type=float, default=120.0, help="seconds between book polls")
 
     a = ap.parse_args(argv)
     pd.set_option("display.width", 200, "display.max_colwidth", 80, "display.max_rows", 200)
@@ -98,6 +102,14 @@ def main(argv: list[str] | None = None) -> None:
             print(registry.register(a.spec))
         case "study":
             print(studies.run(a.spec, a.split, a.fills))
+        case "live":
+            match a.step:
+                case "run":
+                    asyncio.run(live.run(a.spec, a.interval))
+                case "status":
+                    print(live.status(a.spec).to_string(index=False))
+                case "evaluate":
+                    print(live.evaluate(a.spec).round(4).to_string(index=False))
 
 
 if __name__ == "__main__":

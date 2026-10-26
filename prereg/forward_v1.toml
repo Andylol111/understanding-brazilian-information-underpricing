@@ -1,0 +1,35 @@
+id = "forward_v1"
+kind = "forward"
+hypothesis = """
+Live replication, recorded before outcomes exist, priced at the actual order book:
+(1) in mentions markets, buying the side priced 80–97¢ at E − 6h (else E − 1h) returns more than
+    its book-walk cost including taker fee, for a $100 stake;
+(2) in mentions and geopolitics, fading the first ≥10-pt one-hour move in a market that traded
+    < $10k of taker volume in the previous 7 days returns more than its book-walk cost.
+These are the cells that were positive net of costs in the 2026-04 → 2026-10 historical holdout
+(late_certainty_v1, shock_depth_v1). Other categories are recorded for description only.
+"""
+origin = "Registered 2026-10-26, after the first historical holdout look. Fresh events only."
+categories = ["mentions", "geopolitics", "politics", "economy", "tech-science"]
+
+[params]
+horizons = ["6h", "1h"]
+lead_lo = 0.80
+lead_hi = 0.97
+threshold = 0.10
+depth_split_usd = 10000
+depth_window = "7D"
+stakes_usd = [100, 500, 25]     # primary verdict uses the first
+
+[stop]
+# analysis/power.py: 1,796 resolved signals give 80% power for +2.1% per $ (one-sided α = 0.05);
+# mentions produces ~25 events/week × ~6 signals/event.
+test = "late_certainty"
+category = "mentions"
+min_resolved_signals = 1800
+deadline = "2027-02-28"         # verdict opens at whichever comes first; one look
+
+[primary]
+tests = ["late_certainty:mentions", "thin_fade:mentions", "thin_fade:geopolitics"]
+alpha = 0.05
+correction = "holm"

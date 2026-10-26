@@ -69,14 +69,20 @@ def register(path: Path, registry: Path = REGISTRY) -> dict:
     return rec
 
 
-def open_holdout(spec: dict, registry: Path = REGISTRY, runs: Path = RUNS) -> dict:
-    """Raise unless spec is registered unchanged; log the look and return its run record."""
+def assert_registered(spec: dict, registry: Path = REGISTRY) -> dict:
+    """Raise unless spec is committed, registered and unchanged. Does not count as a look."""
     _committed_clean(Path(spec["_path"]))
     reg = [r for r in _read(registry) if r["id"] == spec["id"]]
     if not reg:
         raise HoldoutLocked(f"{spec['id']} is not registered (brunder register {spec['_path']})")
     if reg[0]["sha256"] != spec["_sha256"]:
         raise HoldoutLocked(f"{spec['id']} changed since registration")
+    return reg[0]
+
+
+def open_holdout(spec: dict, registry: Path = REGISTRY, runs: Path = RUNS) -> dict:
+    """Raise unless spec is registered unchanged; log the look and return its run record."""
+    assert_registered(spec, registry)
     look = 1 + sum(r["id"] == spec["id"] for r in _read(runs))
     rec = {"id": spec["id"], "sha256": spec["_sha256"], "look": look, "utc": datetime.now(timezone.utc).isoformat()}
     with runs.open("a") as f:
