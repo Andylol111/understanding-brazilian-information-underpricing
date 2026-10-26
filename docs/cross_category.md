@@ -75,7 +75,8 @@ so this study cannot separate the two explanations.
 ## Results
 
 Holdout = first and only look (`prereg/holdout_runs.jsonl`). Holm-adjusted within each spec.
-Figures: `results/studies/fig_<spec>.png`.
+Each figure shows every category's estimate with its event-cluster 95% CI: blue = discovery split,
+orange = holdout; filled = Holm-significant.
 
 ### Thin markets over-react (shock_depth_v1, thin_reversal)
 
@@ -98,6 +99,8 @@ price moves back toward the other side before resolution.
 ✓ = Holm-significant in that split. Every tested category has a negative holdout estimate; 6 of 10
 are significant after correction. This is the most robust finding in the program.
 
+![shock_depth_v1: drift after a shock by category, deep vs thin markets](figures/fig_shock_depth_v1.png)
+
 **Deep markets do not under-react** (deep_continuation): no category is significant in either
 split. Most deep cells hold 30–90 shocks, so they are under-powered. The Brazil-style "right
 direction, too slow" pattern is not a systematic, detectable property of deep markets here.
@@ -115,6 +118,9 @@ Mentions ("what will X say") is the one category that shows the same direction i
 favourites under-priced, 80–97¢ sides 6h/1h before the event returning +2.1% per $ net of spread
 and fee, and thin-market spikes reverting. All other favourite-tilt and late-certainty cells are
 not significant.
+
+![favourite_tilt_v1: favourite slope by category](figures/fig_favourite_tilt_v1.png)
+![late_certainty_v1: net return per dollar by category](figures/fig_late_certainty_v1.png)
 
 ### Executability: the edges are real in prices but very small in dollars
 

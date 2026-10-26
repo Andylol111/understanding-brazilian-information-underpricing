@@ -68,6 +68,13 @@ What development taught (all in-sample, all decided on this set):
 | Minas Gerais, Tocantins | 20, 10 | YES: −100%, −100% |
 | all 28 markets | median 0, mean 18 | 7 signals, 71% hit, +16.6% per $ (in-sample) |
 
+![First-round replay: model probability vs Polymarket price, national market](figures/r1_dev_national_replay.png)
+
+*First round, national market "Will Lula win the most votes in the first round?" (resolved NO: Flávio
+finished first). Red: the model's P(YES) at each minute from section receipts; black: Polymarket price;
+dotted (right axis): share of sections counted. Times UTC. Development set: settings were chosen on
+this night, so this is in-sample.*
+
 ## Pre-specified replay: 2026 runoff (`configs/night_r2_v1.toml`, registered)
 
 Settings frozen and registered (`prereg/registry.jsonl`, commit 0ab6748) on 2026-10-26, before the
