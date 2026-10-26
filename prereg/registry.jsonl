@@ -3,3 +3,9 @@
 {"id": "shock_depth_v1", "sha256": "e237ca3deb72dc3c31c59270f2dd9db9513fa95aa55f2e9c51430f8d94f0afe3", "commit": "28881e08959083d52891cfbf7a7bd30a033c2d77", "registered_utc": "2026-10-26T14:40:54.099716+00:00"}
 {"id": "forward_v1", "sha256": "83ed638ad80c3f2c9e1be0d0106bcb15b1972be851530bc3f2c8659cd40100db", "commit": "8e62964221459e2341fc899e654e56fb1493be3b", "registered_utc": "2026-10-26T17:38:37.149300+00:00"}
 {"id": "night_r2_v1", "sha256": "77a3ab8ba31a528f53c03158644099297b09c54e5acd161ea4f8ab5999c6b521", "commit": "0ab6748cb0b22875ca511d61dd9e1afdb96e3761", "registered_utc": "2026-10-26T20:06:52.421376+00:00"}
+{"id": "night_gov_r2_ac_v1", "sha256": "3cdc144c3d1963078c6305b6c120212b0d028dfc3110a43688a697b7dcb1a3ca", "commit": "259b127c25e8dd02cecf48146e348afa138e51dc", "registered_utc": "2026-10-26T20:31:27.715586+00:00"}
+{"id": "night_gov_r2_am_v1", "sha256": "51f0cc5caabbb6efb7381402a10fe8a4b10761aed435a4f07de039d151240a14", "commit": "259b127c25e8dd02cecf48146e348afa138e51dc", "registered_utc": "2026-10-26T20:31:29.107860+00:00"}
+{"id": "night_gov_r2_df_v1", "sha256": "3519511f791d1619958d9396ca061b5196d4405cdf2fc0d667051d0d26f6f0fd", "commit": "259b127c25e8dd02cecf48146e348afa138e51dc", "registered_utc": "2026-10-26T20:31:30.421711+00:00"}
+{"id": "night_gov_r2_es_v1", "sha256": "c14aa67b2ba0aa4589417d9db40f43255a1e03673ce35ee82a96593a9a8e062c", "commit": "259b127c25e8dd02cecf48146e348afa138e51dc", "registered_utc": "2026-10-26T20:31:31.763206+00:00"}
+{"id": "night_gov_r2_rn_v1", "sha256": "30ec7bb8ebf9f193382415a1f29cab83ac8ba90a62efcf842f11ea60cb84ea09", "commit": "259b127c25e8dd02cecf48146e348afa138e51dc", "registered_utc": "2026-10-26T20:31:33.121596+00:00"}
+{"id": "night_gov_r2_to_v1", "sha256": "69053b0f90bb62d365615594a3f83b75efe4aafbacf1683870ef45702745b8fb", "commit": "259b127c25e8dd02cecf48146e348afa138e51dc", "registered_utc": "2026-10-26T20:31:34.459978+00:00"}
