@@ -41,7 +41,7 @@ def municipal(year: int, r1: pd.DataFrame | None = None, r2: pd.DataFrame | None
     r1/r2 override the open-data source (2026 comes from the archived live feed)."""
     A, B = PAIRS[year]
     if r1 is None or r2 is None:
-        d = tse_open.president_by_municipality(year)
+        d = tse_open.votes_by_municipality(year)
         r1, r2 = d[d["round"] == 1], d[d["round"] == 2]
     g1 = r1.pivot_table(index=["uf", "cd_mun"], columns="cand_n", values="votes", aggfunc="sum", fill_value=0)
     T = g1.sum(axis=1)

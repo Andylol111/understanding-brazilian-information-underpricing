@@ -1,0 +1,36 @@
+# FROZEN, PRE-SPECIFIED REPLAY (outcome known; count path and prices not yet examined).
+# 2026 governor runoff, DF: same settings as night_r2_v1, chosen on the presidential first-round development set.
+id = "night_gov_r2_df_v1"
+
+[election]
+cycle = "ele2026"
+ele = 6260
+race = "share"
+cargo_name = "GOVERNADOR"
+uf = "df"
+cand_a = "11"           # first-round leader; market YES = this candidate wins
+cand_b = "13"
+
+[prior]                  # 2026 governor first round by municipality, same two candidates
+kind = "open"
+year = 2026
+round = 1
+
+[model]
+kind = "municipal"
+tau = 0.015
+
+[replay]
+year = 2026
+round = 2
+
+[trade]
+min_edge = 0.05
+min_counted = 0.01
+favoured_only = true
+half_spread = 0.01
+fee_rate = 0.0
+
+[markets.national]       # the whole race (the state)
+event = "federal-district-governor-election-winner"
+market = "will-celina-leao-win-the-2026-federal-district-gubernatorial-election"

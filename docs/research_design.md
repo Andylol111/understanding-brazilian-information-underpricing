@@ -51,7 +51,7 @@ Per municipality $i$, runoff share of Lula
 $$s^{(2)}_i = \frac{L_i + \sum_k \theta_k X_{ik}}{L_i + F_i + \sum_k X_{ik}}$$
 $L_i, F_i$ = 1st-round Lula / Flávio votes, $X_{ik}$ = votes of eliminated candidate $k$,
 $\theta_k$ = share of $k$'s voters transferring to Lula. Estimate $\theta$ by ecological
-regression on 2022 R1→R2 municipal data (`tse_open.president_by_municipality(2022)`), then
+regression on 2022 R1→R2 municipal data (`tse_open.votes_by_municipality(2022)`), then
 perturb with poll-reported transfer intentions; add turnout change per municipality.
 Aggregate to national and state win probabilities with the same variance structure as B.
 The naive prior `nowcast.prior_from_final(r1, cand_a="13", cand_b="22")` (θ = Lula's share of

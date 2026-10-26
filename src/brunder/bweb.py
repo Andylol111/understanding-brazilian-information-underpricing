@@ -59,15 +59,19 @@ def _download(url: str, dest: Path, tries: int = 8) -> Path:
     return dest
 
 
+OFFICES = ("PRESIDENTE", "GOVERNADOR")
+
+
 def _parse(zpath: Path) -> pd.DataFrame:
+    """Presidential and governor rows of one state's BU-web file."""
     frames = []
     with zipfile.ZipFile(zpath) as zf:
         for name in (n for n in zf.namelist() if n.lower().endswith(".csv")):
             with zf.open(name) as fh:
                 for ch in pd.read_csv(io.TextIOWrapper(fh, encoding="latin-1"), sep=";", usecols=COLS, dtype=str,
                                       chunksize=2_000_000):
-                    ch = ch[ch["DS_CARGO_PERGUNTA"].str.strip().str.upper() == "PRESIDENTE"]
-                    frames.append(ch.drop(columns="DS_CARGO_PERGUNTA"))
+                    ch = ch.assign(cargo=ch["DS_CARGO_PERGUNTA"].str.strip().str.upper())
+                    frames.append(ch[ch["cargo"].isin(OFFICES)].drop(columns="DS_CARGO_PERGUNTA"))
     d = pd.concat(frames, ignore_index=True)
     d["QT_VOTOS"] = pd.to_numeric(d["QT_VOTOS"])
     d["DT_BU_RECEBIDO"] = pd.to_datetime(d["DT_BU_RECEBIDO"])
@@ -94,9 +98,18 @@ def fetch(year: int, rnd: int) -> list[Path]:
     return out
 
 
-def sections(year: int, rnd: int, cand_a: str, cand_b: str | None = None) -> pd.DataFrame:
-    """One row per section: uf, received, valid votes, A votes, B votes (blank 95 / null 96 excluded)."""
-    d = pd.concat(pd.read_parquet(p) for p in sorted((DIR / f"{year}_{rnd}t").glob("*.parquet")))
+def sections(year: int, rnd: int, cand_a: str, cand_b: str | None = None, cargo: str = "PRESIDENTE",
+             uf: str | None = None) -> pd.DataFrame:
+    """One row per section for one office (and optionally one state): uf, received, valid votes,
+    A votes, B votes (blank 95 / null 96 excluded). Files parsed before governor rows were kept hold
+    presidential rows only and have no `cargo` column."""
+    files_ = sorted((DIR / f"{year}_{rnd}t").glob(f"{uf.upper()}.parquet" if uf else "*.parquet"))
+    d = pd.concat(pd.read_parquet(p) for p in files_)
+    if "cargo" not in d:
+        if cargo.upper() != "PRESIDENTE":
+            raise ValueError(f"{year} round {rnd} was parsed presidential-only; re-fetch for {cargo}")
+    else:
+        d = d[d["cargo"] == cargo.upper()]
     d = d[~d["cand_n"].isin(["95", "96"])]
     key = ["uf", "cd_mun", "zona", "secao"]
     g = d.groupby(key).agg(received=("received", "max"), valid=("votes", "sum"))

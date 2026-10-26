@@ -37,7 +37,7 @@ The TSE server rate-limits (429) at high concurrency; keep `--concurrency` ≤ 8
 | Module | Purpose |
 |---|---|
 | `brunder.tse_live` | live-feed archive / watch / parse (votes per unit, per-municipality completion time) |
-| `brunder.tse_open` | TSE open-data downloads; `president_by_municipality(year)` |
+| `brunder.tse_open` | TSE open-data downloads; `votes_by_municipality(year)` |
 | `brunder.polymarket` | Gamma events, CLOB price history + books, data-api trades |
 | `brunder.nowcast` | count-progress model → P(win), national or per state (`uf=`) |
 | `brunder.edge` | model-vs-market alignment, crossing delays, lead–lag, scores, cost-aware backtest, Kelly |

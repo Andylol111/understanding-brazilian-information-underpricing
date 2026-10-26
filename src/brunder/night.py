@@ -49,7 +49,7 @@ def prior(cfg: dict) -> pd.DataFrame:
     """uf, s0, V from a finished election. [prior] kind = "open" (year, round) or "live" (ele)."""
     P, E = cfg["prior"], cfg["election"]
     if P["kind"] == "open":
-        d = tse_open.president_by_municipality(P["year"])
+        d = tse_open.votes_by_municipality(P["year"])
         d = d[d["round"] == P["round"]]
     else:
         v = pd.read_parquet(PROCESSED / E["cycle"] / f"e{P['ele']}_c1" / "votes.parquet")
@@ -94,13 +94,18 @@ def replay_partials(sec: pd.DataFrame, t: pd.Timestamp, totals: pd.Series, cfg: 
 # between two candidates is the same as this share being above ½.
 
 def prior_mun(cfg: dict) -> pd.DataFrame:
+    """Per-municipality two-party prior. [election] cargo (default PRESIDENTE) and uf (a state race)
+    scope it; [prior] kind "open" reads certified results, "live" the archived presidential feed."""
     P, E = cfg["prior"], cfg["election"]
+    cargo = E.get("cargo_name", "PRESIDENTE")
     if P["kind"] == "open":
-        d = tse_open.president_by_municipality(P["year"])
+        d = tse_open.votes_by_municipality(P["year"], cargo)
         d = d[d["round"] == P["round"]]
     else:
         v = pd.read_parquet(PROCESSED / E["cycle"] / f"e{P['ele']}_c1" / "votes.parquet")
         d = v[v["level"] == "mu"]
+    if E.get("uf"):
+        d = d[d["uf"] == E["uf"].lower()]
     a, b = P.get("cand_a", E["cand_a"]), P.get("cand_b", E["cand_b"])
     g = d.pivot_table(index=["uf", "cd_mun"], columns="cand_n", values="votes", aggfunc="sum", fill_value=0)
     two = g[a] + g[b]
@@ -245,7 +250,7 @@ def replay(cfg_path: Path, lag: str = "0min", step: str = "1min", tz_offset: str
         pri, p = prior(cfg), params(cfg)
     if overrides:
         p = dataclasses.replace(p, **overrides)
-    raw = bweb.sections(R["year"], R["round"], E["cand_a"], E.get("cand_b"))
+    raw = bweb.sections(R["year"], R["round"], E["cand_a"], E.get("cand_b"), E.get("cargo_name", "PRESIDENTE"), E.get("uf"))
     raw["visible"] = (raw["received"] + pd.Timedelta(tz_offset) + pd.Timedelta(lag)).dt.tz_localize("UTC")
     if municipal:                                   # two-party share A / (A + B), win if > ½
         raw["n"] = raw["a"] + raw["b"]

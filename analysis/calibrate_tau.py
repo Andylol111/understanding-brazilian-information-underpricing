@@ -74,7 +74,7 @@ def main() -> None:
     comp = lambda prog: prog[prog["level"] == "mun"][["uf", "cd_mun", "last_update_utc"]].dropna()
 
     # R1: prior from 2022 R1, Lula / all valid
-    y22 = tse_open.president_by_municipality(2022)
+    y22 = tse_open.votes_by_municipality(2022)
     prior1 = nowcast.prior_from_final(y22[y22["round"] == 1], LULA)
     final1 = nowcast.state_from_votes(r1_votes, LULA)
     res1 = evaluate("R1", final1, comp(r1_prog), prior1, pd.Timestamp("2026-10-04 20:00", tz="UTC"),

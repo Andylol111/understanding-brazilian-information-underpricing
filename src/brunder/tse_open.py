@@ -46,8 +46,8 @@ def download(dataset: str, year: int, force: bool = False) -> Path:
 _KEYS = ["NR_TURNO", "SG_UF", "CD_MUNICIPIO", "NM_MUNICIPIO", "NR_CANDIDATO", "NM_URNA_CANDIDATO"]
 
 
-def _president_rows(zf: zipfile.ZipFile, name: str) -> pd.DataFrame:
-    """Stream one CSV in chunks, keeping only presidential rows (files cover every office)."""
+def _office_rows(zf: zipfile.ZipFile, name: str, cargo: str) -> pd.DataFrame:
+    """Stream one CSV in chunks, keeping only rows for one office (files cover every office)."""
     with zf.open(name) as fh:
         header = pd.read_csv(io.TextIOWrapper(fh, encoding="latin-1"), sep=";", nrows=0).columns
     vcol = "QT_VOTOS_NOMINAIS_VALIDOS" if "QT_VOTOS_NOMINAIS_VALIDOS" in header else "QT_VOTOS_NOMINAIS"
@@ -55,26 +55,25 @@ def _president_rows(zf: zipfile.ZipFile, name: str) -> pd.DataFrame:
     with zf.open(name) as fh:
         for ch in pd.read_csv(io.TextIOWrapper(fh, encoding="latin-1"), sep=";", dtype=str,
                               usecols=[*_KEYS, "DS_CARGO", vcol], chunksize=1_000_000):
-            ch = ch[ch["DS_CARGO"].str.upper().str.strip() == "PRESIDENTE"]
+            ch = ch[ch["DS_CARGO"].str.upper().str.strip() == cargo]
             ch = ch.assign(votes=pd.to_numeric(ch[vcol]))
             frames.append(ch.groupby(_KEYS, as_index=False)["votes"].sum())
     return pd.concat(frames, ignore_index=True)
 
 
-def president_by_municipality(year: int) -> pd.DataFrame:
-    """Final presidential votes per municipality, both rounds, from votacao_candidato_munzona.
-
-    The zip ships per-UF CSVs plus a BRASIL file; use the BRASIL file when present to avoid
-    double counting, else concatenate UFs. Cached as parquet next to the zip.
-    """
-    cache = TSE_OPEN / f"president_by_municipality_{year}.parquet"
+def votes_by_municipality(year: int, cargo: str = "PRESIDENTE") -> pd.DataFrame:
+    """Final votes per municipality for one office (e.g. PRESIDENTE, GOVERNADOR), both rounds, from
+    votacao_candidato_munzona. The zip ships per-UF CSVs plus a BRASIL file; use the BRASIL file when
+    present to avoid double counting, else concatenate UFs. Cached as parquet next to the zip."""
+    cargo = cargo.upper()
+    cache = TSE_OPEN / f"{cargo.lower()}_by_municipality_{year}.parquet"
     if cache.exists():
         return pd.read_parquet(cache)
     zpath = download("votacao_candidato_munzona", year)
     with zipfile.ZipFile(zpath) as zf:
         csvs = [n for n in zf.namelist() if n.lower().endswith(".csv")]
         br = [n for n in csvs if "BRASIL" in n.upper()]
-        df = pd.concat([_president_rows(zf, n) for n in (br or csvs)], ignore_index=True)
+        df = pd.concat([_office_rows(zf, n, cargo) for n in (br or csvs)], ignore_index=True)
     out = (df.groupby(_KEYS, as_index=False)["votes"].sum()
              .rename(columns={"NR_TURNO": "round", "SG_UF": "uf", "CD_MUNICIPIO": "cd_mun",
                               "NM_MUNICIPIO": "mun_name", "NR_CANDIDATO": "cand_n",
