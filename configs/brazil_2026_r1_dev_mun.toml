@@ -1,5 +1,5 @@
 # 2026 first round, municipal model: Lula vs Flávio top-two share by municipality (win first place if > ½).
-# DEVELOPMENT set: parameters may be tuned here; the runoff replay is the held-out test.
+# DEVELOPMENT set: parameters may be tuned here; the runoff replay (night_r2_v1) is pre-specified, not blind.
 [election]
 cycle = "ele2026"
 ele = 6257

@@ -1,0 +1,10 @@
+# What each registration does and does not guarantee
+
+`registry.jsonl` is append-only and records hashes; this file records what was already known when each
+spec was registered, so readers can judge how out-of-sample each result is.
+
+| id | registered | already known at registration | what registration guarantees |
+|---|---|---|---|
+| shock_depth_v1, favourite_tilt_v1, late_certainty_v1 | 2026-10-26, before any run on the cross-category universe | election markets of every period (from the earlier exploration) — the **elections** holdout is not clean | parameters fixed before any discovery or holdout run on the other 10 categories |
+| forward_v1 | 2026-10-26, before recording started | nothing about the recorded signals (they are recorded live, before outcomes exist) | a genuine forward test; one look, after the stopping rule |
+| night_r2_v1 | 2026-10-26, after the runoff, before its BU-web files were published | runoff outcome, all 27 state winners and totals, market prices, Poliwave's national raw-count path, an earlier reconstructed runoff nowcast | model, τ and trading rules cannot be retuned on the section-level timing. **Not a blind holdout.** Its config header calls it a "frozen test", which is accurate in that sense only; the header cannot be edited without breaking its registered hash. |

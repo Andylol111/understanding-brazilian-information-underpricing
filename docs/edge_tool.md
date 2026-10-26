@@ -68,21 +68,31 @@ What development taught (all in-sample, all decided on this set):
 | Minas Gerais, Tocantins | 20, 10 | YES: −100%, −100% |
 | all 28 markets | median 0, mean 18 | 7 signals, 71% hit, +16.6% per $ (in-sample) |
 
-## Held-out test: 2026 runoff (`configs/night_r2_v1.toml`, registered)
+## Pre-specified replay: 2026 runoff (`configs/night_r2_v1.toml`, registered)
 
-Frozen and registered (`prereg/registry.jsonl`, commit 0ab6748) on 2026-10-26, before the runoff
-BU-web files were published. Primary results: (1) national lead in minutes; (2) mean net return per $
-of gated, favoured-side signals across 28 markets (fees 0 on these markets, 1¢ half-spread).
-`brunder bweb 2026 2 --wait` downloads the files when TSE publishes them; then
-`uv run python analysis/night_replay.py configs/night_r2_v1.toml` runs the test once and logs the look.
+Settings frozen and registered (`prereg/registry.jsonl`, commit 0ab6748) on 2026-10-26, before the
+runoff BU-web files were published. **This is not a blind holdout.** When it was registered we already
+knew the runoff outcome, all 27 state winners and final totals, the market's price path, Poliwave's
+national raw-count path, and an earlier reconstructed runoff nowcast. The only input not yet seen is
+the section-level receipt timing. What registration guarantees is that the model, τ and trading rules
+cannot be retuned on that timing; it does not make the runoff an out-of-sample test of the idea.
+
+Primary results: (1) national lead in minutes; (2) mean net return per $ of gated, favoured-side
+signals across 28 markets (fees 0 on these markets, 1¢ half-spread). `brunder bweb 2026 2 --wait`
+downloads the files when TSE publishes them; then
+`uv run python analysis/night_replay.py configs/night_r2_v1.toml` runs it once and logs the look.
+
+A genuine forward test needs the next election: a config registered before polls open, and the count
+recorded live (`brunder tse-watch`) with `brunder night live` logging model and market as it happens.
 
 ## Roadmap (project)
 
 | step | what | status |
 |---|---|---|
 | 1 | Replay 2026 R1 on official section data | done (development) |
-| 2 | Replay 2026 R2, frozen config | registered; waiting for TSE to publish |
+| 2 | Replay 2026 R2 with the frozen config (pre-specified, outcomes known) | registered; waiting for TSE to publish |
 | 3 | Live municipal mode (per-municipality files on the night; live mode is state-level today) | next |
 | 4 | Capacity: replay entries against archived trades; live book-walk at $25/$100/$500 | next |
 | 5 | Second feed adapter (another country with a public live-results feed and Polymarket markets) | later |
 | 6 | Write-up: paper (Brazil) + short post (method, replay chart, forward record) | after step 2 |
+| 7 | Forward test on the next election with live markets: config registered before polls open | when one is scheduled |
