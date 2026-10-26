@@ -19,13 +19,15 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from brunder import bweb, night
-from brunder.paths import ROOT
+from brunder import bweb, night, registry
 
 
 def main(cfg_path: str) -> None:
     pd.set_option("display.width", 220)
     cfg = night.load_config(Path(cfg_path))
+    if "id" in cfg:                       # a registered (frozen) test: refuse if edited, log the look
+        look = registry.open_holdout(registry.load_spec(Path(cfg_path)))
+        print(f"registered test {cfg['id']}, look #{look['look']}")
     E, R, T = cfg["election"], cfg["replay"], cfg.get("trade", {})
     out = ROOT / "results" / "night" / cfg["_id"]
     out.mkdir(parents=True, exist_ok=True)
