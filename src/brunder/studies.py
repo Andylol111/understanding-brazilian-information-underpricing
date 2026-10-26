@@ -215,6 +215,9 @@ def late_certainty(spec: dict, split: str) -> tuple[pd.DataFrame, dict[str, pd.D
     return pd.DataFrame(rows), {"signals": d}
 
 
+KINDS = {"shock_drift": shock_drift, "favourite_tilt": favourite_tilt, "late_certainty": late_certainty}
+
+
 # ------------------------------------------------------------------ runner
 
 def _entries(kind: str, sig: pd.DataFrame, half_spread: float) -> pd.DataFrame:
