@@ -23,7 +23,7 @@ from pathlib import Path
 import httpx
 import pandas as pd
 
-from . import _http
+from . import _http, feed
 from .paths import TSE_LIVE
 
 BASE = "https://resultados.tse.jus.br/oficial"
@@ -123,27 +123,35 @@ async def snapshot(cycle: str, ele: int, cargo: int = 1, concurrency: int = 8,
     return out
 
 
-async def watch(cycle: str, ele: int, cargo: int = 1, interval: float = 30.0, concurrency: int = 32):
+async def watch(cycle: str, ele: int, cargo: int = 1, interval: float = 10.0, concurrency: int = 16):
     """Poll during the count, state files first. Every `interval` seconds fetch the national and all
     27 UF (+ abroad) vote files; whenever any of them changed, write a snapshot dir with the changed
     UF files, their progress files, and the municipality files whose counted sections changed.
 
     State files are published before the national aggregate (2026 R1 cross-section: up to ~75 s
-    earlier), so triggering on the national file alone would record the count late."""
+    earlier), so triggering on the national file alone would record the count late. Every file is
+    read through feed.FastFeed (all CDN edges, newest copy, conditional requests), and each read's
+    staleness is logged to <snapshot root>_latency.jsonl (beside the snapshot dirs, not among them)."""
     u = _urls(cycle, ele, cargo)
     last_idg: dict[str, str] = {}
     last_st: dict[tuple[str, str], str] = {}
-    sem = asyncio.Semaphore(concurrency)
+    sem = asyncio.Semaphore(concurrency)            # files in flight; FastFeed's limiter sets the rate
     FAILED = object()
+    ab_edge: dict[str, str] = {}                    # uf → edge that served its newest progress file
 
-    async def get(url):
-        """Body, None on 404, or FAILED on any network/HTTP error (retried next poll)."""
+    async def get(url, unit="br", bulk=False):
+        """Body, None if the file does not exist, or FAILED if no edge served it (retried next poll).
+        Hot files fan out across edges; bulk (municipality) files are one request to the edge that
+        served the state's newest progress file."""
         async with sem:
             try:
-                return await _http.aget_bytes(client, url)
-            except (httpx.HTTPError, OSError) as e:
+                c = await (fast.get_one(url, unit, ab_edge.get(unit)) if bulk else fast.get(url, unit))
+            except (feed.FeedUnavailable, httpx.HTTPError, OSError) as e:
                 print(f"  fetch failed, will retry next poll: {url.rsplit('/', 1)[-1]} ({type(e).__name__})", flush=True)
                 return FAILED
+        if c is not None and url.endswith("-ab.json"):
+            ab_edge[unit] = c.edge
+        return None if c is None else c.body
 
     pending: dict[tuple[str, str], str] = {}        # (uf, mun) → counted-sections value still to save
 
@@ -152,7 +160,7 @@ async def watch(cycle: str, ele: int, cargo: int = 1, interval: float = 30.0, co
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")   # unique even for sub-second polls
         out = _snapshot_dir(cycle, ele, cargo) / stamp
         units = ["br", *ufs]
-        raws = dict(zip(units, await asyncio.gather(*(get(u["u"](x)) for x in units))))
+        raws = dict(zip(units, await asyncio.gather(*(get(u["u"](x), x) for x in units))))
         ok = {x: r for x, r in raws.items() if r is not FAILED and r is not None}
         changed_ufs = [x for x, raw in ok.items() if json.loads(raw)["idg"] != last_idg.get(x)]
         if changed_ufs or pending:
@@ -164,7 +172,7 @@ async def watch(cycle: str, ele: int, cargo: int = 1, interval: float = 30.0, co
         if "br" in changed_ufs:
             last_idg["br"] = json.loads(ok["br"])["idg"]
         state_ufs = [x for x in changed_ufs if x != "br"]
-        abs_ = dict(zip(state_ufs, await asyncio.gather(*(get(u["ab"](x)) for x in state_ufs))))
+        abs_ = dict(zip(state_ufs, await asyncio.gather(*(get(u["ab"](x), x) for x in state_ufs))))
         for x, raw in abs_.items():
             if raw is FAILED or raw is None:
                 continue                          # last_idg[x] not advanced → whole UF re-polled next time
@@ -174,7 +182,7 @@ async def watch(cycle: str, ele: int, cargo: int = 1, interval: float = 30.0, co
                 if a["tpabr"] == "mun" and last_st.get((x, a["cdabr"])) != a["s"]["st"]:
                     pending[(x, a["cdabr"])] = a["s"]["st"]
         muns = list(pending.items())
-        bodies = await asyncio.gather(*(get(u["u"](x, mun)) for (x, mun), _ in muns))
+        bodies = await asyncio.gather(*(get(u["u"](x, mun), x, bulk=True) for (x, mun), _ in muns))
         for ((x, mun), st), body in zip(muns, bodies):
             if body is FAILED:
                 continue                          # stays pending → retried next poll
@@ -189,7 +197,8 @@ async def watch(cycle: str, ele: int, cargo: int = 1, interval: float = 30.0, co
                   f"{len(pending)} pending; national {br.get('s', {}).get('pst', '?')}% sections", flush=True)
         return br.get("tf") == "s" and not changed_ufs and not pending
 
-    async with _http.aclient() as client:
+    root = _snapshot_dir(cycle, ele, cargo)
+    async with feed.FastFeed(fanout=1, log=root.with_name(f"{root.name}_latency.jsonl")) as fast:
         cm_raw = None
         while cm_raw is None or cm_raw is FAILED:
             cm_raw = await get(u["cm"])

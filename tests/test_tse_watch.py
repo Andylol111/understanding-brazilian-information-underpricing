@@ -3,7 +3,7 @@ import json
 
 import httpx
 
-from brunder import _http, tse_live
+from brunder import feed, tse_live
 
 BASE = "/oficial/ele2026/6258"
 
@@ -37,8 +37,9 @@ def _feed(fail_counts: dict[str, int]):
 def test_watch_survives_failures_and_retries_the_failed_municipality(tmp_path, monkeypatch):
     muni2 = f"{BASE}/dados/ac/ac00002-c0001-e006258-u.json"
     transport = httpx.MockTransport(_feed({muni2: 10}))          # fails every retry of the first poll
-    monkeypatch.setattr(_http, "aclient", lambda **kw: httpx.AsyncClient(transport=transport, base_url="https://x"))
-    monkeypatch.setattr(_http, "_delay", lambda r, attempt: 0)
+    real = feed.FastFeed
+    monkeypatch.setattr(feed, "FastFeed", lambda **kw: real(edges=["10.0.0.1"], transport=transport, **kw))
+    monkeypatch.setattr(feed, "_bench_s", lambda strikes: 0)
     monkeypatch.setattr(tse_live, "BASE", "https://x/oficial")
     monkeypatch.setattr(tse_live, "TSE_LIVE", tmp_path)
 

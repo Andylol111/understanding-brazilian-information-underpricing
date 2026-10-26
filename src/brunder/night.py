@@ -1,14 +1,18 @@
-"""Election-night edge engine: state-level nowcast vs Polymarket, live or replayed.
+"""Election-night edge engine: nowcast vs Polymarket, live or replayed.
 
 One engine, two clocks:
-  live    every `interval` s: TSE state files → statecast → order books (book-walk cost incl. fee)
-          → edge per market; logged to data/night/<config id>/ticks.jsonl. Paper only.
+  live    every `interval` s: TSE files via feed.FastFeed (every CDN edge, newest copy) → model →
+          order books (book-walk cost incl. fee) → edge per market; logged to
+          data/night/<config id>/ticks.jsonl, feed staleness to latency.jsonl. Paper only.
+          [model] kind "municipal" (default for new configs) re-reads only municipalities whose
+          counted-sections value changed in their state's progress file; otherwise state files.
   replay  a past count rebuilt from BU-web section receipts (bweb) plus a publication lag, and
           Polymarket price history (cost = price + half-spread + fee): the same ticks, evaluated
           against the resolved outcome — model-vs-market lead time and follow-the-model P&L.
 
 Config (configs/*.toml): [election] race "share" (runoff, win > ½) or "margin" (plurality, A − B > 0),
-cand_a / cand_b; [prior] where state priors come from; [model] statecast parameters;
+cand_a / cand_b, optional cargo_name / uf (a state race); [prior] where priors come from; [model]
+kind and parameters;
 [markets.national] / [markets.states.<uf>] Polymarket market slugs whose YES = "A wins";
 [trade] min_edge, stakes, half_spread (replay).
 """
@@ -25,8 +29,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import _http, bweb, live, nowcast, polymarket, statecast, tse_live, tse_open
+from . import _http, bweb, feed, live, nowcast, polymarket, statecast, tse_live, tse_open
 from .paths import DATA, POLYMARKET, PROCESSED
+CARGO_CODE = {"PRESIDENTE": 1, "GOVERNADOR": 3}      # office code in the live feed's file names (cNNNN)
 
 NIGHT = DATA / "night"
 
@@ -132,6 +137,62 @@ def model_probs_mun(partials: pd.DataFrame, pri: pd.DataFrame, p: nowcast.Params
     return probs
 
 
+class MunTracker:
+    """Live per-municipality partials (uf, cd_mun, n, a, f) for the municipal model.
+
+    Each update reads the scoped states' progress files (fanned out across edges) and re-reads only
+    the municipalities whose counted-sections value changed, one request each, to the edge that
+    served that state's newest progress file. A failed municipality read keeps its old value and is
+    retried on the next update (its last-seen counter is not advanced)."""
+
+    def __init__(self, cfg: dict, fast: feed.FastFeed, urls: dict):
+        self.E, self.fast, self.u = cfg["election"], fast, urls
+        self.seen: dict[tuple[str, str], str] = {}
+        self.rows: dict[tuple[str, str], dict] = {}
+        self.backlog = 0
+
+    def _row(self, d: dict, uf: str) -> dict | None:
+        v = tse_live.parse_u(d, uf)
+        if not v:
+            return None
+        by = {r["cand_n"]: r["votes"] for r in v}
+        a, b = by.get(self.E["cand_a"], 0), by.get(self.E.get("cand_b"), 0)
+        n = a + b if self.E["race"] == "share" else v[0]["votes_valid"]
+        ts = v[0]["sections_total"]
+        return {"uf": uf, "cd_mun": d["cdabr"], "n": float(n), "a": float(a),
+                "f": v[0]["sections_counted"] / ts if ts else 0.0}
+
+    async def _mun(self, uf: str, mun: str, st: str, edge: str) -> None:
+        try:
+            c = await self.fast.get_one(self.u["u"](uf, mun), uf, edge)
+        except feed.FeedUnavailable:
+            return
+        if c is not None and (row := self._row(json.loads(c.body), uf)) is not None:
+            self.rows[(uf, mun)] = row
+        self.seen[(uf, mun)] = st
+
+    async def update(self, ufs: list[str], budget: int | None = None) -> pd.DataFrame:
+        """Refresh changed municipalities. `budget` caps municipality reads this call: those with the
+        most newly counted sections go first; the rest stay unseen and are read on later calls."""
+        async def state(uf):
+            try:
+                c = await self.fast.get(self.u["ab"](uf), uf)
+            except feed.FeedUnavailable:
+                return []
+            if c is None:
+                return []
+            return [(uf, a["cdabr"], a["s"]["st"], c.edge) for a in json.loads(c.body)["abr"]
+                    if a["tpabr"] == "mun" and a["s"]["st"] not in ("0", "") and self.seen.get((uf, a["cdabr"])) != a["s"]["st"]]
+        todo = [x for xs in await asyncio.gather(*(state(uf) for uf in ufs)) for x in xs]
+        changed = len(todo)
+        if budget is not None and changed > budget:
+            todo.sort(key=lambda x: int(x[2]) - int(self.seen.get((x[0], x[1]), "0") or 0), reverse=True)
+            todo = todo[:max(budget, 1)]
+        self.backlog = changed - len(todo)               # changed municipalities deferred to later ticks
+        await asyncio.gather(*(self._mun(*x) for x in todo))
+        return pd.DataFrame(list(self.rows.values()), columns=["uf", "cd_mun", "n", "a", "f"])
+
+
 def params_mun(cfg: dict) -> nowcast.Params:
     M = cfg.get("model", {})
     keys = ("kappa", "rho", "tau", "sigma_mun0", "nu_mun", "sigma_uf0", "nu_uf")
@@ -167,31 +228,59 @@ def edges(P: float, yes_cost: float, no_cost: float) -> dict:
 
 # ------------------------------------------------------------------ live
 
-async def run_live(cfg_path: Path, interval: float = 30.0) -> None:
+async def run_live(cfg_path: Path, interval: float = 5.0) -> None:
     cfg = load_config(cfg_path)
     E, T = cfg["election"], cfg.get("trade", {})
-    pri, p = prior(cfg), params(cfg)
-    u = tse_live._urls(E["cycle"], E["ele"], E.get("cargo", 1))
+    municipal = cfg.get("model", {}).get("kind") == "municipal"
+    pri, p = (prior_mun(cfg), params_mun(cfg)) if municipal else (prior(cfg), params(cfg))
+    u = tse_live._urls(E["cycle"], E["ele"], E.get("cargo") or CARGO_CODE[E.get("cargo_name", "PRESIDENTE")])
     out = NIGHT / cfg["_id"] / "ticks.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
-    async with _http.aclient() as client:
-        cm = json.loads(await _http.aget_bytes(client, u["cm"]))
-        ufs = [a["cd"].lower() for a in cm["abr"]]
+    async with _http.aclient() as client, feed.FastFeed(log=out.with_name("latency.jsonl")) as fast:
+        cm = None
+        while cm is None:
+            try:
+                c = await fast.get(u["cm"])
+                cm = json.loads(c.body) if c is not None else None
+            except feed.FeedUnavailable:
+                pass
+            if cm is None:
+                print("results feed not up yet; retrying", flush=True)
+                await asyncio.sleep(interval)
+        ufs = [E["uf"].lower()] if E.get("uf") else [a["cd"].lower() for a in cm["abr"]]
+        tracker = MunTracker(cfg, fast, u) if municipal else None
         mk = []
         for m in _markets(cfg):
             ev = polymarket.event(m["event"])
             row = polymarket.markets(ev).set_index("slug").loc[m["market"]]
-            fee = (ev["markets"][0].get("feeSchedule") or {}).get("rate", 0) if ev["markets"][0].get("feesEnabled") else 0
+            mm = next(x for x in ev["markets"] if x["slug"] == m["market"])
+            fee = (mm.get("feeSchedule") or {}).get("rate", 0) if mm.get("feesEnabled") else 0
             mk.append({**m, "yes_token": row["yes_token"], "fee": float(fee or 0)})
+        scopes = sorted({m["scope"] for m in mk})
         while True:
             t0 = datetime.now(timezone.utc)
             try:
-                raws = dict(zip(ufs, await asyncio.gather(*(_http.aget_bytes(client, u["u"](x)) for x in ufs),
-                                                          return_exceptions=True)))
-                raws = {k: v for k, v in raws.items() if isinstance(v, bytes)}
-                part = live_partials(raws, cfg)
-                probs = model_probs(part, pri, p)
+                if municipal:
+                    # per tick: ~30% of the request budget fans the progress files out (≥ 1 edge each,
+                    # rotated, so every edge is still sampled over ticks); ~70% reads municipalities
+                    per_tick = fast.limiter.rate * interval
+                    fast.fanout = max(1, min(3, int(0.3 * per_tick / len(ufs))))
+                    budget = int(0.7 * per_tick)
+                    probs = model_probs_mun(await tracker.update(ufs, budget), pri, p, scopes)
+                else:
+                    async def state_file(x):
+                        try:
+                            c = await fast.get(u["u"](x), x)
+                        except feed.FeedUnavailable:
+                            return None
+                        return c.body if c is not None else None
+                    raws = dict(zip(ufs, await asyncio.gather(*(state_file(x) for x in ufs))))
+                    probs = model_probs(live_partials(raws, cfg), pri, p)
+                t_model = datetime.now(timezone.utc)
                 books = await live.fetch_books(client, [m["yes_token"] for m in mk])
+                t_books = datetime.now(timezone.utc)
+                timing = {"model_s": (t_model - t0).total_seconds(), "books_s": (t_books - t_model).total_seconds(),
+                          "mun_backlog": tracker.backlog if tracker else 0, "feed_rps": round(fast.limiter.rate, 2)}
                 lines = []
                 for m in mk:
                     bk = books.get(m["yes_token"])
@@ -203,14 +292,18 @@ async def run_live(cfg_path: Path, interval: float = 30.0) -> None:
                     rec = {"t": t0.isoformat(), "scope": m["scope"], "market": m["market"], **e,
                            "yes_fill": y["filled_fraction"], "no_fill": n["filled_fraction"],
                            "counted": probs["_counted"], "scope_counted": probs[f"_f_{m['scope']}"],
-                           "share": probs["_share"], "share_sd": probs["_sd"]}
+                           "share": probs["_share"], "share_sd": probs["_sd"], **timing}
                     with out.open("a") as f:
                         f.write(json.dumps(rec, default=float) + "\n")
-                    best = max(e["edge_yes"], e["edge_no"])
+                    if T.get("favoured_only"):                # trade only the side the model favours
+                        best = e["edge_yes"] if e["P"] >= 0.5 else e["edge_no"]
+                    else:
+                        best = max(e["edge_yes"], e["edge_no"])
                     flag = "  <<" if best >= T.get("min_edge", 0.03) and probs[f"_f_{m['scope']}"] >= T.get("min_counted", 0.01) else ""
                     lines.append(f"{m['scope']:>3} P={e['P']:.3f} yes@{e['yes_cost']:.3f} no@{e['no_cost']:.3f} "
                                  f"edge {e['edge_yes']:+.3f}/{e['edge_no']:+.3f}{flag}")
-                print(f"{t0:%H:%M:%S} counted {probs['_counted']:.1%} share {probs['_share']:.4f}±{probs['_sd']:.4f}", flush=True)
+                print(f"{t0:%H:%M:%S} counted {probs['_counted']:.1%} share {probs['_share']:.4f}±{probs['_sd']:.4f} "
+                      f"(feed+model {timing['model_s']:.2f}s, books {timing['books_s']:.2f}s)", flush=True)
                 for line in lines:
                     print("   " + line, flush=True)
             except Exception as ex:                                   # never stop on election night

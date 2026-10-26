@@ -123,13 +123,37 @@ What would count against the method: a negative median settle lead, or 90% inter
 share well below ~80% of ticks in most races. Either is reported as such, without re-tuning these
 frozen configs.
 
+## Reading the feed fast (`brunder.feed`)
+
+Every live forecaster reads the same public TSE feed (`resultados.tse.jus.br`). The delays between a
+section reaching TSE and the market moving, measured 2026-10-26:
+
+| stage | delay | what the tool does |
+|---|---|---|
+| section received → in its state's files | ≈ 0 (15 of 7,686 sections off) | reads state progress + municipality files, never waits for the national file |
+| state file → national aggregate | up to ~75 s | same |
+| file generated → visible at a CDN edge | up to the edge's cache life (~60 s off-night; nine edges with 9–57 s left at one moment); query-string cache-busting is ignored | reads 1–3 edges per file, rotated each tick, keeps the highest `idg`; logs each read's age (fetch time − file's own `dg`/`hg`) to `latency.jsonl` |
+| count → what it implies | minutes to hours (R1 replay) | the municipal model |
+
+**Transport:** one HTTP/2 client per edge (29 state files: 0.12 s per pass on one edge vs 0.45 s over
+HTTP/1.1; a single shared client serialised nine edges to 1.5–3 s). Conditional requests (ETag): an
+unchanged file costs a 304 with no body.
+
+**The rate limit is the binding constraint.** Akamai answers 429 per client: an unbudgeted fan-out
+(~50k requests in two minutes) and then a 40 s run peaking at 40 req/s were both locked out; the lockout
+lasted under 2 minutes (`logs/tse_throttle_probe.log`). So all reads share one adaptive limiter (start
+5 req/s, +0.05 per clean response up to 10, halve and pause 30 s on any 429), and each live tick splits
+its budget: ~30% fans out the progress files, ~70% reads the municipalities that changed, most newly
+counted sections first; the rest wait for the next tick (`mun_backlog` in `ticks.jsonl`). The tool does
+not evade the limit (no IP rotation or proxies).
+
 ## Roadmap (project)
 
 | step | what | status |
 |---|---|---|
 | 1 | Replay 2026 R1 on official section data | done (development) |
 | 2 | Replay 2026 R2 with the frozen config (pre-specified, outcomes known) | registered; waiting for TSE to publish |
-| 3 | Live municipal mode (per-municipality files on the night; live mode is state-level today) | next |
+| 3 | Live municipal mode over the fast feed (`brunder.feed`, `night.MunTracker`) | done; smoke-tested on the final runoff feed |
 | 4 | Capacity: replay entries against archived trades; live book-walk at $25/$100/$500 | next |
 | 5 | Second feed adapter (another country with a public live-results feed and Polymarket markets) | later |
 | 6 | Write-up: paper (Brazil) + short post (method, replay chart, forward record) | after step 2 |

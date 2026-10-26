@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> None:
         if name != "tse-build":
             s.add_argument("--concurrency", type=int, default=8)
         if name == "tse-watch":
-            s.add_argument("--interval", type=float, default=30.0)
+            s.add_argument("--interval", type=float, default=10.0)
         if name == "tse-snapshot":
             s.add_argument("--resume", action="store_true", help="complete the latest snapshot (final counts only)")
 
@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("night", help="election-night edge engine: live, or replay a past count")
     s.add_argument("step", choices=["live", "replay"])
     s.add_argument("config", type=Path)
-    s.add_argument("--interval", type=float, default=30.0)
+    s.add_argument("--interval", type=float, default=5.0, help="live: seconds between ticks")
     s.add_argument("--lag", default="0min", help="replay: receipt → publication delay")
     s.add_argument("--step", default="1min", help="replay: tick spacing")
 
