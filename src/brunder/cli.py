@@ -123,10 +123,18 @@ def main(argv: list[str] | None = None) -> None:
                 case "evaluate":
                     print(live.evaluate(a.spec).round(4).to_string(index=False))
         case "bweb":
-            while a.wait and not bweb.files(a.year, a.round):
-                print(f"{datetime.now():%m-%d %H:%M} BU-web {a.year} round {a.round} not published yet; retry in 1h", flush=True)
+            while a.wait:
+                try:
+                    if bweb.files(a.year, a.round):
+                        print(bweb.fetch(a.year, a.round), flush=True)
+                        break
+                    msg = "not published yet"
+                except Exception as e:                      # network blips must not end an hours-long wait
+                    msg = f"check failed ({type(e).__name__}: {e})"
+                print(f"{datetime.now():%m-%d %H:%M} BU-web {a.year} round {a.round}: {msg}; retry in 1h", flush=True)
                 time.sleep(3600)
-            print(bweb.fetch(a.year, a.round))
+            else:
+                print(bweb.fetch(a.year, a.round))
         case "night":
             if a.step == "live":
                 asyncio.run(night.run_live(a.config, a.interval))
