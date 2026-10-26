@@ -22,5 +22,5 @@ def test_early_returns_from_one_state_do_not_drag_the_national_share():
 
 def test_a_uniform_swing_in_reporting_states_is_carried_to_unreported_ones():
     states = pd.DataFrame({"uf": ["aa"], "n": [50_000.0], "a": [0.43 * 50_000], "f": [0.05]})
-    r = statecast.nowcast(states, PRIOR, statecast.Params(kappa=0.0))
+    r = statecast.nowcast(states, PRIOR, statecast.Params(kappa=0.0, kappa_nat=0.0))
     assert np.isclose(r["swing"], 0.03) and np.isclose(r["share"], 0.53)

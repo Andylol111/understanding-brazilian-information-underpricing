@@ -17,7 +17,9 @@ round = 1
 kappa = 200000
 sigma_swing = 0.090
 sigma_within = 0.090
-tau = 0.02               # 1 pt on a share ≈ 2 pt on a margin; not yet calibrated
+tau = 0.02               # 1 pt on a share ≈ 2 pt on a margin
+sigma_nat = 0.10         # 5 pt national-swing prior on a share = 10 pt on a margin
+kappa_nat = 200000
 
 [replay]
 year = 2026
@@ -25,6 +27,7 @@ round = 1
 
 [trade]
 min_edge = 0.05
+min_counted = 0.01       # no trade until 1% of the market's sections are counted
 half_spread = 0.01
 fee_rate = 0.04          # politics taker fee rate; applied as rate·p·(1 − p)
 

@@ -28,6 +28,10 @@ from .paths import TSE_LIVE
 
 BASE = "https://resultados.tse.jus.br/oficial"
 BRT = timezone(timedelta(hours=-3))
+# State files stamp dt/ht in the state's own local time (verified 2026 R1: the Acre file read 15:25 and
+# the Amazonas, Rondônia, Mato Grosso, Mato Grosso do Sul and Roraima files 16:25 when the others read
+# 17:25 BRT, all matching BU-web receipt counts at 17:25 BRT). Brazil has no DST in 2026.
+UTC_OFFSET_H = {"ac": -5, "am": -4, "ro": -4, "rr": -4, "mt": -4, "ms": -4}
 
 
 def elections() -> pd.DataFrame:
@@ -208,10 +212,11 @@ def _num(x: str | None) -> float:
     return float(x.replace(",", ".")) if x not in (None, "") else float("nan")
 
 
-def _brt_to_utc(dt: str, ht: str) -> pd.Timestamp:
+def _local_to_utc(dt: str, ht: str, uf: str = "br") -> pd.Timestamp:
     if not (dt or "").strip() or not (ht or "").strip():
         return pd.NaT
-    return pd.Timestamp(datetime.strptime(f"{dt} {ht}", "%d/%m/%Y %H:%M:%S").replace(tzinfo=BRT)).tz_convert("UTC")
+    tz = timezone(timedelta(hours=UTC_OFFSET_H.get(uf, -3)))
+    return pd.Timestamp(datetime.strptime(f"{dt} {ht}", "%d/%m/%Y %H:%M:%S").replace(tzinfo=tz)).tz_convert("UTC")
 
 
 def parse_u(d: dict, uf: str) -> list[dict]:
@@ -220,12 +225,11 @@ def parse_u(d: dict, uf: str) -> list[dict]:
         "level": d["tpabr"],
         "uf": uf,
         "cd_mun": d["cdabr"] if d["tpabr"] == "mu" else None,
-        "published_utc": _brt_to_utc(d["dg"], d["hg"]),
-        "totalized_utc": _brt_to_utc(d["dt"], d["ht"]) if d.get("ht") else pd.NaT,
+        "published_utc": _local_to_utc(d["dg"], d["hg"], uf),
+        "totalized_utc": _local_to_utc(d.get("dt"), d.get("ht"), uf),
         "sections_total": int(d["s"]["ts"]),
         "sections_counted": int(d["s"]["st"]),
         "electorate": int(d["e"]["te"]),
-        "totalized_utc": _brt_to_utc(d.get("dt"), d.get("ht")),
         "votes_total": int(d["v"]["tv"]),
         "votes_valid": int(d["v"]["vv"]),
         "votes_blank": int(d["v"]["vb"]),
@@ -250,7 +254,7 @@ def parse_ab(d: dict, uf: str) -> list[dict]:
             "level": x["tpabr"],
             "uf": uf,
             "cd_mun": x["cdabr"] if x["tpabr"] == "mun" else None,
-            "last_update_utc": _brt_to_utc(x["dt"], x["ht"]),
+            "last_update_utc": _local_to_utc(x["dt"], x["ht"], uf),
             "sections_total": int(x["s"]["ts"]),
             "sections_counted": int(x["s"]["st"]),
             "electorate": int(x["e"]["te"]),
