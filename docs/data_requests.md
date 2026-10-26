@@ -1,55 +1,33 @@
 # Data requests: runoff count path, 25 Oct 2026
 
-What is missing: the TSE state files (`resultados.tse.jus.br/oficial/ele2026/6258/dados/<uf>/<uf>-c0001-e006258-u.json`)
-or equivalent per-state partial totals, timestamped, from 17:00 to ~23:30 BRT on 25 October 2026.
-Ideally municipality files too. Wayback holds only the national file at 21:55 BRT.
+## Status (2026-10-26)
 
-Who probably has it: anyone who ran a live results page from the TSE feed that night.
+| request | status |
+|---|---|
+| Poliwave: stored state-level history; were stored projections live? | **Sent** 2026-10-26 via poliwave.com/feedback, reply-to [email removed] (HTTP 200, "Thank you!") |
+| Poliwave: licence to use their stored national history in the paper | **Needed.** Their footer says "Poliwave data may not be scraped (terms)"; see their Rights & licensing page and Results API before publishing anything built on `data/raw/poliwave/` |
+| Newsroom data teams (G1/Globo, Folha, Estadão, Nexo) | **Not sent, no longer needed** — see below |
+| Public call on social media | Not needed |
 
-## 1. Poliwave (poliwave.com)
+## Why the newsroom requests are no longer needed
 
-> **Subject:** Research request: stored state-level count history, Brazil runoff 25 Oct 2026
->
-> Hi Poliwave team,
->
-> I'm a student researcher at Yale writing a paper on how prediction markets priced the 2026
-> Brazilian presidential count. Your live page's stored national history (counted %, shares,
-> projection by update) has been the most accurate public record of the night I've found.
->
-> Two questions:
-> 1. Do you keep the same history for the state pages (e.g. /br/live/presidente-2026/amapa) or the
->    raw TSE state files you polled? Timestamped state partials from 17:00 to 23:30 BRT would let me
->    test a state-level projection against the market.
-> 2. Are the stored `projected` values in the national history the values that were shown live at
->    each time, or recomputed afterwards?
->
-> I'd cite Poliwave as the source and share the paper before publication. Happy to sign any
-> data-use terms.
->
-> Thank you,
-> André Costa — [email removed]
+TSE publishes, per state, the *Boletim de Urna na Web* files (dadosabertos.tse.jus.br, dataset
+`resultados-2026-boletim-de-urna`). Each polling section's report carries `DT_BU_RECEBIDO`, the time
+TSE received it, and its votes by candidate. Cumulating sections by receipt time rebuilds the count
+section by section (`brunder.bweb`). The first-round files are published; the runoff files are not yet
+(in 2014 they appeared two days after the vote). `brunder bweb 2026 2 --wait` polls the portal hourly
+and downloads them when they appear.
 
-## 2. Newsroom data teams (G1/Globo, Folha, Estadão, Nexo)
+## Sending email from [email removed]
 
-> **Assunto:** Pedido de dados para pesquisa: parciais por estado da apuração do 2º turno (25/10/2026)
->
-> Olá,
->
-> Sou pesquisador na Yale e estou escrevendo um artigo sobre como mercados de previsão precificaram
-> a apuração presidencial de 2026. Preciso das parciais por estado (ou os arquivos JSON do TSE por UF)
-> com horário, de 17h a 23h30 (horário de Brasília) do dia 25/10/2026.
->
-> Vocês mantêm um histórico dos arquivos que o mapa ao vivo consumia? Mesmo um registro a cada
-> 5–10 minutos ajudaria muito. Citaria a fonte e compartilharia o artigo antes da publicação.
->
-> Obrigado,
-> André Costa — [email removed]
+Mail.app on this machine has no account configured, so nothing can be sent from that address
+programmatically. The drafts below remain for manual sending if needed.
 
-## 3. Public call (Twitter/X, Bluesky, r/brasil, GitHub)
+## Draft: Poliwave licensing follow-up (send manually)
 
-> Did anyone scrape the TSE live results JSON during the 25 Oct 2026 runoff count? I'm looking for
-> timestamped state files (`<uf>-c0001-e006258-u.json`) for an academic paper on prediction-market
-> pricing. Will credit and share results.
-
-Also check: Base dos Dados, Poder360's data team, academic groups that run election-night scrapers
-(e.g. FGV DAPP), and GitHub code search for `e006258` after 25 Oct.
+> **Subject:** Licence to cite Poliwave's stored results history in an academic paper
+>
+> Hi Poliwave team, following up on my feedback-form message about the Brazil 2026 runoff: I'd like to
+> cite figures derived from the stored national count history on /br/live/presidente-2026 in an
+> academic paper (non-commercial). What licence or attribution do you require, and is the Results API
+> the right way to obtain that history? — André Costa, [email removed]

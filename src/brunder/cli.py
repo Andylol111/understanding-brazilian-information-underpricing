@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import time
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 
-from . import live, polymarket, registry, studies, tse_live, tse_open, universe, verify
+from . import bweb, live, night, polymarket, registry, studies, tse_live, tse_open, universe, verify
 from .paths import PROCESSED
 
 
@@ -70,6 +72,16 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("step", choices=["run", "status", "evaluate"])
     s.add_argument("spec", type=Path)
     s.add_argument("--interval", type=float, default=120.0, help="seconds between book polls")
+    s = sub.add_parser("bweb", help="section-level BU-web files (receipt times + votes) for a round")
+    s.add_argument("year", type=int)
+    s.add_argument("round", type=int)
+    s.add_argument("--wait", action="store_true", help="poll the TSE portal hourly until the files are published")
+    s = sub.add_parser("night", help="election-night edge engine: live, or replay a past count")
+    s.add_argument("step", choices=["live", "replay"])
+    s.add_argument("config", type=Path)
+    s.add_argument("--interval", type=float, default=30.0)
+    s.add_argument("--lag", default="0min", help="replay: receipt → publication delay")
+    s.add_argument("--step", default="1min", help="replay: tick spacing")
 
     a = ap.parse_args(argv)
     pd.set_option("display.width", 200, "display.max_colwidth", 80, "display.max_rows", 200)
@@ -110,6 +122,16 @@ def main(argv: list[str] | None = None) -> None:
                     print(live.status(a.spec).to_string(index=False))
                 case "evaluate":
                     print(live.evaluate(a.spec).round(4).to_string(index=False))
+        case "bweb":
+            while a.wait and not bweb.files(a.year, a.round):
+                print(f"{datetime.now():%m-%d %H:%M} BU-web {a.year} round {a.round} not published yet; retry in 1h", flush=True)
+                time.sleep(3600)
+            print(bweb.fetch(a.year, a.round))
+        case "night":
+            if a.step == "live":
+                asyncio.run(night.run_live(a.config, a.interval))
+            else:
+                print(night.replay(a.config, a.lag, a.step).tail().to_string())
 
 
 if __name__ == "__main__":
