@@ -63,7 +63,9 @@ async def run(tag: str, urls: list[str], pm_events: list[str], interval: float =
         while until is None or datetime.now(timezone.utc) < until:
             t = datetime.now(timezone.utc)
             try:
-                rs = await asyncio.gather(*(web.get(u, params={"t": int(t.timestamp())}) for u in urls),
+                # merge the cache-buster into any existing query (passing params= would replace it)
+                rs = await asyncio.gather(*(web.get(httpx.URL(u).copy_merge_params({"t": int(t.timestamp())}))
+                                            for u in urls), return_exceptions=True)
                                           return_exceptions=True)
                 for u, r in zip(urls, rs):
                     if isinstance(r, httpx.Response) and r.status_code == 200:
