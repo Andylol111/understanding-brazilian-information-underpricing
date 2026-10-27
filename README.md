@@ -20,7 +20,7 @@ live, before outcomes existed).
 
 | finding | evidence |
 |---|---|
-[removed: figure derived from unlicensed third-party data]
+| Early in the count the **raw national tally is predictably skewed** by which states report first; a model of that reporting order, using only pre-election information, removes most of the skew (first-round test: error of the early count −2.97 → +0.28 points). | official TSE files |
 | On the first-round night a municipality-level model was sure of the national result **28 minutes before the market** (up to ~3 hours in some state markets); 7 trade signals, 71% won, +16.6% per $. | **in-sample** (development night) |
 | …but only **$2,741** could actually have been bought at those prices within 30 minutes, 98% of it in one market in its first ~4 minutes. | in-sample, from real trades |
 | Across categories, **thin markets over-react to sharp moves and revert**: significant in 6 of 10 categories after multiple-testing correction, same sign in all 10. | **pre-registered**, held-out data |

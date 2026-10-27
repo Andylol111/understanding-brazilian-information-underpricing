@@ -16,19 +16,20 @@ roughly 500,000 polling sections and the minute its result arrived. That lets yo
 fact, exactly what the public could see at every moment of the night, and line it up against
 Polymarket's prices minute by minute.
 
-## What the market did on runoff night
+## Why the raw count misleads early
 
-The runoff on 25 October 2026 was close: Lula 51.79%, Flávio Bolsonaro 48.21%. The national raw count
-is a misleading guide early on, because states don't report in random order. On the night:
+The runoff on 25 October 2026 was close: Lula 51.79%, Flávio Bolsonaro 48.21%. Early in any count the
+national running tally is a poor guide, because states don't report in random order: some finish
+their counting much faster than others, and they don't vote alike.
 
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
+That early lean is predictable. A model that weights each state by how much of its vote is still to
+come, using only information available before the night, removes most of it. On the first round,
+measured against the electoral court's own files, it cut the error of the early count from −2.97 to
++0.28 percentage points.
 
-The raw count's early lean was predictable: it came from which states report first. A model that
-weights each state by how much of its vote is still to come, using only information available before
-the night, removes most of that lean. On the first round it cut the error of the early count from
-−2.97 to +0.28 percentage points.
+*How the market traded the runoff count, minute by minute, will be added once the electoral court
+publishes the runoff's section-level files. Third-party copies of that night's count exist, but they
+aren't licensed for publication, so they aren't used here.*
 
 ## A model that reads the count properly
 
