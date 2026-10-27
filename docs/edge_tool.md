@@ -206,6 +206,7 @@ trading, nothing registered: development data for later replays. It runs on the 
 | election | recorded | sources |
 |---|---|---|
 | Israel, 26th Knesset, 2026-10-27 | from 18:31 UTC (polls closed 20:00) to 2026-10-28 12:00 UTC | books of 74 markets (next PM $63M, legislative winner, Likud seats, bloc, hung parliament); votes26.com API (official-count snapshot and series, live state, exit polls, turnout); CEC site (placeholder until results); earthelects results.json. Also the 2022 count-order files votes26 publishes (`replay-k25-real.json`, `first-vs-rest-k25.json`) |
+| US midterms, 2026-11-03 (scheduled: `deploy/brunder-snap-us.timer`, Nov 3 18:00 UTC → Nov 4 18:00 UTC) | — | official county-level feeds: CA SoS API (governor), TX SoS Civix ENR, OH SoS NIST-1622 XML + CSV, AK Division of Elections (by house district), GA SoS Enhanced Voting (day-of id resolved); books of 257 markets (CA governor $43M, TX/OH/AK/GA/MI/ME/KS/IA races). Not recorded: Kansas (robots.txt disallows the results pages), Michigan (Cloudflare blocks non-browser clients), Iowa (bot challenge to datacenter IPs), Maine (no official night feed). None circumvented |
 
 The votes26 and earthelects files are third-party derivatives of the CEC count: private research use
 only, not redistributed.
