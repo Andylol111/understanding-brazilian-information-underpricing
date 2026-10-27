@@ -24,8 +24,8 @@ their counting much faster than others, and they don't vote alike.
 
 That early lean is predictable. A model that weights each state by how much of its vote is still to
 come, using only information available before the night, removes most of it. On the first round,
-measured against the electoral court's own files, it cut the error of the early count from −2.97 to
-+0.28 percentage points.
+measured against the electoral court's own files, it cut the error of the early count (1.7% of
+sections in) from −2.97 to +0.50 percentage points.
 
 *How the market traded the runoff count, minute by minute, will be added once the electoral court
 publishes the runoff's section-level files. Third-party copies of that night's count exist, but they

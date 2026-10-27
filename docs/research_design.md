@@ -253,14 +253,16 @@ timestamps 17:25:14–17:26:24 BRT, the national aggregate 17:26:29 (up to 75 s 
 
 Prior per state = Lula's 2022 R1 share, expected votes = 2022 R1 valid votes (both known ex ante);
 each state's swing shrinks toward the pooled domestic swing with κ = 200,000 counted votes (set
-before running). At 17:26 BRT, 1.70% of sections counted:
+before running). At 17:26 BRT, 1.70% of sections counted. Re-derived 2026-10-27 with the current
+model (which has since gained a national-swing prior: sd 5 pt, variance halved at 200k counted votes) by
+`analysis/reporting_order_test.py`; the first run, before that change, gave +0.28 pt for the nowcast.
 
 | method | projected Lula R1 share | error vs final 45.16 |
 |---|---|---|
 | national file (raw) | 42.19 | −2.97 pt |
-| state partials weighted by size | 43.49 | −1.67 pt |
-| **state nowcast (κ = 200k)** | **45.44** | **+0.28 pt** |
-| sensitivity: κ = 0 / 50k / ∞ | 43.64 / 45.18 / 45.70 | −1.52 / +0.02 / +0.54 |
+| state partials weighted by 2022 size | 43.45 | −1.71 pt |
+| **state nowcast (κ = 200k, current defaults)** | **45.66** | **+0.50 pt** |
+| sensitivity: κ = 0 / 50k / ∞ | 43.64 / 45.36 / 45.98 | −1.52 / +0.20 / +0.82 |
 
 The fair test here is the point estimate only. An earlier version reported "± 1.17" using a
 within-state σ taken from this same snapshot (in-sample) and no shared national error. The model
@@ -269,7 +271,7 @@ swing, 2018 → 2022) and a correlated national error τ = 1 pt (not yet calibra
 path). With those, the band at this snapshot is ± 2.17 pt (state 1.93, national 0.98). τ must be
 calibrated before the model's p_win is used for any count-night lag claim.
 
-A public, ex-ante method applied to the state files would have been within 0.3 pt of the final
+A public, ex-ante method applied to the state files would have been within 0.5 pt of the final
 first-round result at 1.7% counted, against a 3-pt error in the raw national number. This is one
 snapshot: it shows the information was in the state files, not how the error evolves through the
 count. The runoff has no archived state path, so the same model cannot yet be run on count night.
@@ -320,7 +322,7 @@ evidence is currently the stronger of the two.
 [removed: figure derived from unlicensed third-party data]
 [removed: figure derived from unlicensed third-party data]
 2. The raw count was predictably biased by which states report first; a state-level nowcast built
-   from public state files and ex-ante priors removes that bias (R1 test: −2.97 → +0.28 pt).
+   from public state files and ex-ante priors removes most of that bias (R1 test: −2.97 → +0.50 pt).
 3. Whether that model called the runoff earlier than the market needs the runoff state files over
    time. Requests: [data_requests.md](data_requests.md).
 
