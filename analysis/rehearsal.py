@@ -64,13 +64,18 @@ def main() -> None:
     ap.add_argument("--start")
     ap.add_argument("--end")
     ap.add_argument("--tag", default="", help="suffix for the output dir (sensitivity runs)")
+    ap.add_argument("--compare-only", action="store_true",
+                    help="skip the live run; compare an existing ticks.jsonl (e.g. after the comparison step failed)")
     a = ap.parse_args()
     cfg = night.load_config(a.config)
     T = cfg.get("trade", {})
     out = ROOT / "results" / "rehearsal" / f"{cfg['_id']}_{a.speed:g}x{'_' + a.tag if a.tag else ''}"
 
-    meta = asyncio.run(rehearsal.run(a.config, out, speed=a.speed, interval=a.interval, start=a.start, end=a.end,
-                                     cdn={"ttl_s": a.ttl, "limit_rps": a.limit_rps}))
+    if a.compare_only:
+        meta = json.loads((out / "rehearsal.json").read_text())
+    else:
+        meta = asyncio.run(rehearsal.run(a.config, out, speed=a.speed, interval=a.interval, start=a.start, end=a.end,
+                                         cdn={"ttl_s": a.ttl, "limit_rps": a.limit_rps}))
     live = pd.DataFrame([json.loads(x) for x in (out / "ticks.jsonl").open()])
     live["t"] = pd.to_datetime(live["t"], utc=True)
     rep = night.replay(a.config, lag="0min", step="1min", save=False)
