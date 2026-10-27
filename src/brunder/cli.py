@@ -85,6 +85,12 @@ def main(argv: list[str] | None = None) -> None:
     s = sub.add_parser("stage", help="copy a replay's input files to local disk, verified by SHA-256")
     s.add_argument("config", type=Path)
     s.add_argument("dest", type=Path)
+    s = sub.add_parser("snap", help="passive election-night recorder: URLs + Polymarket books, saved on change")
+    s.add_argument("tag")
+    s.add_argument("--url", action="append", default=[])
+    s.add_argument("--pm-event", action="append", default=[], help="Polymarket event slug (repeatable)")
+    s.add_argument("--interval", type=float, default=30.0)
+    s.add_argument("--until", help="UTC stop time, e.g. 2026-10-28T12:00Z")
 
     a = ap.parse_args(argv)
     pd.set_option("display.width", 200, "display.max_colwidth", 80, "display.max_rows", 200)
@@ -149,6 +155,10 @@ def main(argv: list[str] | None = None) -> None:
             print(f"staged {len(meta['files'])} verified files for {a.config} in {a.dest} "
                   f"({meta['new_manifest_entries']} new manifest entries)\n"
                   f"run: BRUNDER_DATA={a.dest} uv run python analysis/night_replay.py {a.config}")
+        case "snap":
+            from . import snap
+            until = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
+            asyncio.run(snap.run(a.tag, a.url, a.pm_event, a.interval, until))
 
 
 if __name__ == "__main__":
