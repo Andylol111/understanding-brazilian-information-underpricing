@@ -1,0 +1,10 @@
+[Unit]
+Description=Start the US midterms recorder before the first polls close (2026-11-03 23:00 UTC)
+
+[Timer]
+OnCalendar=2026-11-03 18:00:00 UTC
+Persistent=true
+Unit=brunder-snap-us.service
+
+[Install]
+WantedBy=timers.target
