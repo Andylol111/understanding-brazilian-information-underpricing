@@ -235,7 +235,7 @@ async def run(cfg_path: Path, out_dir: Path, speed: float = 1.0, interval: float
     await night.run_live(cfg_path, interval, clock=clock.now,
                          books_fn=_price_books(cfg, cfg.get("trade", {}).get("half_spread", 0.01), clock),
                          feed_opts={"edges": edges, "transport": sim, **(feed or {})},
-                         out_dir=out_dir, stop_at=t_end.to_pydatetime(), quiet=True)
+                         out_dir=out_dir, stop_at=t_end.floor("s").to_pydatetime(), quiet=True)
     meta = {"config": str(cfg_path), "speed": speed, "interval_s": interval, "sim_start": t_start.isoformat(),
             "sim_end": t_end.isoformat(), "wall_s": round(time.monotonic() - w0, 1), "edges": n_edges,
             "cdn": {"ttl_s": sim.ttl_ns / 1e9, "limit_rps": sim.limit_rps, "burst": sim.burst,

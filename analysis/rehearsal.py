@@ -63,10 +63,11 @@ def main() -> None:
     ap.add_argument("--limit-rps", type=float, default=20.0, help="simulated CDN per-client limit")
     ap.add_argument("--start")
     ap.add_argument("--end")
+    ap.add_argument("--tag", default="", help="suffix for the output dir (sensitivity runs)")
     a = ap.parse_args()
     cfg = night.load_config(a.config)
     T = cfg.get("trade", {})
-    out = ROOT / "results" / "rehearsal" / f"{cfg['_id']}_{a.speed:g}x"
+    out = ROOT / "results" / "rehearsal" / f"{cfg['_id']}_{a.speed:g}x{'_' + a.tag if a.tag else ''}"
 
     meta = asyncio.run(rehearsal.run(a.config, out, speed=a.speed, interval=a.interval, start=a.start, end=a.end,
                                      cdn={"ttl_s": a.ttl, "limit_rps": a.limit_rps}))
