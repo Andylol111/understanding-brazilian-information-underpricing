@@ -1,0 +1,21 @@
+# Forward-test recorder (prereg/forward_v1.toml). Co-hosted on a shared box: capped and low priority so
+# the host's other services always win; restarts on any exit (the recorder itself never exits on errors).
+[Unit]
+Description=brunder forward-test recorder (forward_v1)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder live run prereg/forward_v1.toml
+Restart=always
+RestartSec=30
+Nice=10
+CPUQuota=40%
+MemoryMax=2G
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

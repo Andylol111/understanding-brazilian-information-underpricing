@@ -1,0 +1,21 @@
+# Waits for TSE to publish the 2026 runoff BU-web files, then downloads and parses them one state at a
+# time (each zip deleted after parsing). Exits 0 when done; restarted only on failure.
+[Unit]
+Description=brunder BU-web watcher (2026 round 2)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder bweb 2026 2 --wait
+Restart=on-failure
+RestartSec=300
+Nice=15
+CPUQuota=50%
+MemoryMax=3G
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target
