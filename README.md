@@ -53,7 +53,7 @@ Validation, from weakest to strongest; each step is done or scheduled:
 |---|---|---|
 | replay the first round | the method can work; settings chosen here | done (in-sample) |
 | capacity from real trades | how many dollars the signals could have bought | done: $2.7k in 30 min |
-| rehearsal: live code against a simulated feed and CDN | the live system keeps up and matches the replay | done: same 7 signals, view of the count ~47 s behind truth (median) |
+| rehearsal: live code against a simulated feed and CDN | the live system keeps up and matches the replay | done: same 7 signals, view of the count ~47 s behind truth (median), under assumed CDN cache/rate limits |
 | 7 frozen replays: runoff + 6 governor runoffs | the method on races it was not built on | registered; waiting for the electoral court to publish section files |
 | forward test | a true out-of-sample result | cross-category recorder live since 26 Oct; next election nights being recorded |
 
@@ -61,6 +61,7 @@ Validation, from weakest to strongest; each step is done or scheduled:
 
 | document | contents |
 |---|---|
+| [docs/writeup.md](docs/writeup.md) | **start here:** the whole project as a short article |
 | [docs/research_design.md](docs/research_design.md) | Brazil case study: design, hypotheses, model math |
 | [docs/cross_category.md](docs/cross_category.md) | cross-category method and pre-registered results; forward test |
 | [docs/edge_tool.md](docs/edge_tool.md) | election-night tool: validation, capacity, registered replays, fast feed, recordings |
