@@ -19,3 +19,4 @@ Signals whose check window fell inside a gap were never recorded and are not bac
 | gap (UTC) | cause |
 |---|---|
 | 2026-10-27 ~03:08–05:40 and ~05:40–10:18 (≈ 7 h in total, with brief wakes) | host on battery; `caffeinate -is` only prevents sleep on AC power |
+| 2026-10-27 14:13:29–14:13:38 (9 s) | handoff from the laptop to the always-on Oracle VM (`deploy/`): recorder stopped, `data/live/` copied, recorder started; same code commit (`0531d5c`), same spec |
