@@ -196,6 +196,20 @@ its budget: ~30% fans out the progress files, ~70% reads the municipalities that
 counted sections first; the rest wait for the next tick (`mun_backlog` in `ticks.jsonl`). The tool does
 not evade the limit (no IP rotation or proxies).
 
+## Recording other elections for development data (`brunder snap`)
+
+A live results feed only shows its current state, so a count's timing exists only if someone records it
+that night (Brazil 2022's was lost). `brunder snap` polls a list of URLs and the order books of chosen
+Polymarket events every 30 s and saves a timestamped copy whenever anything changed. No model, no
+trading, nothing registered: development data for later replays. It runs on the always-on VM.
+
+| election | recorded | sources |
+|---|---|---|
+| Israel, 26th Knesset, 2026-10-27 | from 18:31 UTC (polls closed 20:00) to 2026-10-28 12:00 UTC | books of 74 markets (next PM $63M, legislative winner, Likud seats, bloc, hung parliament); votes26.com API (official-count snapshot and series, live state, exit polls, turnout); CEC site (placeholder until results); earthelects results.json. Also the 2022 count-order files votes26 publishes (`replay-k25-real.json`, `first-vs-rest-k25.json`) |
+
+The votes26 and earthelects files are third-party derivatives of the CEC count: private research use
+only, not redistributed.
+
 ## Roadmap (project)
 
 | step | what | status |
