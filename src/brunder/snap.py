@@ -42,18 +42,24 @@ async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str]
         return out
     y, m, d = (int(x) for x in date.split("-"))
     for base in clarity:
-        r = await web.get(f"{base}/elections.json")
-        eids = [e["EID"] for e in r.json() if e.get("Date", "").startswith(f"{m}/{d}/{y} ")]
-        if eids:
-            ver = (await web.get(f"{base}/{eids[0]}/current_ver.txt")).text.strip()
-            out.append((f"clarity_{_name(base)}", f"{base}/{eids[0]}/{ver}/json/ALL.json"))
+        try:
+            r = await web.get(f"{base}/elections.json")
+            eids = [e["EID"] for e in r.json() if e.get("Date", "").startswith(f"{m}/{d}/{y} ")]
+            if eids:
+                ver = (await web.get(f"{base}/{eids[0]}/current_ver.txt")).text.strip()
+                out.append((f"clarity_{_name(base)}", f"{base}/{eids[0]}/{ver}/json/ALL.json"))
+        except Exception as e:                       # one source failing must not stop the others
+            print(f"resolver {base}: {type(e).__name__}: {e}", flush=True)
     for url in ga_enr:
-        j = (await web.get(url)).json()
-        ids = [e["publicElectionId"] for e in j.get("elections", []) if e.get("electionDate") == date]
-        if ids:
-            api = url.split("/jurisdictions/")[0]
-            name = url.rsplit("/", 1)[-1]
-            out.append((f"ga_enr_{name}_localities", f"{api}/elections/{name}/{ids[0]}/localities"))
+        try:
+            j = (await web.get(url)).json()
+            ids = [e["publicElectionId"] for e in j.get("elections", []) if e.get("electionDate") == date]
+            if ids:
+                api = url.split("/jurisdictions/")[0]
+                name = url.rsplit("/", 1)[-1]
+                out.append((f"ga_enr_{name}_localities", f"{api}/elections/{name}/{ids[0]}/localities"))
+        except Exception as e:
+            print(f"resolver {url}: {type(e).__name__}: {e}", flush=True)
     return out
 
 
@@ -91,6 +97,7 @@ async def run(tag: str, urls: list[str], pm_events: list[str], interval: float =
     async with httpx.AsyncClient(timeout=20, headers=UA, follow_redirects=True) as web, _http.aclient() as pm:
         while until is None or datetime.now(timezone.utc) < until:
             t = datetime.now(timezone.utc)
+            # each stage isolated: a failing feed or resolver must not cost the other sources this poll
             try:
                 # merge the cache-buster into any existing query (passing params= would replace it)
                 rs = await asyncio.gather(*(web.get(httpx.URL(u).copy_merge_params({"t": int(t.timestamp())}))
@@ -99,15 +106,21 @@ async def run(tag: str, urls: list[str], pm_events: list[str], interval: float =
                     if isinstance(r, httpx.Response) and r.status_code == 200:
                         ext = "json" if "json" in r.headers.get("content-type", "") or u.endswith(".json") else "html"
                         save(_name(u), r.content, ext, t)
+            except Exception as e:
+                print(f"{t:%H:%M:%S} url error, continuing: {type(e).__name__}: {e}", flush=True)
+            try:
                 for key, u in await _resolve(web, list(clarity), list(ga_enr), date):
                     r = await web.get(u)
                     if r.status_code == 200:
                         save(key, r.content, "json", t)
+            except Exception as e:
+                print(f"{t:%H:%M:%S} resolver error, continuing: {type(e).__name__}: {e}", flush=True)
+            try:
                 if tokens:
                     books = await live.fetch_books(pm, list(tokens))
                     if books:
                         save("polymarket_books", json.dumps({tokens[k]: v for k, v in books.items()}, sort_keys=True).encode(),
                              "json", t)
             except Exception as e:                                   # never stop on the night
-                print(f"{t:%H:%M:%S} snap error, continuing: {type(e).__name__}: {e}", flush=True)
+                print(f"{t:%H:%M:%S} books error, continuing: {type(e).__name__}: {e}", flush=True)
             await asyncio.sleep(max(0.0, interval - (datetime.now(timezone.utc) - t).total_seconds()))
