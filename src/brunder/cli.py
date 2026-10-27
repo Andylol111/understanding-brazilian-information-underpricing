@@ -82,6 +82,9 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--interval", type=float, default=5.0, help="live: seconds between ticks")
     s.add_argument("--lag", default="0min", help="replay: receipt → publication delay")
     s.add_argument("--step", default="1min", help="replay: tick spacing")
+    s = sub.add_parser("stage", help="copy a replay's input files to local disk, verified by SHA-256")
+    s.add_argument("config", type=Path)
+    s.add_argument("dest", type=Path)
 
     a = ap.parse_args(argv)
     pd.set_option("display.width", 200, "display.max_colwidth", 80, "display.max_rows", 200)
@@ -140,6 +143,12 @@ def main(argv: list[str] | None = None) -> None:
                 asyncio.run(night.run_live(a.config, a.interval))
             else:
                 print(night.replay(a.config, a.lag, a.step).tail().to_string())
+        case "stage":
+            from . import integrity
+            meta = integrity.stage(a.config, a.dest)
+            print(f"staged {len(meta['files'])} verified files for {a.config} in {a.dest} "
+                  f"({meta['new_manifest_entries']} new manifest entries)\n"
+                  f"run: BRUNDER_DATA={a.dest} uv run python analysis/night_replay.py {a.config}")
 
 
 if __name__ == "__main__":

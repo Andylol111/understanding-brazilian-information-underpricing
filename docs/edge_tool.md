@@ -60,6 +60,13 @@ What development taught (all in-sample, all decided on this set):
    of a market's sections are counted: the tool trades the count, not the prior.
 3. τ = 0.015 (two-party share): 93% of 90% intervals cover the final result between 1% and 95% counted.
 4. Only buy the side the model favours: long-shot buys on tail probabilities lost every time.
+5. **Known weakness, found 2026-10-27 (before any runoff result):** the model is overconfident late in
+   the count. National ticks, first round: 90% intervals contain the final share in 100% of ticks at
+   80–90% counted, **63% at 90–95%**, 0% at 95–99%. The projection error shrinks (−29 → −20 → −6 bp)
+   but the model's sd shrinks faster (23 → 12 → 2 bp): it treats a municipality's last sections like
+   its earlier ones, and late sections differ (the within-municipality version of item 1). At 100%
+   counted a 0.2 bp gap remains from 65 sections in municipalities absent from the prior. Little effect
+   on trading (markets have settled by then); a direct effect on the calibration metric below.
 
 | | lead of model over market settling ≥ 0.9 (min) | gated, favoured-side signals |
 |---|---|---|
@@ -153,6 +160,9 @@ Primary, in this order:
 2. **Calibration of P along the count:** share of ticks (1–95% counted) whose 90% interval contains
    the final share, and mean z, per race and pooled. Tells whether τ = 0.015 transfers from the
    presidential first round to new races.
+   Because of development item 5 (written down before any runoff result), calibration is also reported
+   split at 90% counted (1–90% and 90–95%), so a late-count failure is visible rather than averaged
+   into the headline number. Expectation from development: fine to 90%, under-covering at 90–95%.
 
 Reported but **not** used for any claim: P&L of the gated signals, and hit rate. **No edge claim will
 rest on P&L from these replays**, whichever way it comes out. An edge claim needs the forward record:

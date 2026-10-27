@@ -19,13 +19,15 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from brunder import bweb, night, registry
+from brunder import bweb, integrity, night, registry
+from brunder.paths import ROOT
 
 
 def main(cfg_path: str) -> None:
     pd.set_option("display.width", 220)
     cfg = night.load_config(Path(cfg_path))
-    if "id" in cfg:                       # a registered (frozen) test: refuse if edited, log the look
+    if "id" in cfg:                       # a registered (frozen) test: verified inputs, refuse if edited, log the look
+        integrity.check_staged(Path(cfg_path))      # before the look: inputs must come from a verified local stage
         look = registry.open_holdout(registry.load_spec(Path(cfg_path)))
         print(f"registered test {cfg['id']}, look #{look['look']}")
     E, R, T = cfg["election"], cfg["replay"], cfg.get("trade", {})
@@ -33,7 +35,7 @@ def main(cfg_path: str) -> None:
     out.mkdir(parents=True, exist_ok=True)
 
     ticks = night.replay(Path(cfg_path), lag="0min", step="2min")
-    sec = bweb.sections(R["year"], R["round"], E["cand_a"], E.get("cand_b"))
+    sec = bweb.sections(R["year"], R["round"], E["cand_a"], E.get("cand_b"), E.get("cargo_name", "PRESIDENTE"), E.get("uf"))
     g = sec.groupby("uf")[["a", "b", "valid"]].sum()
     if E["race"] == "margin":
         final = {u: (r.a - r.b) / r.valid for u, r in g.iterrows()}
@@ -55,10 +57,16 @@ def main(cfg_path: str) -> None:
     # calibration of the national projection along the count: z = (final − projected) / sd
     nat = ticks[ticks["scope"] == "br"].drop_duplicates("t").set_index("t")
     z = (final["br"] - nat["share"]) / nat["share_sd"]
-    bins = pd.cut(nat["counted"], [0, 0.01, 0.05, 0.2, 0.5, 0.8, 1.0])
+    # bins include the pre-committed splits (1–90% and 90–95% counted; docs/edge_tool.md), plus the tail
+    bins = pd.cut(nat["counted"], [0, 0.01, 0.05, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99, 1.0])
     cal = pd.DataFrame({"z": z, "bin": bins}).groupby("bin", observed=True)["z"].agg(
         ticks="size", mean_z="mean", share_inside_90=lambda x: float((x.abs() < 1.645).mean()))
     cal.to_csv(out / "national_calibration.csv")
+    window = nat["counted"].between(0.01, 0.95, inclusive="right")
+    for lo, hi in ((0.01, 0.95), (0.01, 0.90), (0.90, 0.95)):
+        w = z[nat["counted"].between(lo, hi, inclusive="right") & window]
+        print(f"pre-committed window ({lo:.0%}, {hi:.0%}] counted: {len(w)} ticks, inside 90% = "
+              f"{(w.abs() < 1.645).mean():.2f}, mean z = {w.mean():+.2f}")
     print("\nnational projection calibration along the count (90% interval should contain the final ~90%):")
     print(cal.round(3).to_string())
 
