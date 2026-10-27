@@ -228,15 +228,21 @@ def edges(P: float, yes_cost: float, no_cost: float) -> dict:
 
 # ------------------------------------------------------------------ live
 
-async def run_live(cfg_path: Path, interval: float = 5.0) -> None:
+async def run_live(cfg_path: Path, interval: float = 5.0, *, clock=None, books_fn=None,
+                   feed_opts: dict | None = None, out_dir: Path | None = None,
+                   stop_at: datetime | None = None, quiet: bool = False) -> None:
+    """Live loop. Production uses the defaults; the rehearsal (brunder.rehearsal) injects a simulated
+    clock (`clock() -> aware datetime`), a books source (`await books_fn(tokens) -> {token: book}`),
+    FastFeed options (simulated edges/transport), an output dir and a stop time."""
     cfg = load_config(cfg_path)
     E, T = cfg["election"], cfg.get("trade", {})
+    now = clock or (lambda: datetime.now(timezone.utc))
     municipal = cfg.get("model", {}).get("kind") == "municipal"
     pri, p = (prior_mun(cfg), params_mun(cfg)) if municipal else (prior(cfg), params(cfg))
     u = tse_live._urls(E["cycle"], E["ele"], E.get("cargo") or CARGO_CODE[E.get("cargo_name", "PRESIDENTE")])
-    out = NIGHT / cfg["_id"] / "ticks.jsonl"
+    out = (out_dir or NIGHT / cfg["_id"]) / "ticks.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
-    async with _http.aclient() as client, feed.FastFeed(log=out.with_name("latency.jsonl")) as fast:
+    async with _http.aclient() as client, feed.FastFeed(log=out.with_name("latency.jsonl"), **(feed_opts or {})) as fast:
         cm = None
         while cm is None:
             try:
@@ -257,8 +263,9 @@ async def run_live(cfg_path: Path, interval: float = 5.0) -> None:
             fee = (mm.get("feeSchedule") or {}).get("rate", 0) if mm.get("feesEnabled") else 0
             mk.append({**m, "yes_token": row["yes_token"], "fee": float(fee or 0)})
         scopes = sorted({m["scope"] for m in mk})
-        while True:
-            t0 = datetime.now(timezone.utc)
+        while stop_at is None or now() < stop_at:
+            t0 = now()
+            w0 = datetime.now(timezone.utc)
             try:
                 if municipal:
                     # per tick: ~30% of the request budget fans the progress files out (≥ 1 edge each,
@@ -276,11 +283,13 @@ async def run_live(cfg_path: Path, interval: float = 5.0) -> None:
                         return c.body if c is not None else None
                     raws = dict(zip(ufs, await asyncio.gather(*(state_file(x) for x in ufs))))
                     probs = model_probs(live_partials(raws, cfg), pri, p)
-                t_model = datetime.now(timezone.utc)
-                books = await live.fetch_books(client, [m["yes_token"] for m in mk])
-                t_books = datetime.now(timezone.utc)
-                timing = {"model_s": (t_model - t0).total_seconds(), "books_s": (t_books - t_model).total_seconds(),
-                          "mun_backlog": tracker.backlog if tracker else 0, "feed_rps": round(fast.limiter.rate, 2)}
+                w_model = datetime.now(timezone.utc)
+                tokens = [m["yes_token"] for m in mk]
+                books = await (books_fn(tokens) if books_fn else live.fetch_books(client, tokens))
+                w_books = datetime.now(timezone.utc)
+                timing = {"model_s": (w_model - w0).total_seconds(), "books_s": (w_books - w_model).total_seconds(),
+                          "mun_backlog": tracker.backlog if tracker else 0, "feed_rps": round(fast.limiter.rate, 2),
+                          "t_wall": w0.isoformat()}
                 lines = []
                 for m in mk:
                     bk = books.get(m["yes_token"])
@@ -302,13 +311,14 @@ async def run_live(cfg_path: Path, interval: float = 5.0) -> None:
                     flag = "  <<" if best >= T.get("min_edge", 0.03) and probs[f"_f_{m['scope']}"] >= T.get("min_counted", 0.01) else ""
                     lines.append(f"{m['scope']:>3} P={e['P']:.3f} yes@{e['yes_cost']:.3f} no@{e['no_cost']:.3f} "
                                  f"edge {e['edge_yes']:+.3f}/{e['edge_no']:+.3f}{flag}")
-                print(f"{t0:%H:%M:%S} counted {probs['_counted']:.1%} share {probs['_share']:.4f}±{probs['_sd']:.4f} "
-                      f"(feed+model {timing['model_s']:.2f}s, books {timing['books_s']:.2f}s)", flush=True)
-                for line in lines:
-                    print("   " + line, flush=True)
+                if not quiet:
+                    print(f"{t0:%H:%M:%S} counted {probs['_counted']:.1%} share {probs['_share']:.4f}±{probs['_sd']:.4f} "
+                          f"(feed+model {timing['model_s']:.2f}s, books {timing['books_s']:.2f}s)", flush=True)
+                    for line in lines:
+                        print("   " + line, flush=True)
             except Exception as ex:                                   # never stop on election night
                 print(f"{t0:%H:%M:%S} tick error, continuing: {type(ex).__name__}: {ex}", flush=True)
-            await asyncio.sleep(max(0.0, interval - (datetime.now(timezone.utc) - t0).total_seconds()))
+            await asyncio.sleep(max(0.0, interval - (datetime.now(timezone.utc) - w0).total_seconds()))
 
 
 # ------------------------------------------------------------------ replay

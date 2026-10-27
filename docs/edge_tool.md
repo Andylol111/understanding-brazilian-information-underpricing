@@ -72,8 +72,40 @@ What development taught (all in-sample, all decided on this set):
 
 *First round, national market "Will Lula win the most votes in the first round?" (resolved NO: Flávio
 finished first). Red: the model's P(YES) at each minute from section receipts; black: Polymarket price;
-dotted (right axis): share of sections counted. Times UTC. Development set: settings were chosen on
-this night, so this is in-sample.*
+dotted (right axis): share of sections counted. Times are Brasília time (UTC−3); polls closed at 17:00.
+Development set: settings were chosen on this night, so this is in-sample.*
+
+### Capacity: what the first-round signals could actually have bought (`analysis/night_capacity.py`)
+
+The returns above are per dollar at the quoted price, i.e. they assume unlimited size. For each gated
+entry (favoured-side rule, 1-minute replay: 7 entries, 71% hit, +17.4% per $), the script sums
+**taker** notional that traded on the entry's side at the entry price or better in the 5/30/120 minutes
+after it, from Polymarket's taker-only trades (no look-ahead: only fills after the entry count). Trade
+semantics were checked by hand against maker legs of the same transaction (a taker YES buy at 0.588
+matched maker NO buys at 0.41/0.42; sizes sum), and one market's 30-minute total was re-added by hand.
+
+| market | side | entry (UTC) | price | return/$ | fillable $ in 30 min |
+|---|---|---|---|---|---|
+| national | NO | 20:28 | 0.580 | +1.27 | 2,683 |
+| Amazonas | YES | 20:13 | 0.755 | +0.30 | 50 |
+| Tocantins | YES | 20:13 | 0.250 | −1 | 7 |
+| Amapá, Pará, Piauí, Minas Gerais | YES | 20:13–21:08 | 0.41–0.86 | +1.33, +0.17, +0.15, −1 | 0 |
+| **total** | | | | | **2,741** |
+
+| stake per entry | P&L with each entry capped by its 30-min fill | if size were unlimited |
+|---|---|---|
+| $25 | +$32 | +$30 |
+| $100 | +$135 | +$122 |
+| $500 | +$645 | +$608 |
+| $2,000 | +$2,556 | +$2,434 |
+
+**Read.** In-sample, 7 entries, and the capacity is one market: the national market supplied 98% of the
+fillable dollars, all within ~4 minutes of the signal, after which it repriced through it (NO 0.42 →
+~0.85 by 20:55 UTC). State markets supplied $0–$50 each; three of the four winning state signals could
+not have been filled at their price at all. Capped P&L beats unlimited only because the two losers
+were also nearly unfillable. Without the favoured-side rule, five extra long-shot entries appear, none
+fillable, and unlimited-size P&L turns negative. So the night's tradable edge is a few thousand dollars
+in the national market in the first minutes, which is exactly where speed (below) matters.
 
 ## Pre-specified replay: 2026 runoff (`configs/night_r2_v1.toml`, registered)
 
