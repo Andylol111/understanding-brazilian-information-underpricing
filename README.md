@@ -1,14 +1,61 @@
-# brunder — underpricing of information on Polymarket
+# Does Polymarket under-price public information?
 
-Does Polymarket under-price public information? Three parts:
+On election night the official count is public, free, and updated every few seconds, yet a prediction
+market can still sit far from what that count implies. This project measures how far, for how long,
+and whether any of it can actually be traded. It has three parts:
 
-1. **Brazil 2026 case study.** Did Polymarket under-weight public, cheaply computable projections of
-   the presidential race (1st round 2026-10-04, runoff 2026-10-25, Lula d. Flávio Bolsonaro
-   51.79–48.21)?
-2. **Cross-category edge program.** Which Polymarket categories under-weight information, how, and
-   is it tradable after costs, under pre-registered, out-of-sample tests with no look-ahead?
-3. **Election-night edge tool** (`brunder night`). Turns the official count into a calibrated
-   probability faster than the market does, live or replayed from section-level receipt times.
+1. **Brazil 2026 case study.** The presidential election (first round 4 Oct, runoff 25 Oct; Lula beat
+   Flávio Bolsonaro 51.79–48.21), using the official count down to each of 499,206 polling sections
+   and the minute each one reached the electoral court.
+2. **Cross-category tests.** Which kinds of Polymarket markets (11 categories, 69,828 resolved markets)
+   mis-weight information, tested out of sample with the tests fixed in advance.
+3. **An election-night tool** (`brunder night`) that turns the live count into a calibrated
+   probability and compares it with the order book, replayable on past nights and runnable live.
+
+## What I found
+
+Every result is labelled by how much it can be trusted: **in-sample** (settings chosen on the same
+data), **pre-registered** (tests fixed and hashed before the data was examined), **forward** (recorded
+live, before outcomes existed).
+
+| finding | evidence |
+|---|---|
+[removed: figure derived from unlicensed third-party data]
+| On the first-round night a municipality-level model was sure of the national result **28 minutes before the market** (up to ~3 hours in some state markets); 7 trade signals, 71% won, +16.6% per $. | **in-sample** (development night) |
+| …but only **$2,741** could actually have been bought at those prices within 30 minutes, 98% of it in one market in its first ~4 minutes. | in-sample, from real trades |
+| Across categories, **thin markets over-react to sharp moves and revert**: significant in 6 of 10 categories after multiple-testing correction, same sign in all 10. | **pre-registered**, held-out data |
+| "Mentions" markets (what will X say) under-price near-certain outcomes: +2.1% per $ after spread and fees, but only $8.3k fillable across 1,851 entries. | **pre-registered**, held-out data |
+| Deep markets reacting too slowly in general: **not supported**. Brazil's lag is a case, not a pattern this sample detects. | pre-registered (null) |
+
+**The short version:** the information gap on count night is real and measurable, but the money
+in it is small and gone within minutes. The cross-market pattern that holds up out of sample is
+over-reaction in thin markets, not under-reaction in deep ones.
+
+![First-round night: model probability vs Polymarket price](docs/figures/r1_dev_national_replay.png)
+*First round, "Will Lula win the most votes?" (resolved NO). Red: the model from the live count;
+black: Polymarket; dotted: share of sections counted. Brasília time. In-sample.*
+
+## How the election-night tool works
+
+```mermaid
+flowchart LR
+    A["Official count<br/>(TSE results feed,<br/>every CDN edge)"] --> B["Per-municipality<br/>partial results"]
+    P["Prior: previous round<br/>by municipality"] --> C
+    B --> C["Nowcast model<br/>P(candidate wins) ± uncertainty"]
+    C --> D{"Edge vs order book<br/>after fees ≥ 5¢?"}
+    O["Polymarket<br/>order book"] --> D
+    D -->|yes, favoured side| S["Signal<br/>(paper only)"]
+```
+
+Validation, from weakest to strongest; each step is done or scheduled:
+
+| step | what it shows | status |
+|---|---|---|
+| replay the first round | the method can work; settings chosen here | done (in-sample) |
+| capacity from real trades | how many dollars the signals could have bought | done: $2.7k in 30 min |
+| rehearsal: live code against a simulated feed and CDN | the live system keeps up and matches the replay | done: same 7 signals, view of the count ~47 s behind truth (median) |
+| 7 frozen replays: runoff + 6 governor runoffs | the method on races it was not built on | registered; waiting for the electoral court to publish section files |
+| forward test | a true out-of-sample result | cross-category recorder live since 26 Oct; next election nights being recorded |
 
 ## Documents
 
@@ -16,13 +63,10 @@ Does Polymarket under-price public information? Three parts:
 |---|---|
 | [docs/research_design.md](docs/research_design.md) | Brazil case study: design, hypotheses, model math |
 | [docs/cross_category.md](docs/cross_category.md) | cross-category method and pre-registered results; forward test |
-| [docs/edge_tool.md](docs/edge_tool.md) | election-night tool: validation, first-round development, registered runoff and governor replays, fast feed |
-| [docs/data_requests.md](docs/data_requests.md) | data sources requested from third parties and their status |
-| [prereg/NOTES.md](prereg/NOTES.md) | what each registration does and does not guarantee |
-
-Headline results so far: thin-market shocks revert in 6 of 10 categories (holdout, Holm-corrected);
-mentions markets under-price favourites; election-night replays are development or pre-specified
-(outcomes known), not yet a forward test. Figures are in [docs/figures](docs/figures).
+| [docs/edge_tool.md](docs/edge_tool.md) | election-night tool: validation, capacity, registered replays, fast feed, recordings |
+| [docs/data_requests.md](docs/data_requests.md) | data requested from third parties and their status |
+| [prereg/NOTES.md](prereg/NOTES.md) | what each registration does and does not guarantee; recording log |
+| [deploy/](deploy/) | always-on host: recorder, watchers, scheduled election-night recordings |
 
 ## Setup
 
