@@ -91,6 +91,9 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--pm-event", action="append", default=[], help="Polymarket event slug (repeatable)")
     s.add_argument("--interval", type=float, default=30.0)
     s.add_argument("--until", help="UTC stop time, e.g. 2026-10-28T12:00Z")
+    s.add_argument("--clarity", action="append", default=[], help="Clarity ENR base (day-of EID/version resolved)")
+    s.add_argument("--ga-enr", action="append", default=[], help="Enhanced Voting jurisdiction URL (day-of id resolved)")
+    s.add_argument("--date", help="election date YYYY-MM-DD for the resolvers")
 
     a = ap.parse_args(argv)
     pd.set_option("display.width", 200, "display.max_colwidth", 80, "display.max_rows", 200)
@@ -158,7 +161,7 @@ def main(argv: list[str] | None = None) -> None:
         case "snap":
             from . import snap
             until = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
-            asyncio.run(snap.run(a.tag, a.url, a.pm_event, a.interval, until))
+            asyncio.run(snap.run(a.tag, a.url, a.pm_event, a.interval, until, a.clarity, a.ga_enr, a.date))
 
 
 if __name__ == "__main__":

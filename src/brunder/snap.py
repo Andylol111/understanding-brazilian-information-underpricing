@@ -11,6 +11,7 @@ Nothing is modelled or traded; this only builds development data for later repla
 from __future__ import annotations
 
 import asyncio
+import gzip
 import hashlib
 import json
 import re
@@ -30,8 +31,35 @@ def _name(url: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", url.split("://", 1)[-1])[:120]
 
 
+async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str], date: str | None) -> list[tuple[str, str]]:
+    """Day-of URLs whose election id / version is only known once published. Returns (key, url) pairs.
+      clarity: Clarity/Scytl ENR base, e.g. https://electionresults.iowa.gov/IA. The election is the one
+               dated `date` in elections.json; data lives under a version that changes on every upload.
+      ga_enr:  Enhanced Voting jurisdiction URL, e.g. …/public/api/jurisdictions/Georgia; the election is
+               the one with electionDate == `date`; records its per-county `localities`."""
+    out = []
+    if not date:
+        return out
+    y, m, d = (int(x) for x in date.split("-"))
+    for base in clarity:
+        r = await web.get(f"{base}/elections.json")
+        eids = [e["EID"] for e in r.json() if e.get("Date", "").startswith(f"{m}/{d}/{y} ")]
+        if eids:
+            ver = (await web.get(f"{base}/{eids[0]}/current_ver.txt")).text.strip()
+            out.append((f"clarity_{_name(base)}", f"{base}/{eids[0]}/{ver}/json/ALL.json"))
+    for url in ga_enr:
+        j = (await web.get(url)).json()
+        ids = [e["publicElectionId"] for e in j.get("elections", []) if e.get("electionDate") == date]
+        if ids:
+            api = url.split("/jurisdictions/")[0]
+            name = url.rsplit("/", 1)[-1]
+            out.append((f"ga_enr_{name}_localities", f"{api}/elections/{name}/{ids[0]}/localities"))
+    return out
+
+
 async def run(tag: str, urls: list[str], pm_events: list[str], interval: float = 30.0,
-              until: datetime | None = None) -> None:
+              until: datetime | None = None, clarity: list[str] = (), ga_enr: list[str] = (),
+              date: str | None = None) -> None:
     out = SNAP / tag
     out.mkdir(parents=True, exist_ok=True)
     tokens = {}
@@ -53,11 +81,12 @@ async def run(tag: str, urls: list[str], pm_events: list[str], interval: float =
         last[key] = h
         d = out / key
         d.mkdir(parents=True, exist_ok=True)
-        f = d / f"{t:%Y%m%dT%H%M%S.%fZ}.{ext}"
-        f.write_bytes(body)
+        big = len(body) > 1_000_000                       # e.g. Texas county files, ~5 MB each
+        f = d / f"{t:%Y%m%dT%H%M%S.%fZ}.{ext}{'.gz' if big else ''}"
+        f.write_bytes(gzip.compress(body) if big else body)
         with index.open("a") as fh:
             fh.write(json.dumps({"t": t.isoformat(), "key": key, "file": str(f.relative_to(out)), "sha256": h,
-                                 "bytes": len(body)}) + "\n")
+                                 "bytes": len(body), "gzip": big}) + "\n")
 
     async with httpx.AsyncClient(timeout=20, headers=UA, follow_redirects=True) as web, _http.aclient() as pm:
         while until is None or datetime.now(timezone.utc) < until:
@@ -70,6 +99,10 @@ async def run(tag: str, urls: list[str], pm_events: list[str], interval: float =
                     if isinstance(r, httpx.Response) and r.status_code == 200:
                         ext = "json" if "json" in r.headers.get("content-type", "") or u.endswith(".json") else "html"
                         save(_name(u), r.content, ext, t)
+                for key, u in await _resolve(web, list(clarity), list(ga_enr), date):
+                    r = await web.get(u)
+                    if r.status_code == 200:
+                        save(key, r.content, "json", t)
                 if tokens:
                     books = await live.fetch_books(pm, list(tokens))
                     if books:
