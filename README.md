@@ -45,6 +45,12 @@ uv run brunder pm-download brazil-presidential-election    # markets, 1-min pric
 
 `data/raw/tse_live` cannot be re-downloaded once TSE takes the cycle down (2022 is already gone)
 — back it up outside git. Everything else is reproducible from the commands above.
+
+Where `data/` lives: on the author's laptop `data` is a symlink to an external SSD
+(`/Volumes/Untitled/brunder-data`, with its own README and a `MANIFEST.sha256`; check integrity with
+`cd /Volumes/Untitled/brunder-data && shasum -a 256 -c --quiet MANIFEST.sha256`). With the drive
+unmounted the symlink dangles and data reads fail. Elsewhere, set `BRUNDER_DATA=/path/to/data` or
+keep a plain `data/` directory. On the always-on VM it is `/srv/brunder/repo/data` (see `deploy/`).
 The TSE CDN rate-limits (429) per client; live reads go through `brunder.feed`, which budgets requests
 (see [docs/edge_tool.md](docs/edge_tool.md#reading-the-feed-fast-brunderfeed)).
 
