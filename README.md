@@ -60,6 +60,8 @@ The TSE CDN rate-limits (429) per client; live reads go through `brunder.feed`, 
 uv run brunder bweb 2026 1                                  # section-level BU-web files (receipt times + votes)
 uv run brunder night replay configs/<config>.toml           # replay a past count against Polymarket prices
 uv run python analysis/night_replay.py configs/<config>.toml   # replay + evaluation, logged per config id
+uv run brunder stage configs/<config>.toml /tmp/stage       # registered configs: verified local copy of every input…
+BRUNDER_DATA=/tmp/stage uv run python analysis/night_replay.py configs/<config>.toml   # …required before the one look
 uv run brunder night live configs/<config>.toml             # live: model vs order books every 5 s (paper only)
 ```
 
