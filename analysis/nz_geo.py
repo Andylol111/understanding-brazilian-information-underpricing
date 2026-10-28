@@ -60,22 +60,51 @@ def main() -> None:
     work.write_text(json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     exe = os.environ.get("MAPSHAPER")
-    cmd = ([exe] if exe else ["npx", "--yes", "mapshaper@0.6.121"]) + [
-        "-i", str(work), str(land_path), "combine-files",
-        "-dissolve", "target=nz_land_urban_rural_2026",
-        "-clip", "nz_land_urban_rural_2026", "target=electorates",
-        "-clip", "bbox=166,-48,179,-33", "target=electorates",
-        "-filter-fields", "unit_id,name,layer", "target=electorates",
-        "-simplify", "weighted", "3%", "keep-shapes", "target=electorates",
+    mapshaper = [exe] if exe else ["npx", "--yes", "mapshaper@0.6.121"]
+    # General and Māori electorates overlap. Clipping them together lets mapshaper resolve the overlap and
+    # drops most of Te Tai Tonga, so each complete national layer is clipped on its own.
+    clipped = {}
+    for layer in ("general", "maori"):
+        clipped[layer] = CACHE / f"nz_{layer}_clipped.geojson"
+        subprocess.run(mapshaper + [
+            "-i", str(work), str(land_path), "combine-files",
+            "-filter", f'layer=="{layer}"', "target=electorates",
+            "-dissolve", "target=nz_land_urban_rural_2026",
+            "-clip", "nz_land_urban_rural_2026", "target=electorates",
+            "-clip", "bbox=166,-48,179,-33", "target=electorates",
+            "-o", "target=electorates", "format=geojson", str(clipped[layer])], check=True)
+    areas = {k: _area(json.loads(p.read_text())) for k, p in clipped.items()}
+    if abs(areas["general"] - areas["maori"]) > .02 * areas["general"]:
+        raise ValueError(f"general and Māori layers cover different land areas: {areas}")
+    subprocess.run(mapshaper + [
+        "-i", str(clipped["general"]), str(clipped["maori"]), "combine-files",
+        "-merge-layers", "target=*", "name=electorates", "force",
+        "-filter-fields", "unit_id,name,layer",
+        "-simplify", "weighted", "3%", "keep-shapes",
         "-o", "target=electorates", "format=topojson", "quantization=100000",
-        "id-field=unit_id", str(OUT)]
-    subprocess.run(cmd, check=True)
+        "id-field=unit_id", str(OUT)], check=True)
     doc = json.loads(OUT.read_text())
     obj = next(iter(doc["objects"].values()))
     ids = [g["properties"]["unit_id"] for g in obj["geometries"]]
     if len(ids) != 71 or len(set(ids)) != 71 or OUT.stat().st_size >= 1_500_000:
         raise ValueError(f"bad output: {len(ids)} features, {OUT.stat().st_size} bytes")
-    print(f"{OUT}: {len(ids)} clipped electorates, {OUT.stat().st_size:,} bytes; Stats NZ CC BY 4.0")
+    print(f"{OUT}: {len(ids)} clipped electorates, {OUT.stat().st_size:,} bytes; "
+          f"layer areas {areas['general']:.3f}/{areas['maori']:.3f} deg²; Stats NZ CC BY 4.0")
+
+
+def _area(doc: dict) -> float:
+    """Planar lon/lat area, used only to prove both overlapping layers cover the same land."""
+    def ring(r):
+        return abs(sum(r[i][0] * r[(i + 1) % len(r)][1] - r[(i + 1) % len(r)][0] * r[i][1]
+                       for i in range(len(r)))) / 2
+    total = 0.0
+    for f in doc["features"]:
+        g = f.get("geometry")
+        if not g:
+            continue
+        polys = [g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]
+        total += sum(ring(p[0]) - sum(ring(h) for h in p[1:]) for p in polys)
+    return total
 
 
 if __name__ == "__main__":
