@@ -38,6 +38,22 @@ within 0.05 pt; totals give Lula 51.785% two-party (official 51.79%) and RN gove
 49.23%). Configs, model, τ and trading rules are unchanged. When TSE publishes BU-web, the comparison
 of the two sources will be reported; the looks are not repeated.
 
+## US midterms 2026 (`configs/us2026_*_v1.toml`): forward test, registered 2026-10-28
+
+Seven races (CA governor; TX, OH, GA governor and Senate), registered at commit `ed32ee9`, before any
+2026 general-election count exists. Settings were chosen on certified 2020–2024 results only
+(`docs/us_midterms.md`); an independent review before registration led to excluding Alaska (its markets
+are candidate-specific under top-four ranked-choice voting; the model compares party totals) and to
+robustness fixes in the live reader. Read, once, after the counts are final:
+1. per race, the settle lead (model vs Polymarket first staying ≥ 0.9 on the winner), measured from 1%
+   of expected votes counted;
+2. calibration of the 90% interval along the count;
+3. the 30-minute catch-up slope, pooled over the seven markets.
+The Ohio prior file (MIT Election Lab county returns, downloaded by hand because the Ohio SoS site blocks
+scripts) is input data, not a setting; if it is not in place before polls close, the Ohio races are
+reported as not run rather than scored later. Parser fixes forced by the live feed format on the night are
+allowed and will be listed here; model settings cannot change.
+
 ## Israel 2026 (`configs/il2026_v1.toml`): not pre-registered
 
 Settings were chosen on the 2021 and 2022 official counts and written to the config at 2026-10-28

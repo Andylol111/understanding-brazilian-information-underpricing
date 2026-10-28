@@ -13,3 +13,10 @@
 {"id": "hist_2018_r2_v1", "sha256": "7d3da4c02a4faf20730e93062e49d8e72bb5b5a4fecfd929dd837073d076d381", "commit": "244403f06c026cafefc55c8dbe3ddf44adee8c93", "registered_utc": "2026-10-28T13:14:14.950353+00:00"}
 {"id": "hist_2022_r1_v1", "sha256": "3db01e1a4c838793af745decc22814dbf163295393603e76fc957c291ee1642c", "commit": "244403f06c026cafefc55c8dbe3ddf44adee8c93", "registered_utc": "2026-10-28T13:14:17.047963+00:00"}
 {"id": "hist_2022_r2_v1", "sha256": "4e2eb9d33a831b682654cf396eaac46757a8078f2cbfb441105c614a932b8b15", "commit": "244403f06c026cafefc55c8dbe3ddf44adee8c93", "registered_utc": "2026-10-28T13:14:19.020704+00:00"}
+{"id": "us2026_ca_gov_v1", "sha256": "b6f976468cd0ba4456ab2a0f4039adb3e6f1fef7cf5fddaed2da05204e877a15", "commit": "ed32ee90a9dec387784c67080546df2ace752b8c", "registered_utc": "2026-10-28T18:03:10.792600+00:00"}
+{"id": "us2026_ga_gov_v1", "sha256": "9da7ce65c1207b290b35523cedef614ca92178c8d9509100ad00c3ee4577a2c4", "commit": "ed32ee90a9dec387784c67080546df2ace752b8c", "registered_utc": "2026-10-28T18:03:13.125201+00:00"}
+{"id": "us2026_ga_sen_v1", "sha256": "21c2a037ab751e43fee1fb198588f28afe82cb8c35be172d3c57cf8dd31092aa", "commit": "ed32ee90a9dec387784c67080546df2ace752b8c", "registered_utc": "2026-10-28T18:03:15.318839+00:00"}
+{"id": "us2026_oh_gov_v1", "sha256": "139678017f93f3205cff6a3efd0a0d3c59a3b69405a892f5126edf06227c1b58", "commit": "ed32ee90a9dec387784c67080546df2ace752b8c", "registered_utc": "2026-10-28T18:03:17.612726+00:00"}
+{"id": "us2026_oh_sen_v1", "sha256": "d9681b40a6f088df5c9859ab3beea917114d2ec8ce986791c8011e54cad182e9", "commit": "ed32ee90a9dec387784c67080546df2ace752b8c", "registered_utc": "2026-10-28T18:03:19.570932+00:00"}
+{"id": "us2026_tx_gov_v1", "sha256": "0a226c4d5a360bde0b5b88656ff2ae044a96db5557572a1b0101040db2dabcd6", "commit": "ed32ee90a9dec387784c67080546df2ace752b8c", "registered_utc": "2026-10-28T18:03:21.743907+00:00"}
+{"id": "us2026_tx_sen_v1", "sha256": "c6fe11502a9008639d34f2804f87d0744cce643efb23f9fd837de03ae510a0e0", "commit": "ed32ee90a9dec387784c67080546df2ace752b8c", "registered_utc": "2026-10-28T18:03:25.105647+00:00"}

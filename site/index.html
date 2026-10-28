@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Election-night counts and market prices</title>
-<meta name="description" content="Election nights replayed and followed live: a model that projects the final result from the public count, compared minute by minute with Polymarket and Kalshi prices, with the same statistics for every election.">
+<meta name="description" content="Election nights replayed and followed live: a model that projects the final result from the public count, compared minute by minute with Polymarket prices, with the same statistics for every election.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
 <header class="col">
   <p class="kicker">Election nights</p>
   <h1>Election-night counts and market prices</h1>
-  <p class="dek">Election results are published unit by unit while the count runs. A model projects each race's final result from the units already in; these pages compare that projection, minute by minute, with Polymarket and Kalshi prices, to measure how long the prices take to reflect what the count already shows.</p>
+  <p class="dek">Election results are published unit by unit while the count runs. A model projects each race's final result from the units already in; these pages compare that projection, minute by minute, with Polymarket prices, to measure how long the prices take to reflect what the count already shows.</p>
   <p class="byline">Code, tests, frozen model settings and pre-registrations: <a href="https://github.com/Andylol111/understanding-brazilian-information-underpricing">GitHub</a>.</p>
 </header>
 
@@ -27,7 +27,7 @@
   <h2>What is measured</h2>
   <p>For every reporting unit (a US county, a Brazilian municipality, an Israeli locality) the <span class="m">model</span> combines the votes counted so far with that unit's result in a comparable earlier election to project its final result, then adds the units up. The projection carries a 90% band, and the band gives a probability that each candidate wins.</p>
   <p>The <span class="r">raw count</span> is the running total on the official results page. Early in the night it can point the wrong way, because places do not report in random order.</p>
-  <p>The <span class="k">markets</span> are the Polymarket and Kalshi prices for the same outcome, recorded every minute and read as probabilities. Where both platforms list the same race, the prices are also checked against each other for arbitrage.</p>
+  <p>The <span class="k">market</span> is the Polymarket price for the same outcome, recorded every minute and read as a probability. Kalshi lists many of the same races, but its data terms do not allow republishing its prices, so these pages show none; statistics that would need them (Kalshi catch-up, Polymarket–Kalshi arbitrage) are marked as not computed, with that reason.</p>
 
   <h3>The same statistics for every election</h3>
   <dl class="defs">
@@ -58,7 +58,7 @@
 </section>
 
 <footer class="col">
-  Results: official election authorities (listed on each election page). Prices: Polymarket and Kalshi public market-data APIs. Maps: U.S. Census Bureau cartographic boundary files (public domain); IBGE Malha Municipal Digital 2025 (public open data, attribution IBGE) joined to election codes with the TSE's table of TSE and IBGE municipality codes (CC-BY). Maps are built by <code>analysis/geo_build.py</code>. Code under MIT licence. Charts: D3.
+  Results: official election authorities (listed on each election page). Prices: Polymarket public price API. Kalshi data is not republished here (Kalshi Data Terms of Use; see <code>docs/kalshi.md</code>). Maps: U.S. Census Bureau cartographic boundary files (public domain); IBGE Malha Municipal Digital 2025 (public open data, attribution IBGE) joined to election codes with the TSE's table of TSE and IBGE municipality codes (CC-BY). Maps are built by <code>analysis/geo_build.py</code>. Code under MIT licence. Charts: D3.
 </footer>
 
 </main>

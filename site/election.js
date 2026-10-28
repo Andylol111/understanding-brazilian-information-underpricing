@@ -482,10 +482,13 @@ function drawTimeline() {
   const rule = svg.append("line").attr("y1", m.t).attr("y2", top2 + h2).attr("stroke", C.market).attr("opacity", 0);
   const bisect = d3.bisector((d) => wall(d.time)).center;
   const readout = $("tl-readout");
+  const hasPm = rows.some((d) => d.pm != null), hasK = rows.some((d) => d.kalshi != null);
   const show = (d) => {
     rule.attr("x1", X(d)).attr("x2", X(d)).attr("opacity", 0.35);
     const band90 = d.sd != null ? ` <span class="dim">(90%: ${pct(lo(d))}–${pct(hi(d))})</span>` : "";
-    readout.innerHTML = `<b>${clock(d.t, tz)}</b> · ${pct(d.counted)} counted · raw count <b style="color:${C.raw}">${pct(d.raw)}</b> · model share <b style="color:${C.model}">${pct(d.share)}</b>${band90} · P(${esc(r.a.name)}) model <b style="color:${C.model}">${num(d.P)}</b> · Polymarket <b>${num(d.pm)}</b> · Kalshi <b>${num(d.kalshi)}</b>`;
+    const prices = [["Polymarket", hasPm ? d.pm : undefined], ["Kalshi", hasK ? d.kalshi : undefined]]
+      .filter(([, v]) => v !== undefined).map(([p, v]) => ` · ${p} <b>${num(v)}</b>`).join("");
+    readout.innerHTML = `<b>${clock(d.t, tz)}</b> · ${pct(d.counted)} counted · raw count <b style="color:${C.raw}">${pct(d.raw)}</b> · model share <b style="color:${C.model}">${pct(d.share)}</b>${band90} · P(${esc(r.a.name)}) model <b style="color:${C.model}">${num(d.P)}</b>${prices}`;
   };
   const idle = () => { rule.attr("opacity", 0); readout.textContent = "Move across the chart to read any minute."; };
   const pick = (e) => rows[bisect(rows, x.invert(d3.pointer(e)[0]))];
@@ -532,7 +535,10 @@ function marketsNote(r) {
       ? `<i>${esc(mk.question)}</i> (<code>${esc(mk.id)}</code>, YES = ${yes})`
       : `<code>${esc(mk.id)}</code> (YES = ${yes})`;
   };
-  const lines = d3.groups(ms, (mk) => mk.platform).map(([p, list]) => `${esc(PLATFORM[p] ?? p)}: ${list.map(one).join("; ")}.`);
+  const kalshiHidden = ms.some((mk) => mk.platform === "kalshi") && !(S.timeline?.[r.race_id] ?? []).some((d) => d.kalshi != null);
+  const lines = d3.groups(ms, (mk) => mk.platform).map(([p, list]) => (p === "kalshi" && kalshiHidden
+    ? `Kalshi: ${list.map((mk) => `<code>${esc(mk.id)}</code> (YES = ${esc(r[mk.yes_is]?.name ?? mk.yes_is)})`).join(", ")}; prices not shown, because Kalshi's data terms do not allow republishing them.`
+    : `${esc(PLATFORM[p] ?? p)}: ${list.map(one).join("; ")}.`));
   $("markets-note").innerHTML = `${lines.join(" ")} Prices are shown as the probability that ${esc(r.a.name)} wins.`;
 }
 
