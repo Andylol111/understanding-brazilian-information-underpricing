@@ -28,12 +28,13 @@
     <div class="map-body">
       <div class="map-box" id="map">
         <div class="map-ui map-modes toggle" id="map-mode" role="group" aria-label="Map colour"></div>
+        <div class="map-ui map-layers toggle" id="map-layer" role="group" aria-label="Units shown" hidden></div>
         <button type="button" class="map-ui map-national" id="extent" hidden>Whole map</button>
         <div class="map-ui map-legend" id="legend"></div>
         <div class="map-ui map-frame" id="frame-label"></div>
         <div class="place-card" id="place" hidden></div>
         <p class="map-empty note" id="map-empty">Loading the map…</p>
-        <div class="national" id="national" hidden></div>
+        <div class="national off" id="national"></div>
       </div>
       <aside class="region-picker" id="regions" aria-label="Regions" hidden></aside>
     </div>

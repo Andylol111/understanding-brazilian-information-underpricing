@@ -1,7 +1,7 @@
 """Build the simplified TopoJSON boundary files the dashboard maps draw (site/data/geo/).
 
-    python3 analysis/geo_build.py            # both files
-    python3 analysis/geo_build.py us br      # pick
+    python3 analysis/geo_build.py            # all files
+    python3 analysis/geo_build.py us br      # pick (us, br, world)
     python3 analysis/geo_build.py --cache /some/dir
 
 Needs Node (for `npx mapshaper`, pinned below), which does the topology-preserving simplification
@@ -36,6 +36,14 @@ Brazil: `geo/br_municipalities.topo.json`, object `municipalities`
   code. The TSE table maps one to the other. unit_id = `br-<uf, lower>-<TSE code, 5 digits>`
   (e.g. São Paulo, IBGE 3550308 -> br-sp-71072). Lagoa dos Patos and Lagoa Mirim (IBGE water
   polygons without a municipality) are dropped.
+
+World (homepage map): `geo/world.topo.json`, object `countries`
+  * Natural Earth, Admin 0 - Countries, 1:110m, version 5.1.1
+    https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip
+    Natural Earth is in the public domain (https://www.naturalearthdata.com/about/terms-of-use/).
+  Antarctica dropped. Properties: `iso2` (ISO 3166-1 alpha-2, upper case, from ISO_A2_EH, which fills
+  the codes ISO_A2 leaves as -99, e.g. France and Norway; "-99" where none exists, e.g. Kosovo stays
+  "XK") and `name` (NAME). The elections' `country` codes in elections.json use the same codes.
 """
 
 from __future__ import annotations
@@ -62,6 +70,7 @@ AK_HOUSE = "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_02_sldl_500k.
 IBGE_MESH = ("https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/"
              "municipio_2025/Brasil/BR_Municipios_2025.zip")
 TSE_IBGE = "https://cdn.tse.jus.br/estatistica/sead/odsele/municipio_tse_ibge/municipio_tse_ibge.zip"
+NE_COUNTRIES = "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip"
 
 # 50 states + DC by Census state FIPS (01-56 minus the unused codes); territories are not mapped.
 US_STATE_FIPS = sorted({f"{i:02d}" for i in range(1, 57)} - {"03", "07", "14", "43", "52"})
@@ -160,15 +169,38 @@ def build_br(cache: Path, tmp: Path) -> None:
     check(out, "municipalities")
 
 
+def build_world(cache: Path, tmp: Path) -> None:
+    shp = unzip_shp(fetch(NE_COUNTRIES, cache), tmp / "world")
+    out = OUT / "world.topo.json"
+    mapshaper(
+        "-i", str(shp), "encoding=utf8",
+        "-filter", "ISO_A2_EH != 'AQ'",
+        "-each", "iso2 = ISO_A2_EH, name = NAME",
+        "-filter-fields", "iso2,name",
+        "-rename-layers", "countries",
+        "-o", str(out), "format=topojson", "quantization=100000",
+    )
+    doc = json.loads(out.read_text())
+    geoms = doc["objects"]["countries"]["geometries"]
+    codes = [g["properties"]["iso2"] for g in geoms]
+    size = out.stat().st_size
+    print(f"{out.name}: {len(geoms)} countries, {size / 1e3:.0f} kB", file=sys.stderr)
+    if size > 1_000_000:
+        sys.exit(f"{out}: {size} bytes, over the 1 MB budget")
+    for need in ("US", "BR", "IL", "HU", "MX", "CA", "NZ"):
+        if need not in codes:
+            sys.exit(f"{out}: no country with iso2 {need}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("which", nargs="*", choices=["us", "br"], help="default: both")
+    ap.add_argument("which", nargs="*", choices=["us", "br", "world"], help="default: all")
     ap.add_argument("--cache", type=Path, default=Path.home() / ".cache" / "brunder-geo")
     a = ap.parse_args()
     a.cache.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
-        for w in a.which or ["us", "br"]:
-            {"us": build_us, "br": build_br}[w](a.cache, Path(tmp))
+        for w in a.which or ["us", "br", "world"]:
+            {"us": build_us, "br": build_br, "world": build_world}[w](a.cache, Path(tmp))
 
 
 if __name__ == "__main__":

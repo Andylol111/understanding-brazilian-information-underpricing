@@ -1,7 +1,9 @@
-// Worker wrapper around dash-engine.js: jobs ({ id, type: "geo" | "units" }) answer with { id, out }
-// or { id, error }; control messages ({ type, ... } without id) go straight to the engine, and the
-// engine's events ("painted", "drawStats") are posted back.
-import { geo, units, control, setEmitter } from "./dash-engine.js";
+// Worker wrapper around dash-engine.js: jobs ({ id, type: "geo" | "units" | "prefetch" }) answer
+// with { id, out } or { id, error }; control messages ({ type, ... } without id) go straight to the
+// engine, and the engine's events ("painted", "drawStats") are posted back.
+import { geo, units, prefetch, control, setEmitter } from "./dash-engine.js";
+
+const JOBS = { geo, units, prefetch };
 
 setEmitter((ev) => self.postMessage(ev));
 self.postMessage({ type: "ready" }); // the engine module and its imports have loaded
@@ -13,7 +15,7 @@ self.onmessage = async ({ data }) => {
     return;
   }
   try {
-    const out = type === "geo" ? await geo(data) : await units(data);
+    const out = await JOBS[type](data);
     self.postMessage({ id, out: out.result }, out.transfer);
   } catch (err) {
     self.postMessage({ id, error: String(err?.stack ?? err) });

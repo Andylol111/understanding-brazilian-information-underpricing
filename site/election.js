@@ -6,7 +6,7 @@
 // (dash-worker.js) fetches, parses and projects the geometry and the map frames; the map appears
 // when both arrive. While playing, colours are interpolated between map frames every animation frame.
 import * as d3 from "./vendor/d3.js";
-import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
+import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
 import { createMap } from "./dash-map.js";
 import { drawTimeline } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
@@ -21,7 +21,7 @@ const WIDE = window.matchMedia("(min-width: 1100px)");
 const S = {
   mode: "margin", t: 0, preview: null, playing: false, speed: 1, followLatest: false, userMoved: false,
   region: null, shownKey: null, hover: -1, pinned: -1,
-  perf: { firstPaintMs: null, firstRenderMs: null, tickMs: [], frameDrawMs: [] },
+  perf: { firstPaintMs: null, firstRenderMs: null, tickMs: [], frameDrawMs: [], transitionFrames: [] },
 };
 window.__dashPerf = S.perf;
 
@@ -131,6 +131,7 @@ async function loadMeta() {
   S.meta = meta;
   S.countTimeline = meta.count_timeline !== false;
   S.tz = meta.tz ?? "UTC";
+  S.layer = (meta.layers?.find((l) => l.default) ?? meta.layers?.[0])?.id ?? null;
   const asked = raceById(param("race"));
   S.race = asked ?? mainRace() ?? null;
   // Open on a region only when one was asked for; elections without a national race open on the
@@ -242,19 +243,46 @@ function setUnits(U, plan) {
   if (S.map) bindUnits();
 }
 
+// Overlapping unit sets (meta.layers, e.g. New Zealand's general and Māori electorates): one is
+// shown at a time; units of the others are neither drawn nor hit.
+const layers = () => S.meta.layers ?? [];
+const layerOn = (j) => !S.layer || (S.units?.layer?.[j] ?? S.layer) === S.layer;
+
 function bindUnits() {
   S.featIdx = Int32Array.from(S.map.ids, (id) => S.unitIndex.get(id) ?? -1);
   // colours are built in the worker from each unit's race colours
   const raceList = [...new Set(S.unitRace)];
   const at = new Map(raceList.map((r, i) => [r, i]));
+  const hidden = S.layer ? Uint8Array.from(S.featIdx, (j) => (j >= 0 && !layerOn(j) ? 1 : 0)) : null;
   S.map.setUnits(S.featIdx, S.units.V0, {
     unitRace: Int16Array.from(S.unitRace, (r) => at.get(r)),
     raceColors: raceList.map((r) => [r.a.color, r.b.color]),
     parties: S.meta.parties ?? [],
     countTimeline: S.countTimeline,
     hatch: noBaseline(),
+    hidden,
   });
   S.shownKey = null;
+}
+
+// The layer buttons beside the map modes (hidden when the election has no layers).
+function setupLayers() {
+  const box = $("map-layer");
+  const ls = layers();
+  box.hidden = ls.length < 2;
+  if (ls.length < 2) return;
+  box.innerHTML = ls.map((l) => `<button type="button" data-layer="${esc(l.id)}" aria-pressed="${l.id === S.layer}">${esc(l.name)}</button>`).join("");
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+    if (b.dataset.layer === S.layer) return;
+    S.layer = b.dataset.layer;
+    box.querySelectorAll("button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+    S.pinned = -1;
+    S.map?.pin(-1);
+    placeCard();
+    if (S.map && S.units) bindUnits();
+    S.legendKey = null;
+    render();
+  }));
 }
 
 // Regions whose races all lack a county file (before the count: no county baseline yet, e.g. Ohio):
@@ -344,12 +372,14 @@ function winnerAt(k, j) {
 
 function modes() {
   if (!S.units) return [];
-  if (PRE()) return ["margin", "counted"];
+  if (PRE()) return [...(hasWinner() ? ["winner"] : []), "margin", ...remModes(), "counted"];
   const w = hasWinner() ? ["winner"] : [];
   if (!S.units.K) return [...w, "prior"];
-  return [...w, ...(S.countTimeline ? ["margin", "swing", "counted"] : ["margin", "swing"])];
+  return [...w, ...(S.countTimeline ? ["margin", "swing", ...remModes(), "counted"] : ["margin", "swing"])];
 }
-const modeLabel = (m) => ({ winner: "Winning party", margin: PRE() ? "Before any votes" : S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", counted: "Counted", prior: "Comparison election" })[m];
+// outstanding-vote modes, when the units carry rem / rem_margin
+const remModes = () => (S.units?.rem ? ["rem", "remlean"] : []);
+const modeLabel = (m) => ({ winner: "Winning party", margin: PRE() ? "Before any votes" : S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", rem: "Votes left", remlean: "Where the remaining votes lean", counted: "Counted", prior: "Comparison election" })[m];
 
 const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is at full strength (dash-worker.js)
 
@@ -370,13 +400,14 @@ function render() {
       S.map.paint(S.mode, tt, tween);
       S.shownKey = tween ? null : key;
     }
-    const lk = `${S.mode}|${S.mode === "winner" ? k : ""}|${S.race?.race_id}`;
+    const lk = `${S.mode}|${S.mode === "winner" ? k : ""}|${S.race?.race_id}|${S.layer}`;
     if (lk !== S.legendKey) { S.legendKey = lk; renderLegend(); }
     const nb = PRE() ? noBaseline().filter((reg) => !S.region || reg === S.region).map(regionName) : [];
-    $("frame-label").textContent = PRE() ? (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}` : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county baseline yet; prices shown.` : ""}`)
+    const remNote = remModes().includes(S.mode) ? `Circles: the model's estimate of the votes still to count${PRE() ? " (before the count: the whole expected vote)" : ""}.` : "";
+    $("frame-label").textContent = PRE()
+      ? remNote || (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}` : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county baseline yet; prices shown.` : ""}`)
       : k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
-        : tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames`
-          : `Map frame ${clock(S.units.times[k], S.tz)}`;
+        : `${remNote ? `${remNote} ` : ""}${tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames` : `Map frame ${clock(S.units.times[k], S.tz)}`}`;
     if (S.hover >= 0 || S.pinned >= 0) placeCard();
   }
   S.tl?.setCursor(S.t, S.preview);
@@ -413,6 +444,7 @@ function renderLegend() {
   if (!S.units) return;
   if (PRE() && S.region && noBaseline().includes(S.region)) return; // nothing coloured there yet
   if (S.mode === "winner") { partyLegend(root); return; }
+  if (S.mode === "rem" || S.mode === "remlean") { remLegend(root); return; }
   const w = 200, h = 8;
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
   const svg = root.append("svg").attr("viewBox", `0 0 ${w} 24`).attr("width", w).attr("height", 24);
@@ -432,10 +464,31 @@ function renderLegend() {
   }
 }
 
+// Circle sizes (same scale as the engine: radius 22 px at the file's largest value) and, for the
+// lean, the two sides' colours.
+function remLegend(root) {
+  const lean = S.mode === "remlean";
+  const max = lean ? S.units.remScale?.maxLean : S.units.remScale?.maxRem;
+  if (!(max > 0)) return;
+  const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
+  const nice = (v) => { const p = 10 ** Math.floor(Math.log10(v)); return [1, 2, 5, 10].map((m) => m * p).reverse().find((x) => x <= v) ?? p; };
+  const sizes = [...new Set([nice(max), nice(max / 6), nice(max / 40)])].filter((v) => v > 0);
+  const rad = (v) => Math.max(0.8, 22 * Math.sqrt(v / max));
+  const w = 200, h = 2 * rad(sizes[0]) + 4;
+  let x = 4;
+  const items = sizes.map((v) => { const c = { v, cx: x + rad(v), r: rad(v) }; x += 2 * rad(v) + 26; return c; });
+  const fill = lean ? r.a.color : "#4f647d";
+  root.append("svg").attr("viewBox", `0 0 ${w} ${h + 14}`).attr("width", w).attr("height", h + 14).html(items.map((c) =>
+    `<circle cx="${c.cx}" cy="${h - c.r - 2}" r="${c.r}" fill="${fill}" fill-opacity="0.72" stroke="#fcfbf8"/><text class="legend-text" x="${c.cx}" y="${h + 12}" text-anchor="middle">${votesShort(c.v)}</text>`).join(""));
+  root.append("p").attr("class", "legend-note").html(lean
+    ? `Projected margin of the votes still to count: <span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> / <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> ahead. Model estimate.`
+    : "Votes still to count, a model estimate (not an official count of outstanding ballots).");
+}
 function partyLegend(root) {
   const k = frameIndex(S.preview ?? S.t);
   const counts = new Map();
   for (let j = 0; j < S.units.n; j++) {
+    if (!layerOn(j)) continue;
     const [p] = winnerAt(k, j);
     if (p != null) counts.set(p, (counts.get(p) ?? 0) + 1);
   }
@@ -482,7 +535,7 @@ async function buildMap() {
   }
   await S.ui;
   if (geo) {
-    $("map").querySelector(".map-canvas")?.remove(); // a worker that failed may still hold the old one
+    $("map").querySelectorAll(".map-canvas, .map-overlay").forEach((c) => c.remove()); // a worker that failed may still hold the old canvas
     S.map = null;
     S.mapRegions = null;
     try {
@@ -507,19 +560,30 @@ function initMap(geo) {
   S.map = createMap($("map"), {
     geo, post: enginePost, offscreen: E.kind === "worker", populatedFirst: S.country === "CA",
     onHover: (i, ev) => {
+      const reg = i >= 0 ? S.map.regionOf(i) : null;
+      if (natShown()) {
+        // the national map: a state's card, and its county file preloaded for a click
+        S.nat.hover(reg, ev);
+        if (reg) prefetchUnits([S.nat.raceFor(reg)?.race_id && raceById(S.nat.raceFor(reg).race_id)]);
+        return;
+      }
       S.hover = i;
       S.hoverPos = ev ? pointIn(ev) : null;
       placeCard();
-      highlightPickerRow(i >= 0 ? S.map.regionOf(i) : null);
+      highlightPickerRow(reg);
     },
     onClick: (i, ev) => mapClick(i, ev),
+    onFrame: (ms) => S.perf.transitionFrames.push(ms),
   });
+  if (S.natLayer) S.map.setNational(...S.natLayer);
   if (S.units) bindUnits();
 }
 
+const natShown = () => !!S.nat && !S.region;
 const pointIn = (ev) => { const r = $("map").getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
 
 function mapClick(i, ev) {
+  if (natShown()) { S.nat.pick(i >= 0 ? S.map.regionOf(i) : null); return; }
   if (i < 0) { S.pinned = -1; S.map.pin(-1); placeCard(); return; }
   S.pinned = S.pinned === i ? -1 : i;
   S.pinPos = pointIn(ev);
@@ -528,6 +592,13 @@ function mapClick(i, ev) {
   const reg = S.map.regionOf(i);
   if (reg !== S.region && S.featIdx?.[i] >= 0 && pickerRegions().some((r) => r.id === reg)) selectRegion(reg);
 }
+
+// Run when the page is idle, at the latest after `wait` ms (a plain timer where requestIdleCallback
+// is missing).
+const idle = (fn, wait = 4000) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: wait }) : setTimeout(fn, Math.min(wait, 800)));
+// Run once the map's current zoom has finished (work during it would cost frames). Queued after the
+// current task, so a zoom started later in the same handler counts.
+const afterZoom = (fn) => queueMicrotask(() => (S.map ? S.map.afterTransition(fn) : fn()));
 
 function setupModes() {
   const ms = modes();
@@ -553,12 +624,16 @@ function showMapState() {
   for (const id of ["map-mode", "legend", "frame-label"]) $(id).style.visibility = has ? "" : "hidden";
   if (!has) return;
   setupModes();
-  focusMap(false);
+  setupLayers();
+  if (!S.mapShown) { S.mapShown = true; focusMap(false); }
 }
 
-function focusMap(animate = true) {
-  const reg = S.region && (S.units?.region?.includes(S.region) || noBaseline().includes(S.region)) ? S.region : null;
-  S.map?.focus(reg, animate);
+// Zoom the map to the chosen region (or out), then sync the controls. ready: a promise for the
+// region's units being bound (the zoom starts at once; with a state layer the units fade in when
+// they are ready).
+function focusMap(animate = true, ready = null) {
+  const reg = S.region && S.map?.hasRegion(S.region) && (pickerRegions().some((r) => r.id === S.region) || noBaseline().includes(S.region)) ? S.region : null;
+  S.map?.focus(reg, { animate, ready });
   const ext = $("extent");
   ext.hidden = !S.map?.hasPopulatedView || !!reg;
   ext.textContent = S.map?.extent === "populated" ? "Whole map" : "Populated areas";
@@ -588,8 +663,14 @@ function placeCard() {
       const [p, m] = winnerAt(k, j);
       if (p != null) winRow = [["Winner", `${esc(S.meta.parties.find((x) => x.id === p)?.name ?? p)}, by ${(m / 10).toFixed(1)} pt`]];
     }
+    const remRows = [];
+    if (U.rem && k >= 0) {
+      const left = U.rem.votes[k * U.n + j], lean = U.rem.margin[k * U.n + j];
+      if (!Number.isNaN(left)) remRows.push(["Votes left (model estimate)", `≈ ${votesShort(left)}`]);
+      if (!Number.isNaN(lean) && left > 0) remRows.push(["They lean", `${esc(lean >= 0 ? r.a.name : r.b.name)} +${(100 * Math.abs(lean) / left).toFixed(1)} pt`]);
+    }
     const rows = S.countTimeline
-      ? [...winRow, ["Counted", pct(counted, 0)], [`${an}, votes counted`, pct(a)], [`${an}, model projection`, pct(proj)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]]
+      ? [...winRow, ["Counted", pct(counted, 0)], [`${an}, votes counted`, pct(a)], [`${an}, model projection`, pct(proj)], [`${an}, comparison election`, pct(prior)], ["Swing", sw], ...remRows]
       : [...winRow, [`${an}, result`, pct(a)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]];
     body = `<table class="kv"><tbody>${rows.map(([k2, x]) => `<tr><td>${k2}</td><td class="n">${x}</td></tr>`).join("")}</tbody></table>`;
   }
@@ -700,23 +781,42 @@ async function selectRegion(reg) {
   const race = regionRace(reg);
   if (race) return selectRace(race);
   S.region = reg;
-  await reloadUnitsIfNeeded();
-  focusMap();
-  render();
+  await moveMap();
 }
 
 async function backToNational() {
   if (!S.region) return;
   if (national()) return selectRace(national());
   S.region = null;
-  await reloadUnitsIfNeeded();
-  focusMap();
+  await moveMap();
+}
+
+// The zoom starts right away; the units for the new view load meanwhile and fade in when bound.
+// Zooming in, the readout and lists update first (their layout lands before the zoom's frames);
+// zooming out, they update when the zoom is over (the layout would cost one of its frames).
+async function moveMap() {
+  if (!S.region) {
+    // back out: with a state map the counties are hidden by the end of the zoom and reload after it
+    const ready = S.nat ? null : reloadUnitsIfNeeded();
+    focusMap(true, ready);
+    afterZoom(async () => { if (S.nat) await reloadUnitsIfNeeded(); render(); });
+    await ready;
+    return;
+  }
+  const ready = reloadUnitsIfNeeded();
   render();
+  focusMap(true, ready);
+  await ready;
+  afterZoom(render); // legend and lists for the new units
 }
 
 async function reloadUnitsIfNeeded() {
   if (unitsPlan().key === S.unitsKey) return;
-  if (await loadUnits()) { if (S.map) bindUnits(); showMapState(); }
+  if (await loadUnits()) {
+    if (S.map) bindUnits();
+    // mode buttons and legend for the new units: rebuilt once a running zoom is over
+    if (S.mapShown) afterZoom(showMapState); else showMapState();
+  }
 }
 
 /* ---------------------------------------------------------------- race, chart, scrubber */
@@ -732,14 +832,11 @@ async function selectRace(r) {
     url.searchParams.set("race", r.race_id);
     history.replaceState(null, "", url);
     S.list?.select(r.race_id);
-    drawChart();
-    updateScrubber();
-    renderStatsTab();
     S.legendKey = null;
+    // the chart and statistics redraw when the map's zoom leaves the main thread idle
+    afterZoom(() => { if (S.race !== r) return; drawChart(); updateScrubber(); renderStatsTab(); });
   }
-  await reloadUnitsIfNeeded();
-  focusMap();
-  render();
+  await moveMap();
 }
 
 function chartHeight() {
@@ -942,6 +1039,7 @@ function geometryCredit() {
   const g = S.meta.geometry ?? "";
   if (g.includes("us_")) return "Map: U.S. Census Bureau cartographic boundary files, 2024 (public domain), built by <code>analysis/geo_build.py</code>.";
   if (g.includes("br_")) return "Map: IBGE Malha Municipal Digital 2025 (public open data, attribution IBGE), joined to TSE municipality codes with the TSE table of TSE and IBGE codes (CC-BY), built by <code>analysis/geo_build.py</code>.";
+  if (g.includes("nz_")) return "Map: Stats NZ, General Electorates 2025, Māori Electorates 2025 and Urban Rural land classes, CC BY 4.0.";
   return "";
 }
 
@@ -1138,26 +1236,55 @@ function updateNational(yes = natYes) {
   S.nat.update({ overview: S.overview, live, model });
 }
 
+// The overview's office ("senate" | "governor") as the race-id suffix of the modelled races.
+const OFFICE_ID = { senate: "sen", governor: "gov" };
+
 async function initNational() {
   if (!S.meta.overview || !S.meta.geometry) return;
-  const [overview, topo] = await Promise.all([getJSON(`${EID}/${S.meta.overview}`, { optional: true }), getJSON(S.meta.geometry, { root: STATIC })]).catch(() => [null, null]);
-  if (!overview || !topo) return;
+  const overview = await getJSON(`${EID}/${S.meta.overview}`, { optional: true }).catch(() => null);
+  if (!overview) return;
   S.overview = overview;
   S.nat = createNational($("national"), {
-    topo, overview, office: "senate", summary: $("nat-summary"),
+    overview, office: "senate", summary: $("nat-summary"),
     onDrill: (id) => { const r = raceById(id); if (r) selectRace(r); },
+    onOffice: (o) => syncOffice(o),
+    onColours: (colours, rings) => { S.natLayer = [colours, rings]; S.map?.setNational(colours, rings); },
+    onHighlight: (r) => S.map?.highlightRegion(r),
   });
-  showNational();
-  updateNational();
-  renderCrumbs();
+  // the merged county layer under the state map follows the office shown
+  if (!param("race")) syncOffice("senate", false);
+  S.nat.draw(); // the state layer is ready before the map's first frame
 }
 
-// While the national map shows, the right column shows the office summary instead of one race.
+// Keep the selected race on the office the national map shows, so the counties that fade in on
+// a click are that office's (and the county files to preload are known).
+function syncOffice(o, reload = true) {
+  const r = races().find((x) => x.units && office(x) === OFFICE_ID[o]);
+  if (!r || r === S.race || S.region) return;
+  S.race = r;
+  $("race").value = r.race_id;
+  if (reload) reloadUnitsIfNeeded();
+}
+
+// While the national map shows, the right column shows the office summary instead of one race,
+// and the national controls replace the county map's (both fade; see style.css).
 function showNational() {
   const on = !!S.nat && !S.region;
-  $("national").hidden = !on;
+  $("national").classList.toggle("off", !on);
   $("dash").classList.toggle("nat-on", on);
-  if (on) S.nat.draw();
+  for (const id of ["map-mode", "legend", "frame-label"]) $(id).classList.toggle("nat-hidden", on);
+  if (on) afterZoom(() => { if (natShown()) S.nat.draw(); });
+  else S.nat?.hover(null);
+}
+
+// Preload the county file of a modelled state's race (on hover, and for all of them once idle).
+const prefetched = new Set();
+function prefetchUnits(rs) {
+  if (LIVE) return; // live files are revalidated on every read; nothing to warm
+  const urls = rs.filter((r) => r?.units).map((r) => absUrl(`${EID}/${r.units}`)).filter((u) => !prefetched.has(u));
+  if (!urls.length) return;
+  urls.forEach((u) => prefetched.add(u));
+  work("prefetch", { urls }).catch(() => urls.forEach((u) => prefetched.delete(u)));
 }
 
 // A scheduled election whose data folder does not exist yet: say what will appear on the night
@@ -1223,6 +1350,7 @@ async function main() {
   // missing from their capture. ?engine=worker or ?engine=page overrides.
   const engine = param("engine") ?? (/HeadlessChrome/.test(navigator.userAgent) ? "page" : "worker");
   if (engine === "page" || !startWorker()) await startMain();
+  await initNational(); // before the map: it sets the state layer and the office's county files
   S.mapDone = buildMap();
   await loadSeries();
   computeDomain();
@@ -1239,7 +1367,8 @@ async function main() {
   renderCrumbs();
   render();
   S.perf.firstPaintMs = Math.round(performance.now());
-  initNational().finally(startPrices);
+  startPrices();
+  if (S.nat) idle(() => prefetchUnits(races()));
 
   $("play").addEventListener("click", () => (S.playing ? pause() : play()));
   document.querySelectorAll("#speed button").forEach((b) => b.addEventListener("click", () => {

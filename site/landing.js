@@ -3,6 +3,7 @@
 import * as d3 from "./vendor/d3.js";
 import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes } from "./common.js";
 import { polymarketYes } from "./dash-precount.js";
+import { createWorldMap } from "./world-map.js";
 
 const $ = (id) => document.getElementById(id);
 const tbody = document.querySelector("#overview tbody");
@@ -388,6 +389,15 @@ async function load() {
     const [elections, summary] = await Promise.all([getJSON("elections.json"), getJSON("summary.json", { optional: true })]);
     liveIds = new Set(elections.filter((e) => e.status === "live" || e.status === "scheduled").map((e) => e.id));
     render(elections);
+    if (!load.world) {
+      load.world = true;
+      getJSON("geo/world.topo.json", { root: STATIC })
+        .then((topo) => {
+          window.__worldFrames = [];
+          createWorldMap($("world"), { topo, elections, href, countryName, frames: window.__worldFrames });
+        })
+        .catch((err) => { $("world").innerHTML = `<p class="note">The world map could not be drawn (${esc(err.message)}).</p>`; });
+    }
     if (summary && !load.drawn) {
       load.drawn = true;
       // chart labels carry the year: two elections can share a name (Brazil's 2022 and 2026 runoffs)

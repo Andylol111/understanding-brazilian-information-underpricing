@@ -40,6 +40,12 @@ export const pct = (x, d = 1) => (x == null || Number.isNaN(x) ? "–" : `${(100
 export const num = (x, d = 2) => (x == null || Number.isNaN(x) ? "–" : x.toFixed(d));
 export const usd = (x) => (x == null ? "–" : `$${Math.round(x).toLocaleString("en-US")}`);
 export const pts = (x, d = 1) => (x == null ? "–" : `${x.toFixed(d)} pt`);
+// a vote count in short form: "1.2M", "45k", "8.3k", "830"
+export const votesShort = (v) => {
+  if (v == null || Number.isNaN(v)) return "–";
+  const a = Math.abs(v);
+  return a >= 1e6 ? `${(v / 1e6).toFixed(a >= 1e7 ? 0 : 1)}M` : a >= 1e4 ? `${Math.round(v / 1e3)}k` : a >= 1e3 ? `${(v / 1e3).toFixed(1)}k` : `${Math.round(v)}`;
+};
 
 export function fmtDate(iso) {
   const d = new Date(`${iso}T12:00:00Z`);

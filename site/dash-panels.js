@@ -1,7 +1,7 @@
 // Right-hand panels of the dashboard: the readout at the current time, and the three tabs
 // (races, statistics, method & sources). Pure rendering from values the controller passes in.
 import * as d3 from "./vendor/d3.js";
-import { C, esc, pct, num, usd, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
+import { C, esc, pct, num, usd, votesShort, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
 
 const PLATFORM = { polymarket: "Polymarket", kalshi: "Kalshi" };
 const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}`);
@@ -38,7 +38,14 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   } else if (row.P != null) gap = "No market price at this time.";
   const frame = frameT != null && countTimeline && !pre ? ` <span class="ro-frame">Map: ${clock(frameT, tz)} frame.</span>` : "";
   const live = pre && row.live && pre.live ? ` <span class="ro-frame">${esc(pre.live)}.</span>` : "";
-  el.innerHTML = `${head}<dl class="ro-figs">${figs.join("")}</dl>${gap || frame || live ? `<p class="ro-gap">${gap}${frame}${live}</p>` : ""}`;
+  // the model's estimate of the votes still to count and how they lean (rem_total, rem_margin_total)
+  let rem = "";
+  if (row.rem_total > 0) {
+    const lean = row.rem_margin_total;
+    const side = lean >= 0 ? race.a.name : race.b.name;
+    rem = `<p class="ro-rem">≈ ${votesShort(row.rem_total)} votes left${lean != null ? `; they lean ${esc(side)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)} pt` : ""} <small>(model estimate)</small></p>`;
+  }
+  el.innerHTML = `${head}<dl class="ro-figs">${figs.join("")}</dl>${gap || frame || live ? `<p class="ro-gap">${gap}${frame}${live}</p>` : ""}${rem}`;
 }
 
 /* ---------------------------------------------------------------- races tab */

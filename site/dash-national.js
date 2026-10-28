@@ -1,11 +1,11 @@
-// National state map for elections with an overview file (US: every Senate and governor race of
-// the year, us2026/overview.json). States with a race are coloured by the market's P(Democratic
-// side), Polymarket first, Kalshi where Polymarket has none; states without a race are grey.
-// Modeled states (with a county model) carry a ring; clicking them drills into the county view,
-// other states open a small race panel with the price history. Pure view: the controller passes
-// the overview, current Polymarket prices and (on the night) model chances, and gets callbacks.
+// National view for elections with an overview file (US: every Senate and governor race of the
+// year, us2026/overview.json). The state map itself is the dashboard's map canvas with a state
+// layer (dash-map.js setNational): this module works out each state's colour, the market's
+// P(Democratic side) (Polymarket first, Kalshi where Polymarket has none; grey: no race), and the
+// rings on modelled states (with a county model), and owns what sits around the map: the office
+// toggle, the Senate control bar, the legend, the hover card, the race panel with price history
+// and the office summary beside the map. Clicking a modelled state drills into its county view.
 import * as d3 from "./vendor/d3.js";
-import * as topojson from "./vendor/topojson-client.js";
 import { C, esc, num } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", NORACE = "#e6e4dd";
@@ -25,15 +25,10 @@ const ramp = d3.range(201).map((j) => {
 });
 export const colourOf = (p) => (p == null ? NORACE : ramp[Math.round(Math.max(0, Math.min(1, p)) * 200)]);
 
-// topo: the US county topology (unit ids "us-<st>-<fips>"); office: "senate" | "governor";
-// summary: the element for the office summary (control and the list of races) beside the map.
-export function createNational(root, { topo, overview, office = "senate", summary = null, onDrill, onOffice }) {
-  const obj = Object.values(topo.objects)[0];
-  const stOf = (g) => String(g.properties?.unit_id ?? g.id).split("-")[1];
-  const byState = d3.group(obj.geometries, stOf);
-  const states = [...byState].map(([st, geoms]) => ({ type: "Feature", id: st, properties: { st }, geometry: topojson.merge(topo, geoms) }));
-  const borders = topojson.mesh(topo, obj, (a, b) => stOf(a) !== stOf(b));
-  const outline = topojson.mesh(topo, obj, (a, b) => a === b);
+// office: "senate" | "governor"; summary: the element for the office summary beside the map;
+// onColours(Map region -> colour, rings): the state layer for the map; onHighlight(region | null):
+// outline a state on the map (summary row hover); onDrill(race_id): open a modelled state's county view.
+export function createNational(root, { overview, office = "senate", summary = null, onDrill, onOffice, onColours, onHighlight }) {
   const st = { office, overview, live: new Map(), model: new Map(), panel: null, sort: { key: "state", dir: 1 } };
 
   root.innerHTML = `
@@ -41,11 +36,9 @@ export function createNational(root, { topo, overview, office = "senate", summar
       <div class="toggle nat-office" role="group" aria-label="Office">${OFFICES.map(([k, l]) => `<button type="button" data-office="${k}" aria-pressed="${k === office}">${l}</button>`).join("")}</div>
       <div class="nat-control" hidden></div>
     </div>
-    <svg class="nat-map" role="img" aria-label="States coloured by the market's chance that the Democratic side wins"></svg>
     <div class="nat-legend map-legend"></div>
     <div class="place-card nat-card" hidden></div>
     <div class="nat-panel" hidden></div>`;
-  const svg = d3.select(root).select("svg");
   const card = root.querySelector(".nat-card");
   const panel = root.querySelector(".nat-panel");
   root.querySelectorAll(".nat-office button").forEach((b) => b.addEventListener("click", () => {
@@ -63,39 +56,18 @@ export function createNational(root, { topo, overview, office = "senate", summar
   const raceIn = (s) => races().filter((r) => r.state === s);
 
   function draw() {
-    const w = Math.max(280, root.clientWidth), h = Math.max(240, root.clientHeight - root.querySelector(".nat-top").offsetHeight);
-    const projection = d3.geoAlbersUsa().fitExtent([[8, 8], [w - 8, h - 30]], { type: "FeatureCollection", features: states });
-    const path = d3.geoPath(projection);
-    svg.attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).html("");
-    const g = svg.append("g");
-    g.selectAll("path.st").data(states).join("path").attr("class", "st")
-      .attr("d", path)
-      .attr("fill", (f) => { const rs = raceIn(f.id); return rs.length ? colourOf(priceOf(rs[0])) : NORACE; })
-      .attr("tabindex", (f) => (raceIn(f.id).length ? 0 : null))
-      .attr("aria-label", (f) => label(f.id))
-      .on("pointermove", (ev, f) => hover(f.id, ev))
-      .on("pointerleave", () => hover(null))
-      .on("focus", (ev, f) => hover(f.id, ev))
-      .on("blur", () => hover(null))
-      .on("click", (ev, f) => pick(f.id))
-      .on("keydown", (ev, f) => { if (ev.key === "Enter") pick(f.id); });
-    g.append("path").datum(borders).attr("class", "st-border").attr("d", path);
-    g.append("path").datum(outline).attr("class", "st-outline").attr("d", path);
-    // modeled states: a ring at the state's centre
-    const modeled = states.filter((f) => raceIn(f.id).some((r) => r.modeled));
-    g.selectAll("circle.st-model").data(modeled).join("circle").attr("class", "st-model")
-      .attr("cx", (f) => path.centroid(f)[0]).attr("cy", (f) => path.centroid(f)[1]).attr("r", 5);
+    const colours = new Map(), rings = [];
+    for (const r of races()) {
+      if (!colours.has(r.state)) colours.set(r.state, colourOf(priceOf(r)));
+      if (r.modeled) rings.push(r.state);
+    }
+    onColours?.(colours, rings, NORACE);
     drawControl();
     drawLegend();
     drawSummary();
     if (st.panel) openPanel(st.panel);
   }
 
-  function label(s) {
-    const rs = raceIn(s);
-    if (!rs.length) return `${stateName(s)}: no ${st.office} race this year`;
-    return rs.map((r) => `${raceName(r)}: ${r.dem_side?.name ?? "Democratic side"} ${num(priceOf(r))}`).join("; ");
-  }
   const raceName = (r) => `${r.state_name ?? stateName(r.state)} ${r.office === "governor" ? "governor" : "Senate"}${r.special ? " (special)" : ""}`;
   const incumbent = (r) => (r.incumbent ? `${esc(r.incumbent)}${r.incumbent_party ? ` (${esc(r.incumbent_party)})` : ""}${r.open ? ", not running" : ""}` : r.open ? "open seat" : "–");
 
@@ -109,23 +81,24 @@ export function createNational(root, { topo, overview, office = "senate", summar
       <p class="pc-hint">${r.modeled ? "Click for the county model." : "Click for the price history. No county model for this state."}</p>`;
   }
 
+  // the card for the state under the pointer (s: state code or null; ev: the pointer event)
   function hover(s, ev) {
     const rs = s ? raceIn(s) : [];
-    svg.selectAll("path.st").classed("hl", (f) => f.id === s && rs.length > 0);
     if (!rs.length) { card.hidden = true; return; }
     card.innerHTML = rs.map(cardHTML).join("<hr>");
     card.hidden = false;
-    const [x, y] = ev?.clientX != null ? d3.pointer(ev, root) : [root.clientWidth / 2, 80];
-    card.style.left = `${Math.min(root.clientWidth - 280, x + 14)}px`;
-    card.style.top = `${Math.max(48, Math.min(root.clientHeight - card.offsetHeight - 8, y + 14))}px`;
+    const box = root.getBoundingClientRect();
+    const [x, y] = ev?.clientX != null ? [ev.clientX - box.left, ev.clientY - box.top] : [box.width / 2, 80];
+    card.style.left = `${Math.max(8, Math.min(box.width - 280, x + 14))}px`;
+    card.style.top = `${Math.max(48, Math.min(box.height - card.offsetHeight - 8, y + 14))}px`;
   }
 
   function pick(s) {
-    const rs = raceIn(s);
-    if (!rs.length) return;
+    const rs = s ? raceIn(s) : [];
     card.hidden = true;
+    if (!rs.length) { closePanel(); return; }
     const r = rs[0];
-    if (r.modeled && r.race_id) { onDrill?.(r.race_id); return; }
+    if (r.modeled && r.race_id) { closePanel(); onDrill?.(r.race_id); return; }
     openPanel(r.race_key);
   }
 
@@ -220,8 +193,8 @@ export function createNational(root, { topo, overview, office = "senate", summar
       };
       tr.addEventListener("click", go);
       tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
-      tr.addEventListener("pointerenter", () => svg.selectAll("path.st").classed("hl", (f) => f.id === tr.dataset.state));
-      tr.addEventListener("pointerleave", () => svg.selectAll("path.st").classed("hl", false));
+      tr.addEventListener("pointerenter", () => onHighlight?.(tr.dataset.state));
+      tr.addEventListener("pointerleave", () => onHighlight?.(null));
     });
   }
 
@@ -252,6 +225,10 @@ export function createNational(root, { topo, overview, office = "senate", summar
 
   const api = {
     draw,
+    hover,
+    pick,
+    // a modelled state's race for the current office (for prefetching its county file)
+    raceFor: (s) => raceIn(s)[0] ?? null,
     get office() { return st.office; },
     update({ overview, live, model } = {}) {
       if (overview) st.overview = overview;
@@ -269,6 +246,5 @@ export function createNational(root, { topo, overview, office = "senate", summar
       return out;
     },
   };
-  new ResizeObserver(() => { if (!root.hidden) draw(); }).observe(root);
   return api;
 }
