@@ -93,9 +93,22 @@ The first-round result was in-sample, so the next steps are about evidence that 
    replay, with its view of the count a median 47 seconds behind the truth (under assumed CDN
    limits).
 2. **Frozen replays.** The settings were frozen and registered before the runoff's section-level data
-   was released, along with six governor runoffs held the same day: races the method was never tuned
-   on. They run once each when the court publishes the files. The outcomes are known, so these test
-   the method, not the edge.
+   was available, along with six governor runoffs held the same day: races the method was never tuned
+   on. Each was then run exactly once, on the runoff's per-section receipt times and votes (from the
+   electoral court's per-ballot-box files, validated against its own state files). The outcomes were
+   known, so this tests the method, not the edge:
+   - **Where the race was still open, the model got there first.** President: about 80 minutes ahead
+     of the market from the first moment the rule could trade. Espírito Santo: 42 minutes. Rio Grande
+     do Norte, where the first-round leader lost: 22 minutes, calling the upset first.
+   - **Where the market was already sure, there was nothing to beat** (Acre, Amazonas, Tocantins).
+   - **It failed in the Federal District**, 140 minutes behind: Brasília is a single municipality, so
+     a model that learns by comparing municipalities has nothing to compare.
+   - Its 90% uncertainty bands contained the final result through 97–100% of the count in every race.
+
+   ![Runoff night: model vs market](figures/r2_national_replay.png)
+
+   *Runoff night, national market. The model (red) was confident from the first handful of sections,
+   when under 1% was counted, and stayed right; the market (black) only settled after 20:24.*
 3. **Forward tests.** The cross-category recorder has been running live since 26 October, logging every
    signal before outcomes exist; its single evaluation happens once a pre-set number of signals has
    resolved. Upcoming election nights (Israel, 27 October; the US midterms, 3 November) are being

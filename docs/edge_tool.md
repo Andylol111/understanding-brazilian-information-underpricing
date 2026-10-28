@@ -172,6 +172,43 @@ What would count against the method: a negative median settle lead, or 90% inter
 share well below ~80% of ticks in most races. Either is reported as such, without re-tuning these
 frozen configs.
 
+### Results: the seven runoff replays (each looked at once, 2026-10-28)
+
+Data: TSE's per-ballot-box files (receipt time + votes per section) via an MIT-licensed third-party
+extraction, validated before the looks (`prereg/NOTES.md`). Pre-specified, outcomes known, not blind.
+
+**Primary 1, settle lead** (model and market each first staying ≥ 0.9 on the eventual winner; BRT):
+
+| race | model ≥ 0.9 | market ≥ 0.9 | lead (min) | note |
+|---|---|---|---|---|
+| President, national | 17:06 | 20:24 | +198 | under 1% of sections counted until 19:04; from the 1% trade gate the lead is ~80 min |
+| Governor ES | 19:56 | 20:38 | +42 | contested |
+| Governor RN (first-round leader lost) | 20:36 | 20:58 | +22 | contested; the model called the upset first |
+| Governor AC, AM | 17:04 | 17:04 | 0, 0 | market already ≥ 0.9 when counting began |
+| Governor TO | 17:08 | 17:04 | −4 | market already ≥ 0.9 when counting began |
+| Governor DF | 19:24 | 17:04 | −140 | DF is a single municipality: the municipal model has nothing to compare across and stays uncertain |
+
+Median across the seven: **0 min**, neither the pre-stated failure (a negative median) nor a general
+lead. The lead appears in the three races the market had not already decided (+198, +42, +22) and
+fails structurally in a one-municipality race.
+
+**Primary 2, calibration** (share of ticks between 1% and 95% counted whose 90% interval contains the
+final share): President 100%, AC 100%, AM 99%, DF 100%, ES 97%, RN 100%, TO 100%; mean z between −0.9
+and +0.2. Split at 90% counted as pre-committed: 1–90% all ≥ 99%; 90–95% 100% everywhere except ES
+(83%, 6 ticks). The late-count overconfidence seen on the first round (development item 5) did not
+recur at this resolution; the intervals were if anything wide.
+
+**Reported, not claimed** (P&L of gated, favoured-side signals at the quoted price): national YES at
+19:04 BRT, +155% per $; governors AM +6%, ES +77%, RN (NO) +98%; no signal in AC, DF, TO. The 27
+presidential state markets: 11 signals, 10 won, median +27% per $ (mean +165%, driven by one Minas
+Gerais YES bought near 6¢); Tocantins lost. Capacity for these entries is not yet measured.
+
+![Runoff night: model probability vs Polymarket price, national market](figures/r2_national_replay.png)
+
+*Runoff, "Lula wins" (resolved YES). Red: the model's P(Lula) from section receipts; black:
+Polymarket; dotted (right axis): share of sections counted. Brasília time. Pre-specified replay with
+known outcome. Note how little was counted before 19:00.*
+
 ## Reading the feed fast (`brunder.feed`)
 
 Every live forecaster reads the same public TSE feed (`resultados.tse.jus.br`). The delays between a

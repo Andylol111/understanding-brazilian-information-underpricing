@@ -25,6 +25,7 @@ live, before outcomes existed).
 | Early in the count the **raw national tally is predictably skewed** by which states report first; a model of that reporting order, using only pre-election information, removes most of the skew (first-round test at 1.7% counted: error −2.97 → +0.50 points; `analysis/reporting_order_test.py`). | official TSE files |
 | On the first-round night a municipality-level model was sure of the national result **28 minutes before the market** (up to ~3 hours in some state markets); 7 trade signals, 71% won, +16.6% per $. | **in-sample** (development night) |
 | …but only **$2,741** could actually have been bought at those prices within 30 minutes, 98% of it in one market in its first ~4 minutes. | in-sample, from real trades |
+| On the runoff and six governor runoffs, run once each with settings frozen beforehand: the model led the market where the race was still open (**President ~80 min** from the first point it could trade, ES +42, RN +22, where it called the upset first), matched it where the market was already sure (AC, AM, TO), and **lagged by 140 min in DF**, a single-municipality race the model can't read. Its 90% intervals held in 97–100% of the count. | **pre-specified** (frozen before the data; outcomes known) |
 | Across categories, **thin markets over-react to sharp moves and revert**: significant in 6 of 10 categories after multiple-testing correction, same sign in all 10. | **pre-registered**, held-out data |
 | "Mentions" markets (what will X say) under-price near-certain outcomes: +2.1% per $ after spread and fees, but only $8.3k fillable across 1,851 entries. | **pre-registered**, held-out data |
 | Deep markets reacting too slowly in general: **not supported**. Brazil's lag is a case, not a pattern this sample detects. | pre-registered (null) |
@@ -56,7 +57,7 @@ Validation, from weakest to strongest; each step is done or scheduled:
 | replay the first round | the method can work; settings chosen here | done (in-sample) |
 | capacity from real trades | how many dollars the signals could have bought | done: $2.7k in 30 min |
 | rehearsal: live code against a simulated feed and CDN | the live system keeps up and matches the replay | done: same 7 signals, view of the count ~47 s behind truth (median), under assumed CDN cache/rate limits |
-| 7 frozen replays: runoff + 6 governor runoffs | the method on races it was not built on | registered; waiting for the electoral court to publish section files |
+| 7 frozen replays: runoff + 6 governor runoffs | the method on races it was not built on | done, one look each: median lead 0; leads in the 3 open races, fails in single-municipality DF; calibration held |
 | forward test | a true out-of-sample result | cross-category recorder live since 26 Oct; next election nights being recorded |
 
 ## Documents
