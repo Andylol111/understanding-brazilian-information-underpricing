@@ -1,0 +1,11 @@
+{
+ "id": "ca2025",
+ "name": "Canada federal election",
+ "date": "2025-04-28",
+ "country": "CA",
+ "status": "replay",
+ "unit_level": "electoral district",
+ "n_units": 343,
+ "evidence": "not-preregistered",
+ "summary": "Prices only (no official count over time exists): Polymarket's 'Liberals win the most seats' market settled at 2025-04-29T02:00:00Z; Elections Canada's own page showed the Liberals leading from its 23:27 UTC update in every archived capture."
+}

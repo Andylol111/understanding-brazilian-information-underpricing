@@ -6,77 +6,73 @@
 <title>Election night</title>
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<main>
+<body class="dash-page">
 
-<nav class="col sitenav"><a href="./" id="home">Election nights</a> / <span id="crumb">…</span></nav>
-
-<header class="col">
-  <p class="kicker" id="kicker"></p>
-  <h1 id="title">Loading…</h1>
-  <p class="dek" id="dek"></p>
-  <p class="byline" id="byline"></p>
+<header class="topbar">
+  <a class="tb-home" href="./" id="home">All elections</a>
+  <h1 class="tb-name" id="title">Loading…</h1>
+  <span class="tb-date" id="date"></span>
+  <span class="tb-evidence" id="evidence"></span>
+  <label class="tb-switch"><span class="visually-hidden">Election</span><select id="switcher" aria-label="Choose an election"></select></label>
+  <span class="tb-live" id="live" hidden></span>
 </header>
 
-<section class="wide" id="map-section" hidden>
-  <div class="col flush">
-    <h2 id="map-title">The count by place</h2>
-    <p id="map-intro"></p>
-  </div>
-  <div class="mapgrid">
-    <div id="map" class="map"></div>
-    <div class="mapside">
-      <div class="toggle" id="map-mode" role="group" aria-label="Map colour">
-        <button data-mode="counted" aria-pressed="false">Counted</button>
-        <button data-mode="swing" aria-pressed="false">Swing from prior</button>
-        <button data-mode="margin" aria-pressed="true">Projected margin</button>
+<main class="dash" id="dash">
+  <p class="dash-note" id="dash-note" hidden></p>
+
+  <section class="panel p-map" id="map-panel" aria-label="Map">
+    <div class="map-box" id="map">
+      <div class="map-ui map-modes toggle" id="map-mode" role="group" aria-label="Map colour">
+        <button type="button" data-mode="margin" aria-pressed="true">Projected margin</button>
+        <button type="button" data-mode="swing" aria-pressed="false">Swing from prior</button>
+        <button type="button" data-mode="counted" aria-pressed="false">Counted</button>
       </div>
-      <div class="scrub">
-        <button id="play" type="button">Play</button>
-        <input id="frame" type="range" min="0" max="0" value="0" step="1" aria-label="Time">
-      </div>
-      <p class="frame-time" id="frame-time"></p>
-      <div id="legend" class="legend"></div>
-      <p class="mode-note" id="mode-note"></p>
-      <div class="unit-readout" id="map-readout"></div>
+      <button type="button" class="map-ui map-national" id="national" hidden>Whole country</button>
+      <div class="map-ui map-legend" id="legend"></div>
+      <div class="map-ui map-frame" id="frame-label"></div>
+      <div class="place-card" id="place" hidden></div>
+      <p class="map-empty note" id="map-empty" hidden>No map for this race.</p>
     </div>
-  </div>
-</section>
+  </section>
 
-<section class="wide" id="race-section" hidden>
-  <div class="col flush">
-    <h2>Count, model and market prices for one race</h2>
-    <p id="race-intro"></p>
-    <label class="select">Race <select id="race"></select></label>
-  </div>
-  <p class="readout" id="tl-readout"></p>
-  <div id="timeline"></div>
-  <p class="note" id="tl-note"></p>
-  <p class="note" id="markets-note"></p>
-</section>
+  <section class="panel p-scrub" id="scrub-panel" aria-label="Time">
+    <div class="scrub-controls">
+      <button type="button" id="play" class="btn">Play</button>
+      <div class="toggle speed" id="speed" role="group" aria-label="Playback speed">
+        <button type="button" data-speed="1" aria-pressed="true">1×</button>
+        <button type="button" data-speed="4" aria-pressed="false">4×</button>
+        <button type="button" data-speed="16" aria-pressed="false">16×</button>
+      </div>
+      <p class="scrub-time" id="scrub-time" aria-live="off"></p>
+    </div>
+    <div id="scrubber"></div>
+  </section>
 
-<section class="col" id="stats-section" hidden>
-  <h2>Standard statistics</h2>
-  <p>These six measures are computed the same way for every election; the <a href="./">overview page</a> defines them. The label next to each says how its model settings were fixed: chosen on this data (in-sample), frozen before the data was examined (pre-specified), or frozen before the outcome existed (forward).</p>
-  <div id="stats"></div>
-</section>
+  <section class="panel p-readout" id="readout" aria-label="Selected race at the chosen time" aria-live="polite"></section>
 
-<section class="wide" id="arb-section" hidden>
-  <div class="col flush">
-    <h2>Price differences between Polymarket and Kalshi</h2>
-    <p>For each race listed on both platforms: the cost of buying one candidate on one platform and the other candidate on the other, at the quoted asks and after both platforms' fees. The <i>net edge</i> is $1 minus that cost; above zero, holding both sides pays out more than it costs whoever wins.</p>
-  </div>
-  <div id="arb"></div>
-</section>
+  <section class="panel p-timeline" aria-label="Race timeline">
+    <div class="tl-head">
+      <label class="select"><span>Race</span> <select id="race"></select></label>
+      <button type="button" class="btn-link" id="reset-race" hidden>Back to the national race</button>
+    </div>
+    <div id="timeline" class="timeline"></div>
+    <p class="note" id="tl-note"></p>
+  </section>
 
-<section class="col" id="notes-section" hidden>
-  <h2>Notes</h2>
-  <ul id="notes"></ul>
-</section>
-
-<footer class="col" id="sources"></footer>
-
+  <section class="panel p-tabs">
+    <div class="tabs" role="tablist" aria-label="Details">
+      <button type="button" role="tab" id="tab-races" aria-controls="pane-races" aria-selected="true">Races</button>
+      <button type="button" role="tab" id="tab-stats" aria-controls="pane-stats" aria-selected="false">Statistics</button>
+      <button type="button" role="tab" id="tab-method" aria-controls="pane-method" aria-selected="false">Method &amp; sources</button>
+    </div>
+    <div class="tab-panes">
+      <div role="tabpanel" id="pane-races" aria-labelledby="tab-races"></div>
+      <div role="tabpanel" id="pane-stats" aria-labelledby="tab-stats" hidden></div>
+      <div role="tabpanel" id="pane-method" aria-labelledby="tab-method" hidden></div>
+    </div>
+  </section>
 </main>
+
 <script type="module" src="election.js"></script>
 </body>
 </html>

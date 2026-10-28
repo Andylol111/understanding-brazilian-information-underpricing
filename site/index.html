@@ -10,55 +10,77 @@
 <body>
 <main>
 
-<header class="col">
+<div class="landing-top">
+<header>
   <p class="kicker">Election nights</p>
   <h1>Election-night counts and market prices</h1>
-  <p class="dek">Election results are published unit by unit while the count runs. A model projects each race's final result from the units already in; these pages compare that projection, minute by minute, with Polymarket prices, to measure how long the prices take to reflect what the count already shows.</p>
+  <p class="dek">Election results are published unit by unit while the count runs. A model projects each race's final result from the units already in; the dashboards below compare that projection, minute by minute, with Polymarket prices, to measure how long the prices take to reflect what the count already shows.</p>
   <p class="byline">Code, tests, frozen model settings and pre-registrations: <a href="https://github.com/Andylol111/understanding-brazilian-information-underpricing">GitHub</a>.</p>
 </header>
-
-<section class="col">
-  <h2>Elections</h2>
-  <p class="note" id="live-note" hidden></p>
-  <ol class="elections" id="elections"><li class="note">Loading…</li></ol>
-</section>
-
-<section class="col">
+<section id="measured">
   <h2>What is measured</h2>
   <p>For every reporting unit (a US county, a Brazilian municipality, an Israeli locality) the <span class="m">model</span> combines the votes counted so far with that unit's result in a comparable earlier election to project its final result, then adds the units up. The projection carries a 90% band, and the band gives a probability that each candidate wins.</p>
   <p>The <span class="r">raw count</span> is the running total on the official results page. Early in the night it can point the wrong way, because places do not report in random order.</p>
   <p>The <span class="k">market</span> is the Polymarket price for the same outcome, recorded every minute and read as a probability. Kalshi lists many of the same races, but its data terms do not allow republishing its prices, so these pages show none; statistics that would need them (Kalshi catch-up, Polymarket–Kalshi arbitrage) are marked as not computed, with that reason.</p>
+</section>
+</div>
 
-  <h3>The same statistics for every election</h3>
-  <dl class="defs">
-    <dt>Calibration</dt>
-    <dd>Share of minutes between 1% and 95% counted in which the final result fell inside the model's 90% band (about 90% if the band has the right width), and the mean error in standard deviations (about 0 if the model is not biased one way).</dd>
-    <dt>Settle time</dt>
-    <dd>The first minute from which the model and each market stay at 0.9 or more on the eventual winner, and from which the raw count's leader no longer changes. The difference between model and market is the model's lead.</dd>
-    <dt>Catch-up</dt>
-    <dd>When model and market disagree, the share of the gap the market price closes over the next 30 minutes, with a 95% interval.</dd>
-    <dt>Early error</dt>
-    <dd>How far the model's projection and the raw count were from the final share when 1%, 5%, 10% and 25% had been counted, in percentage points.</dd>
-    <dt>Capacity</dt>
-    <dd>Dollars that actually traded at the price of each model signal, and at 2¢ and 5¢ worse, in the 30 minutes after it.</dd>
-    <dt>Arbitrage</dt>
-    <dd>Minutes in which buying one side on Polymarket and the other side on Kalshi cost less than $1 after both platforms' fees, and how much could have been filled.</dd>
-  </dl>
-
-  <h3>Rules applied to every election</h3>
-  <ul>
-    <li>Model settings for a night are written down and frozen (their file hashes go into a public registry) before that night's count is examined.</li>
-    <li>Every result carries a label: <span class="label in">in-sample</span> settings were chosen on this data; <span class="label pre">pre-specified</span> settings were frozen before the data was examined, but the outcome was already known; <span class="label fwd">forward</span> settings were frozen before the outcome existed. Only forward results can support a claim that the markets can be beaten.</li>
-    <li>Replays use only what was public at each minute: count updates by the time they were published, prices by the time they were quoted.</li>
-    <li>Only official or openly licensed data is published here. Each election page lists its sources and licences.</li>
-  </ul>
-
-  <h3>Earlier write-up</h3>
-  <p><a href="brazil-2026.html">The count knew first</a>: the Brazil 2026 first round and runoff in detail, with the catch-up curve, robustness checks and race-by-race leads.</p>
+<section class="overview" aria-labelledby="elections-h">
+  <h2 id="elections-h">Elections</h2>
+  <p class="note" id="live-note" hidden></p>
+  <div class="table-scroll">
+    <table id="overview">
+      <thead><tr>
+        <th>Election</th><th>Date</th><th>Status</th><th>Evidence</th><th class="n">Units</th>
+        <th class="n" title="Minutes by which the model reached 90% on the eventual winner before Polymarket did, both counted from the moment the main race reached 1% counted">Lead from 1% counted (min)</th>
+        <th class="n" title="Share of minutes from 1% to 95% counted with the final result inside the model's 90% band, main race">In 90% band</th>
+        <th>Main race through the night</th>
+      </tr></thead>
+      <tbody><tr><td colspan="8" class="note">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <p class="key">Main race: the national race, or the first race listed. Lead from 1% counted: minutes by which the model reached 90% on the eventual winner before the Polymarket price did, both counted from the moment the race reached 1% counted (negative: after). In 90% band: share of minutes from 1% to 95% counted in which the final result was inside the model's 90% band. Chart: the model's probability (<span class="m">orange</span>) and the Polymarket price (<span class="k">black</span>) for the main race.</p>
 </section>
 
-<footer class="col">
-  Results: official election authorities (listed on each election page). Prices: Polymarket public price API. Kalshi data is not republished here (Kalshi Data Terms of Use; see <code>docs/kalshi.md</code>). Maps: U.S. Census Bureau cartographic boundary files (public domain); IBGE Malha Municipal Digital 2025 (public open data, attribution IBGE) joined to election codes with the TSE's table of TSE and IBGE municipality codes (CC-BY). Maps are built by <code>analysis/geo_build.py</code>. Code under MIT licence. Charts: D3.
+<div class="two-col">
+  <section id="measures">
+    <h2>The same statistics for every election</h2>
+    <dl class="defs">
+      <dt>Calibration</dt>
+      <dd>Share of minutes between 1% and 95% counted in which the final result fell inside the model's 90% band (about 90% if the band has the right width), and the mean error in standard deviations (about 0 if the model is not biased one way).</dd>
+      <dt>Settle time</dt>
+      <dd>The first minute from which the model and each market stay at 0.9 or more on the eventual winner, and from which the raw count's leader no longer changes. The difference between model and market is the model's lead.</dd>
+      <dt>Catch-up</dt>
+      <dd>When model and market disagree, the share of the gap the market price closes over the next 30 minutes, with a 95% interval.</dd>
+      <dt>Early error</dt>
+      <dd>How far the model's projection and the raw count were from the final share when 1%, 5%, 10% and 25% had been counted, in percentage points.</dd>
+      <dt>Capacity</dt>
+      <dd>Dollars that actually traded at the price of each model signal, and at 2¢ and 5¢ worse, in the 30 minutes after it.</dd>
+      <dt>Arbitrage</dt>
+      <dd>Minutes in which buying one side on Polymarket and the other side on Kalshi cost less than $1 after both platforms' fees, and how much could have been filled.</dd>
+    </dl>
+  </section>
+  <section>
+    <h2>Rules applied to every election</h2>
+    <ul>
+      <li>Model settings for a night are written down and frozen (their file hashes go into a public registry) before that night's count is examined.</li>
+      <li>Every result carries a label:
+        <span class="label in">in-sample</span> settings were chosen on this data;
+        <span class="label pre">pre-specified</span> settings were frozen before the data was examined, but the outcome was already known;
+        <span class="label fwd">forward</span> settings were frozen before the outcome existed;
+        <span class="label np">not pre-registered</span> settings were chosen on earlier elections and scored once, but were not frozen in the repository before scoring;
+        <span class="label mo">model only</span> no market prices to compare with.
+        Only forward results can support a claim that the markets can be beaten.</li>
+      <li>Replays use only what was public at each minute: count updates by the time they were published, prices by the time they were quoted.</li>
+      <li>Only official or openly licensed data is published here. Each dashboard lists its sources and licences.</li>
+    </ul>
+    <h3>Earlier write-up</h3>
+    <p><a href="brazil-2026.html">The count knew first</a>: the Brazil 2026 first round and runoff in detail, with the catch-up curve, robustness checks and race-by-race leads.</p>
+  </section>
+</div>
+
+<footer class="landing-footer">
+  Results: official election authorities (listed on each dashboard). Prices: Polymarket public price API. Kalshi data is not republished here (Kalshi Data Terms of Use; see <code>docs/kalshi.md</code>). Maps: U.S. Census Bureau cartographic boundary files (public domain); IBGE Malha Municipal Digital 2025 (public open data, attribution IBGE) joined to election codes with the TSE's table of TSE and IBGE municipality codes (CC-BY); other countries as listed on their dashboards. Maps are built by <code>analysis/geo_build.py</code>. Code under MIT licence. Charts: D3.
 </footer>
 
 </main>

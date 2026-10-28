@@ -57,6 +57,7 @@ export const EVIDENCE = {
   "in-sample": { cls: "in", text: "in-sample", long: "model settings were chosen on this data" },
   "pre-specified": { cls: "pre", text: "pre-specified", long: "model settings were frozen before this data was examined; the outcome was already known" },
   forward: { cls: "fwd", text: "forward", long: "model settings were frozen before the outcome existed" },
+  "not-preregistered": { cls: "np", text: "not pre-registered", long: "settings were chosen on earlier elections and scored once, but were not frozen in the repository before scoring" },
   "model-only": { cls: "mo", text: "model only", long: "no market prices to compare with" },
 };
 
@@ -67,3 +68,23 @@ export function evidenceLabel(ev) {
 }
 
 export const STATUS = { live: "Live", replay: "Replay", scheduled: "Scheduled" };
+
+export const plural = (w, n) => (!w ? "" : n === 1 ? w : w.endsWith("y") ? `${w.slice(0, -1)}ies` : `${w}s`);
+
+export const REPO = "https://github.com/Andylol111/understanding-brazilian-information-underpricing";
+
+// Settle times used for leads, measured from the moment the race reached 1% counted: the
+// exporter's stats.settle_gated when present, else stats.settle with each time moved up to the
+// 1% gate (a source that was already at 0.9 before the gate counts as settled at the gate).
+export function gatedSettle(stats, raceId, gateIso) {
+  const g = stats?.settle_gated?.[raceId];
+  if (g) return { ...g, gated: true };
+  const s = stats?.settle?.[raceId];
+  if (!s) return null;
+  if (!gateIso) return { ...s, gated: false };
+  const gate = Date.parse(gateIso);
+  const at = (iso) => (iso ? new Date(Math.max(Date.parse(iso), gate)).toISOString() : null);
+  return { model: at(s.model), polymarket: at(s.polymarket), kalshi: at(s.kalshi), raw: at(s.raw), gated: true };
+}
+
+export const leadMinutes = (s) => (s?.model && s?.polymarket ? Math.round((Date.parse(s.polymarket) - Date.parse(s.model)) / 60000) : null);
