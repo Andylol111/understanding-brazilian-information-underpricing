@@ -39,6 +39,10 @@ counted; late in the first round they became too narrow (see the calibration cha
 money was a few thousand dollars per night, mostly in the national market and mostly in the first
 minutes.
 
+One timing says a lot about how the runoff was priced: the raw running tally settled on Lula for good
+at 20:24, and the market crossed 0.9 **in the same minute**. The market moved with the raw count, not
+with what the count implied; the model had been above 0.9 since the first sections.
+
 ## What a count night looks like
 
 ![Runoff night: raw tally, model and market](figures/night_how_it_works.png)
