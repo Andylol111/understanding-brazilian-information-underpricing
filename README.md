@@ -1,5 +1,7 @@
 # Does Polymarket under-price public information?
 
+[![tests](https://github.com/Andylol111/understanding-brazilian-information-underpricing/actions/workflows/tests.yml/badge.svg)](https://github.com/Andylol111/understanding-brazilian-information-underpricing/actions/workflows/tests.yml)
+
 On election night the official count is public, free, and updated every few seconds, yet a prediction
 market can still sit far from what that count implies. This project measures how far, for how long,
 and whether any of it can actually be traded. It has three parts:
