@@ -62,8 +62,17 @@ PRIOR_PARTIES = {"ACT": "ACT New Zealand", "AJP": "Animal Justice Party", "ALCP"
 
 
 def load_config(path: Path | str) -> dict:
+    path = Path(path)
     with open(path, "rb") as f:
-        out = tomllib.load(f)
+        local = tomllib.load(f)
+    parent = local.pop("extends", None)
+    if parent:
+        out = load_config(path.parent / parent)
+        out.pop("_path", None)
+        local["markets"] = [*out.get("markets", []), *local.get("markets", [])]
+        out.update(local)
+    else:
+        out = local
     out["_path"] = str(path)
     return out
 

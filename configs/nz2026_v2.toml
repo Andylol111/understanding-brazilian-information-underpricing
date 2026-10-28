@@ -1,0 +1,117 @@
+# FROZEN 2026-10-28, before the 2026 count. Evidence label: FORWARD.
+# Extends registered v1 (sha256 f7686affa7fa272b1e216d15fe710180b7f3d9d99079edb401b1932e61385756)
+# only by adding the twelve active named outcomes in the second-/third-most-seats events.
+# Model, prior, feed, seed, and every v1 market setting are IDENTICAL to v1; no 2026 count data,
+# polling, or market prices were used. Commit and register before 2026-11-07T06:00:00Z.
+extends = "nz2026_v1.toml"
+id = "nz2026_v2"
+
+[[markets]]
+rid="second-national"
+name="National wins the second-most seats"
+event="new-zealand-election-2nd-place-393"
+id="will-national-party-win-the-second-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election-992"
+kind="rank"
+rank=2
+party="NAT"
+yes_name="National"
+[[markets]]
+rid="second-labour"
+name="Labour wins the second-most seats"
+event="new-zealand-election-2nd-place-393"
+id="will-labour-party-win-the-second-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=2
+party="LAB"
+yes_name="Labour"
+[[markets]]
+rid="second-green"
+name="Green wins the second-most seats"
+event="new-zealand-election-2nd-place-393"
+id="will-green-party-win-the-second-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=2
+party="GP"
+yes_name="Green"
+[[markets]]
+rid="second-act"
+name="ACT wins the second-most seats"
+event="new-zealand-election-2nd-place-393"
+id="will-act-new-zealand-win-the-second-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=2
+party="ACT"
+yes_name="ACT"
+[[markets]]
+rid="second-nz-first"
+name="NZ First wins the second-most seats"
+event="new-zealand-election-2nd-place-393"
+id="will-new-zealand-first-party-win-the-second-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=2
+party="NZF"
+yes_name="NZ First"
+[[markets]]
+rid="second-te-pati-maori"
+name="Te Pāti Māori wins the second-most seats"
+event="new-zealand-election-2nd-place-393"
+id="will-te-pti-mori-win-the-second-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=2
+party="TPMAO"
+yes_name="Te Pāti Māori"
+
+[[markets]]
+rid="third-national"
+name="National wins the third-most seats"
+event="new-zealand-election-3rd-place"
+id="will-national-party-win-the-third-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=3
+party="NAT"
+yes_name="National"
+[[markets]]
+rid="third-labour"
+name="Labour wins the third-most seats"
+event="new-zealand-election-3rd-place"
+id="will-labour-party-win-the-third-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=3
+party="LAB"
+yes_name="Labour"
+[[markets]]
+rid="third-green"
+name="Green wins the third-most seats"
+event="new-zealand-election-3rd-place"
+id="will-green-party-win-the-third-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=3
+party="GP"
+yes_name="Green"
+[[markets]]
+rid="third-act"
+name="ACT wins the third-most seats"
+event="new-zealand-election-3rd-place"
+id="will-act-new-zealand-win-the-third-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=3
+party="ACT"
+yes_name="ACT"
+[[markets]]
+rid="third-nz-first"
+name="NZ First wins the third-most seats"
+event="new-zealand-election-3rd-place"
+id="will-new-zealand-first-party-win-the-third-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=3
+party="NZF"
+yes_name="NZ First"
+[[markets]]
+rid="third-te-pati-maori"
+name="Te Pāti Māori wins the third-most seats"
+event="new-zealand-election-3rd-place"
+id="will-te-pti-mori-win-the-third-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="rank"
+rank=3
+party="TPMAO"
+yes_name="Te Pāti Māori"
