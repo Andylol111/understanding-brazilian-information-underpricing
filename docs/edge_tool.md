@@ -201,7 +201,22 @@ recur at this resolution; the intervals were if anything wide.
 **Reported, not claimed** (P&L of gated, favoured-side signals at the quoted price): national YES at
 19:04 BRT, +155% per $; governors AM +6%, ES +77%, RN (NO) +98%; no signal in AC, DF, TO. The 27
 presidential state markets: 11 signals, 10 won, median +27% per $ (mean +165%, driven by one Minas
-Gerais YES bought near 6¢); Tocantins lost. Capacity for these entries is not yet measured.
+Gerais YES bought near 6¢); Tocantins lost.
+
+**Capacity (after the looks; `analysis/night_capacity.py`, taker trades in the 30 min after each entry):**
+
+| night (signals) | fillable at the signal price | at +2¢ | at +5¢ | P&L at $500/signal: signal / +2¢ / +5¢ |
+|---|---|---|---|---|
+| first round (7, in-sample) | $2,741 | $4,111 | $6,906 | $645 / $510 / $555 |
+| runoff, presidential markets (12) | $0 | $100 | $4,375 | $0 / $15 / $1,996 |
+| runoff, governor markets (3) | $2 | $5 | $45 | $2 / $4 / $36 |
+
+The runoff's $0 is a measurement lesson, not an empty market: the national market had 4,611 taker
+trades in that half hour, but at the signal minute takers were already paying 0.405–0.42 while the
+minute price history the replay uses still read 0.382. In a fast market that history lags what was
+tradeable by a few cents, so the replay's per-dollar returns are optimistic; capacity is reported at
++2¢ and +5¢ for that reason. Either way the tradable amount on these nights is thousands of dollars,
+concentrated in the national market.
 
 ![Runoff night: model probability vs Polymarket price, national market](figures/r2_national_replay.png)
 

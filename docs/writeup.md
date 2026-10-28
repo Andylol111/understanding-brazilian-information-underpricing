@@ -66,8 +66,16 @@ minutes after each signal:
 - the state markets offered $0 to $50 each. Three of the four winning state signals couldn't have been
   filled at all.
 
-At a $100 stake per signal, that's about $135 of profit for the night. The gap between count and price
-is real, but it's small in dollars and short-lived.
+At a $100 stake per signal, that's about $135 of profit for the night.
+
+The runoff is starker. At the moment of the national signal, the minute price said 38¢, but takers were
+already paying 40–42¢: in a fast market the published price lags what you can actually trade. Not a
+single dollar traded at the signal's price in the next 30 minutes; accepting 5¢ worse, about $4,400
+could have been bought, almost all in the national market. The six governor markets offered next to
+nothing at any price.
+
+The gap between count and price is real, but it's small in dollars, short-lived, and a few cents of
+speed or slippage decide whether it's there at all.
 
 ## Does the pattern generalise?
 

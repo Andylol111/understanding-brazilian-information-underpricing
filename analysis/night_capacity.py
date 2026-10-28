@@ -33,6 +33,10 @@ from brunder.polymarket import DATA_API
 HORIZONS = (5, 30, 120)                 # minutes after entry
 STAKES = (25, 100, 500, 2000)           # dollars per entry
 REPORT_HORIZON = 30
+# The minute price history can lag trades in a fast market (2026 runoff: signal price 0.382, takers already
+# paying 0.405–0.42 in the same minute), so capacity is also measured `slip` worse than the signal price,
+# with the return recomputed at that price.
+SLIPS = (0.02, 0.05)
 
 
 def outcomes(cfg: dict) -> dict[str, int]:
@@ -140,10 +144,19 @@ def main(cfg_path: str, favoured_only: bool | None) -> None:
                "cost": r.yes_cost if side_yes else r.no_cost, "return_per_$": r.ret}
         for h in HORIZONS:
             row[f"fill_{h}m"] = float(f.loc[f["time"] < r.entry + pd.Timedelta(minutes=h), "notional"].sum())
+        won = r.ret > -1
+        for s in SLIPS:
+            fs = same_side_fills(t, info["yes_token"], side_yes, r.price + s if side_yes else r.price - s)
+            row[f"fill_{REPORT_HORIZON}m_slip{int(s * 100)}c"] = float(
+                fs.loc[fs["time"] < r.entry + pd.Timedelta(minutes=REPORT_HORIZON), "notional"].sum())
+            row[f"return_slip{int(s * 100)}c"] = (1 / (row["cost"] + s) if won else 0.0) - 1
         row["n_trades_30m"] = int((t["time"] < r.entry + pd.Timedelta(minutes=30)).sum())
         rows.append(row)
     cap = pd.DataFrame(rows, columns=["scope", "market", "side", "entry_utc", "price", "cost", "return_per_$",
-                                      *(f"fill_{h}m" for h in HORIZONS), "n_trades_30m"])
+                                      *(f"fill_{h}m" for h in HORIZONS),
+                                      *(c for s in SLIPS for c in (f"fill_{REPORT_HORIZON}m_slip{int(s * 100)}c",
+                                                                   f"return_slip{int(s * 100)}c")),
+                                      "n_trades_30m"])
     name = "capacity.csv" if fav == T.get("favoured_only", False) else f"capacity_favoured_only_{str(fav).lower()}.csv"
     cap.to_csv(out / name, index=False)
 
@@ -159,6 +172,12 @@ def main(cfg_path: str, favoured_only: bool | None) -> None:
                          "pnl_unlimited_$": (cap["return_per_$"] * s).sum()} for s in STAKES])
     print(f"\nP&L at stake per entry, capped by {REPORT_HORIZON}-min fill (return_per_$ × min(stake, fill)):")
     print(md(pnl))
+    for s in SLIPS:
+        k = int(s * 100)
+        fs, rs = cap[f"fill_{REPORT_HORIZON}m_slip{k}c"], cap[f"return_slip{k}c"]
+        print(f"\naccepting {k}¢ worse than the signal price: fillable within {REPORT_HORIZON} min ${fs.sum():,.0f}")
+        print(md(pd.DataFrame([{"stake_$": st, "filled_$": np.minimum(st, fs).sum(),
+                                "pnl_$": (rs * np.minimum(st, fs)).sum()} for st in STAKES])))
     print(out / name)
 
 
