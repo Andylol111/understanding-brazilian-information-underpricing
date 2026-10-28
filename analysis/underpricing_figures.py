@@ -169,7 +169,60 @@ def fig_market_vs_count() -> Path:
     return p
 
 
+def _robust_frame(cids: list[str], h: int = 30, skip: int = 0, lag: int = 0, rev: int = 5) -> pd.DataFrame:
+    """Same sample as pairs(), with the variants the robustness checks need on a filled 1-minute grid."""
+    rows = []
+    for cid in cids:
+        t = pd.read_parquet(RES / cid / "ticks.parquet")[["t", "scope", "price", "P", "scope_counted"]]
+        t["t"] = pd.to_datetime(t["t"], utc=True)
+        for scope, g in t.groupby("scope"):
+            g = g.drop_duplicates("t").set_index("t").sort_index()
+            g = g.reindex(pd.date_range(g.index.min(), g.index.max(), freq="1min")).ffill()
+            p = g["price"]
+            rows.append(pd.DataFrame({"scope": f"{cid}:{scope}", "t": g.index, "P": g["P"], "p": p, "c": g["scope_counted"],
+                                      "p_gap": p.shift(lag), "move": p.shift(-(skip + h)) - p.shift(-skip),
+                                      "rev": p.shift(rev) - p}))
+    d = pd.concat(rows)
+    d = d[(d.c >= 0.01) & d.p.between(0.02, 0.98, inclusive="neither") & d.P.between(0.02, 0.98, inclusive="neither")]
+    d = d.dropna(subset=["move", "p_gap", "rev"])
+    d["gap"], d["half"] = d.P - d.p_gap, 0.5 - d.p_gap
+    d["cluster"] = d.scope + "_" + d.t.dt.floor("30min").astype(str)
+    return d
+
+
+def _ols_ci(d: pd.DataFrame, cols: list[str], b: int = 400) -> list[str]:
+    def fit(x):
+        X = np.column_stack([np.ones(len(x))] + [x[c].to_numpy() for c in cols])
+        return np.linalg.lstsq(X, x["move"].to_numpy(), rcond=None)[0][1:]
+    est, groups = fit(d), [g for _, g in d.groupby("cluster")]
+    k = len(groups)
+    boots = np.array([fit(pd.concat([groups[i] for i in rng.integers(0, k, k)])) for _ in range(b)])
+    lo, hi = np.percentile(boots, [2.5, 97.5], axis=0)
+    return [f"{c} {e:+.2f} [{a:+.2f}, {z:+.2f}]" for c, e, a, z in zip(cols, est, lo, hi)]
+
+
+def robustness() -> None:
+    """Is the 30-min slope just price noise or mean reversion? gap and move share p_t, so bounce in p_t alone
+    would give a positive slope. Checks: start the move later, take the gap from an earlier price, swap the
+    model for a constant 0.5, and control for the market's own recent move."""
+    for label, cids in POOLS:
+        base = _robust_frame(cids)
+        print(f"== {label} (n={len(base)})")
+        checks = [("baseline", base, ["gap"])]
+        checks += [(f"move starts {s} min later", _robust_frame(cids, skip=s), ["gap"]) for s in (1, 2, 5)]
+        checks += [(f"gap from p(t-{k})", _robust_frame(cids, lag=k), ["gap"]) for k in (1, 5)]
+        checks += [("placebo: model replaced by 0.5", base, ["half"]), ("placebo: own 5-min reversal", base, ["rev"]),
+                   ("gap + reversal control", base, ["gap", "rev"]), ("gap + 0.5 placebo", base, ["gap", "half"])]
+        for name, d, cols in checks:
+            print(f"  {name:32s}", "  ".join(_ols_ci(d, cols)))
+
+
 if __name__ == "__main__":
+    import sys
+
+    if sys.argv[1:] == ["robustness"]:
+        robustness()
+        raise SystemExit
     s = fig_gap_predicts()
     c = fig_catchup()
     fig_market_vs_count()

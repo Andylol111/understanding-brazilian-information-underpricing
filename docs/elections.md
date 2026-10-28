@@ -27,6 +27,25 @@ windows overlap. The first round is in-sample (the model's settings were chosen 
 night uses settings frozen beforehand. The catch-up measure itself was chosen after both nights, so it
 describes them; it is not a registered test.
 
+**Is it just price noise?** The gap and the move both contain the current price, so a noisy or stale
+price alone would produce a positive slope even in a market that priced the count. Checks
+(`python analysis/underpricing_figures.py robustness`, same sample and bootstrap):
+
+| check (30-min move) | first round | runoff night |
+|---|---|---|
+| baseline | 0.55 [0.29, 0.76] | 0.40 [0.17, 0.70] |
+| move starts 1 min later (breaks the shared price) | 0.53 [0.29, 0.73] | 0.38 [0.18, 0.64] |
+| move starts 5 min later | 0.44 [0.15, 0.63] | 0.28 [0.10, 0.45] |
+| gap taken from the price 5 min earlier | 0.45 [0.21, 0.69] | 0.36 [0.19, 0.56] |
+| placebo: model replaced by a constant 0.5 | 0.00 [−0.10, 0.14] | 0.00 [−0.06, 0.07] |
+| placebo: the market's own last-5-min move | 0.05 [−0.39, 0.32] | 0.02 [−0.58, 0.50] |
+| gap, controlling for the market's own last-5-min move | 0.55 [0.33, 0.80] | 0.40 [0.17, 0.65] |
+
+Noise in the minute price explains little (skipping one minute barely moves the slope), the price does
+not simply revert, and a model-free gap predicts nothing. Starting 5 minutes later lowers the slope,
+partly because some of the catch-up has already happened by then. Not run: replacing the model with
+each market's own raw tally (only the national raw tally is cached).
+
 ![Gap predicts the next 30 minutes](figures/underpricing_gap_predicts.png)
 
 ![How fast the market catches up](figures/underpricing_catchup.png)
