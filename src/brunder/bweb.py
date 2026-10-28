@@ -5,8 +5,12 @@ candidate. Cumulating sections by receipt time rebuilds the count as it arrived,
 the information set a live observer of the state files had, up to the publication lag between
 receipt and the results site (calibrated against the archived 17:26 BRT cross-section).
 
-Layout: data/raw/tse_open/bweb/<round>t/<UF>.parquet — one row per (section, candidate number)
-for the presidential race only. Zips are deleted after parsing (re-downloadable).
+Layout: data/raw/tse_open/bweb/<round>t/<UF>.parquet — one row per (section, office, candidate number),
+presidential and governor rows (`cargo`). Zips are deleted after parsing (re-downloadable).
+
+`from_arquivo_urna` builds the same layout from TSE's per-ballot-box files (arquivo-urna: the `aux`
+file's receipt time plus the decoded BU), as published in rows by a third party; used for the 2026
+runoff before the BU-web files were released. Its provenance is written to SOURCE.json in that dir.
 """
 
 from __future__ import annotations
@@ -96,6 +100,40 @@ def fetch(year: int, rnd: int) -> list[Path]:
                   f"{d['received'].min()} → {d['received'].max()}", flush=True)
         out.append(pq)
     return out
+
+
+def from_arquivo_urna(src: Path, year: int, rnd: int, provenance: dict) -> list[Path]:
+    """Convert per-section rows (`<uf>.jsonl.gz`: k = mun-zone-section, dr/hr = receipt time BRT,
+    presidential votes by candidate number plus br/nu, optional `g` = governor race in the same box) to
+    this module's parquet layout. Sections without a receipt time ("miss") are skipped and counted."""
+    import gzip
+    out_dir = DIR / f"{year}_{rnd}t"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    special = {"br": "95", "nu": "96"}
+    skip = {"apt", "comp"}
+    written, missing = [], 0
+    for f in sorted(src.glob("*.jsonl.gz")):
+        uf = f.name.split(".")[0].lower()
+        rows = []
+        for line in gzip.open(f, "rt"):
+            r = json.loads(line)
+            if "dr" not in r:
+                missing += 1
+                continue
+            mun, zona, secao = r["k"].split("-")
+            t = pd.to_datetime(f"{r['dr']} {r['hr']}", format="%d/%m/%Y %H:%M:%S")
+            base = {"uf": uf, "cd_mun": mun.zfill(5), "zona": str(int(zona)), "secao": str(int(secao)), "received": t}
+            for cargo, votes in (("PRESIDENTE", r), ("GOVERNADOR", r.get("g") or {})):
+                for key, v in votes.items():
+                    if key in skip or not (key.isdigit() or key in special):
+                        continue
+                    rows.append({**base, "cand_n": special.get(key, key), "votes": int(v), "cargo": cargo})
+        d = pd.DataFrame(rows)
+        pq = out_dir / f"{uf.upper()}.parquet"
+        d.to_parquet(pq)
+        written.append(pq)
+    (out_dir / "SOURCE.json").write_text(json.dumps({**provenance, "sections_without_receipt_time": missing}, indent=1))
+    return written
 
 
 def sections(year: int, rnd: int, cand_a: str, cand_b: str | None = None, cargo: str = "PRESIDENTE",

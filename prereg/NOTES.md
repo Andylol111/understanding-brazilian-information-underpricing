@@ -10,6 +10,19 @@ spec was registered, so readers can judge how out-of-sample each result is.
 | night_r2_v1 | 2026-10-26, after the runoff, before its BU-web files were published | runoff outcome, all 27 state winners and totals, market prices, Poliwave's national raw-count path, an earlier reconstructed runoff nowcast | model, τ and trading rules cannot be retuned on the section-level timing. **Not a blind holdout.** Its config header calls it a "frozen test", which is accurate in that sense only; the header cannot be edited without breaking its registered hash. |
 | night_gov_r2_{ac,am,df,es,rn,to}_v1 | 2026-10-26, after the runoff, before its BU-web files were published | each race's winner (and, when the configs were generated, the final market price); not the count path, not the intra-night price path; the method was never developed on governor races | proxy replays: settings copied unchanged from night_r2_v1 (chosen on the presidential first round), so they test the *method* on six races it was not built on. Pre-specified, not blind. |
 
+**Data source for the seven runoff replays (recorded 2026-10-28, before any of the seven looks).**
+The registrations assumed TSE's BU-web files for the runoff, which TSE had not published. The replays
+instead use the same per-section facts taken from TSE's per-ballot-box files (arquivo-urna: each
+section's `aux` receipt time and decoded votes), as published in rows by a third party under MIT
+(github.com/cicerohellmann/eleicao-2026, `data/bu/`), converted by `bweb.from_arquivo_urna` into the
+same layout (`data/raw/tse_open/bweb/2026_2t/`, provenance in `SOURCE.json`). Checks done before the
+looks: on the first round, the `aux` time equals BU-web's DT_BU_RECEBIDO for 39 of 40 random sections
+(the exception was re-sent two days later); no runoff section was re-sent; at 24 snapshots of TSE's
+runoff state files the section counts match within 1; the national Lula share matches TSE's feed
+within 0.05 pt; totals give Lula 51.785% two-party (official 51.79%) and RN governor 49.23% (live feed
+49.23%). Configs, model, τ and trading rules are unchanged. When TSE publishes BU-web, the comparison
+of the two sources will be reported; the looks are not repeated.
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap
