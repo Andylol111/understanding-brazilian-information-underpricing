@@ -190,7 +190,7 @@ def _robust_frame(cids: list[str], h: int = 30, skip: int = 0, lag: int = 0, rev
     return d
 
 
-def _ols_ci(d: pd.DataFrame, cols: list[str], b: int = 400) -> list[str]:
+def _ols_ci(d: pd.DataFrame, cols: list[str], b: int = 400) -> list[tuple[str, float, float, float]]:
     def fit(x):
         X = np.column_stack([np.ones(len(x))] + [x[c].to_numpy() for c in cols])
         return np.linalg.lstsq(X, x["move"].to_numpy(), rcond=None)[0][1:]
@@ -198,13 +198,15 @@ def _ols_ci(d: pd.DataFrame, cols: list[str], b: int = 400) -> list[str]:
     k = len(groups)
     boots = np.array([fit(pd.concat([groups[i] for i in rng.integers(0, k, k)])) for _ in range(b)])
     lo, hi = np.percentile(boots, [2.5, 97.5], axis=0)
-    return [f"{c} {e:+.2f} [{a:+.2f}, {z:+.2f}]" for c, e, a, z in zip(cols, est, lo, hi)]
+    return [(c, float(e), float(a), float(z)) for c, e, a, z in zip(cols, est, lo, hi)]
 
 
-def robustness() -> None:
+def robustness() -> dict[str, list[dict]]:
     """Is the 30-min slope just price noise or mean reversion? gap and move share p_t, so bounce in p_t alone
     would give a positive slope. Checks: start the move later, take the gap from an earlier price, swap the
-    model for a constant 0.5, and control for the market's own recent move."""
+    model for a constant 0.5, and control for the market's own recent move. Returns, per pool, one row per
+    check with the first coefficient (the gap, or the placebo predictor) and its 95% CI."""
+    out = {}
     for label, cids in POOLS:
         base = _robust_frame(cids)
         print(f"== {label} (n={len(base)})")
@@ -213,8 +215,14 @@ def robustness() -> None:
         checks += [(f"gap from p(t-{k})", _robust_frame(cids, lag=k), ["gap"]) for k in (1, 5)]
         checks += [("placebo: model replaced by 0.5", base, ["half"]), ("placebo: own 5-min reversal", base, ["rev"]),
                    ("gap + reversal control", base, ["gap", "rev"]), ("gap + 0.5 placebo", base, ["gap", "half"])]
+        rows = []
         for name, d, cols in checks:
-            print(f"  {name:32s}", "  ".join(_ols_ci(d, cols)))
+            coefs = _ols_ci(d, cols)
+            print(f"  {name:32s}", "  ".join(f"{c} {e:+.2f} [{a:+.2f}, {z:+.2f}]" for c, e, a, z in coefs))
+            _, e, a, z = coefs[0]
+            rows.append({"check": name, "est": e, "lo": a, "hi": z})
+        out[label] = rows
+    return out
 
 
 if __name__ == "__main__":

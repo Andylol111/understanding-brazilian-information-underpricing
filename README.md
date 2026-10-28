@@ -2,6 +2,8 @@
 
 [![tests](https://github.com/Andylol111/understanding-brazilian-information-underpricing/actions/workflows/tests.yml/badge.svg)](https://github.com/Andylol111/understanding-brazilian-information-underpricing/actions/workflows/tests.yml)
 
+**Read it as an interactive article: [The count knew first](https://andylol111.github.io/understanding-brazilian-information-underpricing/)** (runoff night minute by minute, how fast the market catches up, every race replayed).
+
 On election night the official count is public, free, and updated every few seconds, yet a prediction
 market can still sit far from what that count implies. This project measures how far, for how long,
 and whether any of it can actually be traded. It has three parts:

@@ -5,6 +5,6 @@ __pycache__/
 .DS_Store
 # data is reproducible from the CLI except data/raw/tse_live (ephemeral upstream) — back that up separately.
 # On the laptop `data` is a symlink to the external SSD (no trailing slash: ignore it as dir or symlink).
-data
+/data
 results/
 logs/
