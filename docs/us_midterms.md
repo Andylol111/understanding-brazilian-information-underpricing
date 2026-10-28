@@ -175,6 +175,15 @@ Writes `site/data/us2026/` with `meta.phase = "pre-count"`:
 - `stats.json` with null metrics, reason "count has not started".
 - per-state poll closes (`poll_close_by_region`, `regions[].poll_close_utc`) and the Polymarket YES token ids.
 
+Outstanding-vote display fields (pre-count, live and replay). They are not used by the model:
+- `rem` / `rem_margin` per county in every map frame: the model's remaining two-party votes (expected vote minus
+  counted, scaled by the night's turnout factor k), and their projected Democrat-minus-Republican margin in votes.
+- `rem_total` / `rem_margin_total` per race in timeline rows.
+
+All are integers rounded to tens. Before the count, rem is the whole expected vote. By construction
+(counted margin + `rem_margin_total`) / (counted + `rem_total`) = 2·share − 1. They are model estimates, not
+official counts of outstanding ballots.
+
 Poll closes, Nov 4 UTC: Georgia 00:00 (7 p.m. ET), Ohio 00:30 (7:30 p.m. ET), Texas 01:00 (7 p.m. CT; 02:00 in
 El Paso and Hudspeth, mountain time) and California 04:00 (8 p.m. PT). Standard time applies, because daylight saving
 time ended on Nov 1. Sources: georgia.gov (vote in person on Election Day), Ohio SoS 2026 elections calendar, Texas

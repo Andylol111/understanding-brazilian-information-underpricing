@@ -168,7 +168,7 @@ def kalshi_books(cfgs: dict, truth: dict, k: int, rng: np.random.Generator) -> b
 
 def build_priors(data: Path) -> pd.DataFrame:
     """Real priors (data/processed/us2026/priors.csv) + SYNTHETIC oh_pres_2024 for the rehearsal only."""
-    real = us.load_priors(ROOT / "data" / "processed" / "us2026" / "priors.csv")
+    real = us.load_priors()                         # local build, else the committed data_public copy
     oh = us.parse_oh_summary(dry._fix("oh_summary.csv")).drop_duplicates("unit_id")
     oh = oh[oh["unit_id"] != "us-oh"]
     rng = np.random.default_rng(39)
@@ -237,6 +237,10 @@ def check(out: Path, log: str) -> dict:
                              "frames": len(u["frames"]), "units": len(u["unit_ids"]),
                              "pm_rows": sum(x["pm"] is not None for x in rows),
                              "kalshi_rows": sum(x["kalshi"] is not None for x in rows),
+                             "rem_rows": sum(isinstance(x.get("rem_total"), int) for x in rows),
+                             "rem_frames_ok": all(len(fr.get("rem", [])) == len(u["unit_ids"]) ==
+                                                  len(fr.get("rem_margin", [])) for fr in u["frames"]),
+                             "rem_first_last": [rows[0].get("rem_total"), rows[-1].get("rem_total")],
                              "kalshi_market": [m["id"] for m in r["markets"] if m["platform"] == "kalshi"],
                              "last": {k: rows[-1][k] for k in ("t", "counted", "raw", "share", "sd", "P", "pm",
                                                                "kalshi")}}

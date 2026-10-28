@@ -172,9 +172,11 @@ def main() -> None:
         u = json.loads((d / r["units"]).read_text())
         n = len(u["unit_ids"])
         assert all(len(u[k]) == n for k in ("region", "names", "prior", "V0"))
-        assert all(len(fr[k]) == n for fr in u["frames"] for k in ("f", "a", "proj")) and len(u["frames"]) <= 60
+        assert all(len(fr[k]) == n for fr in u["frames"] for k in ("f", "a", "proj", "rem", "rem_margin"))
+        assert len(u["frames"]) <= 60
         for row in rows:
-            assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "pm", "kalshi"}
+            assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "pm", "kalshi", "rem_total",
+                                "rem_margin_total"}
         by = {x["t"]: x for x in rows}
         snaps = [by.get(f"{T0 + pd.Timedelta(minutes=m):%Y-%m-%dT%H:%M:%SZ}") for m in (30, 90, 180, 359)]
         desc = "  ".join(f"c={x['counted']:.2f} raw={x['raw']:.3f} sh={x['share']:.3f}±{x['sd']:.3f} P={x['P']:.2f}"

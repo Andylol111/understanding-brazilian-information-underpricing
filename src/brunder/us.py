@@ -797,8 +797,21 @@ def project(rows: pd.DataFrame, cfg: dict, pri: pd.DataFrame) -> tuple[dict, pd.
     proj = ((agg["a"] + agg["ra"]) / (agg["n"] + agg["r"]).where(agg["n"] + agg["r"] > 0)).to_numpy()
     res["raw"] = float(cs["a"].sum() / cs["n"].sum()) if cs["n"].sum() > 0 else np.nan
     res["turnout_T"] = float(cs["turnout_T"].iloc[0]) if len(cs) else 1.0
-    units = cs.assign(proj=proj, s0=pri["s0"].to_numpy(), V=pri["V"].to_numpy())
+    # display only: the model's remaining two-party votes per county (expected vote minus counted, turnout-scaled
+    # as in nowcast) and their projected Democrat-minus-Republican margin
+    rem, rem_margin = agg["r"].to_numpy(), (2 * agg["ra"] - agg["r"]).to_numpy()
+    res["rem_total"], res["rem_margin_total"] = float(np.nansum(rem)), float(np.nansum(rem_margin))
+    units = cs.assign(proj=proj, s0=pri["s0"].to_numpy(), V=pri["V"].to_numpy(), rem=rem, rem_margin=rem_margin)
     return res, units
+
+
+def _tens(x) -> int | None:
+    """Votes rounded to tens (display fields; keeps the files small)."""
+    return None if x is None or not np.isfinite(x) else int(round(float(x) / 10.0)) * 10
+
+
+def _tens_list(v) -> list[int]:
+    return (np.round(np.nan_to_num(np.asarray(v, dtype=float)) / 10.0) * 10).astype(int).tolist()
 
 
 # ------------------------------------------------------------------ dashboard export
@@ -1051,7 +1064,8 @@ class Exporter:
         k_a = None if k_yes is None else (k_yes if km["yes_is"] == "a" else 1 - k_yes)
         row = {"t": _iso(t), "counted": _r(res.get("counted_frac")), "raw": _r(res.get("raw")),
                "share": _r(res.get("share_hat")), "sd": _r(res.get("share_sd")), "P": _r(res.get("p_win")),
-               "pm": _r(p_a), "kalshi": _r(k_a)}
+               "pm": _r(p_a), "kalshi": _r(k_a), "rem_total": _tens(res.get("rem_total")),
+               "rem_margin_total": _tens(res.get("rem_margin_total"))}
         if not has_model:                             # prices only (e.g. Ohio without its county prior)
             self.timeline[rid].append(row)
             self.cursor[rid] = t
@@ -1063,7 +1077,8 @@ class Exporter:
                      "f": (units["f"] * 1000).round().astype(int).tolist(),
                      "a": np.where(units["n"] > 0, (units["a"] / units["n"].where(units["n"] > 0) * 1000)
                                    .fillna(-1), -1).round().astype(int).tolist(),
-                     "proj": (units["proj"].fillna(units["s0"]) * 1000).round().astype(int).tolist()}
+                     "proj": (units["proj"].fillna(units["s0"]) * 1000).round().astype(int).tolist(),
+                     "rem": _tens_list(units["rem"]), "rem_margin": _tens_list(units["rem_margin"])}
         self.timeline[rid].append(row)                # only after everything for this minute succeeded
         if frame:
             fr.append(frame)
@@ -1164,7 +1179,7 @@ class Exporter:
             if not ok[rid]:
                 continue
             try:
-                fr = self.frames[rid] or [precount_frame(pri, now)]   # before the first returns: the prior map
+                fr = self.frames[rid] or [precount_frame(c, pri, now)]   # before the first returns: the prior map
                 if len(fr) > 60:                      # keep ~60 frames, always including the latest
                     idx = np.unique(np.linspace(0, len(fr) - 1, 60).round().astype(int))
                     fr = [fr[i] for i in idx]
@@ -1205,10 +1220,12 @@ def empty_stats(reason: str) -> dict:
     return {**{k: None for k in STATS_KEYS}, "reasons": {k: reason for k in STATS_KEYS}}
 
 
-def precount_frame(pri: pd.DataFrame, t: str) -> dict:
-    """A units frame before any returns: nothing counted, projection = the prior."""
+def precount_frame(c: dict, pri: pd.DataFrame, t: str) -> dict:
+    """A units frame before any returns: nothing counted, projection = the prior, remaining = all expected votes."""
+    _, u = project(_frame([]), c, pri)
     n = len(pri)
-    return {"t": t, "f": [0] * n, "a": [-1] * n, "proj": (pri["s0"] * 1000).round().astype(int).tolist()}
+    return {"t": t, "f": [0] * n, "a": [-1] * n, "proj": (u["proj"].fillna(u["s0"]) * 1000).round().astype(int).tolist(),
+            "rem": _tens_list(u["rem"]), "rem_margin": _tens_list(u["rem_margin"])}
 
 
 def units_object(c: dict, pri: pd.DataFrame, frames: list[dict]) -> dict:
@@ -1264,7 +1281,8 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
         pre[rid] = None
         if ok[rid]:
             res, _ = project(_frame([]), c, pri[rid])
-            pre[rid] = {"P": _r(res["p_win"]), "share": _r(res["share_hat"]), "sd": _r(res["share_sd"])}
+            pre[rid] = {"P": _r(res["p_win"]), "share": _r(res["share_hat"]), "sd": _r(res["share_sd"]),
+                        "rem_total": _tens(res["rem_total"]), "rem_margin_total": _tens(res["rem_margin_total"])}
         pm_vals = [None] * len(grid)
         pm = c.get("markets", {}).get("polymarket", {})
         if tokens.get(rid):
@@ -1287,7 +1305,8 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
                 print(f"{rid}: Kalshi history failed: {type(e).__name__}: {e}", flush=True)
         m = pre[rid] or {}
         timeline[rid] = [{"t": _iso(t), "counted": None, "raw": None, "share": m.get("share"), "sd": m.get("sd"),
-                          "P": m.get("P"), "pm": _r(pv), "kalshi": _r(kv)}
+                          "P": m.get("P"), "pm": _r(pv), "kalshi": _r(kv), "rem_total": m.get("rem_total"),
+                          "rem_margin_total": m.get("rem_margin_total")}
                          for t, pv, kv in zip(grid, pm_vals, k_vals)]
     _write_json(d / "meta.json", meta(cfgs, ok, kmk, phase="pre-count", precount=pre, tokens=tokens,
                                       overview="overview.json" if RACES_REGISTRY.exists() else None))
@@ -1299,7 +1318,7 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
     for c in cfgs:
         rid = c["election"]["race_id"]
         if ok[rid]:
-            obj = units_object(c, pri[rid], [precount_frame(pri[rid], _iso(now))])
+            obj = units_object(c, pri[rid], [precount_frame(c, pri[rid], _iso(now))])
             _write_json(d / "units" / f"{rid}.json", obj)
             default = default or obj
     if default:
