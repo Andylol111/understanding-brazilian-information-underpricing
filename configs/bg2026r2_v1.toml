@@ -1,0 +1,67 @@
+# FROZEN 2026-10-28, before the Bulgarian presidential runoff of 2026-11-01 (polls close 20:00 EET = 18:00 UTC).
+# Evidence label for anything scored with it: FORWARD (frozen before the outcome existed).
+# Every setting below was chosen on the 2016 and 2021 presidential runoffs only (analysis/bg_calibrate.py, CIK
+# open-data archives via Internet Archive captures); the 2026 first round enters only as the prior's data, as
+# specified here. No 2026 runoff data existed when this was written. New versions get new files; do not edit.
+# Integrator: commit, then register (`brunder register configs/bg2026r2_v1.toml`) before polls close.
+# Run (docs/bulgaria.md): BRUNDER_DATA=... uv run brunder bulgaria ingest configs/bg2026r2_v1.toml --r1 DIR --r2 DIR
+id = "bg2026r2_v1"
+
+[election]
+eid = "bg2026r2"
+name = "Bulgaria presidential election, second round"
+date = "2026-11-01"
+tz = "Europe/Sofia"
+# Electoral Code: voting 07:00-20:00 local time; EET (UTC+2) since DST ended on 2026-10-25. Sections abroad close
+# at 20:00 local time of their country (the Americas after 01:00 UTC on 2 Nov).
+poll_close_utc = "2026-11-01T18:00:00Z"
+
+[candidates]                  # matched on the presidential candidate's surname in CIK pages / archives
+a_surname = "Йотова"
+a_name = "Iliana Iotova"
+b_surname = "Гюров"
+b_name = "Andrey Gyurov"
+
+[prior]
+# 2026 first round (25 Oct), final CIK result pages rezultati/01.html .. 32.html (or the first-round export.zip):
+# per MIR, votes of the two finalists and of all other candidates. "Не подкрепям никого" (support no one) is not
+# a candidate vote and is left out.
+# Transfer rule: the other candidates' votes split evenly between the finalists. Chosen over "two_way" (split like
+# the MIR's own finalists) because it fits the MIR pattern of both earlier runoffs better: vote-weighted RMS of
+# MIR deviations after removing the national swing 0.0425 vs 0.0631 (2016) and 0.0395 vs 0.0532 (2021).
+transfer = { rule = "fixed", to_a = 0.5 }
+
+[model]                       # brunder.nowcast.Params; unit = MIR (32), pooling = 6 NUTS-2 regions, abroad unpooled
+kappa = 50000.0               # default (pseudo-votes shrinking a region's swing to the national swing); not tuned
+sigma_mun0 = 0.04             # sd of MIR swing around its region's swing, 2016/2021 mean 0.0366, rounded up
+nu_mun = 20.0                 # default
+sigma_uf0 = 0.02              # sd of regional swing around the national swing, 2016/2021 mean 0.0168, rounded up
+nu_uf = 5.0                   # default
+# No count over time survives from earlier Bulgarian runoffs, so tau and rho were chosen on SIMULATED reporting
+# orders built from the 2016/2021 final section results: villages before towns within each MIR, big-city MIRs
+# slower, abroad last (the adverse, usual pattern). Smallest tau with 90%-interval coverage >= 0.90 at every
+# checkpoint mix (1%..90% counted) in both years: 0.03 (coverage 1.00 / 0.975); rho = 0 had the lowest error at
+# that tau (a MIR's early sections say little about its remaining ones when villages come first).
+tau = 0.03
+rho = 0.0
+
+[count]
+# Count state per MIR from its own result page: n = finalists' votes counted, a = Iotova's, f = "обработени X%
+# СИК протоколи" (share of polling-station protocols processed). The national page is used only for the raw line.
+unit = "mir"
+
+[evaluation]
+settle_level = 0.9            # settled = first time after which P(eventual winner) >= 0.9 holds to the end
+early_error_thresholds = [0.01, 0.05, 0.10, 0.25]
+# outcome: the CIK's final result (national result page at 100% processed, or the runoff export.zip)
+
+[markets.polymarket]
+event = "bulgaria-presidential-election"
+market = "will-iliana-iotova-win-the-next-bulgarian-presidential-election"
+yes_token = "50441114645457108268892324313719484550984676393068151334263975251311332365159"
+yes_is = "a"
+
+[markets.kalshi]
+series = "KXBULGARIAPRES"
+ticker = "KXBULGARIAPRES-26NOV15-IYOT"
+yes_is = "a"

@@ -4,8 +4,8 @@
 // Modeled states (with a county model) carry a ring; clicking them drills into the county view,
 // other states open a small race panel with the price history. Pure view: the controller passes
 // the overview, current Polymarket prices and (on the night) model chances, and gets callbacks.
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-import * as topojson from "https://cdn.jsdelivr.net/npm/topojson-client@3/+esm";
+import * as d3 from "./vendor/d3.js";
+import * as topojson from "./vendor/topojson-client.js";
 import { C, esc, num } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", NORACE = "#e6e4dd";

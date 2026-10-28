@@ -5,7 +5,7 @@
 // Loading order: meta → timeline/stats (chart, readout, lists paint first) while a Web Worker
 // (dash-worker.js) fetches, parses and projects the geometry and the map frames; the map appears
 // when both arrive. While playing, colours are interpolated between map frames every animation frame.
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+import * as d3 from "./vendor/d3.js";
 import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
 import { createMap } from "./dash-map.js";
 import { drawTimeline } from "./dash-timeline.js";

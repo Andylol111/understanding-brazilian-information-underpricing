@@ -90,6 +90,16 @@ uv sync                      # Python 3.13, deps from uv.lock
 uv run brunder --help
 ```
 
+### Site
+
+The static dashboard is in `site/`. Before publishing it, install Playwright's browsers with
+`uv run --with playwright python -m playwright install chromium firefox webkit`, then run
+`uv run --with playwright python analysis/site_check.py`. The check serves `site/` locally and
+opens the index, article, every election, and a US county drill-down in Chromium, Firefox, and
+WebKit at desktop and mobile sizes; any JavaScript page error, stuck loading state, empty readout,
+or undrawn map makes it exit non-zero. Pass `--base https://andylol111.github.io/understanding-brazilian-information-underpricing/`
+to check the deployed Pages site, or `--screenshots /tmp/xbrowser` to keep representative captures.
+
 ## Data collection
 
 ```sh

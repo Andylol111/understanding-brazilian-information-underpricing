@@ -2,7 +2,7 @@
 // OffscreenCanvas, or on the page with this canvas); this side owns the view (fit, smooth zoom),
 // hover hit-testing (a grid index over unit bounds, Path2D built only for the units under the
 // pointer) and the interaction state it forwards to the engine.
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+import * as d3 from "./vendor/d3.js";
 
 const PAD = 14; // screen padding when fitting (CSS px)
 const GRID = 48; // hit-test grid cells per side over the base space

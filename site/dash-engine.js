@@ -7,8 +7,8 @@
 //  - control(): canvas, size, view, interaction state and paint requests; every change is painted
 //    right after the current task (a microtask: no timers, no requestAnimationFrame, which hidden
 //    and headless pages throttle or never run), so the first frame appears once data is bound.
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-import * as topojson from "https://cdn.jsdelivr.net/npm/topojson-client@3/+esm";
+import * as d3 from "./vendor/d3.js";
+import * as topojson from "./vendor/topojson-client.js";
 
 const BASE = 1000; // base projection extent, shared with dash-map.js
 const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4 }; // value at which a diverging colour is full
@@ -39,6 +39,9 @@ export const setEmitter = (fn) => { emit = fn; };
 function projectionFor(country, fc) {
   if (country === "CA") return d3.geoConicConformal().parallels([49, 77]).rotate([96, 0]);
   if (country === "US") return d3.geoAlbersUsa();
+  // New Zealand straddles the antimeridian (Chatham Islands): a transverse Mercator centred on
+  // 173°E, like NZTM, keeps it in one piece
+  if (country === "NZ") return d3.geoTransverseMercator().rotate([-173, 0]);
   if (country === "BR" || country === "MX") {
     const [[x0, y0], [x1, y1]] = d3.geoBounds(fc);
     const pad = (y1 - y0) / 6;

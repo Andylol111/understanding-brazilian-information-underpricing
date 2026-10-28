@@ -218,6 +218,7 @@ body.dash-page { font-size: 16px; line-height: 1.45; }
 
 .dash { display: grid; }
 .dash-note { grid-area: note; margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--rule); font: 14px/1.45 var(--sans); }
+.load-error { color: #8b1a1a; background: #fff4f2; }
 .panel { min-width: 0; }
 .p-map { grid-area: map; min-height: 0; display: flex; flex-direction: column; }
 .p-scrub { grid-area: scrub; border-top: 1px solid var(--rule); padding: 8px 16px 6px; }

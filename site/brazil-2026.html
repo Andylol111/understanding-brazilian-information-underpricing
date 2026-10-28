@@ -135,6 +135,7 @@
 </footer>
 
 </main>
-<script type="module" src="brazil-2026.js"></script>
+<script src="load-error.js"></script>
+<script type="module">import("./brazil-2026.js").catch(window.__showLoadError);</script>
 </body>
 </html>

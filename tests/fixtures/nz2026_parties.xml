@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<parties>
+<party p_no="5"><abbrev>ACT</abbrev><short_name>ACT New Zealand</short_name><party_name>ACT New Zealand</party_name><registered>yes</registered></party>
+<party p_no="10"><abbrev>GP</abbrev><short_name>Green Party</short_name><party_name>Green Party</party_name><registered>yes</registered></party>
+<party p_no="13"><abbrev>LAB</abbrev><short_name>Labour Party</short_name><party_name>Labour Party</party_name><registered>yes</registered></party>
+<party p_no="16"><abbrev>NAT</abbrev><short_name>National Party</short_name><party_name>National Party</party_name><registered>yes</registered></party>
+<party p_no="24"><abbrev>OPP</abbrev><short_name>Opportunity Party</short_name><party_name>Opportunity Party</party_name><registered>yes</registered></party>
+<party p_no="36"><abbrev>ALCP</abbrev><short_name>Aotearoa Legalise Cannabis Party</short_name><party_name>Aotearoa Legalise Cannabis Party</party_name><registered>yes</registered></party>
+</parties>

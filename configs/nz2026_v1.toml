@@ -1,0 +1,352 @@
+# FROZEN 2026-10-28, before the 2026 count. Evidence label: FORWARD.
+# Integrator: commit and register this file before 2026-11-07T06:00:00Z. Never edit after registration.
+# The model settings use only official 2017, 2020 and 2023 results. analysis/nz_calibrate.py computes
+# centred party log-share swing RMS = 1.056 (2017→2020) and 0.468 (2020→2023); 0.817 is their pooled RMS.
+# No 2026 count data, polling or market prices were used to choose any setting.
+id = "nz2026_v1"
+election = "New Zealand general election, 2026-11-07; polls close 19:00 NZDT"
+poll_close_utc = "2026-11-07T06:00:00Z"
+seed = 20261107
+
+[model]
+prior_votes = 50000.0       # national party-ratio shrinkage, roughly one electorate
+own_votes = 2000.0          # votes for a partly counted electorate to outweigh its 2023 composition
+growth_votes = 100000.0     # turnout growth shrinkage toward 1
+party_log_sd = 0.817        # pooled RMS log-share transition, official 2017→20 and 2020→23 results
+floor_log_sd = 0.015        # nonzero uncertainty before final/special votes; fixed, not tuned
+candidate_log_sd = 0.25     # candidate-score uncertainty; conservative fixed design choice
+incumbent_bonus = 1.20      # prior electorate winner score before returns; fixed design choice
+lock_fraction = 0.85        # raw candidate shares fully replace the prior at this voting-place fraction
+draws = 4000
+
+[prior]
+party_votes = "https://electionresults.govt.nz/electionresults_2023/statistics/csv/votes-for-registered-parties-by-electorate.csv"
+winners = "https://electionresults.govt.nz/electionresults_2023/statistics/csv/winning-electorate-candidates.csv"
+public_file = "data_public/nz2023_electorates.csv"
+
+[feed]
+base = "https://media.election.net.nz/xml/"
+interval_seconds = 120
+
+# Most-seats markets (the two liquid outcomes also have Kalshi comparators; tie rules differ, so no risk-free arb claim).
+[[markets]]
+rid = "most-national"
+name = "National wins the most seats"
+event = "new-zealand-legislative-election-winner"
+id = "will-national-party-win-the-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind = "most_seats"
+party = "NAT"
+yes_name = "National"
+kalshi = "KXNEWZEALANDPARLI-26DEC31-NAT"
+kalshi_question = "Will National win the next New Zealand general election?"
+[[markets]]
+rid = "most-labour"
+name = "Labour wins the most seats"
+event = "new-zealand-legislative-election-winner"
+id = "will-labour-party-win-the-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind = "most_seats"
+party = "LAB"
+yes_name = "Labour"
+kalshi = "KXNEWZEALANDPARLI-26DEC31-LAB"
+kalshi_question = "Will Labour win the next New Zealand general election?"
+[[markets]]
+rid = "most-green"
+name = "Green wins the most seats"
+event = "new-zealand-legislative-election-winner"
+id = "will-green-party-win-the-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind = "most_seats"
+party = "GP"
+yes_name = "Green"
+[[markets]]
+rid = "most-act"
+name = "ACT wins the most seats"
+event = "new-zealand-legislative-election-winner"
+id = "will-act-new-zealand-win-the-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind = "most_seats"
+party = "ACT"
+yes_name = "ACT"
+[[markets]]
+rid = "most-nz-first"
+name = "NZ First wins the most seats"
+event = "new-zealand-legislative-election-winner"
+id = "will-new-zealand-first-party-win-the-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind = "most_seats"
+party = "NZF"
+yes_name = "NZ First"
+[[markets]]
+rid = "most-te-pati-maori"
+name = "Te Pāti Māori wins the most seats"
+event = "new-zealand-legislative-election-winner"
+id = "will-te-pti-mori-win-the-most-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind = "most_seats"
+party = "TPMAO"
+yes_name = "Te Pāti Māori"
+
+# National seat bands.
+[[markets]]
+rid="national-seats-0-24"
+event="nz-election-national-party-of-seats"
+id="will-the-national-party-win-fewer-than-25-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="NAT"
+lo=0
+hi=24
+yes_name="National fewer than 25"
+[[markets]]
+rid="national-seats-25-29"
+event="nz-election-national-party-of-seats"
+id="will-the-national-party-win-25-29-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="NAT"
+lo=25
+hi=29
+yes_name="National 25–29"
+[[markets]]
+rid="national-seats-30-34"
+event="nz-election-national-party-of-seats"
+id="will-the-national-party-win-30-34-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="NAT"
+lo=30
+hi=34
+yes_name="National 30–34"
+[[markets]]
+rid="national-seats-35-39"
+event="nz-election-national-party-of-seats"
+id="will-the-national-party-win-35-39-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="NAT"
+lo=35
+hi=39
+yes_name="National 35–39"
+[[markets]]
+rid="national-seats-40-44"
+event="nz-election-national-party-of-seats"
+id="will-the-national-party-win-40-44-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="NAT"
+lo=40
+hi=44
+yes_name="National 40–44"
+[[markets]]
+rid="national-seats-45-49"
+event="nz-election-national-party-of-seats"
+id="will-the-national-party-win-45-49-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="NAT"
+lo=45
+hi=49
+yes_name="National 45–49"
+[[markets]]
+rid="national-seats-50-plus"
+event="nz-election-national-party-of-seats"
+id="will-the-national-party-win-50-or-more-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="NAT"
+lo=50
+hi=200
+yes_name="National 50 or more"
+
+# Labour seat bands.
+[[markets]]
+rid="labour-seats-0-29"
+event="nz-election-labour-party-of-seats"
+id="will-the-labour-party-win-fewer-than-30-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="LAB"
+lo=0
+hi=29
+yes_name="Labour fewer than 30"
+[[markets]]
+rid="labour-seats-30-34"
+event="nz-election-labour-party-of-seats"
+id="will-the-labour-party-win-30-34-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="LAB"
+lo=30
+hi=34
+yes_name="Labour 30–34"
+[[markets]]
+rid="labour-seats-35-39"
+event="nz-election-labour-party-of-seats"
+id="will-the-labour-party-win-35-39-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="LAB"
+lo=35
+hi=39
+yes_name="Labour 35–39"
+[[markets]]
+rid="labour-seats-40-44"
+event="nz-election-labour-party-of-seats"
+id="will-the-labour-party-win-40-44-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="LAB"
+lo=40
+hi=44
+yes_name="Labour 40–44"
+[[markets]]
+rid="labour-seats-45-49"
+event="nz-election-labour-party-of-seats"
+id="will-the-labour-party-win-45-49-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="LAB"
+lo=45
+hi=49
+yes_name="Labour 45–49"
+[[markets]]
+rid="labour-seats-50-54"
+event="nz-election-labour-party-of-seats"
+id="will-the-labour-party-win-50-54-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="LAB"
+lo=50
+hi=54
+yes_name="Labour 50–54"
+[[markets]]
+rid="labour-seats-55-plus"
+event="nz-election-labour-party-of-seats"
+id="will-the-labour-party-win-55-or-more-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="LAB"
+lo=55
+hi=200
+yes_name="Labour 55 or more"
+
+# Opportunity Party seat bands (2023 TOP is its declared predecessor for the prior).
+[[markets]]
+rid="opportunity-seats-0-3"
+event="nz-election-opportunity-party-of-seats"
+id="will-the-opportunity-party-win-fewer-than-4-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="OPP"
+lo=0
+hi=3
+yes_name="Opportunity fewer than 4"
+[[markets]]
+rid="opportunity-seats-4-6"
+event="nz-election-opportunity-party-of-seats"
+id="will-the-opportunity-party-win-4-6-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="OPP"
+lo=4
+hi=6
+yes_name="Opportunity 4–6"
+[[markets]]
+rid="opportunity-seats-7-9"
+event="nz-election-opportunity-party-of-seats"
+id="will-the-opportunity-party-win-7-9-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="OPP"
+lo=7
+hi=9
+yes_name="Opportunity 7–9"
+[[markets]]
+rid="opportunity-seats-10-12"
+event="nz-election-opportunity-party-of-seats"
+id="will-the-opportunity-party-win-10-12-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="OPP"
+lo=10
+hi=12
+yes_name="Opportunity 10–12"
+[[markets]]
+rid="opportunity-seats-13-plus"
+event="nz-election-opportunity-party-of-seats"
+id="will-the-opportunity-party-win-13-or-more-seats-in-the-new-zealand-house-of-representatives-in-the-2026-new-zealand-legislative-election"
+kind="seats_band"
+party="OPP"
+lo=13
+hi=200
+yes_name="Opportunity 13 or more"
+
+# National-minus-Labour party-vote margin, percentage points of all valid party votes.
+[[markets]]
+rid="margin-labour-15-plus"
+event="nz-election-popular-vote-margin-of-victory"
+id="will-labour-party-win-the-popular-vote-in-the-2026-new-zealand-legislative-election-by-15-or-more"
+kind="margin_band"
+a="NAT"
+b="LAB"
+lo=-100.0
+hi=-15.0
+yes_name="Labour by 15 or more"
+[[markets]]
+rid="margin-labour-10-15"
+event="nz-election-popular-vote-margin-of-victory"
+id="will-labour-party-win-the-popular-vote-in-the-2026-new-zealand-legislative-election-by-10-15"
+kind="margin_band"
+a="NAT"
+b="LAB"
+lo=-15.0
+hi=-10.0
+yes_name="Labour by 10–15"
+[[markets]]
+rid="margin-labour-5-10"
+event="nz-election-popular-vote-margin-of-victory"
+id="will-labour-party-win-the-popular-vote-in-the-2026-new-zealand-legislative-election-by-5-10"
+kind="margin_band"
+a="NAT"
+b="LAB"
+lo=-10.0
+hi=-5.0
+yes_name="Labour by 5–10"
+[[markets]]
+rid="margin-labour-0-5"
+event="nz-election-popular-vote-margin-of-victory"
+id="will-labour-party-win-the-popular-vote-in-the-2026-new-zealand-legislative-election-by-0-5"
+kind="margin_band"
+a="NAT"
+b="LAB"
+lo=-5.0
+hi=0.0
+yes_name="Labour by 0–5"
+[[markets]]
+rid="margin-national-0-5"
+event="nz-election-popular-vote-margin-of-victory"
+id="will-national-party-win-the-popular-vote-in-the-2026-new-zealand-legislative-election-by-0-5"
+kind="margin_band"
+a="NAT"
+b="LAB"
+lo=0.0
+hi=5.0
+yes_name="National by 0–5"
+[[markets]]
+rid="margin-national-5-10"
+event="nz-election-popular-vote-margin-of-victory"
+id="will-national-party-win-the-popular-vote-in-the-2026-new-zealand-legislative-election-by-5-10"
+kind="margin_band"
+a="NAT"
+b="LAB"
+lo=5.0
+hi=10.0
+yes_name="National by 5–10"
+[[markets]]
+rid="margin-national-10-plus"
+event="nz-election-popular-vote-margin-of-victory"
+id="will-national-party-win-the-popular-vote-in-the-2026-new-zealand-legislative-election-by-10-or-more"
+kind="margin_band"
+a="NAT"
+b="LAB"
+lo=10.0
+hi=100.0
+yes_name="National by 10 or more"
+[[markets]]
+rid="popular-vote-another-party"
+event="nz-election-popular-vote-margin-of-victory"
+id="will-another-party-win-the-popular-vote-in-the-2026-new-zealand-legislative-election"
+kind="other_popular"
+a="NAT"
+b="LAB"
+yes_name="Another party wins popular vote"
+
+# This is a two-outcome market; its first CLOB token is Labour, not a literal Yes token.
+[[markets]]
+rid="party-vote-labour-v-national"
+name="Labour vs National party vote"
+event="nz-election-labour-v-national-of-party-list-vote"
+id="nz-election-labour-v-national-of-party-list-vote"
+kind="vote_ahead"
+a="LAB"
+b="NAT"
+yes_name="Labour"
+no_name="National"

@@ -1,6 +1,6 @@
 // Time scrubber: a native range input (keyboard + screen readers) over a small area chart of the
 // share counted, with event markers for the selected race.
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+import * as d3 from "./vendor/d3.js";
 import { C } from "./common.js";
 
 const MIN = 60000;

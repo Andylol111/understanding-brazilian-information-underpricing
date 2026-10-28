@@ -1,6 +1,6 @@
 // Right-hand panels of the dashboard: the readout at the current time, and the three tabs
 // (races, statistics, method & sources). Pure rendering from values the controller passes in.
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+import * as d3 from "./vendor/d3.js";
 import { C, esc, pct, num, usd, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
 
 const PLATFORM = { polymarket: "Polymarket", kalshi: "Kalshi" };

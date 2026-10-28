@@ -1,6 +1,6 @@
 // Homepage: the evidence across elections (from site/data/summary.json, written by
 // analysis/edge_audit.py) and the list of elections (elections.json, each election's files).
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+import * as d3 from "./vendor/d3.js";
 import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes } from "./common.js";
 import { polymarketYes } from "./dash-precount.js";
 

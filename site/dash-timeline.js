@@ -1,7 +1,7 @@
 // Race timeline: raw count vs model projection (top), model P vs market prices (bottom), on the
 // dashboard's shared time axis. A solid cursor marks the scrubber time, a dashed one the hover.
 // Without a published count (meta.count_timeline false) only the probability panel is drawn.
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+import * as d3 from "./vendor/d3.js";
 import { C, pct, clock } from "./common.js";
 
 // placeholder: before the count, the count panel is a grey box naming what fills in on the night.

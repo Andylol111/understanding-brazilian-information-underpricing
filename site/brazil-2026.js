@@ -1,5 +1,5 @@
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+import * as d3 from "./vendor/d3.js";
+import * as Plot from "./vendor/plot.js";
 
 const C = { market: "#1b1b1b", model: "#c4501b", raw: "#6a7f99", muted: "#5f6368", rule: "#e4e2dc" };
 const load = (name) => fetch(`data/${name}.json`).then((r) => r.json());
