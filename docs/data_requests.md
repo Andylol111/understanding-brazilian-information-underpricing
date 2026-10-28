@@ -4,7 +4,7 @@
 
 | request | status |
 |---|---|
-| Poliwave: stored state-level history; were stored projections live? | **Sent** 2026-10-26 via poliwave.com/feedback, reply-to [email removed] (HTTP 200, "Thank you!") |
+| Poliwave: stored state-level history; were stored projections live? | **Sent** 2026-10-26 via poliwave.com/feedback (HTTP 200, "Thank you!") |
 | Poliwave: licence to use their stored national history in the paper | **Needed.** Their footer says "Poliwave data may not be scraped (terms)"; see their Rights & licensing page and Results API before publishing anything built on `data/raw/poliwave/` |
 | Newsroom data teams (G1/Globo, Folha, Estadão, Nexo) | **Not sent, no longer needed** — see below |
 | Public call on social media | Not needed |
@@ -18,11 +18,6 @@ section by section (`brunder.bweb`). The first-round files are published; the ru
 (in 2014 they appeared two days after the vote). `brunder bweb 2026 2 --wait` polls the portal hourly
 and downloads them when they appear.
 
-## Sending email from [email removed]
-
-Mail.app on this machine has no account configured, so nothing can be sent from that address
-programmatically. The drafts below remain for manual sending if needed.
-
 ## Draft: Poliwave licensing follow-up (send manually)
 
 > **Subject:** Licence to cite Poliwave's stored results history in an academic paper
@@ -30,4 +25,4 @@ programmatically. The drafts below remain for manual sending if needed.
 > Hi Poliwave team, following up on my feedback-form message about the Brazil 2026 runoff: I'd like to
 > cite figures derived from the stored national count history on /br/live/presidente-2026 in an
 > academic paper (non-commercial). What licence or attribution do you require, and is the Results API
-> the right way to obtain that history? — André Costa, [email removed]
+> the right way to obtain that history? — André Costa

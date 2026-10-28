@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Underpricing of public election information in prediction markets: Brazil 2026 on Polymarket"
 readme = "README.md"
 authors = [
-    { name = "Andylol111", email = "[email removed]" }
+    { name = "Andylol111" }
 ]
 requires-python = ">=3.13"
 dependencies = [
