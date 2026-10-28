@@ -496,3 +496,40 @@ td.sched.pre { padding-top: 6px; }
 }
 .pre-races th { white-space: normal; vertical-align: bottom; }
 .map-frame { max-width: calc(100% - 270px); text-align: right; }
+/* ---------- national state map (dash-national.js) ---------- */
+.national { position: absolute; inset: 0; z-index: 4; background: var(--paper); display: flex; flex-direction: column; overflow: hidden; }
+.national[hidden] { display: none; }
+.nat-top { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 16px; padding: 10px 10px 0; }
+.nat-top .toggle { margin: 0; }
+.nat-control { flex: 1 1 320px; min-width: 0; font: 12.5px/1.4 var(--sans); }
+.nat-bar { position: relative; display: flex; height: 12px; background: #eceae4; }
+.nat-bar i { display: block; height: 100%; }
+.nat-bar i.gap { background: transparent; }
+.nat-bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.nat-bar-text { margin: 4px 0 0; color: var(--muted); }
+.nat-map { display: block; flex: 1 1 auto; }
+.nat-map path.st { stroke: none; cursor: default; }
+.nat-map path.st[tabindex] { cursor: pointer; }
+.nat-map path.st.hl, .nat-map path.st:focus { stroke: var(--ink); stroke-width: 1.6; outline: none; }
+.nat-map .st-border { fill: none; stroke: #fcfbf8; stroke-width: 1; pointer-events: none; }
+.nat-map .st-outline { fill: none; stroke: #8d8a82; stroke-width: 0.7; pointer-events: none; }
+.nat-map .st-model { fill: none; stroke: var(--ink); stroke-width: 1.6; pointer-events: none; }
+.national .nat-legend { position: absolute; left: 10px; bottom: 10px; }
+.legend-note .sw { display: inline-block; width: 10px; height: 10px; vertical-align: -1px; border: 1px solid #d6d3cb; }
+.legend-note .ring { display: inline-block; width: 9px; height: 9px; border: 1.6px solid var(--ink); border-radius: 50%; vertical-align: -1px; }
+.nat-card hr { border: 0; border-top: 1px solid var(--rule); margin: 6px 0; }
+.nat-panel { position: absolute; right: 10px; top: 64px; width: 330px; max-width: calc(100% - 20px); z-index: 5; background: var(--paper); border: 1px solid var(--ink); padding: 10px 12px; font: 13px/1.4 var(--sans); }
+.nat-panel p { margin: 0 0 4px; }
+.nat-close { position: absolute; top: 4px; right: 6px; border: 0; background: none; font-size: 18px; cursor: pointer; color: var(--muted); }
+.nat-hist svg { display: block; width: 100%; height: auto; }
+/* elections table: fixed columns, so a long cell (the US pre-count table) cannot reshape it */
+#overview { table-layout: fixed; width: 100%; }
+#overview col.c-name { width: 38%; }
+#overview col.c-date { width: 10%; }
+#overview col.c-status { width: 8%; }
+#overview col.c-units { width: 10%; }
+#overview col.c-lead { width: 9%; }
+#overview col.c-band { width: 8%; }
+#overview col.c-chart { width: 17%; }
+#overview th { white-space: normal; }
+#overview .spark { max-width: 100%; }

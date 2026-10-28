@@ -11,7 +11,8 @@ import { createMap } from "./dash-map.js";
 import { drawTimeline } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
-import { untilText, polymarketP } from "./dash-precount.js";
+import { untilText, polymarketYes } from "./dash-precount.js";
+import { createNational } from "./dash-national.js";
 
 const EID = param("id");
 const $ = (id) => document.getElementById(id);
@@ -163,6 +164,10 @@ async function loadLiveSeries() {
   S.perf.timelineHeld = Object.fromEntries([...S.rows].map(([id, rows]) => [id, [rows.length, rows[rows.length - 1]?.t ?? null]]));
   S.stats = stats;
   S.arb = arb;
+  if (S.nat) {
+    const overview = await getJSON(`${EID}/${S.meta.overview}`, opt);
+    if (overview) { S.overview = overview; updateNational(); }
+  }
   S.lastFetch = Date.now();
 }
 
@@ -558,6 +563,7 @@ function focusMap(animate = true) {
   ext.hidden = !S.map?.hasPopulatedView || !!reg;
   ext.textContent = S.map?.extent === "populated" ? "Whole map" : "Populated areas";
   renderCrumbs();
+  showNational();
   for (const row of document.querySelectorAll(".rp-row")) row.classList.toggle("sel", row.dataset.region === S.region);
 }
 
@@ -618,11 +624,12 @@ function renderCrumbs() {
   const top = countryName();
   if (!S.region) {
     const n = pickerRegions().filter((r) => racesIn(r.id).length).length;
-    el.innerHTML = `<b>${esc(top)}</b>${!national() && n ? ` <span class="crumb-note">· ${n} ${n === 1 ? "region" : "regions"} with races; pick one</span>` : ""}`;
+    el.innerHTML = `<b>${esc(top)}</b>${S.nat ? ` <span class="crumb-note">· every race this year by state; ringed states have a county model (click to open)</span>`
+      : !national() && n ? ` <span class="crumb-note">· ${n} ${n === 1 ? "region" : "regions"} with races; pick one</span>` : ""}`;
     return;
   }
   el.innerHTML = `<button type="button" class="crumb-link" id="crumb-top">${esc(top)}</button> <span aria-hidden="true">›</span> <b>${esc(regionName(S.region))}</b>
-    <button type="button" class="crumb-back" id="crumb-back" title="Esc">Back to ${national() ? "national" : "all regions"}</button>`;
+    <button type="button" class="crumb-back" id="crumb-back" title="Esc">Back to ${national() ? "national" : S.nat ? "the national map" : "all regions"}</button>`;
   $("crumb-top").addEventListener("click", backToNational);
   $("crumb-back").addEventListener("click", backToNational);
 }
@@ -1021,28 +1028,35 @@ function startLive() {
 
 /* ---------------------------------------------------------------- main */
 
-// Before the count: Polymarket's current price for every race, read in the browser once a minute while
-// the tab is visible, is added as each race's latest row (model chance and Kalshi carried from the
-// last row the scheduled build wrote). Every 10 minutes the meta and timeline are read again; when
-// the phase is no longer "pre-count" the page reloads as the election-night dashboard.
+// Polymarket's current prices, read in the browser once a minute while the tab is visible, in one
+// batched request for every market on the page: the meta races (before the count: added as each
+// race's latest row, model chance and Kalshi carried from the last row the scheduled build wrote)
+// and the national map's races. Before the count, every 10 minutes the meta, timeline and overview
+// are read again; when the phase is no longer "pre-count" the page reloads as the election-night
+// dashboard. On the night (&live=) only the national map uses these prices.
 const PRE_POLL_MS = 60000, PRE_FILES_MS = 10 * 60000;
-function startPreCount() {
-  // nothing to play before the count (one map frame); the scrubber still moves through the prices
-  $("play").style.display = "none";
-  $("speed").style.display = "none";
+const pmOf = (r) => (r.markets ?? []).find((m) => m.platform === "polymarket" && m.id);
+function startPrices() {
+  const pre = PRE();
+  if (!pre && !S.nat) return;
   const el = $("live");
-  el.hidden = false;
+  if (pre) {
+    // nothing to play before the count (one map frame); the scrubber still moves through the prices
+    $("play").style.display = "none";
+    $("speed").style.display = "none";
+    el.hidden = false;
+  }
   let lastOk = 0, lastFiles = Date.now(), failed = false, timer = 0, busy = false;
-  const prices = new Map();
-  const pmOf = (r) => (r.markets ?? []).find((m) => m.platform === "polymarket" && m.id);
+  let yes = new Map(); // slug -> YES price
   const fresh = async (path) => {
     const r = await fetch(absUrl(path), { cache: "no-cache" });
     return r.ok ? r.json() : null;
   };
-  const apply = () => {
+  const applyRows = () => {
     const now = Date.now(), iso = new Date(now).toISOString();
     for (const r of races()) {
-      const p = prices.get(r.race_id);
+      const mk = pmOf(r), y = mk ? yes.get(mk.id) : null;
+      const p = y == null ? null : mk.yes_is === "b" ? 1 - y : y;
       const rows = (S.rows.get(r.race_id) ?? []).filter((d) => !d.live);
       const last = rows[rows.length - 1];
       if (p != null) rows.push({ ...(last ?? {}), t: iso, time: new Date(now), tms: now, pm: p, live: true });
@@ -1059,6 +1073,7 @@ function startPreCount() {
     render();
   };
   const show = () => {
+    if (!pre) return; // on the night the top bar shows the live count's status
     const left = untilText(closeOf(null) - Date.now());
     const cd = $("countdown");
     if (cd) cd.textContent = left ? `· first polls close in ${left}` : "· polls are closing";
@@ -1071,29 +1086,72 @@ function startPreCount() {
     timer = 0;
     if (busy || document.hidden) return;
     busy = true;
-    if (Date.now() - lastFiles >= PRE_FILES_MS) {
+    if (pre && Date.now() - lastFiles >= PRE_FILES_MS) {
       lastFiles = Date.now();
-      const [meta, timeline] = await Promise.all([fresh(`${EID}/meta.json`), fresh(`${EID}/timeline.json`)]).catch(() => [null, null]);
+      const [meta, timeline, overview] = await Promise.all([fresh(`${EID}/meta.json`), fresh(`${EID}/timeline.json`), S.meta.overview ? fresh(`${EID}/${S.meta.overview}`) : null]).catch(() => [null, null, null]);
       if (meta && meta.phase !== "pre-count") { location.reload(); return; }
       if (timeline) S.rows = timelineRows(timeline);
+      if (overview) S.overview = overview;
     }
-    const got = await Promise.allSettled(races().map(async (r) => [r.race_id, pmOf(r) ? await polymarketP(pmOf(r)) : null]));
-    let n = 0;
-    for (const x of got) if (x.status === "fulfilled" && x.value[1] != null) { prices.set(...x.value); n++; }
-    failed = !n;
-    if (n) lastOk = Date.now();
+    try {
+      yes = await polymarketYes([...races().map((r) => pmOf(r)?.id), ...(S.nat?.slugs() ?? [])]);
+      failed = !yes.size;
+      if (yes.size) lastOk = Date.now();
+    } catch (err) {
+      failed = true;
+      console.warn("Polymarket prices:", err.message);
+    }
     busy = false;
-    apply();
+    if (pre) applyRows();
+    updateNational(yes);
     show();
     timer = setTimeout(poll, PRE_POLL_MS);
   }
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) { clearTimeout(timer); timer = 0; return; }
-    if (!timer && !busy) { clearTimeout(timer); timer = setTimeout(poll, Math.max(0, lastOk + PRE_POLL_MS - Date.now())); }
+    if (!timer && !busy) timer = setTimeout(poll, Math.max(0, lastOk + PRE_POLL_MS - Date.now()));
   });
   show();
-  setInterval(show, 1000);
+  if (pre) setInterval(show, 1000);
   poll();
+}
+
+/* ---------------------------------------------------------------- national map (meta.overview) */
+
+// The national view shows while no region is chosen; modeled states drill into the county view.
+let natYes = new Map();
+function updateNational(yes = natYes) {
+  natYes = yes;
+  if (!S.nat) return;
+  const live = new Map();
+  for (const o of Object.values(S.overview?.offices ?? {})) {
+    for (const r of o.races ?? []) {
+      const y = r.pm?.slug ? yes.get(r.pm.slug) : null;
+      if (y != null) live.set(r.race_key, r.pm.yes_is === "rep" ? 1 - y : y);
+    }
+  }
+  const model = new Map(races().map((r) => [r.race_id, rowAt(r.race_id, S.t)?.P ?? null]).filter(([, p]) => p != null));
+  S.nat.update({ overview: S.overview, live, model });
+}
+
+async function initNational() {
+  if (!S.meta.overview || !S.meta.geometry) return;
+  const [overview, topo] = await Promise.all([getJSON(`${EID}/${S.meta.overview}`, { optional: true }), getJSON(S.meta.geometry, { root: STATIC })]).catch(() => [null, null]);
+  if (!overview || !topo) return;
+  S.overview = overview;
+  S.nat = createNational($("national"), {
+    topo, overview, office: "senate",
+    onDrill: (id) => { const r = raceById(id); if (r) selectRace(r); },
+  });
+  showNational();
+  updateNational();
+  renderCrumbs();
+}
+
+function showNational() {
+  const on = !!S.nat && !S.region;
+  $("national").hidden = !on;
+  if (on) S.nat.draw();
 }
 
 // A scheduled election whose data folder does not exist yet: say what will appear on the night
@@ -1175,7 +1233,7 @@ async function main() {
   renderCrumbs();
   render();
   S.perf.firstPaintMs = Math.round(performance.now());
-  if (PRE()) startPreCount();
+  initNational().finally(startPrices);
 
   $("play").addEventListener("click", () => (S.playing ? pause() : play()));
   document.querySelectorAll("#speed button").forEach((b) => b.addEventListener("click", () => {

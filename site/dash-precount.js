@@ -15,15 +15,23 @@ export function untilText(ms, compact = false) {
   return `${m}${M}`;
 }
 
-// P(the race's side a wins) from Polymarket's current book: the midpoint when the spread is at most
-// 10¢, else the last trade (the exporter's `pm` rule). null when the market is missing or closed.
-export async function polymarketP(market) {
-  const r = await fetch(`${GAMMA}?slug=${encodeURIComponent(market.id)}`, { cache: "no-store" });
-  if (!r.ok) throw new Error(`Polymarket ${market.id}: HTTP ${r.status}`);
-  const m = (await r.json())?.[0];
-  if (!m) return null;
+// YES probability from a Gamma market object: the midpoint when the spread is at most 10¢, else the
+// last trade (the exporter's `pm` rule).
+function yesPrice(m) {
   const bid = +m.bestBid, ask = +m.bestAsk;
   const yes = Number.isFinite(bid) && Number.isFinite(ask) && ask > 0 && ask - bid <= 0.1 ? (bid + ask) / 2 : +m.lastTradePrice;
-  if (!Number.isFinite(yes)) return null;
-  return market.yes_is === "b" ? 1 - yes : yes;
+  return Number.isFinite(yes) ? yes : null;
+}
+
+// YES prices for many markets by slug, 20 slugs per request, one request after another.
+export async function polymarketYes(slugs) {
+  const out = new Map();
+  const list = [...new Set(slugs.filter(Boolean))];
+  for (let i = 0; i < list.length; i += 20) {
+    const q = list.slice(i, i + 20).map((s) => `slug=${encodeURIComponent(s)}`).join("&");
+    const r = await fetch(`${GAMMA}?${q}`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`Polymarket: HTTP ${r.status}`);
+    for (const m of await r.json()) if (!m.closed) out.set(m.slug, yesPrice(m));
+  }
+  return out;
 }

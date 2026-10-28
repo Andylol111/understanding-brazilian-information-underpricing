@@ -2,7 +2,7 @@
 // analysis/edge_audit.py) and the list of elections (elections.json, each election's files).
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes } from "./common.js";
-import { polymarketP } from "./dash-precount.js";
+import { polymarketYes } from "./dash-precount.js";
 
 const $ = (id) => document.getElementById(id);
 const tbody = document.querySelector("#overview tbody");
@@ -335,10 +335,12 @@ async function preCell(td) {
   if (m?.phase !== "pre-count" || !m.races?.length) return;
   const timeline = await getJSON(`${id}/timeline.json`, { optional: true, root: rootOf(id) }).catch(() => null);
   const lastRow = (rid) => { const rows = (timeline?.[rid] ?? []).filter((d) => d.t); return rows[rows.length - 1] ?? null; };
-  const live = new Map(await Promise.all(m.races.map(async (r) => {
-    const mk = (r.markets ?? []).find((x) => x.platform === "polymarket" && x.id);
-    return [r.race_id, mk ? await polymarketP(mk).catch(() => null) : null];
-  })));
+  const pm = (r) => (r.markets ?? []).find((x) => x.platform === "polymarket" && x.id);
+  const yes = await polymarketYes(m.races.map((r) => pm(r)?.id)).catch(() => new Map());
+  const live = new Map(m.races.map((r) => {
+    const y = pm(r) ? yes.get(pm(r).id) : null;
+    return [r.race_id, y == null ? null : pm(r).yes_is === "b" ? 1 - y : y];
+  }));
   const f = (x) => (x == null ? "–" : x.toFixed(2));
   const regions = new Map((m.regions ?? []).map((r) => [r.id, r.name]));
   const label = (r) => (r.region && !r.name.includes(regions.get(r.region) ?? "") ? `${regions.get(r.region)} ${r.name}` : r.name);
