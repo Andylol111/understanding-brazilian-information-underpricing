@@ -196,6 +196,40 @@ its budget: ~30% fans out the progress files, ~70% reads the municipalities that
 counted sections first; the rest wait for the next tick (`mun_backlog` in `ticks.jsonl`). The tool does
 not evade the limit (no IP rotation or proxies).
 
+## Rehearsal: the live system on a simulated night (`brunder.rehearsal`, `analysis/rehearsal.py`)
+
+The first-round night is served again through a simulated TSE site and CDN, rebuilt from the section
+receipts: nine edge servers, each caching every file for a set time from the request that filled it;
+ETag/304 responses; a per-client token-bucket rate limit that answers 429 and locks the client out;
+30–90 ms round trips. The live engine (`night.run_live`, FastFeed, MunTracker, model) runs unchanged on
+a simulated clock at real speed, with order books built from the archived price at each moment. Its
+output is compared with the ideal replay (every section visible the moment TSE received it).
+
+| run | simulated CDN | window (UTC) | signals live / replay | entry vs replay | view of the count behind truth: median / p90 | municipalities waiting: median / max | 429s |
+|---|---|---|---|---|---|---|---|
+| baseline | cache 60 s, limit 20 req/s | 19:59–00:39 (whole count) | 7 / 7 | −0.7 to +0.9 min | 47 s / 6.4 min | 147 / 3,388 | 0 |
+| ttl30 | cache 30 s, limit 20 req/s | 20:00–22:00 (peak) | 7 / 7 | −0.8 to +0.8 min | 49 s / 3.1 min | 1,072 / 3,707 | 0 |
+| limit10 | cache 60 s, limit 10 req/s | 20:00–22:00 (peak) | 7 / 7 | −0.7 to +0.6 min | 47 s / 2.7 min | 852 / 3,411 | 0 |
+
+Return per $ of the 7 signals: +16.3% live vs +17.4% replay in every run. Model probability vs the
+replay at the same instant: median gap 0, p90 ≤ 0.007; the worst single tick differs by up to ~1.0, in
+a market whose deciding municipalities were still in the backlog, which the entry rule absorbed.
+
+What this shows: on this night the live system reproduces the replay's signals within a minute, and
+the request budget falls behind on the opening surge (thousands of municipalities waiting at peak)
+without costing signals, because it reads the municipalities with the most newly counted sections
+first and the signals come early.
+
+What it does not show, by construction:
+- The simulated CDN's settings are assumptions; TSE's election-night cache life and rate limit are
+  unknown. The cache-life change (60 → 30 s) did not matter here because our own budget, not the
+  cache, sets the pace.
+- `limit10` caps the CDN at 10 req/s, but FastFeed's limiter also tops out at 10 req/s, so no 429 was
+  possible at steady state: it shows the budget fits under a 10 req/s limit, not how the system
+  degrades under a stricter one (the AIMD back-off is unit-tested, not rehearsed).
+- A simulated edge never serves a copy older than its cache life; real edges sometimes do.
+- One development night, whose signals were chosen on the same data.
+
 ## Recording other elections for development data (`brunder snap`)
 
 A live results feed only shows its current state, so a count's timing exists only if someone records it
