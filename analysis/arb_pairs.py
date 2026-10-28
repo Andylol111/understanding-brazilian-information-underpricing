@@ -222,6 +222,9 @@ SPEC: dict[str, dict] = {
              "pm_event": "kansas-senate-election-winner", "k_event": "SENATEKS-26", "notes": []},
             {"race_id": "ks-gov", "kind": "outcomes", "a": "Cindy Holscher", "b": "Ty Masterson",
              "pm_event": "kansas-governor-winner-2026", "k_event": "GOVPARTYKS-27", "notes": []},
+            # every other Senate/governor race of the US overview (UsMidterms' public race registry): one
+            # Polymarket market and one Kalshi market per race, both on the Democratic (or independent) side
+            {"race_id": "<race_key>", "kind": "registry", "file": "data_public/us2026_races.json", "notes": []},
         ]},
     "tw2026": {
         "name": "Taiwan local elections (Taipei, New Taipei mayors)", "date": "2026-11-28",
@@ -449,16 +452,51 @@ def _pair(eid: str, race: str, g: dict, p: dict, k: dict, same_side: bool, prop:
         "risk_free": False,
         "resolution_differences": auto_diffs(p, k, same_side) + list(g.get("notes") or []),
         "pm_rules": p["rules"],
-        "kalshi_resolution": (lambda f: f(k["label"]) if callable(f) else f.format(x=k["label"]))(K_SAYS[k["series"]]),
+        "kalshi_resolution": k_says(k),
         "kalshi_url": f"https://kalshi.com/markets/{k['series'].lower()}",
         "kalshi_contract_terms": k["contract_terms_url"],
         "_race": {"a": g.get("a") or "", "b": g.get("b") or ""},      # → [races] table, not written per pair
     }
 
 
+def k_says(k: dict) -> str:
+    """Our paraphrase of a Kalshi market's resolution (K_SAYS by series; US Senate/governor series by prefix)."""
+    f = K_SAYS.get(k["series"])
+    base = k["series"].removeprefix("KX")
+    if f is None and base.startswith("SENATE"):
+        f = _SEN_PARTY if k["ticker"].rsplit("-", 1)[-1] in ("D", "R") else (
+            "Yes if {x}, running as an independent, is sworn in to this seat for the term starting 2027; can settle "
+            "early on a media projection.")
+    if f is None and base.startswith("GOVPARTY"):
+        f = _GOV_PARTY
+    if f is None:
+        raise KeyError(f"no paraphrase for Kalshi series {k['series']}: add it to K_SAYS")
+    return f(k["label"]) if callable(f) else f.format(x=k["label"])
+
+
+def registry_pairs(eid: str, g: dict, have: set[str]) -> list[dict]:
+    """Pairs from a race registry (data_public/us2026_races.json): per race its Polymarket slug and Kalshi
+    ticker with each venue's YES side; races whose ticker is already paired are skipped."""
+    out = []
+    for r in json.loads((ROOT / g["file"]).read_text())["races"]:
+        pm, kx = r.get("pm") or {}, r.get("kalshi") or {}
+        if not pm.get("slug") or not kx.get("ticker") or kx["ticker"] in have:
+            continue
+        p = pm_market(pm["slug"])
+        k = next(x for x in k_markets(kalshi.market(kx["ticker"])["event_ticker"]) if x["ticker"] == kx["ticker"])
+        same = pm.get("yes_is") == kx.get("yes_is")
+        rg = {**g, "a": (r.get("dem_side") or {}).get("name") or "", "b": ""}
+        out.append(_pair(eid, r["race_key"], rg, p, k, same, p["question"], "a", "a" if same else "b"))
+        have.add(kx["ticker"])
+    return out
+
+
 def build(eid: str) -> list[dict]:
     pairs = []
     for g in SPEC[eid]["groups"]:
+        if g["kind"] == "registry":
+            pairs += registry_pairs(eid, g, {p["kalshi_ticker"] for p in pairs})
+            continue
         km = k_markets(g["k_event"])
         if g["kind"] == "br_states":
             cfg = tomllib.loads((ROOT / "configs" / "night_r2_v1.toml").read_text())["markets"]["states"]

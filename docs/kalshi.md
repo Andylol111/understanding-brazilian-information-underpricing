@@ -196,7 +196,7 @@ automatically from the texts:
 | Hungary 2026-04-12 | `hu2026.toml` | 6 | most seats, next PM, Tisza 130+ / 120+ (Kalshi's thresholds are one seat higher: flagged) |
 | Canada 2025-04-28 | `ca2025.toml` | 4 | most seats (Liberal, Conservative); next PM (Kalshi: the PM's party, not the person: flagged) |
 | Quebec 2026-10-05 | `qc2026.toml` | 6 | most seats (PQ, PLQ, CAQ, PCQ), PQ majority (64+), next Premier |
-| US midterms 2026 | `us2026.toml` | 58 | House, Senate, CA gov, and senate/governor in TX, OH (special), GA, AK, ME, MI, IA, KS |
+| US midterms 2026 | `us2026.toml` | 113 | House, Senate, and all 71 Senate/governor races of the US overview: hand-matched groups (CA, TX, OH, GA, AK, ME, MI, IA, KS) plus one Democratic- or independent-side pair per race from `data_public/us2026_races.json` (`kind = "registry"`) |
 | Taipei / New Taipei mayor 2026-11-28 | `tw2026.toml` | 5 | Taipei, New Taipei |
 | France 2027 presidential | `fr2027.toml` | 104 | winner, who advances, 1st/2nd/3rd in round 1, on the ballot, outright first-round win |
 | Spain general election 2026-11-29 | `es2026.toml` | 13 | most seats, 2nd/3rd, next PM, PP+Vox ≥ 50% |
@@ -323,7 +323,7 @@ large gaps are thin state markets, where one venue sat on a stale quote.
 | Hungary | 6 | 362 | 15.8¢ | $248.2k ($1,514) | $5.4k |
 | Canada | 4 | 241 | 7.2¢ | $1.78M ($16,459) | $52.2k |
 | Quebec | 6 | 801 | 13.2¢ | $1.4k ($38) | $11 |
-| US midterms, pre-election 21–28 Oct (`results/kalshi/us2026_preelection_arb.csv`) | 58 | 26,258 pair-minutes | 2.1¢ | $162.0k ($1,242) | — |
+| US midterms, pre-election 21–28 Oct (`results/kalshi/us2026_preelection_arb.csv`; the 58 hand-matched pairs) | 58 | 26,258 pair-minutes | 2.1¢ | $162.0k ($1,242) | — |
 
 How to read the arbitrage table:
 
@@ -439,4 +439,5 @@ Unit=brunder-kalshi-us.service
 WantedBy=timers.target
 ```
 
-The 58 us2026 tickers need two requests per poll. At 30 s that is about 0.07 requests/s.
+The 113 us2026 tickers need 3 bulk requests per poll (50 tickers each; the endpoint accepts up to 100).
+At 30 s that is 0.1 requests/s. A test poll on 2026-10-28 returned all 113 books in 0.53 s.

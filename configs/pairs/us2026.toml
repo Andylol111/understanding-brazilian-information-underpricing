@@ -25,6 +25,59 @@ date = "2026-11-03"
 "ia-gov" = { a = "Rob Sand", b = "Zach Lahn" }
 "ks-sen" = { a = "Adam Hamilton", b = "Roger Marshall" }
 "ks-gov" = { a = "Cindy Holscher", b = "Ty Masterson" }
+"al-sen" = { a = "Everett Wess", b = "" }
+"ar-sen" = { a = "Hallie Shoffner", b = "" }
+"co-sen" = { a = "John Hickenlooper", b = "" }
+"de-sen" = { a = "Chris Coons", b = "" }
+"fl-sen" = { a = "Angie Nixon", b = "" }
+"id-sen" = { a = "David Roth", b = "" }
+"il-sen" = { a = "Juliana Stratton", b = "" }
+"la-sen" = { a = "Charles Booker", b = "" }
+"ma-sen" = { a = "Ed Markey", b = "" }
+"mn-sen" = { a = "Peggy Flanagan", b = "" }
+"ms-sen" = { a = "Scott Colom", b = "" }
+"mt-sen" = { a = "Seth Bodnar", b = "" }
+"nc-sen" = { a = "Roy Cooper", b = "" }
+"ne-sen" = { a = "Dan Osborn", b = "" }
+"nh-sen" = { a = "Chris Pappas", b = "" }
+"nj-sen" = { a = "Cory Booker", b = "" }
+"nm-sen" = { a = "Ben Ray Luján", b = "" }
+"ok-sen" = { a = "N’Kiyla Thomas", b = "" }
+"or-sen" = { a = "Jeff Merkley", b = "" }
+"ri-sen" = { a = "Jack Reed", b = "" }
+"sc-sen" = { a = "Annie Andrews", b = "" }
+"sd-sen" = { a = "Julian Beaudion", b = "" }
+"tn-sen" = { a = "Marquita Bradshaw", b = "" }
+"va-sen" = { a = "Mark Warner", b = "" }
+"wv-sen" = { a = "Rachel Fetty Anderson", b = "" }
+"wy-sen" = { a = "James Byrd", b = "" }
+"al-gov" = { a = "Doug Jones", b = "" }
+"az-gov" = { a = "Katie Hobbs", b = "" }
+"ar-gov" = { a = "Fred Love", b = "" }
+"co-gov" = { a = "Phil Weiser", b = "" }
+"ct-gov" = { a = "Ned Lamont", b = "" }
+"fl-gov" = { a = "David Jolly", b = "" }
+"hi-gov" = { a = "Josh Green", b = "" }
+"id-gov" = { a = "Terri Pickens", b = "" }
+"il-gov" = { a = "JB Pritzker", b = "" }
+"md-gov" = { a = "Wes Moore", b = "" }
+"ma-gov" = { a = "Maura Healey", b = "" }
+"mn-gov" = { a = "Amy Klobuchar", b = "" }
+"ne-gov" = { a = "Lynne Walz", b = "" }
+"nv-gov" = { a = "Aaron Ford", b = "" }
+"nh-gov" = { a = "Cinde Warmington", b = "" }
+"nm-gov" = { a = "Deb Haaland", b = "" }
+"ny-gov" = { a = "Kathy Hochul", b = "" }
+"ok-gov" = { a = "Cyndi Munson", b = "" }
+"or-gov" = { a = "Tina Kotek", b = "" }
+"pa-gov" = { a = "Josh Shapiro", b = "" }
+"ri-gov" = { a = "Helena Foulkes", b = "" }
+"sc-gov" = { a = "Jermaine Johnson", b = "" }
+"sd-gov" = { a = "Dan Ahlers", b = "" }
+"tn-gov" = { a = "Jerri Green", b = "" }
+"vt-gov" = { a = "Amanda Janoo", b = "" }
+"wi-gov" = { a = "David Crowley", b = "" }
+"wy-gov" = { a = "Kenneth Casner", b = "" }
 
 [[pair]]
 id = "house:will-the-democratic-party-control-the-house-after-the-2026-m~CONTROLH-2026-D"
@@ -1700,4 +1753,1601 @@ resolution_differences = [
 pm_rules = "This market will resolve according to the winner of the 2026 Kansas gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
 kalshi_resolution = "Yes if the party of the listed nominee (Ty Masterson) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
 kalshi_url = "https://kalshi.com/markets/govpartyks"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "ak-sen:will-mary-peltola-win-the-alaska-senate-race-in-2026~SENATEAK-26-D"
+race_id = "ak-sen"
+proposition = "Will Mary Peltola win the Alaska Senate race in 2026?"
+pm_market = "will-mary-peltola-win-the-alaska-senate-race-in-2026"
+kalshi_ticker = "SENATEAK-26-D"
+same_side = true
+pm_event = "alaska-senate-election-winner"
+kalshi_event = "SENATEAK-26"
+kalshi_series = "SENATEAK"
+pm_question = "Will Mary Peltola win the Alaska Senate race in 2026?"
+pm_yes_token = "72139607190315861034411702195742538105117960260100800877125381826122747504258"
+pm_condition_id = "0x19d2ff72e389d190c183e6b114817301d29eba651d67d75a38ee201a05188fd9"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEAK contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+  "Kalshi resolves on the party; Polymarket on the named person — a replacement nominee splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Alaska U.S. Senate election, inclusive of any run-offs, currently scheduled for November 3, 2026.\n\nIf the results of the election are not confirmed by July 31, 2027, this market will resolve to \"Other\".\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Democratic party) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senateak"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "al-sen:will-the-democrats-win-the-alabama-senate-race-in-2026~SENATEAL-26-D"
+race_id = "al-sen"
+proposition = "Will the Democrats win the Alabama Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-alabama-senate-race-in-2026"
+kalshi_ticker = "SENATEAL-26-D"
+same_side = true
+pm_event = "alabama-senate-election-winner-154"
+kalshi_event = "SENATEAL-26"
+kalshi_series = "SENATEAL"
+pm_question = "Will the Democrats win the Alabama Senate race in 2026?"
+pm_yes_token = "77232568388576878990477542833081311975859328857370439688711702313039178600550"
+pm_condition_id = "0xffc0030fa887b259b313f7a695e34ce8776fdf1b674d1d7812f0e31782c3aca0"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEAL contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Alabama U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Everett Wess) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senateal"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "ar-sen:will-the-democrats-win-the-arkansas-senate-race-in-2026~SENATEAR-26-D"
+race_id = "ar-sen"
+proposition = "Will the Democrats win the Arkansas Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-arkansas-senate-race-in-2026"
+kalshi_ticker = "SENATEAR-26-D"
+same_side = true
+pm_event = "arkansas-senate-election-winner"
+kalshi_event = "SENATEAR-26"
+kalshi_series = "SENATEAR"
+pm_question = "Will the Democrats win the Arkansas Senate race in 2026?"
+pm_yes_token = "68370995073141964079913803663665941780115677360430806954011390499916208708512"
+pm_condition_id = "0xfd583ce731a731f6500cf5427090f1e708ec102140146200306b56c489ed4364"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEAR contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Arkansas U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Hallie Shoffner) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatear"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "co-sen:will-the-democrats-win-the-colorado-senate-race-in-2026~SENATECO-26-D"
+race_id = "co-sen"
+proposition = "Will the Democrats win the Colorado Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-colorado-senate-race-in-2026"
+kalshi_ticker = "SENATECO-26-D"
+same_side = true
+pm_event = "colorado-senate-election-winner"
+kalshi_event = "SENATECO-26"
+kalshi_series = "SENATECO"
+pm_question = "Will the Democrats win the Colorado Senate race in 2026?"
+pm_yes_token = "68194463917260305435439145066031544476540679280823247532132832363696000101185"
+pm_condition_id = "0x3f8d20cfcf2136d0c001663603c2d7f7be0fb920534d09a193f3165a40fe9469"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATECO contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Colorado U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (John Hickenlooper) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senateco"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "de-sen:will-the-democrats-win-the-delaware-senate-race-in-2026~SENATEDE-26-D"
+race_id = "de-sen"
+proposition = "Will the Democrats win the Delaware Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-delaware-senate-race-in-2026"
+kalshi_ticker = "SENATEDE-26-D"
+same_side = true
+pm_event = "delaware-senate-election-winner"
+kalshi_event = "SENATEDE-26"
+kalshi_series = "SENATEDE"
+pm_question = "Will the Democrats win the Delaware Senate race in 2026?"
+pm_yes_token = "109467029375682717672947466588331781838347232688418556926634334189471462678711"
+pm_condition_id = "0xad23b96e7a01232f86955c2a719bd7b63f937e093a220bad52fbc8bd0664dedb"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEDE contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Delaware U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Chris Coons) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatede"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "fl-sen:will-the-democrats-win-the-florida-senate-race-in-2026~SENATEFLS-26-D"
+race_id = "fl-sen"
+proposition = "Will the Democrats win the Florida Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-florida-senate-race-in-2026"
+kalshi_ticker = "SENATEFLS-26-D"
+same_side = true
+pm_event = "florida-senate-election-winner"
+kalshi_event = "SENATEFLS-26"
+kalshi_series = "SENATEFLS"
+pm_question = "Will the Democrats win the Florida Senate race in 2026?"
+pm_yes_token = "109815773012907461372639157658293071578555374097742562684476865021743386609433"
+pm_condition_id = "0x0465cd005a54781e052b679e2c42c7ae5b772490fdda54316f157bf537536456"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEFLS contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Florida U.S. Senate special election currently scheduled for November 3, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Angie Nixon) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatefls"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "id-sen:will-the-democrats-win-the-idaho-senate-race-in-2026~SENATEID-26-D"
+race_id = "id-sen"
+proposition = "Will the Democrats win the Idaho Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-idaho-senate-race-in-2026"
+kalshi_ticker = "SENATEID-26-D"
+same_side = true
+pm_event = "idaho-senate-election-winner"
+kalshi_event = "SENATEID-26"
+kalshi_series = "SENATEID"
+pm_question = "Will the Democrats win the Idaho Senate race in 2026?"
+pm_yes_token = "106941193163110167696426338043140728938381127310653153528096347878604033727123"
+pm_condition_id = "0xbf4144ee69c04fafaf23f455cee1e240cb4a643aec6276ef6159929a4a070280"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEID contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Idaho U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (David Roth) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senateid"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "il-sen:will-the-democrats-win-the-illinois-senate-race-in-2026~SENATEIL-26-D"
+race_id = "il-sen"
+proposition = "Will the Democrats win the Illinois Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-illinois-senate-race-in-2026"
+kalshi_ticker = "SENATEIL-26-D"
+same_side = true
+pm_event = "illinois-senate-election-winner"
+kalshi_event = "SENATEIL-26"
+kalshi_series = "SENATEIL"
+pm_question = "Will the Democrats win the Illinois Senate race in 2026?"
+pm_yes_token = "3015477455071606958014729552697672689898195807324746948280693702257424620276"
+pm_condition_id = "0xdb9b47929435349bfc4f7a65e0ceb89d5cea388a87c4c6f10d0f736253ae0d76"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEIL contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Illinois U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Juliana Stratton) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senateil"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "la-sen:will-the-democrats-win-the-louisiana-senate-race-in-2026~SENATELA-26-D"
+race_id = "la-sen"
+proposition = "Will the Democrats win the Louisiana Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-louisiana-senate-race-in-2026"
+kalshi_ticker = "SENATELA-26-D"
+same_side = true
+pm_event = "louisiana-senate-election-winner"
+kalshi_event = "SENATELA-26"
+kalshi_series = "SENATELA"
+pm_question = "Will the Democrats win the Louisiana Senate race in 2026?"
+pm_yes_token = "80536528552003281640741026890878925456783654983296822683495274364289350034456"
+pm_condition_id = "0x1bf5eb603d6bd74a11ba051d2cd8d7fff85100d0af19d6e9d91b29cef01f2c91"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATELA contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Louisiana U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Charles Booker) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatela"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "ma-sen:will-the-democrats-win-the-massachusetts-senate-race-in-2026~SENATEMA-26-D"
+race_id = "ma-sen"
+proposition = "Will the Democrats win the Massachusetts Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-massachusetts-senate-race-in-2026"
+kalshi_ticker = "SENATEMA-26-D"
+same_side = true
+pm_event = "massachusetts-senate-election-winner"
+kalshi_event = "SENATEMA-26"
+kalshi_series = "SENATEMA"
+pm_question = "Will the Democrats win the Massachusetts Senate race in 2026?"
+pm_yes_token = "37806907368043161074949113436745462734936336037202698916361016094424427186209"
+pm_condition_id = "0x6f56cdf896a8cdb2552661dd7b3d54dab6ef418d5be0d8a96dea3f16cbf31632"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEMA contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Massachusetts U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Ed Markey) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatema"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "mn-sen:will-the-democrats-win-the-minnesota-senate-race-in-2026~SENATEMN-26-D"
+race_id = "mn-sen"
+proposition = "Will the Democrats win the Minnesota Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-minnesota-senate-race-in-2026"
+kalshi_ticker = "SENATEMN-26-D"
+same_side = true
+pm_event = "minnesota-senate-election-winner"
+kalshi_event = "SENATEMN-26"
+kalshi_series = "SENATEMN"
+pm_question = "Will the Democrats win the Minnesota Senate race in 2026?"
+pm_yes_token = "5210147086444382339849101722545511095151948730486562412029285471203011774407"
+pm_condition_id = "0x44b642636473fb07f0c2319a1d25729a36134969076ffdbb8979cbfdda612b14"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEMN contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Minnesota U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Peggy Flanagan) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatemn"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "ms-sen:will-the-democrats-win-the-mississippi-senate-race-in-2026~SENATEMS-26-D"
+race_id = "ms-sen"
+proposition = "Will the Democrats win the Mississippi Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-mississippi-senate-race-in-2026"
+kalshi_ticker = "SENATEMS-26-D"
+same_side = true
+pm_event = "mississippi-senate-election-winner"
+kalshi_event = "SENATEMS-26"
+kalshi_series = "SENATEMS"
+pm_question = "Will the Democrats win the Mississippi Senate race in 2026?"
+pm_yes_token = "77001639760095266374534198365421436593389036687975321536722226607654949914567"
+pm_condition_id = "0x8c9b8ad3a64088a06d45e0b296a9a836203bc7f3ef35d134c57abead446a8b72"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEMS contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Mississippi U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Scott Colom) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatems"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "mt-sen:will-an-independent-win-the-montana-senate-race-in-2026~SENATEMT-26-IND"
+race_id = "mt-sen"
+proposition = "Will an Independent win the Montana Senate race in 2026?"
+pm_market = "will-an-independent-win-the-montana-senate-race-in-2026"
+kalshi_ticker = "SENATEMT-26-IND"
+same_side = true
+pm_event = "montana-senate-election-winner"
+kalshi_event = "SENATEMT-26"
+kalshi_series = "SENATEMT"
+pm_question = "Will an Independent win the Montana Senate race in 2026?"
+pm_yes_token = "29340710087203628054916881063653310634997647642374537159652441277893390730162"
+pm_condition_id = "0x3b5260e993f1eb6e127dffa8ee40b29a30a7b7343ad1041c33c389e15810c565"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEMT contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Montana U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if Seth Bodnar, running as an independent, is sworn in to this seat for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatemt"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "nc-sen:will-the-democrats-win-the-north-carolina-senate-race-in-202~SENATENC-26-D"
+race_id = "nc-sen"
+proposition = "Will the Democrats win the North Carolina Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-north-carolina-senate-race-in-2026"
+kalshi_ticker = "SENATENC-26-D"
+same_side = true
+pm_event = "north-carolina-senate-election-winner"
+kalshi_event = "SENATENC-26"
+kalshi_series = "SENATENC"
+pm_question = "Will the Democrats win the North Carolina Senate race in 2026?"
+pm_yes_token = "107151098936186723859677628536733880558851060002514795735761427447010628440047"
+pm_condition_id = "0x129dbcb7d39ff8df5f0d7685a2db6400b5db37d3963914486fbb7fd2bc96a923"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATENC contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm North Carolina U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Roy Cooper) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatenc"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "ne-sen:will-an-independent-win-the-nebraska-senate-race-in-2026~SENATENE-26-DOSB"
+race_id = "ne-sen"
+proposition = "Will an independent win the Nebraska Senate race in 2026?"
+pm_market = "will-an-independent-win-the-nebraska-senate-race-in-2026"
+kalshi_ticker = "SENATENE-26-DOSB"
+same_side = true
+pm_event = "nebraska-senate-election-winner"
+kalshi_event = "SENATENE-26"
+kalshi_series = "SENATENE"
+pm_question = "Will an independent win the Nebraska Senate race in 2026?"
+pm_yes_token = "47975366268282823322598946778919483335780002591367838795894307024076579116518"
+pm_condition_id = "0x5554740293afa7aafd5fed10fd2de43a898e2884c1f98bd65185e703f371b9db"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATENE contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Nebraska U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if Dan Osborn, running as an independent, is sworn in to this seat for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatene"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "nh-sen:will-the-democrats-win-the-new-hampshire-senate-race-in-2026~SENATENH-26-D"
+race_id = "nh-sen"
+proposition = "Will the Democrats win the New Hampshire Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-new-hampshire-senate-race-in-2026"
+kalshi_ticker = "SENATENH-26-D"
+same_side = true
+pm_event = "new-hampshire-senate-election-winner"
+kalshi_event = "SENATENH-26"
+kalshi_series = "SENATENH"
+pm_question = "Will the Democrats win the New Hampshire Senate race in 2026?"
+pm_yes_token = "82410058691149830741200014405570918770267839390767234397030380747995715352939"
+pm_condition_id = "0xfc5c740e4617eb9908ceada7c91bfbe1cd41f172d703ef811d544e60a7a70bb5"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATENH contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm New Hampshire U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Chris Pappas) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatenh"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "nj-sen:will-the-democrats-win-the-new-jersey-senate-race-in-2026~SENATENJ-26-D"
+race_id = "nj-sen"
+proposition = "Will the Democrats win the New Jersey Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-new-jersey-senate-race-in-2026"
+kalshi_ticker = "SENATENJ-26-D"
+same_side = true
+pm_event = "new-jersey-senate-election-winner"
+kalshi_event = "SENATENJ-26"
+kalshi_series = "SENATENJ"
+pm_question = "Will the Democrats win the New Jersey Senate race in 2026?"
+pm_yes_token = "57191420250913616150846676905047388827581537310894242160546701872955141155912"
+pm_condition_id = "0xd059a400cfceb9720559a5a67f53aa94381da88fa2007af5ce30f75facf57953"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATENJ contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm New Jersey U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Cory Booker) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatenj"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "nm-sen:will-the-democrats-win-the-new-mexico-senate-race-in-2026~SENATENM-26-D"
+race_id = "nm-sen"
+proposition = "Will the Democrats win the New Mexico Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-new-mexico-senate-race-in-2026"
+kalshi_ticker = "SENATENM-26-D"
+same_side = true
+pm_event = "new-mexico-senate-election-winner"
+kalshi_event = "SENATENM-26"
+kalshi_series = "SENATENM"
+pm_question = "Will the Democrats win the New Mexico Senate race in 2026?"
+pm_yes_token = "86827974851753312617441915824618617861250657564707166327567168877893121374182"
+pm_condition_id = "0x3ce6295fd9f1a6e2798a8a8a8845f69aca182b8cf35dc59db7203415cbe8d48e"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATENM contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm New Mexico U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Ben Ray Luján) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatenm"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "ok-sen:will-the-democrats-win-the-oklahoma-senate-race-in-2026~SENATEOK-26-D"
+race_id = "ok-sen"
+proposition = "Will the Democrats win the Oklahoma Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-oklahoma-senate-race-in-2026"
+kalshi_ticker = "SENATEOK-26-D"
+same_side = true
+pm_event = "oklahoma-senate-election-winner"
+kalshi_event = "SENATEOK-26"
+kalshi_series = "SENATEOK"
+pm_question = "Will the Democrats win the Oklahoma Senate race in 2026?"
+pm_yes_token = "112281295057865404870041957222562306206517476142557838682690649172966968734671"
+pm_condition_id = "0x83337f7e7a080c796fea1192addc126b415f21ea534cbe2ba2b3af3483c08b88"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEOK contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Oklahoma U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (N’Kiyla Thomas) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senateok"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "or-sen:will-the-democrats-win-the-oregon-senate-race-in-2026~SENATEOR-26-D"
+race_id = "or-sen"
+proposition = "Will the Democrats win the Oregon Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-oregon-senate-race-in-2026"
+kalshi_ticker = "SENATEOR-26-D"
+same_side = true
+pm_event = "oregon-senate-election-winner"
+kalshi_event = "SENATEOR-26"
+kalshi_series = "SENATEOR"
+pm_question = "Will the Democrats win the Oregon Senate race in 2026?"
+pm_yes_token = "2092757373218904768373533040846280132805161861393140519418262456097465213332"
+pm_condition_id = "0x4d8d13e33bec0960ea72b2631464f34fb7b96044eb86c16f65c069d118a5bdbc"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEOR contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Oregon U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Jeff Merkley) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senateor"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "ri-sen:will-the-democrats-win-the-rhode-island-senate-race-in-2026~SENATERI-26-D"
+race_id = "ri-sen"
+proposition = "Will the Democrats win the Rhode Island Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-rhode-island-senate-race-in-2026"
+kalshi_ticker = "SENATERI-26-D"
+same_side = true
+pm_event = "rhode-island-senate-election-winner"
+kalshi_event = "SENATERI-26"
+kalshi_series = "SENATERI"
+pm_question = "Will the Democrats win the Rhode Island Senate race in 2026?"
+pm_yes_token = "77004273724753899183699441849597881417275931290950171679615354396048734034984"
+pm_condition_id = "0xe9b5814b6b770008d8ed384c45d41703e648d9dce3cdf3d2d15108431d4d865f"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATERI contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Rhode Island U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Jack Reed) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senateri"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "sc-sen:will-the-democrats-win-the-south-carolina-senate-race-in-202~SENATESC-26-D"
+race_id = "sc-sen"
+proposition = "Will the Democrats win the South Carolina Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-south-carolina-senate-race-in-2026"
+kalshi_ticker = "SENATESC-26-D"
+same_side = true
+pm_event = "south-carolina-senate-election-winner"
+kalshi_event = "SENATESC-26"
+kalshi_series = "SENATESC"
+pm_question = "Will the Democrats win the South Carolina Senate race in 2026?"
+pm_yes_token = "30718966535311015751929217398361750334834655110246828806892843311659716192347"
+pm_condition_id = "0x4de72138204727d2821bff847d8158819ab5b591db1b5b263676126cbb3a0430"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATESC contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm South Carolina U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Annie Andrews) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatesc"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "sd-sen:will-the-democrats-win-the-south-dakota-senate-race-in-2026~SENATESD-26-D"
+race_id = "sd-sen"
+proposition = "Will the Democrats win the South Dakota Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-south-dakota-senate-race-in-2026"
+kalshi_ticker = "SENATESD-26-D"
+same_side = true
+pm_event = "south-dakota-senate-election-winner"
+kalshi_event = "SENATESD-26"
+kalshi_series = "SENATESD"
+pm_question = "Will the Democrats win the South Dakota Senate race in 2026?"
+pm_yes_token = "67967023811721834738685695249992484419619114809767608640505747182577663027691"
+pm_condition_id = "0xf4f5714f7e70dda23fcbe21b9de67060cd6ab7a8a972686ff8495e45059ae531"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATESD contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm South Dakota U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Julian Beaudion) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatesd"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "tn-sen:will-the-democrats-win-the-tennessee-senate-race-in-2026~SENATETN-26-D"
+race_id = "tn-sen"
+proposition = "Will the Democrats win the Tennessee Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-tennessee-senate-race-in-2026"
+kalshi_ticker = "SENATETN-26-D"
+same_side = true
+pm_event = "tennessee-senate-election-winner"
+kalshi_event = "SENATETN-26"
+kalshi_series = "SENATETN"
+pm_question = "Will the Democrats win the Tennessee Senate race in 2026?"
+pm_yes_token = "109770398277480657132311708823042764648778271467537669934185093015733099277755"
+pm_condition_id = "0xa0af1b2ca6a3251cad3845f8172febb2182cd7a60744cc9cb685c626e595d0da"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATETN contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Tennessee U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Marquita Bradshaw) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatetn"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "va-sen:will-the-democrats-win-the-virginia-senate-race-in-2026~SENATEVA-26-D"
+race_id = "va-sen"
+proposition = "Will the Democrats win the Virginia Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-virginia-senate-race-in-2026"
+kalshi_ticker = "SENATEVA-26-D"
+same_side = true
+pm_event = "virginia-senate-election-winner"
+kalshi_event = "SENATEVA-26"
+kalshi_series = "SENATEVA"
+pm_question = "Will the Democrats win the Virginia Senate race in 2026?"
+pm_yes_token = "103672405579571940023321290271521195736672061427193452636021280058761450574865"
+pm_condition_id = "0x6710d045eb7bceb5467d0e2cf1084f353ab9eff53f627d33589e8bcbe4851162"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEVA contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Virginia U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Mark Warner) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senateva"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "wv-sen:will-the-democrats-win-the-west-virginia-senate-race-in-2026~SENATEWV-26-D"
+race_id = "wv-sen"
+proposition = "Will the Democrats win the West Virginia Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-west-virginia-senate-race-in-2026"
+kalshi_ticker = "SENATEWV-26-D"
+same_side = true
+pm_event = "west-virginia-senate-election-winner"
+kalshi_event = "SENATEWV-26"
+kalshi_series = "SENATEWV"
+pm_question = "Will the Democrats win the West Virginia Senate race in 2026?"
+pm_yes_token = "110692470670299760609405767524469998656804613573367102042492015567399413436772"
+pm_condition_id = "0xe109380d49786b25c8c20ca88bfbf5ffabbe0a91a25a9d8795312d5a9701f998"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEWV contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm West Virginia U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Rachel Fetty Anderson) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatewv"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "wy-sen:will-the-democrats-win-the-wyoming-senate-race-in-2026~SENATEWY-26-D"
+race_id = "wy-sen"
+proposition = "Will the Democrats win the Wyoming Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-wyoming-senate-race-in-2026"
+kalshi_ticker = "SENATEWY-26-D"
+same_side = true
+pm_event = "wyoming-senate-election-winner"
+kalshi_event = "SENATEWY-26"
+kalshi_series = "SENATEWY"
+pm_question = "Will the Democrats win the Wyoming Senate race in 2026?"
+pm_yes_token = "49797779751182114244550178900838522175054943127409025738411962628574218037267"
+pm_condition_id = "0x4b025f45ecb861a81d74f472acd662f10553b18fa0ad71de7d5391bf2ba068ed"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATEWY contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Wyoming U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (James Byrd) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
+kalshi_url = "https://kalshi.com/markets/senatewy"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
+
+[[pair]]
+id = "al-gov:will-the-democrats-win-the-alabama-governor-race-in-2026~GOVPARTYAL-26-D"
+race_id = "al-gov"
+proposition = "Will the Democrats win the Alabama governor race in 2026?"
+pm_market = "will-the-democrats-win-the-alabama-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYAL-26-D"
+same_side = true
+pm_event = "alabama-governor-winner-2026"
+kalshi_event = "GOVPARTYAL-26"
+kalshi_series = "GOVPARTYAL"
+pm_question = "Will the Democrats win the Alabama governor race in 2026?"
+pm_yes_token = "66799540193763442273153807390120946960260027428359861674134091731050086258652"
+pm_condition_id = "0xb180e9dc07c37633541744711a43aaa70bf3a537b6e669e8c16909c7af39f0ad"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Alabama Secretary of State) under the GOVPARTYAL contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Alabama gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Doug Jones) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyal"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "ak-gov:will-jonathan-kreiss-tomkins-win-the-2026-alaska-governor-el~KXGOVPARTYAK-26-D"
+race_id = "ak-gov"
+proposition = "Will Jonathan Kreiss-Tomkins win the 2026 Alaska governor election?"
+pm_market = "will-jonathan-kreiss-tomkins-win-the-2026-alaska-governor-election"
+kalshi_ticker = "KXGOVPARTYAK-26-D"
+same_side = true
+pm_event = "alaska-governor-election-winner"
+kalshi_event = "KXGOVPARTYAK-26"
+kalshi_series = "KXGOVPARTYAK"
+pm_question = "Will Jonathan Kreiss-Tomkins win the 2026 Alaska governor election?"
+pm_yes_token = "20244362049417025533374049121400436676833898969884666612361039499958684857530"
+pm_condition_id = "0x43cedce4a6af0136d37d53408fc965388baee3145db6da72a5b5da8d2746ced3"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Alaska Division of Elections) under the KXGOVPARTYAK contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+  "Kalshi resolves on the party; Polymarket on the named person — a replacement nominee splits the legs.",
+]
+pm_rules = "This market will resolve according to the candidate who wins the 2026 Alaska gubernatorial election currently scheduled for November 3, 2026.  \n\nIf the results of the election are not confirmed by July 31, 2027, this market will resolve to \"Other\".  \n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in Alaska for the same candidate, this market will resolve based on official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Democratic party) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/kxgovpartyak"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "az-gov:will-the-democrat-win-the-arizona-governor-race-in-2026~GOVPARTYAZ-26-D"
+race_id = "az-gov"
+proposition = "Will the Democrats win the Arizona governor race in 2026?"
+pm_market = "will-the-democrat-win-the-arizona-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYAZ-26-D"
+same_side = true
+pm_event = "arizona-governor-winner-2026"
+kalshi_event = "GOVPARTYAZ-26"
+kalshi_series = "GOVPARTYAZ"
+pm_question = "Will the Democrats win the Arizona governor race in 2026?"
+pm_yes_token = "48368039124533504674394545622809320495392482760644292167644042386014017726777"
+pm_condition_id = "0xaf874c80349379303164629c3962b1456f667ca1d44edf95e0474dd13483a4b3"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Arizona Secretary of State) under the GOVPARTYAZ contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Arizona gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Katie Hobbs) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyaz"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "ar-gov:will-the-democrats-win-the-arkansas-governor-race-in-2026~GOVPARTYAR-26-D"
+race_id = "ar-gov"
+proposition = "Will the Democrats win the Arkansas governor race in 2026?"
+pm_market = "will-the-democrats-win-the-arkansas-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYAR-26-D"
+same_side = true
+pm_event = "arkansas-governor-winner-2026"
+kalshi_event = "GOVPARTYAR-26"
+kalshi_series = "GOVPARTYAR"
+pm_question = "Will the Democrats win the Arkansas governor race in 2026?"
+pm_yes_token = "40899822988489523883534886021948522261134770684960257613447444387617827489093"
+pm_condition_id = "0x3de9b3f645419a8d8441f814605dfca1577e7306bbbfea67b4e8f19ed9d97a1d"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Arkansas Secretary of State) under the GOVPARTYAR contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Arkansas gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Fred Love) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyar"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "co-gov:will-the-democrats-win-the-colorado-governor-race-in-2026~GOVPARTYCO-26-D"
+race_id = "co-gov"
+proposition = "Will the Democrats win the Colorado governor race in 2026?"
+pm_market = "will-the-democrats-win-the-colorado-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYCO-26-D"
+same_side = true
+pm_event = "colorado-governor-winner-2026"
+kalshi_event = "GOVPARTYCO-26"
+kalshi_series = "GOVPARTYCO"
+pm_question = "Will the Democrats win the Colorado governor race in 2026?"
+pm_yes_token = "13561110222018578357785114619723468880952494576477687978085608584743809891728"
+pm_condition_id = "0x15de5f99db14dd323df50b4c0af7d756cea681bdc3adbe1f1b6be7194a59c978"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Colorado Secretary of State) under the GOVPARTYCO contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Colorado gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Phil Weiser) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyco"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "ct-gov:will-the-democrats-win-the-connecticut-governor-race-in-2026~GOVPARTYCT-26-D"
+race_id = "ct-gov"
+proposition = "Will the Democrats win the Connecticut governor race in 2026?"
+pm_market = "will-the-democrats-win-the-connecticut-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYCT-26-D"
+same_side = true
+pm_event = "connecticut-governor-winner-2026"
+kalshi_event = "GOVPARTYCT-26"
+kalshi_series = "GOVPARTYCT"
+pm_question = "Will the Democrats win the Connecticut governor race in 2026?"
+pm_yes_token = "94716743709853585469973889676994451123824166409123282527490222914006156870020"
+pm_condition_id = "0x86ffa053e9aae00a47623b4806e35805df241e6ad28328727f01d29aadd4fe4f"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Connecticut Secretary of the State) under the GOVPARTYCT contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Connecticut gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Ned Lamont) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyct"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "fl-gov:will-the-democrats-win-the-florida-governor-race-in-2026~GOVPARTYFL-26-D"
+race_id = "fl-gov"
+proposition = "Will the Democrats win the Florida governor race in 2026?"
+pm_market = "will-the-democrats-win-the-florida-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYFL-26-D"
+same_side = true
+pm_event = "florida-governor-winner-2026"
+kalshi_event = "GOVPARTYFL-26"
+kalshi_series = "GOVPARTYFL"
+pm_question = "Will the Democrats win the Florida governor race in 2026?"
+pm_yes_token = "45666577334498374671436529469006420565255125221309505855441517627481607414492"
+pm_condition_id = "0x22492ab0d5c936a0c8b24e241bcbe959ee4d7e52f227a8d128d38a025316eb85"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Florida Division of Elections) under the GOVPARTYFL contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Florida gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (David Jolly) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyfl"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "hi-gov:will-the-democrats-win-the-hawaii-governor-race-in-2026~GOVPARTYHI-26-D"
+race_id = "hi-gov"
+proposition = "Will the Democrats win the Hawaii governor race in 2026?"
+pm_market = "will-the-democrats-win-the-hawaii-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYHI-26-D"
+same_side = true
+pm_event = "hawaii-governor-winner-2026"
+kalshi_event = "GOVPARTYHI-26"
+kalshi_series = "GOVPARTYHI"
+pm_question = "Will the Democrats win the Hawaii governor race in 2026?"
+pm_yes_token = "110136962687751258520353298894226275160632723246908859759371791290370868364654"
+pm_condition_id = "0x72cae644cd7309b4a0f7c028393e56a1fe090d89fdb5388019f974c7fcc0e942"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Hawaii Office of Elections) under the GOVPARTYHI contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Hawaii gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Josh Green) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyhi"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "id-gov:will-the-democrats-win-the-idaho-governor-race-in-2026~GOVPARTYID-26-D"
+race_id = "id-gov"
+proposition = "Will the Democrats win the Idaho governor race in 2026?"
+pm_market = "will-the-democrats-win-the-idaho-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYID-26-D"
+same_side = true
+pm_event = "idaho-governor-winner-2026"
+kalshi_event = "GOVPARTYID-26"
+kalshi_series = "GOVPARTYID"
+pm_question = "Will the Democrats win the Idaho governor race in 2026?"
+pm_yes_token = "33422454484664318134839474897555797731651253833609657227452504228201243908837"
+pm_condition_id = "0x81cde924d7270bf4a45ba85b6d324bf26b7078a26def647277dacd3370176e24"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Idaho Secretary of State) under the GOVPARTYID contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Idaho gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Terri Pickens) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyid"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "il-gov:will-the-democrats-win-the-illinois-governor-race-in-2026~GOVPARTYIL-26-D"
+race_id = "il-gov"
+proposition = "Will the Democrats win the Illinois governor race in 2026?"
+pm_market = "will-the-democrats-win-the-illinois-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYIL-26-D"
+same_side = true
+pm_event = "illinois-governor-winner-2026"
+kalshi_event = "GOVPARTYIL-26"
+kalshi_series = "GOVPARTYIL"
+pm_question = "Will the Democrats win the Illinois governor race in 2026?"
+pm_yes_token = "23435178151774440115423538812688705649247609803850018642847000556068202005554"
+pm_condition_id = "0xce462d7dd2fcb06b3eeb9718a1489349fe2ae0ee84f10c8e6c0a1d40cc967c48"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Illinois State Board of Elections) under the GOVPARTYIL contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Illinois gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (JB Pritzker) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyil"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "md-gov:will-the-democrats-win-the-maryland-governor-race-in-2026~GOVPARTYMD-26-D"
+race_id = "md-gov"
+proposition = "Will the Democrats win the Maryland governor race in 2026?"
+pm_market = "will-the-democrats-win-the-maryland-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYMD-26-D"
+same_side = true
+pm_event = "maryland-governor-winner-2026"
+kalshi_event = "GOVPARTYMD-26"
+kalshi_series = "GOVPARTYMD"
+pm_question = "Will the Democrats win the Maryland governor race in 2026?"
+pm_yes_token = "21509039698927424303190259436702262868147960450053769072201076877922760800234"
+pm_condition_id = "0x88830764b3a37974653c31867d89a05ee06d83b67671fb9e5d88dfc6b4c2b68a"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Maryland State Board of Elections) under the GOVPARTYMD contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Maryland gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Wes Moore) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartymd"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "ma-gov:will-the-democrats-win-the-massachusetts-governor-race-in-20~GOVPARTYMA-26-D"
+race_id = "ma-gov"
+proposition = "Will the Democrats win the Massachusetts governor race in 2026?"
+pm_market = "will-the-democrats-win-the-massachusetts-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYMA-26-D"
+same_side = true
+pm_event = "massachusetts-governor-winner-2026"
+kalshi_event = "GOVPARTYMA-26"
+kalshi_series = "GOVPARTYMA"
+pm_question = "Will the Democrats win the Massachusetts governor race in 2026?"
+pm_yes_token = "86599393407315290835574565918707146460542680358932655202787183319230565551172"
+pm_condition_id = "0x479d1a77b118ac88cc0e7e5eb4659e4954d55cd87a84d7f2b22bf5c3a8333813"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Secretary of the Commonwealth of Massachusetts) under the GOVPARTYMA contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Massachusetts gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Maura Healey) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyma"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "mn-gov:will-the-democrats-win-the-minnesota-governor-race-in-2026~GOVPARTYMN-26-D"
+race_id = "mn-gov"
+proposition = "Will the Democrats win the Minnesota governor race in 2026?"
+pm_market = "will-the-democrats-win-the-minnesota-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYMN-26-D"
+same_side = true
+pm_event = "minnesota-governor-winner-2026"
+kalshi_event = "GOVPARTYMN-26"
+kalshi_series = "GOVPARTYMN"
+pm_question = "Will the Democrats win the Minnesota governor race in 2026?"
+pm_yes_token = "9126148503694470083148381233969293708563386203943196700151133094426622508276"
+pm_condition_id = "0x086445ea07954a360aeeddc96c292160832662b0227bdc8f07bc353dd511966f"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Minnesota Secretary of State) under the GOVPARTYMN contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Minnesota gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Amy Klobuchar) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartymn"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "ne-gov:will-the-democrats-win-the-nebraska-governor-race-in-2026~GOVPARTYNE-26-D"
+race_id = "ne-gov"
+proposition = "Will the Democrats win the Nebraska governor race in 2026?"
+pm_market = "will-the-democrats-win-the-nebraska-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYNE-26-D"
+same_side = true
+pm_event = "nebraska-governor-winner-2026"
+kalshi_event = "GOVPARTYNE-26"
+kalshi_series = "GOVPARTYNE"
+pm_question = "Will the Democrats win the Nebraska governor race in 2026?"
+pm_yes_token = "3466069051818884243073756614952529401222377791973010490050674378116587529746"
+pm_condition_id = "0x995a909b835457559e09acc7d804a40e0c87515dcab6e91f955d7aea33f7d707"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Nebraska Secretary of State) under the GOVPARTYNE contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Nebraska gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Lynne Walz) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyne"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "nv-gov:will-the-democrats-win-the-nevada-governor-race-in-2026~GOVPARTYNV-26-D"
+race_id = "nv-gov"
+proposition = "Will the Democrats win the Nevada governor race in 2026?"
+pm_market = "will-the-democrats-win-the-nevada-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYNV-26-D"
+same_side = true
+pm_event = "nevada-governor-winner-2026"
+kalshi_event = "GOVPARTYNV-26"
+kalshi_series = "GOVPARTYNV"
+pm_question = "Will the Democrats win the Nevada governor race in 2026?"
+pm_yes_token = "1246864710804983890692377994891598401616546411512113588399830364959833951829"
+pm_condition_id = "0x707eb5c6df23e32e0b770dd0ccd1245abb7fac0dcfd24d8b68dd99e5ca737180"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Nevada Secretary of State) under the GOVPARTYNV contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Nevada gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Aaron Ford) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartynv"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "nh-gov:will-the-democrats-win-the-new-hampshire-governor-race-in-20~GOVPARTYNH-28-D"
+race_id = "nh-gov"
+proposition = "Will the Democrats win the New Hampshire governor race in 2026?"
+pm_market = "will-the-democrats-win-the-new-hampshire-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYNH-28-D"
+same_side = true
+pm_event = "new-hampshire-governor-winner-2026"
+kalshi_event = "GOVPARTYNH-28"
+kalshi_series = "GOVPARTYNH"
+pm_question = "Will the Democrats win the New Hampshire governor race in 2026?"
+pm_yes_token = "50014042446564445111498439180144732017863294969428914194102372141019045896702"
+pm_condition_id = "0x4900fd99a53dc19621b3de761cdd75401fcd5733d785b9840275fe14ccd7d74c"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (New Hampshire Secretary of State) under the GOVPARTYNH contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 New Hampshire gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Cinde Warmington) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartynh"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "nm-gov:will-the-democrats-win-the-new-mexico-governor-race-in-2026~GOVPARTYNM-26-D"
+race_id = "nm-gov"
+proposition = "Will the Democrats win the New Mexico governor race in 2026?"
+pm_market = "will-the-democrats-win-the-new-mexico-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYNM-26-D"
+same_side = true
+pm_event = "new-mexico-governor-winner-2026"
+kalshi_event = "GOVPARTYNM-26"
+kalshi_series = "GOVPARTYNM"
+pm_question = "Will the Democrats win the New Mexico governor race in 2026?"
+pm_yes_token = "17781069937970314001472355582427331102577624490515546410398313363226785264562"
+pm_condition_id = "0x5eb660082d749c35ec496dae4c1f52e3950487b4d3c63215d2e27910dab38819"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (New Mexico Secretary of State) under the GOVPARTYNM contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 New Mexico gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Deb Haaland) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartynm"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "ny-gov:will-the-democrats-win-the-new-york-governor-race-in-2026~GOVPARTYNY-26-D"
+race_id = "ny-gov"
+proposition = "Will the Democrats win the New York governor race in 2026?"
+pm_market = "will-the-democrats-win-the-new-york-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYNY-26-D"
+same_side = true
+pm_event = "new-york-governor-winner-2026"
+kalshi_event = "GOVPARTYNY-26"
+kalshi_series = "GOVPARTYNY"
+pm_question = "Will the Democrats win the New York governor race in 2026?"
+pm_yes_token = "64050273355694113671090110638685043795558853994186493795797238541534244584786"
+pm_condition_id = "0x4cd035dcfb450c9a6bc9aa13f3aa94fabc01e47499d05d28ef653ef42939c364"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (New York State Board of Elections) under the GOVPARTYNY contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 New York gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Kathy Hochul) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyny"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "ok-gov:will-the-democrats-win-the-oklahoma-governor-race-in-2026~GOVPARTYOK-26-D"
+race_id = "ok-gov"
+proposition = "Will the Democrats win the Oklahoma governor race in 2026?"
+pm_market = "will-the-democrats-win-the-oklahoma-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYOK-26-D"
+same_side = true
+pm_event = "oklahoma-governor-winner-2026"
+kalshi_event = "GOVPARTYOK-26"
+kalshi_series = "GOVPARTYOK"
+pm_question = "Will the Democrats win the Oklahoma governor race in 2026?"
+pm_yes_token = "37700214927702560862325287464231700075479667077774217635210792305464305010407"
+pm_condition_id = "0xccd6eb4ec0c8ac284e280ab6ceedcdd1a1813d1e130892ed1b6e98189077013e"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Oklahoma State Election Board) under the GOVPARTYOK contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Oklahoma gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Cyndi Munson) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyok"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "or-gov:will-the-democrats-win-the-oregon-governor-race-in-2026~GOVPARTYOR-26-D"
+race_id = "or-gov"
+proposition = "Will the Democrats win the Oregon governor race in 2026?"
+pm_market = "will-the-democrats-win-the-oregon-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYOR-26-D"
+same_side = true
+pm_event = "oregon-governor-winner-2026"
+kalshi_event = "GOVPARTYOR-26"
+kalshi_series = "GOVPARTYOR"
+pm_question = "Will the Democrats win the Oregon governor race in 2026?"
+pm_yes_token = "9755787435930070640870536823763281543938387827225853124824813626465365556107"
+pm_condition_id = "0x8d65ff57f443011c4c10e7aa50aa54b3a3b5e2b940cb3ca97c0357bbcaee0b36"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Oregon Secretary of State) under the GOVPARTYOR contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Oregon gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Tina Kotek) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyor"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "pa-gov:will-the-democrats-win-the-pennsylvania-governor-race-in-202~GOVPARTYPA-26-D"
+race_id = "pa-gov"
+proposition = "Will the Democrats win the Pennsylvania governor race in 2026?"
+pm_market = "will-the-democrats-win-the-pennsylvania-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYPA-26-D"
+same_side = true
+pm_event = "pennsylvania-governor-winner-2026"
+kalshi_event = "GOVPARTYPA-26"
+kalshi_series = "GOVPARTYPA"
+pm_question = "Will the Democrats win the Pennsylvania governor race in 2026?"
+pm_yes_token = "86158564038726526008163887440654010269502827272776903587995739265573029112945"
+pm_condition_id = "0x58b1d112b4a3a2616da6a77b8d755cc478c1d6f71ed3dedaa5e1fd794e4b0e61"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Pennsylvania Department of State) under the GOVPARTYPA contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Pennsylvania gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Josh Shapiro) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartypa"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "ri-gov:will-the-democrats-win-the-rhode-island-governor-race-in-202~GOVPARTYRI-26-D"
+race_id = "ri-gov"
+proposition = "Will the Democrats win the Rhode Island governor race in 2026?"
+pm_market = "will-the-democrats-win-the-rhode-island-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYRI-26-D"
+same_side = true
+pm_event = "rhode-island-governor-winner-2026"
+kalshi_event = "GOVPARTYRI-26"
+kalshi_series = "GOVPARTYRI"
+pm_question = "Will the Democrats win the Rhode Island governor race in 2026?"
+pm_yes_token = "12963869833838696349134591178892586509546549676681530057691780490969939726649"
+pm_condition_id = "0xc65ec2459a79fb749948503161d42e13c4cb8bb0b670f0dd1ce2c71d7950b459"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Rhode Island Board of Elections) under the GOVPARTYRI contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Rhode Island gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Helena Foulkes) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyri"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "sc-gov:will-the-democrats-win-the-south-carolina-governor-race-in-2~GOVPARTYSC-26-D"
+race_id = "sc-gov"
+proposition = "Will the Democrats win the South Carolina governor race in 2026?"
+pm_market = "will-the-democrats-win-the-south-carolina-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYSC-26-D"
+same_side = true
+pm_event = "south-carolina-governor-winner-2026"
+kalshi_event = "GOVPARTYSC-26"
+kalshi_series = "GOVPARTYSC"
+pm_question = "Will the Democrats win the South Carolina governor race in 2026?"
+pm_yes_token = "69673263487139231624315897585768201230841320475352635832819992690850228911127"
+pm_condition_id = "0x9767768d75f0fde1ad998e52b83999315cd5f45152a143a0153366915513e0d2"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (South Carolina State Election Commission) under the GOVPARTYSC contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 South Carolina gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \"Democrat\" or \"Republican\" options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven't called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Jermaine Johnson) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartysc"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "sd-gov:will-the-democrats-win-the-south-dakota-governor-race-in-202~GOVPARTYSD-26-D"
+race_id = "sd-gov"
+proposition = "Will the Democrats win the South Dakota governor race in 2026?"
+pm_market = "will-the-democrats-win-the-south-dakota-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYSD-26-D"
+same_side = true
+pm_event = "south-dakota-governor-winner-2026"
+kalshi_event = "GOVPARTYSD-26"
+kalshi_series = "GOVPARTYSD"
+pm_question = "Will the Democrats win the South Dakota governor race in 2026?"
+pm_yes_token = "19857809653204352084235953967001149759321806996646353766198011041287290557051"
+pm_condition_id = "0xfc63bcdc71629dd77fba7e016021e4d9283d972d2a06f8552cbd25f87e5ce918"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (South Dakota Secretary of State) under the GOVPARTYSD contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 South Dakota gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \"Democrat\" or \"Republican\" options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven't called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Dan Ahlers) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartysd"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "tn-gov:will-the-democrats-win-the-tennessee-governor-race-in-2026~GOVPARTYTN-26-D"
+race_id = "tn-gov"
+proposition = "Will the Democrats win the Tennessee governor race in 2026?"
+pm_market = "will-the-democrats-win-the-tennessee-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYTN-26-D"
+same_side = true
+pm_event = "tennessee-governor-winner-2026"
+kalshi_event = "GOVPARTYTN-26"
+kalshi_series = "GOVPARTYTN"
+pm_question = "Will the Democrats win the Tennessee governor race in 2026?"
+pm_yes_token = "42092635016892213098098431597314233695276464574605657188222427223673881775927"
+pm_condition_id = "0x3b1d01d11565a800485bdb04958e28bab4369e3f2ebc2134d12d74bde5f3baa7"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Tennessee Secretary of State) under the GOVPARTYTN contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Tennessee gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Jerri Green) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartytn"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "vt-gov:will-the-democrats-win-the-vermont-governor-race-in-2026~GOVPARTYVT-26-D"
+race_id = "vt-gov"
+proposition = "Will the Democrats win the Vermont governor race in 2026?"
+pm_market = "will-the-democrats-win-the-vermont-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYVT-26-D"
+same_side = true
+pm_event = "vermont-governor-winner-2026"
+kalshi_event = "GOVPARTYVT-26"
+kalshi_series = "GOVPARTYVT"
+pm_question = "Will the Democrats win the Vermont governor race in 2026?"
+pm_yes_token = "60184991030711150053889856154789765911962237408503307206289529109604385579009"
+pm_condition_id = "0x5dacb3919e3eb6372770cba85c42e0f980ddf18b1a767751de700ee272269233"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Vermont Secretary of State) under the GOVPARTYVT contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Vermont gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \"Democrat\" or \"Republican\" options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven't called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Amanda Janoo) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartyvt"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "wi-gov:will-the-democrats-win-the-wisconsin-governor-race-in-2026~GOVPARTYWI-26-D"
+race_id = "wi-gov"
+proposition = "Will the Democrats win the Wisconsin governor race in 2026?"
+pm_market = "will-the-democrats-win-the-wisconsin-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYWI-26-D"
+same_side = true
+pm_event = "wisconsin-governor-winner-2026"
+kalshi_event = "GOVPARTYWI-26"
+kalshi_series = "GOVPARTYWI"
+pm_question = "Will the Democrats win the Wisconsin governor race in 2026?"
+pm_yes_token = "47540146623620182724372695903724852067595146419459482790641441152489267651664"
+pm_condition_id = "0xfbd0a65112e26d9a2a68dc47f8a95c6c14d22650cb4837c5429b546726661b71"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Wisconsin Elections Commission) under the GOVPARTYWI contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Wisconsin gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \"Democrat\" or \"Republican\" options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven't called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (David Crowley) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartywi"
+kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
+
+[[pair]]
+id = "wy-gov:will-the-democrats-win-the-wyoming-governor-race-in-2026~GOVPARTYWY-26-D"
+race_id = "wy-gov"
+proposition = "Will the Democrats win the Wyoming governor race in 2026?"
+pm_market = "will-the-democrats-win-the-wyoming-governor-race-in-2026"
+kalshi_ticker = "GOVPARTYWY-26-D"
+same_side = true
+pm_event = "wyoming-governor-winner-2026"
+kalshi_event = "GOVPARTYWY-26"
+kalshi_series = "GOVPARTYWY"
+pm_question = "Will the Democrats win the Wyoming governor race in 2026?"
+pm_yes_token = "27698880682601961151205903485139737259763277359865731443999905606295817799595"
+pm_condition_id = "0x08cf528519394c3bdbca3299cf993db6d38dabcfb78addb80cfd82d6e273a82c"
+pm_yes_is = "a"
+kalshi_yes_is = "a"
+pm_fee_rate = 0.0
+pm_fee_exponent = 1.0
+kalshi_fee_multiplier = 1.0
+kalshi_fee_type = "quadratic"
+risk_free = false
+resolution_differences = [
+  "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (Wyoming Secretary of State) under the GOVPARTYWY contract terms.",
+  "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
+]
+pm_rules = "This market will resolve according to the winner of the 2026 Wyoming gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \"Democrat\" or \"Republican\" options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven't called the race in this state for the same candidate, this market will resolve based on the official certification."
+kalshi_resolution = "Yes if the party of the listed nominee (Kenneth Casner) has its candidate inaugurated as governor after the 2026 election; can settle early on a media projection; closes at the swearing-in."
+kalshi_url = "https://kalshi.com/markets/govpartywy"
 kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/GOVPARTY.pdf"
