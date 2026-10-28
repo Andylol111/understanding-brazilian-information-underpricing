@@ -94,7 +94,7 @@ export function createNational(root, { topo, overview, office = "senate", onDril
     if (!rs.length) return `${stateName(s)}: no ${st.office} race this year`;
     return rs.map((r) => `${raceName(r)}: ${r.dem_side?.name ?? "Democratic side"} ${num(priceOf(r))}`).join("; ");
   }
-  const raceName = (r) => `${stateName(r.state)} ${r.office === "governor" ? "governor" : "Senate"}${r.special ? " (special)" : ""}`;
+  const raceName = (r) => `${r.state_name ?? stateName(r.state)} ${r.office === "governor" ? "governor" : "Senate"}${r.special ? " (special)" : ""}`;
   const incumbent = (r) => (r.incumbent ? `${esc(r.incumbent)}${r.incumbent_party ? ` (${esc(r.incumbent_party)})` : ""}${r.open ? ", not running" : ""}` : r.open ? "open seat" : "–");
 
   function cardHTML(r) {

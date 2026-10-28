@@ -1,0 +1,2337 @@
+{
+ "built": "2026-10-28T22:14:11Z",
+ "holdovers": {
+  "senate": {
+   "D": 32,
+   "R": 31,
+   "I": 2
+  }
+ },
+ "control_markets": {
+  "senate": [
+   {
+    "platform": "polymarket",
+    "event": "which-party-will-win-the-senate-in-2026",
+    "slug": "will-the-democratic-party-control-the-senate-after-the-2026-midterm-elections",
+    "token_id": "113287701564209339913693347405685749986285999146352375265161592243948562084773",
+    "question": "Will the Democratic Party control the Senate after the 2026 Midterm elections?",
+    "yes_is": "dem"
+   },
+   {
+    "platform": "kalshi",
+    "ticker": "CONTROLS-2026-D",
+    "series": "CONTROLS",
+    "yes_is": "dem",
+    "question": "Democrats win control of the senate (Kalshi; our wording)"
+   }
+  ],
+  "house": [
+   {
+    "platform": "polymarket",
+    "event": "which-party-will-win-the-house-in-2026",
+    "slug": "will-the-democratic-party-control-the-house-after-the-2026-midterm-elections",
+    "token_id": "83247781037352156539108067944461291821683755894607244160607042790356561625563",
+    "question": "Will the Democratic Party control the House after the 2026 Midterm elections?",
+    "yes_is": "dem"
+   },
+   {
+    "platform": "kalshi",
+    "ticker": "CONTROLH-2026-D",
+    "series": "CONTROLH",
+    "yes_is": "dem",
+    "question": "Democrats win control of the house (Kalshi; our wording)"
+   }
+  ]
+ },
+ "races": [
+  {
+   "race_key": "ak-sen",
+   "state": "ak",
+   "state_name": "Alaska",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Dan Sullivan",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Mary Peltola",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": null,
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "alaska-senate-election-winner",
+    "slug": "will-mary-peltola-win-the-alaska-senate-race-in-2026",
+    "token_id": "72139607190315861034411702195742538105117960260100800877125381826122747504258",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEAK-26-D",
+    "series": "SENATEAK",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "al-sen",
+   "state": "al",
+   "state_name": "Alabama",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Tommy Tuberville",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Everett Wess",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Barry Moore",
+    "D": "Everett Wess"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "alabama-senate-election-winner-154",
+    "slug": "will-the-democrats-win-the-alabama-senate-race-in-2026",
+    "token_id": "77232568388576878990477542833081311975859328857370439688711702313039178600550",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEAL-26-D",
+    "series": "SENATEAL",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ar-sen",
+   "state": "ar",
+   "state_name": "Arkansas",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Tom Cotton",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Hallie Shoffner",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Tom Cotton",
+    "D": "Hallie Shoffner"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "arkansas-senate-election-winner",
+    "slug": "will-the-democrats-win-the-arkansas-senate-race-in-2026",
+    "token_id": "68370995073141964079913803663665941780115677360430806954011390499916208708512",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEAR-26-D",
+    "series": "SENATEAR",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "co-sen",
+   "state": "co",
+   "state_name": "Colorado",
+   "office": "senate",
+   "special": false,
+   "incumbent": "John W. Hickenlooper",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "John Hickenlooper",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Mark Baisley",
+    "D": "John Hickenlooper"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "colorado-senate-election-winner",
+    "slug": "will-the-democrats-win-the-colorado-senate-race-in-2026",
+    "token_id": "68194463917260305435439145066031544476540679280823247532132832363696000101185",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATECO-26-D",
+    "series": "SENATECO",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "de-sen",
+   "state": "de",
+   "state_name": "Delaware",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Christopher A. Coons",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Chris Coons",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Michael Katz",
+    "D": "Chris Coons"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "delaware-senate-election-winner",
+    "slug": "will-the-democrats-win-the-delaware-senate-race-in-2026",
+    "token_id": "109467029375682717672947466588331781838347232688418556926634334189471462678711",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEDE-26-D",
+    "series": "SENATEDE",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "fl-sen",
+   "state": "fl",
+   "state_name": "Florida",
+   "office": "senate",
+   "special": true,
+   "incumbent": "Ashley Moody",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Angie Nixon",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Ashley Moody",
+    "D": "Angie Nixon"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "florida-senate-election-winner",
+    "slug": "will-the-democrats-win-the-florida-senate-race-in-2026",
+    "token_id": "109815773012907461372639157658293071578555374097742562684476865021743386609433",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEFLS-26-D",
+    "series": "SENATEFLS",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ga-sen",
+   "state": "ga",
+   "state_name": "Georgia",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Jon Ossoff",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Jon Ossoff",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Mike Collins",
+    "D": "Jon Ossoff"
+   },
+   "modeled": true,
+   "race_id": "ga-sen",
+   "pm": {
+    "event": "georgia-senate-election-winner",
+    "slug": "will-the-democrats-win-the-georgia-senate-race-in-2026",
+    "token_id": "21024219148268989748704207701411444044468128261642675917026452687231462203167",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEGA-26-D",
+    "series": "SENATEGA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ia-sen",
+   "state": "ia",
+   "state_name": "Iowa",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Joni Ernst",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Josh Turek",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Ashley Hinson",
+    "D": "Josh Turek"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "iowa-senate-election-winner",
+    "slug": "will-the-democrats-win-the-iowa-senate-race-in-2026",
+    "token_id": "90689690530039118737607894922148077480097700217322320781526913496162509181445",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEIA-26-D",
+    "series": "SENATEIA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "id-sen",
+   "state": "id",
+   "state_name": "Idaho",
+   "office": "senate",
+   "special": false,
+   "incumbent": "James E. Risch",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "David Roth",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Jim Risch",
+    "D": "David Roth",
+    "TACH": "Todd Achilles"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "idaho-senate-election-winner",
+    "slug": "will-the-democrats-win-the-idaho-senate-race-in-2026",
+    "token_id": "106941193163110167696426338043140728938381127310653153528096347878604033727123",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEID-26-D",
+    "series": "SENATEID",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "il-sen",
+   "state": "il",
+   "state_name": "Illinois",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Richard J. Durbin",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Juliana Stratton",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Don Tracy",
+    "D": "Juliana Stratton"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "illinois-senate-election-winner",
+    "slug": "will-the-democrats-win-the-illinois-senate-race-in-2026",
+    "token_id": "3015477455071606958014729552697672689898195807324746948280693702257424620276",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEIL-26-D",
+    "series": "SENATEIL",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ks-sen",
+   "state": "ks",
+   "state_name": "Kansas",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Roger Marshall",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Adam Hamilton",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Roger Marshall",
+    "D": "Adam Hamilton"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "kansas-senate-election-winner",
+    "slug": "will-the-democrats-win-the-kansas-senate-race-in-2026",
+    "token_id": "75079868093228966915894372964099062660587490227046756021175661325867722540666",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEKS-26-D",
+    "series": "SENATEKS",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ky-sen",
+   "state": "ky",
+   "state_name": "Kentucky",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Mitch McConnell",
+   "incumbent_party": "R",
+   "open": null,
+   "dem_side": {
+    "name": null,
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": null,
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "kentucky-senate-election-winner",
+    "slug": "will-the-democrats-win-the-kentucky-senate-race-in-2026",
+    "token_id": "37649267567982889592011384409533519112993266261975620703097847510820818713285",
+    "yes_is": "dem_side"
+   },
+   "kalshi": null
+  },
+  {
+   "race_key": "la-sen",
+   "state": "la",
+   "state_name": "Louisiana",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Bill Cassidy",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Charles Booker",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Andy Barr",
+    "D": "Charles Booker"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "louisiana-senate-election-winner",
+    "slug": "will-the-democrats-win-the-louisiana-senate-race-in-2026",
+    "token_id": "80536528552003281640741026890878925456783654983296822683495274364289350034456",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATELA-26-D",
+    "series": "SENATELA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ma-sen",
+   "state": "ma",
+   "state_name": "Massachusetts",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Edward J. Markey",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Ed Markey",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "John Deaton",
+    "D": "Ed Markey"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "massachusetts-senate-election-winner",
+    "slug": "will-the-democrats-win-the-massachusetts-senate-race-in-2026",
+    "token_id": "37806907368043161074949113436745462734936336037202698916361016094424427186209",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEMA-26-D",
+    "series": "SENATEMA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "me-sen",
+   "state": "me",
+   "state_name": "Maine",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Susan M. Collins",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Troy Jackson",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Susan Collins",
+    "D": "Troy Jackson"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "maine-senate-election-winner",
+    "slug": "will-the-democrats-win-the-maine-senate-race-in-2026",
+    "token_id": "7589880081658059374445882095611024032084645048848237404312287942463647821549",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEME-26-D",
+    "series": "SENATEME",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "mi-sen",
+   "state": "mi",
+   "state_name": "Michigan",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Gary C. Peters",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Abdul El-Sayed",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Mike Rogers",
+    "D": "Abdul El-Sayed"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "michigan-senate-election-winner",
+    "slug": "will-the-democrats-win-the-michigan-senate-race-in-2026",
+    "token_id": "71772627544132140586824126381855151743830987860593343955509593715269534710061",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEMI-26-D",
+    "series": "SENATEMI",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "mn-sen",
+   "state": "mn",
+   "state_name": "Minnesota",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Tina Smith",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Peggy Flanagan",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Michele Tafoya",
+    "D": "Peggy Flanagan"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "minnesota-senate-election-winner",
+    "slug": "will-the-democrats-win-the-minnesota-senate-race-in-2026",
+    "token_id": "5210147086444382339849101722545511095151948730486562412029285471203011774407",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEMN-26-D",
+    "series": "SENATEMN",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ms-sen",
+   "state": "ms",
+   "state_name": "Mississippi",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Cindy Hyde-Smith",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Scott Colom",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Cindy Hyde-Smith",
+    "D": "Scott Colom"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "mississippi-senate-election-winner",
+    "slug": "will-the-democrats-win-the-mississippi-senate-race-in-2026",
+    "token_id": "77001639760095266374534198365421436593389036687975321536722226607654949914567",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEMS-26-D",
+    "series": "SENATEMS",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "mt-sen",
+   "state": "mt",
+   "state_name": "Montana",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Steve Daines",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Seth Bodnar",
+    "party": "I",
+    "aligned": "independent: the main non-Republican candidate (no competitive Democrat)"
+   },
+   "candidates": {
+    "R": "Kurt Alme",
+    "D": "Alani Bankhead",
+    "IND": "Seth Bodnar"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "montana-senate-election-winner",
+    "slug": "will-an-independent-win-the-montana-senate-race-in-2026",
+    "token_id": "29340710087203628054916881063653310634997647642374537159652441277893390730162",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEMT-26-IND",
+    "series": "SENATEMT",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "nc-sen",
+   "state": "nc",
+   "state_name": "North Carolina",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Thom Tillis",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Roy Cooper",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Michael Whatley",
+    "D": "Roy Cooper"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "north-carolina-senate-election-winner",
+    "slug": "will-the-democrats-win-the-north-carolina-senate-race-in-2026",
+    "token_id": "107151098936186723859677628536733880558851060002514795735761427447010628440047",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATENC-26-D",
+    "series": "SENATENC",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ne-sen",
+   "state": "ne",
+   "state_name": "Nebraska",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Pete Ricketts",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Dan Osborn",
+    "party": "I",
+    "aligned": "independent: the main non-Republican candidate (no competitive Democrat)"
+   },
+   "candidates": {
+    "R": "Pete Ricketts",
+    "D": "Cindy Burbank",
+    "DOSB": "Dan Osborn"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "nebraska-senate-election-winner",
+    "slug": "will-an-independent-win-the-nebraska-senate-race-in-2026",
+    "token_id": "47975366268282823322598946778919483335780002591367838795894307024076579116518",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATENE-26-DOSB",
+    "series": "SENATENE",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "nh-sen",
+   "state": "nh",
+   "state_name": "New Hampshire",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Jeanne Shaheen",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Chris Pappas",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "John E. Sununu",
+    "D": "Chris Pappas"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "new-hampshire-senate-election-winner",
+    "slug": "will-the-democrats-win-the-new-hampshire-senate-race-in-2026",
+    "token_id": "82410058691149830741200014405570918770267839390767234397030380747995715352939",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATENH-26-D",
+    "series": "SENATENH",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "nj-sen",
+   "state": "nj",
+   "state_name": "New Jersey",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Cory A. Booker",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Cory Booker",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Justin Murphy",
+    "D": "Cory Booker"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "new-jersey-senate-election-winner",
+    "slug": "will-the-democrats-win-the-new-jersey-senate-race-in-2026",
+    "token_id": "57191420250913616150846676905047388827581537310894242160546701872955141155912",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATENJ-26-D",
+    "series": "SENATENJ",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "nm-sen",
+   "state": "nm",
+   "state_name": "New Mexico",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Ben Ray Luján",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Ben Ray Luján",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Larry E. Marker",
+    "D": "Ben Ray Luján"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "new-mexico-senate-election-winner",
+    "slug": "will-the-democrats-win-the-new-mexico-senate-race-in-2026",
+    "token_id": "86827974851753312617441915824618617861250657564707166327567168877893121374182",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATENM-26-D",
+    "series": "SENATENM",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "oh-sen",
+   "state": "oh",
+   "state_name": "Ohio",
+   "office": "senate",
+   "special": true,
+   "incumbent": "Jon Husted",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Sherrod Brown",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Jon Husted",
+    "D": "Sherrod Brown"
+   },
+   "modeled": true,
+   "race_id": "oh-sen",
+   "pm": {
+    "event": "ohio-senate-election-winner",
+    "slug": "will-the-democrats-win-the-ohio-senate-race-in-2026",
+    "token_id": "83018072688154066292491996133599479395547801317505487833443670253228061205312",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEOHS-26-D",
+    "series": "SENATEOHS",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ok-sen",
+   "state": "ok",
+   "state_name": "Oklahoma",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Alan Armstrong",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "N’Kiyla Thomas",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Kevin Hern",
+    "D": "N’Kiyla Thomas"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "oklahoma-senate-election-winner",
+    "slug": "will-the-democrats-win-the-oklahoma-senate-race-in-2026",
+    "token_id": "112281295057865404870041957222562306206517476142557838682690649172966968734671",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEOK-26-D",
+    "series": "SENATEOK",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "or-sen",
+   "state": "or",
+   "state_name": "Oregon",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Jeff Merkley",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Jeff Merkley",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "David Brock Smith",
+    "D": "Jeff Merkley"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "oregon-senate-election-winner",
+    "slug": "will-the-democrats-win-the-oregon-senate-race-in-2026",
+    "token_id": "2092757373218904768373533040846280132805161861393140519418262456097465213332",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEOR-26-D",
+    "series": "SENATEOR",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ri-sen",
+   "state": "ri",
+   "state_name": "Rhode Island",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Jack Reed",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Jack Reed",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Raymond McKay",
+    "D": "Jack Reed"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "rhode-island-senate-election-winner",
+    "slug": "will-the-democrats-win-the-rhode-island-senate-race-in-2026",
+    "token_id": "77004273724753899183699441849597881417275931290950171679615354396048734034984",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATERI-26-D",
+    "series": "SENATERI",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "sc-sen",
+   "state": "sc",
+   "state_name": "South Carolina",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Darline Graham",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Annie Andrews",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Darline Graham",
+    "D": "Annie Andrews"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "south-carolina-senate-election-winner",
+    "slug": "will-the-democrats-win-the-south-carolina-senate-race-in-2026",
+    "token_id": "30718966535311015751929217398361750334834655110246828806892843311659716192347",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATESC-26-D",
+    "series": "SENATESC",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "sd-sen",
+   "state": "sd",
+   "state_name": "South Dakota",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Mike Rounds",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Julian Beaudion",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Mike Rounds",
+    "D": "Julian Beaudion",
+    "BBEN": "Brian Bengs"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "south-dakota-senate-election-winner",
+    "slug": "will-the-democrats-win-the-south-dakota-senate-race-in-2026",
+    "token_id": "67967023811721834738685695249992484419619114809767608640505747182577663027691",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATESD-26-D",
+    "series": "SENATESD",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "tn-sen",
+   "state": "tn",
+   "state_name": "Tennessee",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Bill Hagerty",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Marquita Bradshaw",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Bill Hagerty",
+    "D": "Marquita Bradshaw"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "tennessee-senate-election-winner",
+    "slug": "will-the-democrats-win-the-tennessee-senate-race-in-2026",
+    "token_id": "109770398277480657132311708823042764648778271467537669934185093015733099277755",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATETN-26-D",
+    "series": "SENATETN",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "tx-sen",
+   "state": "tx",
+   "state_name": "Texas",
+   "office": "senate",
+   "special": false,
+   "incumbent": "John Cornyn",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "James Talarico",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Ken Paxton",
+    "D": "James Talarico"
+   },
+   "modeled": true,
+   "race_id": "tx-sen",
+   "pm": {
+    "event": "texas-senate-election-winner",
+    "slug": "will-the-democrats-win-the-texas-senate-race-in-2026",
+    "token_id": "15290572385458522370285732869432740297199321382471116558439914335588167718663",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATETX-26-D",
+    "series": "SENATETX",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "va-sen",
+   "state": "va",
+   "state_name": "Virginia",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Mark R. Warner",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Mark Warner",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Bert Mizusawa",
+    "D": "Mark Warner"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "virginia-senate-election-winner",
+    "slug": "will-the-democrats-win-the-virginia-senate-race-in-2026",
+    "token_id": "103672405579571940023321290271521195736672061427193452636021280058761450574865",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEVA-26-D",
+    "series": "SENATEVA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "wv-sen",
+   "state": "wv",
+   "state_name": "West Virginia",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Shelley Moore Capito",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Rachel Fetty Anderson",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Shelley Moore Capito",
+    "D": "Rachel Fetty Anderson"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "west-virginia-senate-election-winner",
+    "slug": "will-the-democrats-win-the-west-virginia-senate-race-in-2026",
+    "token_id": "110692470670299760609405767524469998656804613573367102042492015567399413436772",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEWV-26-D",
+    "series": "SENATEWV",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "wy-sen",
+   "state": "wy",
+   "state_name": "Wyoming",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Cynthia M. Lummis",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "James Byrd",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "R": "Harriet Hageman",
+    "D": "James Byrd"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "wyoming-senate-election-winner",
+    "slug": "will-the-democrats-win-the-wyoming-senate-race-in-2026",
+    "token_id": "49797779751182114244550178900838522175054943127409025738411962628574218037267",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "SENATEWY-26-D",
+    "series": "SENATEWY",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "al-gov",
+   "state": "al",
+   "state_name": "Alabama",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Kay Ivey",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Doug Jones",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Doug Jones",
+    "R": "Tommy Tuberville"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "alabama-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-alabama-governor-race-in-2026",
+    "token_id": "66799540193763442273153807390120946960260027428359861674134091731050086258652",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYAL-26-D",
+    "series": "GOVPARTYAL",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ak-gov",
+   "state": "ak",
+   "state_name": "Alaska",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Mike Dunleavy",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Jonathan Kreiss-Tomkins",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": null,
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "alaska-governor-election-winner",
+    "slug": "will-jonathan-kreiss-tomkins-win-the-2026-alaska-governor-election",
+    "token_id": "20244362049417025533374049121400436676833898969884666612361039499958684857530",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "KXGOVPARTYAK-26-D",
+    "series": "KXGOVPARTYAK",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "az-gov",
+   "state": "az",
+   "state_name": "Arizona",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Katie Hobbs",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Katie Hobbs",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Katie Hobbs",
+    "R": "Andy Biggs"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "arizona-governor-winner-2026",
+    "slug": "will-the-democrat-win-the-arizona-governor-race-in-2026",
+    "token_id": "48368039124533504674394545622809320495392482760644292167644042386014017726777",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYAZ-26-D",
+    "series": "GOVPARTYAZ",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ar-gov",
+   "state": "ar",
+   "state_name": "Arkansas",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Sarah Huckabee Sanders",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Fred Love",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Fred Love",
+    "R": "Sarah Huckabee Sanders"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "arkansas-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-arkansas-governor-race-in-2026",
+    "token_id": "40899822988489523883534886021948522261134770684960257613447444387617827489093",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYAR-26-D",
+    "series": "GOVPARTYAR",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ca-gov",
+   "state": "ca",
+   "state_name": "California",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Gavin Newsom",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Xavier Becerra",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Xavier Becerra",
+    "R": "Steve Hilton"
+   },
+   "modeled": true,
+   "race_id": "ca-gov",
+   "pm": {
+    "event": "california-governor-election-2026",
+    "slug": "will-xavier-becerra-win-the-california-governor-election-in-2026",
+    "token_id": "60977129292396881848833910361112107174416489010090570432106122538120602786646",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYCA-26-D",
+    "series": "GOVPARTYCA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "co-gov",
+   "state": "co",
+   "state_name": "Colorado",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Jared Polis",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Phil Weiser",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Phil Weiser",
+    "R": "Victor Marx"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "colorado-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-colorado-governor-race-in-2026",
+    "token_id": "13561110222018578357785114619723468880952494576477687978085608584743809891728",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYCO-26-D",
+    "series": "GOVPARTYCO",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ct-gov",
+   "state": "ct",
+   "state_name": "Connecticut",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Ned Lamont",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Ned Lamont",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Ned Lamont",
+    "R": "Ryan Fazio"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "connecticut-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-connecticut-governor-race-in-2026",
+    "token_id": "94716743709853585469973889676994451123824166409123282527490222914006156870020",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYCT-26-D",
+    "series": "GOVPARTYCT",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "fl-gov",
+   "state": "fl",
+   "state_name": "Florida",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Ron DeSantis",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "David Jolly",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "David Jolly",
+    "R": "Byron Donalds"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "florida-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-florida-governor-race-in-2026",
+    "token_id": "45666577334498374671436529469006420565255125221309505855441517627481607414492",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYFL-26-D",
+    "series": "GOVPARTYFL",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ga-gov",
+   "state": "ga",
+   "state_name": "Georgia",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Brian Kemp",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Keisha Lance Bottoms",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Keisha Lance Bottoms",
+    "R": "Rick Jackson"
+   },
+   "modeled": true,
+   "race_id": "ga-gov",
+   "pm": {
+    "event": "georgia-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-georgia-governor-race-in-2026",
+    "token_id": "59980150909931986777748227027020522224275707387562276219060223816867188565245",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYGA-26-D",
+    "series": "GOVPARTYGA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "hi-gov",
+   "state": "hi",
+   "state_name": "Hawaii",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Josh Green",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Josh Green",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Josh Green",
+    "R": "Gary Cordery"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "hawaii-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-hawaii-governor-race-in-2026",
+    "token_id": "110136962687751258520353298894226275160632723246908859759371791290370868364654",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYHI-26-D",
+    "series": "GOVPARTYHI",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "id-gov",
+   "state": "id",
+   "state_name": "Idaho",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Brad Little",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Terri Pickens",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Terri Pickens",
+    "R": "Brad Little"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "idaho-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-idaho-governor-race-in-2026",
+    "token_id": "33422454484664318134839474897555797731651253833609657227452504228201243908837",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYID-26-D",
+    "series": "GOVPARTYID",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "il-gov",
+   "state": "il",
+   "state_name": "Illinois",
+   "office": "governor",
+   "special": false,
+   "incumbent": "JB Pritzker",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "JB Pritzker",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "JB Pritzker",
+    "R": "Darren Bailey"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "illinois-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-illinois-governor-race-in-2026",
+    "token_id": "23435178151774440115423538812688705649247609803850018642847000556068202005554",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYIL-26-D",
+    "series": "GOVPARTYIL",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ia-gov",
+   "state": "ia",
+   "state_name": "Iowa",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Kim Reynolds",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Rob Sand",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Rob Sand",
+    "R": "Zach Lahn"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "iowa-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-iowa-governor-race-in-2026",
+    "token_id": "45621938709469399887344165091123819127263258871102896783851049824656362940868",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYIA-26-D",
+    "series": "GOVPARTYIA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ks-gov",
+   "state": "ks",
+   "state_name": "Kansas",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Laura Kelly",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Cindy Holscher",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Cindy Holscher",
+    "R": "Ty Masterson"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "kansas-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-kansas-governor-race-in-2026",
+    "token_id": "79484096963248498578517243733071571984223432387663163312687533493173144145268",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYKS-27-D",
+    "series": "GOVPARTYKS",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "me-gov",
+   "state": "me",
+   "state_name": "Maine",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Janet Mills",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Hannah Pingree",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Hannah Pingree",
+    "R": "Robert Charles",
+    "RBEN": "Rick Bennett"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "maine-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-maine-governor-race-in-2026",
+    "token_id": "92845243966002494782242842696395378111295494684532387488276103452077216171518",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYME-26-D",
+    "series": "GOVPARTYME",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "md-gov",
+   "state": "md",
+   "state_name": "Maryland",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Wes Moore",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Wes Moore",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Wes Moore",
+    "R": "Dan Cox"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "maryland-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-maryland-governor-race-in-2026",
+    "token_id": "21509039698927424303190259436702262868147960450053769072201076877922760800234",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYMD-26-D",
+    "series": "GOVPARTYMD",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ma-gov",
+   "state": "ma",
+   "state_name": "Massachusetts",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Maura Healey",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Maura Healey",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Maura Healey",
+    "R": "Mike Minogue"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "massachusetts-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-massachusetts-governor-race-in-2026",
+    "token_id": "86599393407315290835574565918707146460542680358932655202787183319230565551172",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYMA-26-D",
+    "series": "GOVPARTYMA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "mi-gov",
+   "state": "mi",
+   "state_name": "Michigan",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Gretchen Whitmer",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Jocelyn Benson",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Jocelyn Benson",
+    "R": "John James",
+    "MD": "Mike Duggan"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "michigan-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-michigan-governor-race-in-2026",
+    "token_id": "63517706574758177502492185078056756527324898714284142778693046697324148388357",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYMI-26-D",
+    "series": "GOVPARTYMI",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "mn-gov",
+   "state": "mn",
+   "state_name": "Minnesota",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Tim Walz",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Amy Klobuchar",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Amy Klobuchar",
+    "R": "Lisa Demuth"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "minnesota-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-minnesota-governor-race-in-2026",
+    "token_id": "9126148503694470083148381233969293708563386203943196700151133094426622508276",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYMN-26-D",
+    "series": "GOVPARTYMN",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ne-gov",
+   "state": "ne",
+   "state_name": "Nebraska",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Jim Pillen",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Lynne Walz",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Lynne Walz",
+    "R": "Jim Pillen"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "nebraska-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-nebraska-governor-race-in-2026",
+    "token_id": "3466069051818884243073756614952529401222377791973010490050674378116587529746",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYNE-26-D",
+    "series": "GOVPARTYNE",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "nv-gov",
+   "state": "nv",
+   "state_name": "Nevada",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Joe Lombardo",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Aaron Ford",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Aaron Ford",
+    "R": "Joe Lombardo"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "nevada-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-nevada-governor-race-in-2026",
+    "token_id": "1246864710804983890692377994891598401616546411512113588399830364959833951829",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYNV-26-D",
+    "series": "GOVPARTYNV",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "nh-gov",
+   "state": "nh",
+   "state_name": "New Hampshire",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Kelly Ayotte",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Cinde Warmington",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Cinde Warmington",
+    "R": "Kelly Ayotte"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "new-hampshire-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-new-hampshire-governor-race-in-2026",
+    "token_id": "50014042446564445111498439180144732017863294969428914194102372141019045896702",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYNH-28-D",
+    "series": "GOVPARTYNH",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "nm-gov",
+   "state": "nm",
+   "state_name": "New Mexico",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Michelle Lujan Grisham",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Deb Haaland",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Deb Haaland",
+    "R": "Greggory D. Hull"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "new-mexico-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-new-mexico-governor-race-in-2026",
+    "token_id": "17781069937970314001472355582427331102577624490515546410398313363226785264562",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYNM-26-D",
+    "series": "GOVPARTYNM",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ny-gov",
+   "state": "ny",
+   "state_name": "New York",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Kathy Hochul",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Kathy Hochul",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Kathy Hochul",
+    "R": "Bruce Blakeman"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "new-york-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-new-york-governor-race-in-2026",
+    "token_id": "64050273355694113671090110638685043795558853994186493795797238541534244584786",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYNY-26-D",
+    "series": "GOVPARTYNY",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "oh-gov",
+   "state": "oh",
+   "state_name": "Ohio",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Mike DeWine",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Amy Acton",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Amy Acton",
+    "R": "Vivek Ramaswamy"
+   },
+   "modeled": true,
+   "race_id": "oh-gov",
+   "pm": {
+    "event": "ohio-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-ohio-governor-race-in-2026",
+    "token_id": "63255709540320761353971859526848930870803944190764324681913735372035438815215",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYOH-26-D",
+    "series": "GOVPARTYOH",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ok-gov",
+   "state": "ok",
+   "state_name": "Oklahoma",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Kevin Stitt",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Cyndi Munson",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Cyndi Munson",
+    "R": "Mike Mazzei"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "oklahoma-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-oklahoma-governor-race-in-2026",
+    "token_id": "37700214927702560862325287464231700075479667077774217635210792305464305010407",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYOK-26-D",
+    "series": "GOVPARTYOK",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "or-gov",
+   "state": "or",
+   "state_name": "Oregon",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Tina Kotek",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Tina Kotek",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Tina Kotek",
+    "R": "Christine Drazan"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "oregon-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-oregon-governor-race-in-2026",
+    "token_id": "9755787435930070640870536823763281543938387827225853124824813626465365556107",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYOR-26-D",
+    "series": "GOVPARTYOR",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "pa-gov",
+   "state": "pa",
+   "state_name": "Pennsylvania",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Josh Shapiro",
+   "incumbent_party": "D",
+   "open": false,
+   "dem_side": {
+    "name": "Josh Shapiro",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Josh Shapiro",
+    "R": "Stacy Garrity"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "pennsylvania-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-pennsylvania-governor-race-in-2026",
+    "token_id": "86158564038726526008163887440654010269502827272776903587995739265573029112945",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYPA-26-D",
+    "series": "GOVPARTYPA",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "ri-gov",
+   "state": "ri",
+   "state_name": "Rhode Island",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Dan McKee",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "Helena Foulkes",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Helena Foulkes",
+    "R": "Aaron Guckian",
+    "KBLO": "Ken Block"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "rhode-island-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-rhode-island-governor-race-in-2026",
+    "token_id": "12963869833838696349134591178892586509546549676681530057691780490969939726649",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYRI-26-D",
+    "series": "GOVPARTYRI",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "sc-gov",
+   "state": "sc",
+   "state_name": "South Carolina",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Henry McMaster",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Jermaine Johnson",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Jermaine Johnson",
+    "R": "Alan Wilson"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "south-carolina-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-south-carolina-governor-race-in-2026",
+    "token_id": "69673263487139231624315897585768201230841320475352635832819992690850228911127",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYSC-26-D",
+    "series": "GOVPARTYSC",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "sd-gov",
+   "state": "sd",
+   "state_name": "South Dakota",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Larry Rhoden",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Dan Ahlers",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Dan Ahlers",
+    "R": "Larry Rhoden"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "south-dakota-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-south-dakota-governor-race-in-2026",
+    "token_id": "19857809653204352084235953967001149759321806996646353766198011041287290557051",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYSD-26-D",
+    "series": "GOVPARTYSD",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "tn-gov",
+   "state": "tn",
+   "state_name": "Tennessee",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Bill Lee",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Jerri Green",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Jerri Green",
+    "R": "Marsha Blackburn",
+    "DHAT": "David Hatley"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "tennessee-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-tennessee-governor-race-in-2026",
+    "token_id": "42092635016892213098098431597314233695276464574605657188222427223673881775927",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYTN-26-D",
+    "series": "GOVPARTYTN",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "tx-gov",
+   "state": "tx",
+   "state_name": "Texas",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Greg Abbott",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Gina Hinojosa",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Gina Hinojosa",
+    "R": "Greg Abbott"
+   },
+   "modeled": true,
+   "race_id": "tx-gov",
+   "pm": {
+    "event": "texas-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-texas-governor-race-in-2026",
+    "token_id": "48232987449750988261789196083999659380058157021032932634331257492238853387252",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYTX-26-D",
+    "series": "GOVPARTYTX",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "vt-gov",
+   "state": "vt",
+   "state_name": "Vermont",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Phil Scott",
+   "incumbent_party": "R",
+   "open": false,
+   "dem_side": {
+    "name": "Amanda Janoo",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Amanda Janoo",
+    "R": "Phil Scott"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "vermont-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-vermont-governor-race-in-2026",
+    "token_id": "60184991030711150053889856154789765911962237408503307206289529109604385579009",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYVT-26-D",
+    "series": "GOVPARTYVT",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "wi-gov",
+   "state": "wi",
+   "state_name": "Wisconsin",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Tony Evers",
+   "incumbent_party": "D",
+   "open": true,
+   "dem_side": {
+    "name": "David Crowley",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "David Crowley",
+    "R": "Tom Tiffany"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "wisconsin-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-wisconsin-governor-race-in-2026",
+    "token_id": "47540146623620182724372695903724852067595146419459482790641441152489267651664",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYWI-26-D",
+    "series": "GOVPARTYWI",
+    "yes_is": "dem_side"
+   }
+  },
+  {
+   "race_key": "wy-gov",
+   "state": "wy",
+   "state_name": "Wyoming",
+   "office": "governor",
+   "special": false,
+   "incumbent": "Mark Gordon",
+   "incumbent_party": "R",
+   "open": true,
+   "dem_side": {
+    "name": "Kenneth Casner",
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": {
+    "D": "Kenneth Casner",
+    "R": "Eric Barlow"
+   },
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "wyoming-governor-winner-2026",
+    "slug": "will-the-democrats-win-the-wyoming-governor-race-in-2026",
+    "token_id": "27698880682601961151205903485139737259763277359865731443999905606295817799595",
+    "yes_is": "dem_side"
+   },
+   "kalshi": {
+    "ticker": "GOVPARTYWY-26-D",
+    "series": "GOVPARTYWY",
+    "yes_is": "dem_side"
+   }
+  }
+ ],
+ "sources": [
+  {
+   "name": "U.S. Senate, senators' contact information (classes, parties)",
+   "url": "https://www.senate.gov/general/contact_information/senators_cfm.xml",
+   "licence": "public domain"
+  },
+  {
+   "name": "U.S. Senate, appointed senators (2026 special elections: Ohio, Florida)",
+   "url": "https://www.senate.gov/senators/AppointedSenators.htm",
+   "licence": "public domain"
+  },
+  {
+   "name": "National Governors Association, current governors",
+   "url": "https://www.nga.org/governors/",
+   "licence": "facts cited"
+  },
+  {
+   "name": "Polymarket (Gamma API) and Kalshi (public API) market listings: candidates, market ids",
+   "url": "https://polymarket.com",
+   "licence": "facts cited; Kalshi © Kalshi"
+  }
+ ]
+}

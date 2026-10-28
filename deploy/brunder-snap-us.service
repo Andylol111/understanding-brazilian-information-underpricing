@@ -24,14 +24,43 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder snap us_midterms_2026 
   --url https://www.elections.alaska.gov/enr26/results/statewide.js \
   --ga-enr https://results.sos.ga.gov/results/public/api/jurisdictions/Georgia \
   --date 2026-11-03 \
-  --pm-event california-governor-election-2026 \
-  --pm-event texas-senate-election-winner --pm-event texas-governor-winner-2026 \
-  --pm-event ohio-senate-election-winner --pm-event ohio-governor-winner-2026 \
-  --pm-event alaska-senate-election-winner --pm-event alaska-governor-election-winner \
-  --pm-event iowa-senate-election-winner --pm-event iowa-governor-winner-2026 \
-  --pm-event georgia-senate-election-winner --pm-event georgia-governor-winner-2026 \
-  --pm-event michigan-senate-election-winner --pm-event maine-senate-election-winner \
-  --pm-event kansas-senate-election-winner \
+  --pm-event alabama-governor-winner-2026 --pm-event alabama-senate-election-winner-154 \
+  --pm-event alaska-governor-election-winner --pm-event alaska-senate-election-winner \
+  --pm-event arizona-governor-winner-2026 --pm-event arkansas-governor-winner-2026 \
+  --pm-event arkansas-senate-election-winner --pm-event california-governor-election-2026 \
+  --pm-event colorado-governor-winner-2026 --pm-event colorado-senate-election-winner \
+  --pm-event connecticut-governor-winner-2026 --pm-event delaware-senate-election-winner \
+  --pm-event florida-governor-winner-2026 --pm-event florida-senate-election-winner \
+  --pm-event georgia-governor-winner-2026 --pm-event georgia-senate-election-winner \
+  --pm-event hawaii-governor-winner-2026 --pm-event idaho-governor-winner-2026 \
+  --pm-event idaho-senate-election-winner --pm-event illinois-governor-winner-2026 \
+  --pm-event illinois-senate-election-winner --pm-event iowa-governor-winner-2026 \
+  --pm-event iowa-senate-election-winner --pm-event kansas-governor-winner-2026 \
+  --pm-event kansas-senate-election-winner --pm-event kentucky-senate-election-winner \
+  --pm-event louisiana-senate-election-winner --pm-event maine-governor-winner-2026 \
+  --pm-event maine-senate-election-winner --pm-event maryland-governor-winner-2026 \
+  --pm-event massachusetts-governor-winner-2026 --pm-event massachusetts-senate-election-winner \
+  --pm-event michigan-governor-winner-2026 --pm-event michigan-senate-election-winner \
+  --pm-event minnesota-governor-winner-2026 --pm-event minnesota-senate-election-winner \
+  --pm-event mississippi-senate-election-winner --pm-event montana-senate-election-winner \
+  --pm-event nebraska-governor-winner-2026 --pm-event nebraska-senate-election-winner \
+  --pm-event nevada-governor-winner-2026 --pm-event new-hampshire-governor-winner-2026 \
+  --pm-event new-hampshire-senate-election-winner --pm-event new-jersey-senate-election-winner \
+  --pm-event new-mexico-governor-winner-2026 --pm-event new-mexico-senate-election-winner \
+  --pm-event new-york-governor-winner-2026 --pm-event north-carolina-senate-election-winner \
+  --pm-event ohio-governor-winner-2026 --pm-event ohio-senate-election-winner \
+  --pm-event oklahoma-governor-winner-2026 --pm-event oklahoma-senate-election-winner \
+  --pm-event oregon-governor-winner-2026 --pm-event oregon-senate-election-winner \
+  --pm-event pennsylvania-governor-winner-2026 --pm-event rhode-island-governor-winner-2026 \
+  --pm-event rhode-island-senate-election-winner --pm-event south-carolina-governor-winner-2026 \
+  --pm-event south-carolina-senate-election-winner --pm-event south-dakota-governor-winner-2026 \
+  --pm-event south-dakota-senate-election-winner --pm-event tennessee-governor-winner-2026 \
+  --pm-event tennessee-senate-election-winner --pm-event texas-governor-winner-2026 \
+  --pm-event texas-senate-election-winner --pm-event vermont-governor-winner-2026 \
+  --pm-event virginia-senate-election-winner --pm-event west-virginia-senate-election-winner \
+  --pm-event which-party-will-win-the-house-in-2026 --pm-event which-party-will-win-the-senate-in-2026 \
+  --pm-event wisconsin-governor-winner-2026 --pm-event wyoming-governor-winner-2026 \
+  --pm-event wyoming-senate-election-winner \
   --interval 30 --until 2026-11-20T00:00Z
 Restart=on-failure
 RestartSec=30

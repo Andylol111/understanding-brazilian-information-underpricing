@@ -902,7 +902,7 @@ def kalshi_prices(arc: Archive, f: Path | None) -> dict[str, float]:
 
 def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict] | None = None,
          phase: str = "live", precount: dict[str, dict | None] | None = None,
-         tokens: dict[str, str] | None = None) -> dict:
+         tokens: dict[str, str] | None = None, overview: str | None = None) -> dict:
     """phase: "pre-count" (brunder us preelection), "live" (brunder us live) or "replay" (brunder us export)."""
     races = []
     kalshi_mk, tokens, precount = kalshi_mk or {}, tokens or {}, precount or {}
@@ -971,6 +971,7 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
                      **({"poll_close_last_utc": POLL_CLOSE_LAST[s]} if s in POLL_CLOSE_LAST else {})}
                     for s in states],
         "races": races, "sources": srcs, "notes": notes,
+        **({"overview": overview} if overview else {}),
     }
 
 
@@ -1141,7 +1142,9 @@ class Exporter:
     def write(self, out: Path) -> Path:
         d = Path(out) / EID
         ok = {rid: p is not None and not p.empty for rid, p in self.pri.items()}
-        _write_json(d / "meta.json", meta(self.cfgs, ok, self.kalshi_mk, phase=self.phase, tokens=self.tokens))
+        ov = refresh_overview(d, self.arc, self.errors)
+        _write_json(d / "meta.json", meta(self.cfgs, ok, self.kalshi_mk, phase=self.phase, tokens=self.tokens,
+                                          overview="overview.json" if ov else None))
         tl = self.merged_timeline(d)
         _write_json(d / "timeline.json", tl)
         _write_json(d / "timeline_tail.json", self.tail(timeline=tl))
@@ -1286,7 +1289,8 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
         timeline[rid] = [{"t": _iso(t), "counted": None, "raw": None, "share": m.get("share"), "sd": m.get("sd"),
                           "P": m.get("P"), "pm": _r(pv), "kalshi": _r(kv)}
                          for t, pv, kv in zip(grid, pm_vals, k_vals)]
-    _write_json(d / "meta.json", meta(cfgs, ok, kmk, phase="pre-count", precount=pre, tokens=tokens))
+    _write_json(d / "meta.json", meta(cfgs, ok, kmk, phase="pre-count", precount=pre, tokens=tokens,
+                                      overview="overview.json" if RACES_REGISTRY.exists() else None))
     _write_json(d / "timeline_precount.json", timeline)    # kept: the live exporter puts these rows first
     _write_json(d / "timeline.json", timeline)
     _write_json(d / "timeline_tail.json", timeline_tail(timeline))
@@ -1300,7 +1304,143 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
             default = default or obj
     if default:
         _write_json(d / "units.json", default)
+    if RACES_REGISTRY.exists():
+        _write_json(d / "overview.json", overview(now, days=days, step=step))
     return d
+
+
+# ------------------------------------------------------------------ national overview (all Senate/governor races)
+
+RACES_REGISTRY = ROOT_DIR / "data_public" / "us2026_races.json"   # analysis/us_overview_races.py
+
+
+def _market_history(m: dict, grid: pd.DatetimeIndex, days: float) -> tuple[list, list]:
+    """(Polymarket, Kalshi) P(YES) on the grid for a registry entry {pm: {token_id}, kalshi: {series, ticker}}.
+    Polymarket: CLOB prices-history at 30-min fidelity; Kalshi: hourly candles (mid if spread ≤ 10c, else last
+    trade). A market that fails is left empty; it never stops the others."""
+    from . import polymarket
+    pm_v, k_v = [None] * len(grid), [None] * len(grid)
+    pm = m.get("pm") or {}
+    if pm.get("token_id"):
+        try:
+            h = polymarket.price_history(pm["token_id"], grid[0] - pd.Timedelta(hours=6), grid[-1], fidelity_min=30,
+                                         chunk=pd.Timedelta(days=days + 1))
+            pm_v = _asof(h.set_index("time")["price"].astype(float), grid)
+        except Exception as e:
+            print(f"overview {m.get('race_key') or pm.get('slug')}: Polymarket history failed: {e}", flush=True)
+    km = m.get("kalshi") or {}
+    if km.get("ticker"):
+        try:
+            c = kalshi.candlesticks(km["series"], km["ticker"], grid[0] - pd.Timedelta(hours=6), grid[-1], 60)
+            if len(c):
+                k_v = [None if not np.isfinite(x) else float(x)
+                       for x in kalshi.prob_from_candles(c, grid).to_numpy(dtype=float)]
+        except Exception as e:
+            print(f"overview {m.get('race_key') or km.get('ticker')}: Kalshi history failed: {e}", flush=True)
+    return pm_v, k_v
+
+
+def _last(v: list) -> float | None:
+    return next((x for x in reversed(v) if x is not None), None)
+
+
+def overview(now: pd.Timestamp, days: float = 14, step: str = "30min", registry: Path | None = None) -> dict:
+    """overview.json: every 2026 Senate and governor race (registry data_public/us2026_races.json) with its
+    Polymarket and Kalshi P(dem_side), 14 days of history every 30 minutes, Senate holdovers and the chamber control
+    markets. Prices only; the county model covers the races in configs/us2026_*_v1.toml (modeled = true)."""
+    reg = json.loads((registry or RACES_REGISTRY).read_text())
+    grid = pd.date_range(now - pd.Timedelta(days=days), now, freq=step)
+
+    def entry(r: dict) -> dict:
+        pm_v, k_v = _market_history(r, grid, days)
+        out = {k: v for k, v in r.items() if k not in ("pm", "kalshi")}
+        out["pm"] = None if not r.get("pm") else {**r["pm"], "price": _r(_last(pm_v))}
+        out["kalshi"] = None if not r.get("kalshi") else {**r["kalshi"], "price": _r(_last(k_v))}
+        out["history"] = [[_iso(t), _r(p), _r(k)] for t, p, k in zip(grid, pm_v, k_v)]
+        return out
+
+    def control(chamber: str) -> list[dict]:
+        res = []
+        for m in reg["control_markets"][chamber]:
+            spec = {"pm": {"token_id": m["token_id"]}} if m["platform"] == "polymarket" else \
+                   {"kalshi": {"series": m["series"], "ticker": m["ticker"]}}
+            pm_v, k_v = _market_history(spec, grid, days)
+            v = pm_v if m["platform"] == "polymarket" else k_v
+            res.append({**m, "price": _r(_last(v)), "history": [[_iso(t), _r(x)] for t, x in zip(grid, v)]})
+        return res
+
+    races = [entry(r) for r in reg["races"]]
+    return {
+        "as_of": _iso(now), "p_is": "P(dem_side wins): the Democratic candidate, or the flagged independent",
+        "offices": {
+            "senate": {"holdovers": reg["holdovers"]["senate"], "seats_total": 100, "majority": 51,
+                       "control_markets": control("senate"), "races": [r for r in races if r["office"] == "senate"]},
+            "governor": {"races": [r for r in races if r["office"] == "governor"]},
+            "house": {"control_markets": control("house")}},
+        "sources": reg["sources"] + [{"name": "© Kalshi: market prices", "url": "https://kalshi.com",
+                                      "licence": "© Kalshi; shown per the project's decision (docs/kalshi.md)"}],
+        "notes": [
+            "Prices are P(dem_side wins): the Democratic candidate's chance; in races without a competitive Democrat "
+            "the main independent is the dem_side (flagged in dem_side.aligned).",
+            "history: [time, Polymarket, Kalshi] every 30 minutes over the last 14 days; Polymarket = CLOB price "
+            "history, Kalshi = hourly candles (mid if spread ≤ 10c, else last trade). Kalshi party markets pay on "
+            "who is sworn in.",
+            "Senate control needs 51 seats, or 50 plus the Vice President's tie-breaking vote. holdovers = seats "
+            "not up in 2026 (senate.gov); independents caucusing with Democrats are counted under I.",
+            "modeled = the race has the county-level election-night model (meta.races[].race_id).",
+        ],
+    }
+
+
+def refresh_overview(d: Path, arc: Archive, errors: dict | None = None) -> bool:
+    """On the night: update overview.json prices from the recorder's polymarket_books / kalshi_books and add a history
+    point at every 30-minute mark since the last one. Returns whether an overview exists. Never raises."""
+    f = d / "overview.json"
+    if not f.exists():
+        return False
+    try:
+        ov = json.loads(f.read_text())
+        times = arc.times()
+        if not times:
+            return True
+        last = max((pd.Timestamp(h[0]) for o in ov["offices"].values() for r in o.get("races", [])
+                    for h in r["history"][-1:]), default=None)
+        end, now_t = times[-1].floor("30min"), times[-1]
+        marks = list(pd.date_range(last + pd.Timedelta("30min"), end, freq="30min")) if last is not None else []
+        cache: dict = {}
+
+        def prices(t):
+            if t not in cache:
+                cache[t] = (pm_prices(arc, arc.at("polymarket_books", t)), kalshi_prices(arc, arc.at("kalshi_books", t)))
+            return cache[t]
+
+        def value(m: dict, t, platform: str | None = None):
+            pp, kp = prices(t)
+            if (platform or "polymarket") == "polymarket":
+                return pp.get(f"{m.get('event')}/{m.get('slug')}")
+            return kp.get(m.get("ticker"))
+
+        for o in ov["offices"].values():
+            for r in o.get("races", []):
+                pm, km = r.get("pm") or {}, r.get("kalshi") or {}
+                for t in marks:
+                    r["history"].append([_iso(t), _r(value(pm, t)), _r(value(km, t, "kalshi"))])
+                if pm and value(pm, now_t) is not None:
+                    pm["price"] = _r(value(pm, now_t))
+                if km and value(km, now_t, "kalshi") is not None:
+                    km["price"] = _r(value(km, now_t, "kalshi"))
+            for m in o.get("control_markets", []):
+                for t in marks:
+                    m["history"].append([_iso(t), _r(value(m, t, m["platform"]))])
+                if value(m, now_t, m["platform"]) is not None:
+                    m["price"] = _r(value(m, now_t, m["platform"]))
+        ov["as_of"] = _iso(now_t)
+        _write_json(f, ov)
+    except Exception as e:                           # the overview must never block the race files
+        if errors is not None:
+            errors["overview"] = f"{type(e).__name__}: {e}"
+        print(f"overview refresh failed: {type(e).__name__}: {e}", flush=True)
+    return True
 
 
 async def run_live(cfg_paths: list[Path], out: Path, snap_root: Path | None = None, interval: float = 30.0,

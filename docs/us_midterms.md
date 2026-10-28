@@ -190,6 +190,27 @@ On the night `brunder us live` writes the same files with `phase = "live"`. It k
 `timeline_precount.json` and puts those rows in front of its minute rows, so the switch needs no manual step.
 Until a race has returns, its map shows the prior frame.
 
+## National overview (`overview.json`: every Senate and governor race)
+
+`data_public/us2026_races.json` is the committed race registry, built once by
+`BRUNDER_DATA=… uv run python analysis/us_overview_races.py`. It lists:
+- the 33 class II Senate seats and the 2 specials (Ohio, Florida). Seats, parties and classes come from the senate.gov
+  contact XML; the specials come from senate.gov's appointed-senators list (Husted, Moody).
+- the 36 governor races, with incumbent and party from nga.org (crawl delay respected).
+- each race's Polymarket market and Kalshi ticker for P(dem_side). dem_side is the Democrat, except in Nebraska and
+  Montana: there no Democrat is priced at 1 % or more and an independent is (Osborn, Bodnar), so the independent is
+  the dem_side, flagged in `dem_side.aligned`.
+- candidates (from the Kalshi listings) and `open` (true when the incumbent is not among them; Alaska from the
+  certified primary; null for Kentucky).
+- Senate holdovers (seats not up in 2026: D 32, R 31, I 2) and the Senate and House control markets.
+
+`brunder us preelection` writes `us2026/overview.json` from it on every run: prices, and 14 days of history every
+30 minutes (Polymarket CLOB price history; Kalshi hourly candles). Races with the county model carry `modeled: true`
+and their `race_id`, and `meta.overview` points the page to the file. On the night `brunder us live`
+refreshes the prices and adds a history point every 30 minutes from the recorder's `polymarket_books` /
+`kalshi_books`. That only covers events and tickers the recorders follow, so the recorder's `--pm-event` list and the
+Kalshi pairs file must include the registry's markets. A failing overview refresh never blocks the race files.
+
 ## Live and replay
 
 ```

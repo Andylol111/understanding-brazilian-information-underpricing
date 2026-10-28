@@ -621,3 +621,71 @@ def test_live_takes_over_precount_files_without_manual_step(tmp_path, monkeypatc
     # the scheduled pre-count job must not overwrite the live files
     us.preelection(paths, out, days=1, now=NOW, priors=priors, pairs_path=pairs)
     assert json.loads((d / "meta.json").read_text())["phase"] == "live"
+
+
+# ------------------------------------------------------------------ national overview
+
+def test_overview_from_registry(tmp_path, monkeypatch):
+    _mock_prices(monkeypatch)
+    reg = json.loads((ROOT / "data_public" / "us2026_races.json").read_text())
+    ov = us.overview(NOW, days=1)
+    sen, gov = ov["offices"]["senate"], ov["offices"]["governor"]
+    assert len(gov["races"]) == 36 and len(sen["races"]) == len([r for r in reg["races"] if r["office"] == "senate"])
+    assert sum(sen["holdovers"].values()) + len(sen["races"]) == 100
+    assert sum(r["special"] for r in sen["races"]) == 2
+    geo = json.loads((ROOT / "site" / "data" / "geo" / "us_counties.topo.json").read_text())
+    states = {g["properties"]["unit_id"].split("-")[1] for g in geo["objects"]["counties"]["geometries"]}
+    assert {r["state"] for r in sen["races"] + gov["races"]} <= states
+    modeled = {r["race_id"] for r in sen["races"] + gov["races"] if r["modeled"]}
+    assert modeled == {us.load_config(p)["election"]["race_id"] for p in ROOT.glob("configs/us2026_*_v1.toml")}
+    for r in sen["races"] + gov["races"]:
+        assert len(r["history"]) == 49 and r["pm"] is not None
+        if r["pm"]["token_id"] == "111":
+            assert r["pm"]["price"] == pytest.approx(0.6)
+    assert [m["platform"] for m in sen["control_markets"]] == ["polymarket", "kalshi"]
+    assert ov["offices"]["house"]["control_markets"][0]["price"] is not None
+
+
+def test_live_refreshes_overview_from_books(tmp_path, monkeypatch):
+    _mock_prices(monkeypatch)
+    paths = [ROOT / "configs" / "us2026_ca_gov_v1.toml"]
+    cfgs = [us.load_config(p) for p in paths]
+    priors, by_state = _synth_priors(cfgs)
+    reg = {"holdovers": {"senate": {"D": 32, "R": 31, "I": 2}}, "sources": [], "races": [
+        {"race_key": "me-sen", "state": "me", "office": "senate", "special": False, "incumbent": "x",
+         "incumbent_party": "R", "open": False, "dem_side": {"name": "y", "party": "D", "aligned": None},
+         "modeled": False, "race_id": None,
+         "pm": {"event": "maine-senate-election-winner", "slug": "will-the-democrats-win-the-maine-senate-race-in-2026",
+                "token_id": "111", "yes_is": "dem_side"},
+         "kalshi": {"ticker": "SENATEME-26-D", "series": "SENATEME", "yes_is": "dem_side"}}],
+        "control_markets": {c: [{"platform": "polymarket", "event": f"ev-{c}", "slug": f"dem-{c}", "token_id": "222",
+                                 "question": "q", "yes_is": "dem"},
+                                {"platform": "kalshi", "ticker": f"CONTROL{c[0].upper()}-2026-D", "series": "S",
+                                 "yes_is": "dem"}] for c in ("senate", "house")}}
+    regf = tmp_path / "races.json"
+    regf.write_text(json.dumps(reg))
+    out = tmp_path / "site"
+    (out / "us2026").mkdir(parents=True)
+    (out / "us2026" / "overview.json").write_text(json.dumps(us.overview(pd.Timestamp("2026-11-04T03:00Z"), days=0.5,
+                                                                         registry=regf)))
+    snap = tmp_path / "snap"
+    for k in (us.FEEDS["ca"]["results"], "polymarket_books", "kalshi_books"):
+        (snap / k).mkdir(parents=True)
+    pmbook = {"bids": [{"price": "0.70", "size": "1"}], "asks": [{"price": "0.72", "size": "1"}]}
+    for t, scale in (("20261104T040500", 0.1), ("20261104T050000", 0.3)):
+        (snap / us.FEEDS["ca"]["results"] / f"{t}.000000Z.json").write_bytes(_ca_snapshot(scale, 0.0, by_state["ca"]))
+        (snap / "polymarket_books" / f"{t}.000001Z.json").write_text(json.dumps(
+            {"maine-senate-election-winner/will-the-democrats-win-the-maine-senate-race-in-2026": pmbook,
+             "ev-senate/dem-senate": pmbook}))
+        (snap / "kalshi_books" / f"{t}.000001Z.json").write_text(json.dumps({"SENATEME-26-D": _kbook(.68, .30)}))
+    ex = us.Exporter(paths, snap, priors=priors, pairs_path=tmp_path / "none.toml")
+    ex.update()
+    d = ex.write(out)
+    assert json.loads((d / "meta.json").read_text())["overview"] == "overview.json"
+    ov = json.loads((d / "overview.json").read_text())
+    r = ov["offices"]["senate"]["races"][0]
+    assert r["pm"]["price"] == pytest.approx(0.71) and r["kalshi"]["price"] == pytest.approx(0.69)
+    assert [h[0][11:16] for h in r["history"][-4:]] == ["03:30", "04:00", "04:30", "05:00"]
+    assert r["history"][-2][1:] == [pytest.approx(0.71), pytest.approx(0.69)] and r["history"][-3][1] is None
+    assert ov["offices"]["senate"]["control_markets"][0]["price"] == pytest.approx(0.71)
+    assert ov["as_of"].startswith("2026-11-04T05:00")
