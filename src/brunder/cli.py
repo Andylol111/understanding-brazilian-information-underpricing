@@ -91,8 +91,11 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--pm-event", action="append", default=[], help="Polymarket event slug (repeatable)")
     s.add_argument("--interval", type=float, default=30.0)
     s.add_argument("--until", help="UTC stop time, e.g. 2026-10-28T12:00Z")
-    s.add_argument("--clarity", action="append", default=[], help="Clarity ENR base (day-of EID/version resolved)")
+    s.add_argument("--clarity", action="append", default=[],
+                   help='Clarity ENR base, or "BASE|LISTING_URL|TEXT_REGEX" (day-of EID/version resolved)')
     s.add_argument("--ga-enr", action="append", default=[], help="Enhanced Voting jurisdiction URL (day-of id resolved)")
+    s.add_argument("--vt-static", action="append", default=[],
+                   help="Vermont static results file …/elections/<guid>.json (records it + its statewide file)")
     s.add_argument("--date", help="election date YYYY-MM-DD for the resolvers")
     s = sub.add_parser("kalshi", help="Kalshi public market data: find series, list an event, record order books")
     s.add_argument("step", choices=["search", "event", "record"])
@@ -197,7 +200,8 @@ def main(argv: list[str] | None = None) -> None:
         case "snap":
             from . import snap
             until = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
-            asyncio.run(snap.run(a.tag, a.url, a.pm_event, a.interval, until, a.clarity, a.ga_enr, a.date))
+            asyncio.run(snap.run(a.tag, a.url, a.pm_event, a.interval, until, a.clarity, a.ga_enr, a.date,
+                                 vt_static=a.vt_static))
         case "kalshi":
             from . import arb, kalshi
             match a.step:

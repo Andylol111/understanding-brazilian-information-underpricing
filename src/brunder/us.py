@@ -66,8 +66,14 @@ FEEDS = {           # snapshot keys (snap._name of the recorded URL); "*" = ever
            "csv": _name("https://liveresults.ohiosos.gov/Api/v1/Contest/GetElectionSummaryCsv")},
     "ak": {"js": _name("https://www.elections.alaska.gov/enr26/results/statewide.js")},
     "ga": {"item": "ga_enr_Georgia_item_*"},
+    "az": {"item": "ga_enr_Arizona_item_*"},           # Enhanced Voting, same resolver as GA (--ga-enr …/Arizona)
+    "sc": {"all": "clarity_" + _name("https://www.enr-scvotes.org/SC"),          # Clarity, day-of eid (resolver)
+           "summary": "clarity_" + _name("https://www.enr-scvotes.org/SC") + "_summary",
+           "status": "clarity_" + _name("https://www.enr-scvotes.org/SC") + "_status"},
+    "vt": {"main": "vt_static_main", "statewide": "vt_static_statewide"},          # resolver --vt-static
 }
-STATES = {"ca": "California", "tx": "Texas", "oh": "Ohio", "ga": "Georgia", "ak": "Alaska"}
+STATES = {"ca": "California", "tx": "Texas", "oh": "Ohio", "ga": "Georgia", "ak": "Alaska", "az": "Arizona",
+          "sc": "South Carolina", "vt": "Vermont"}
 
 
 # ------------------------------------------------------------------ units
@@ -83,7 +89,7 @@ def counties(st: str) -> pd.DataFrame:
         return pd.DataFrame({"unit_id": [f"us-ak-hd{d:02d}" for d in range(1, 41)],
                              "name": [f"House District {d}" for d in range(1, 41)],
                              "key": [str(d) for d in range(1, 41)]})
-    fips = {"ca": "06", "tx": "48", "oh": "39", "ga": "13"}[st]
+    fips = {"ca": "06", "tx": "48", "oh": "39", "ga": "13", "az": "04", "sc": "45", "vt": "50"}[st]
     items = [x.rsplit(":", 1) for x in _COUNTIES[st].split(",")]
     return pd.DataFrame({"unit_id": [f"us-{st}-{fips}{c}" for _, c in items], "name": [n for n, _ in items],
                          "key": [_norm(n) for n, _ in items]})
@@ -309,24 +315,26 @@ def parse_ak(js: bytes) -> pd.DataFrame:
 
 
 _GA_EARLY = re.compile(r"^(advanced? voting|absentee by mail)", re.I)   # 2020/22: "... Votes" suffix
+_EV_EARLY = {"ga": _GA_EARLY, "az": re.compile(r"^early (voting|a\.r\.s)", re.I)}   # AZ "Late Early*" excluded
 
 
-def parse_ga(item: bytes) -> pd.DataFrame:
-    """GA SoS Enhanced Voting ballot item (…/elections/Georgia/<id>/data/ballot-item/<item id>):
+def parse_ga(item: bytes, st: str = "ga") -> pd.DataFrame:
+    """Enhanced Voting ballot item (…/elections/<Georgia|Arizona>/<id>/data/ballot-item/<item id>), GA SoS and AZ SoS:
     ballotItemWithBreakdown {name, summaryResults.ballotOptions (statewide), breakdownResults[{locality.name,
     precinctReportingStatus{reportingUnits,totalUnits}, ballotOptions[{name, party.abbreviation, voteCount,
-    groupResults[{groupName, voteCount}]}]}]}. early = Advanced Voting + Absentee by Mail."""
+    groupResults[{groupName, voteCount}]}]}]}. early = GA Advanced Voting + Absentee by Mail; AZ Early Voting +
+    Early A.R.S. 16-579 (not the late earlies counted after Election Day)."""
     b = json.loads(item)["ballotItemWithBreakdown"]
     race = race_key(b["name"][0]["text"])
-    ids = _ids("ga")
+    ids, early_re = _ids(st), _EV_EARLY[st]
 
     def opts(level, uid, name, options, status):
         out = []
         for o in options:
             early = sum(g["voteCount"] for g in o.get("groupResults") or []
-                        if _GA_EARLY.match(g["groupName"][0]["text"].strip()))
+                        if early_re.match(g["groupName"][0]["text"].strip()))
             out.append({"level": level, "unit_id": uid, "name": name, "race": race,
-                        "candidate": re.sub(r"\s*\((?:I\)\s*\()?[A-Za-z]+\)\s*$", "", o["name"][0]["text"]),
+                        "candidate": re.sub(r"\s*\((?:I\)\s*\()?[A-Za-z]+\)\s*$", "", o["name"][0]["text"]).strip(),
                         "party": party_code((o.get("party") or {}).get("abbreviation")),
                         "votes": float(o["voteCount"]), "early": float(early),
                         "reporting": _int((status or {}).get("reportingUnits")),
@@ -334,10 +342,86 @@ def parse_ga(item: bytes) -> pd.DataFrame:
                         "registered": np.nan, "outstanding": np.nan})
         return out
 
-    rows = opts("state", "us-ga", "Georgia", b["summaryResults"]["ballotOptions"], b.get("reportingStatus"))
+    rows = opts("state", f"us-{st}", STATES[st], b["summaryResults"]["ballotOptions"], b.get("reportingStatus"))
     for br in b.get("breakdownResults") or []:
         uid, name = ids[_norm(br["locality"]["name"][0]["text"])]
         rows += opts("county", uid, name, br["ballotOptions"], br.get("precinctReportingStatus"))
+    return _frame(rows)
+
+
+def parse_clarity(all_json: bytes, summary: bytes, status: bytes | None = None, st: str = "sc") -> pd.DataFrame:
+    """Clarity/Scytl ENR (SC State Election Commission, enr-scvotes.org/SC/<eid>/<version>/json/...):
+    en/summary.json = statewide contests [{K key, C name, CH choices "PTY Name", P parties, V votes}];
+    ALL.json = {Contests: [{A county, C [contest keys], V [[votes per choice, in summary CH order]]}]} plus one
+    statewide row; status.json = per county P names, PX precincts reporting, PY precincts, B ballots, R registered."""
+    ids = _ids(st)
+    contests = {}
+    for c in json.loads(summary):
+        race = race_key(c["C"])
+        if race is not None:
+            contests[c["K"]] = (race, c["CH"], c.get("P") or [""] * len(c["CH"]), c.get("V") or [])
+    prog = {}
+    if status:
+        s = json.loads(status)
+        for i, name in enumerate(s.get("P") or []):
+            k = _norm(name)
+            if k in ids:
+                prog[ids[k][0]] = {"reporting": _int(s["PX"][i]), "units": _int(s["PY"][i]),
+                                   "ballots": _int(s["B"][i]), "registered": _int(s["R"][i])}
+
+    def rows_for(level, uid, name, key, votes, p):
+        race, ch, parties, _ = contests[key]
+        return [{"level": level, "unit_id": uid, "name": name, "race": race,
+                 "candidate": re.sub(r"^[A-Z]{2,4} ", "", choice), "party": party_code(party), "votes": float(v),
+                 "early": np.nan, "reporting": p.get("reporting", np.nan), "units": p.get("units", np.nan),
+                 "ballots": p.get("ballots", np.nan), "registered": p.get("registered", np.nan),
+                 "outstanding": np.nan} for choice, party, v in zip(ch, parties, votes)]
+
+    rows = []
+    for key, (race, ch, parties, v) in contests.items():
+        rows += rows_for("state", f"us-{st}", STATES[st], key, v, {})
+    for cty in json.loads(all_json)["Contests"]:
+        k = _norm(cty["A"])
+        if k not in ids:                              # the statewide row of ALL.json
+            continue
+        uid, name = ids[k]
+        for key, votes in zip(cty["C"], cty["V"]):
+            if key in contests:
+                rows += rows_for("county", uid, name, key, votes, prog.get(uid, {}))
+    return _frame(rows)
+
+
+def parse_vt(main: bytes, statewide: bytes) -> pd.DataFrame:
+    """Vermont SoS results (static.electionresults.vermont.gov/elections/<guid>.json and the statewide-offices file
+    it points to): per office (GOVERNOR, …) per town 'cs' rows with candidate votes 'rc' [{cn, vc, pn}] and
+    distReported "k/1". Towns are aggregated to Vermont's 14 counties with the main file's townDistricts map;
+    reporting/units = towns reported / towns in the county."""
+    town_cty = {_norm(t["townName"]): _norm(t["countyName"]) for t in json.loads(main).get("townDistricts") or []}
+    ids = _ids("vt")
+    acc: dict = {}
+    for grp in json.loads(statewide)["d"]:
+        for o in grp.get("o") or []:
+            race = race_key(o["on"])
+            if race is None:
+                continue
+            for town in o.get("cs") or []:
+                cty = town_cty.get(_norm(town["tn"]))
+                if cty not in ids:
+                    continue
+                done = str(town.get("distReported") or "0/1").split("/")[0] not in ("0", "")
+                a = acc.setdefault((race, cty), {"votes": {}, "rep": 0, "units": 0})
+                a["rep"] += int(done)
+                a["units"] += 1
+                for c in town.get("rc") or []:
+                    key = (c["cn"], party_code((c.get("pn") or "").split("/")[0]))
+                    a["votes"][key] = a["votes"].get(key, 0.0) + float(c.get("vc") or 0)
+    rows = []
+    for (race, cty), a in acc.items():
+        uid, name = ids[cty]
+        for (cand, party), v in a["votes"].items():
+            rows.append({"level": "county", "unit_id": uid, "name": name, "race": race, "candidate": cand,
+                         "party": party, "votes": v, "early": np.nan, "reporting": float(a["rep"]),
+                         "units": float(a["units"]), "ballots": np.nan, "registered": np.nan, "outstanding": np.nan})
     return _frame(rows)
 
 
@@ -355,6 +439,15 @@ def parse_feed(kind: str, blobs: dict[str, bytes | list[bytes] | None]) -> pd.Da
         case "ga":
             parts = [parse_ga(b) for b in blobs.get("item") or []]
             return pd.concat(parts, ignore_index=True) if parts else _frame([])
+        case "az":
+            parts = [parse_ga(b, "az") for b in blobs.get("item") or []]
+            return pd.concat(parts, ignore_index=True) if parts else _frame([])
+        case "sc":
+            return parse_clarity(blobs["all"], blobs["summary"], blobs.get("status")) \
+                if blobs.get("all") and blobs.get("summary") else _frame([])
+        case "vt":
+            return parse_vt(blobs["main"], blobs["statewide"]) if blobs.get("main") and blobs.get("statewide") \
+                else _frame([])
     raise ValueError(kind)
 
 
@@ -597,6 +690,27 @@ def _medsl_pres(st: str, year: int = 2024) -> pd.DataFrame:
     return _two_party(df)
 
 
+def _sc_clarity(eid: int, race: str) -> pd.DataFrame:
+    """SC State Election Commission certified results (Clarity ENR, enr-scvotes.org/SC/<eid>): county ALL.json +
+    en/summary.json at the election's current version."""
+    base = "https://www.enr-scvotes.org/SC"
+    ver = _fetch(f"{base}/{eid}/current_ver.txt", US_RAW / "sc" / f"{eid}_current_ver.txt").decode().strip()
+    allj = _fetch(f"{base}/{eid}/{ver}/json/ALL.json", US_RAW / "sc" / f"{eid}_{ver}_ALL.json")
+    summ = _fetch(f"{base}/{eid}/{ver}/json/en/summary.json", US_RAW / "sc" / f"{eid}_{ver}_summary.json")
+    rows = parse_clarity(allj, summ)
+    return _two_party(rows[rows["race"] == race])
+
+
+def _vt_static(guid: str, race: str) -> pd.DataFrame:
+    """Vermont SoS certified results (static.electionresults.vermont.gov), towns aggregated to counties."""
+    base = "https://static.electionresults.vermont.gov"
+    main = _fetch(f"{base}/elections/{guid}.json", US_RAW / "vt" / f"{guid}.json")
+    path = json.loads(main)["stateWide"]["path"].replace("\\", "/")
+    sw = _fetch(f"{base}/{path}", US_RAW / "vt" / Path(path).name)
+    rows = parse_vt(main, sw)
+    return _two_party(rows[rows["race"] == race])
+
+
 PRIOR_SOURCES = {
     "ca_gov_2022": lambda: _ca_sov(2022, "gov"),
     "ca_pres_2024": lambda: _ca_sov(2024, "pres"),
@@ -610,6 +724,10 @@ PRIOR_SOURCES = {
     "ak_sen_p2026": lambda: _ak_primary("sen"),
     "ak_gov_p2026": lambda: _ak_primary("gov"),
     "oh_pres_2024": lambda: _medsl_pres("oh"),
+    "sc_pres_2024": lambda: _sc_clarity(122436, "pres"),
+    "sc_gov_2022": lambda: _sc_clarity(115412, "gov"),
+    "sc_sen_2022": lambda: _sc_clarity(115412, "sen"),
+    "vt_gov_2024": lambda: _vt_static("67a35c79-05a2-4ae3-a77d-97812256188b", "gov"),
 }
 SOURCE_INFO = {
     "ca": ("California Secretary of State, Statement of Vote", "https://www.sos.ca.gov/elections/prior-elections/statewide-election-results", "public record"),
@@ -617,6 +735,9 @@ SOURCE_INFO = {
     "ga": ("Georgia Secretary of State, election results", "https://results.sos.ga.gov/results/public/Georgia", "public record"),
     "ak": ("Alaska Division of Elections, election results", "https://www.elections.alaska.gov/", "public record"),
     "oh": ("MIT Election Data and Science Lab, County Presidential Election Returns 2000-2024", "https://doi.org/10.7910/DVN/VOQCHQ", "CC0 1.0"),
+    "sc": ("South Carolina Election Commission, election results (enr-scvotes.org)", "https://scvotes.gov/elections-statistics/election-results/", "public record"),
+    "vt": ("Vermont Secretary of State, election results", "https://electionresults.vermont.gov/", "public record"),
+    "az": ("Arizona Secretary of State, election results (Enhanced Voting)", "https://app.enhancedvoting.com/results/public/Arizona", "public record"),
 }
 
 
@@ -661,7 +782,9 @@ def write_public_priors(priors: pd.DataFrame | None = None, dest: Path = PUBLIC_
         "#   tx_* Texas Legislative Council, Capitol Data Portal, https://data.capitol.texas.gov/ (CC BY; VTD returns",
         "#   summed to counties by this project); ga_* Georgia Secretary of State, results.sos.ga.gov (public record);",
         "#   ak_* Alaska Division of Elections (public record); oh_* MIT Election Data and Science Lab, County",
-        "#   Presidential Election Returns 2000-2024, doi:10.7910/DVN/VOQCHQ (CC0).",
+        "#   Presidential Election Returns 2000-2024, doi:10.7910/DVN/VOQCHQ (CC0); sc_* South Carolina Election",
+        "#   Commission certified results, enr-scvotes.org (public record); vt_* Vermont Secretary of State certified",
+        "#   results, electionresults.vermont.gov, towns summed to counties by this project (public record).",
     ]
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(".tmp")
@@ -883,9 +1006,11 @@ def pm_tokens(cfgs: list[dict], pairs_path: Path | None = None, lookup: bool = F
 # Polls close (UTC) on 2026-11-03, after US daylight saving time ended on 2026-11-01. Official hours: GA 7 a.m.-7 p.m.
 # ET (georgia.gov/vote-in-person-election-day), OH 6:30 a.m.-7:30 p.m. ET (Ohio SoS 2026 elections calendar), TX
 # 7 a.m.-7 p.m. local, central and mountain time (Texas SoS news release 2026-10-27), CA 7 a.m.-8 p.m. PT (California
-# SoS, Elections Officers' Digest: Election Day).
+# SoS, Elections Officers' Digest: Election Day), SC 7 a.m.-7 p.m. ET (scvotes.gov upcoming elections), VT close at
+# 7 p.m. ET (Vermont SoS polling-place information).
 POLL_CLOSE = {"ga": "2026-11-04T00:00:00Z", "oh": "2026-11-04T00:30:00Z", "tx": "2026-11-04T01:00:00Z",
-              "ca": "2026-11-04T04:00:00Z", "ak": "2026-11-04T05:00:00Z"}
+              "ca": "2026-11-04T04:00:00Z", "ak": "2026-11-04T05:00:00Z", "sc": "2026-11-04T00:00:00Z",
+              "vt": "2026-11-04T00:00:00Z"}
 POLL_CLOSE_LAST = {"tx": "2026-11-04T02:00:00Z", "ak": "2026-11-04T06:00:00Z"}   # El Paso/Hudspeth (MT); Aleutians
 POLL_SOURCES = [
     {"name": "Georgia.gov, Vote in person on Election Day (polls 7 a.m.-7 p.m.)",
@@ -897,6 +1022,10 @@ POLL_SOURCES = [
     {"name": "California Secretary of State, Elections Officers' Digest: Election Day (polls 7 a.m.-8 p.m.)",
      "url": "https://www.sos.ca.gov/elections/publications-and-resources/elections-officers-digest/election-day",
      "licence": "public record"},
+    {"name": "South Carolina Election Commission, upcoming elections (Nov 3, 7:00 am - 7:00 pm)",
+     "url": "https://scvotes.gov/elections-statistics/upcoming-elections", "licence": "public record"},
+    {"name": "Vermont Secretary of State, polling location information (all polls close at 7 p.m.)",
+     "url": "https://sos.vermont.gov/elections/voters/polling-places", "licence": "public record"},
 ]
 NO_PRIOR = "county prior not available yet"
 
@@ -963,12 +1092,12 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
         "kalshi = Kalshi P(Democrat): midpoint of the market's order book when the spread is at most 10c, else "
         "empty; market per race from configs/pairs/us2026.toml. Prices © Kalshi.",
         "Model frozen before polls closed (configs/us2026_*_v1.toml); see docs/us_midterms.md.",
-        "Polls close (UTC, Nov 4): Georgia 00:00, Ohio 00:30, Texas 01:00 (02:00 in El Paso and Hudspeth "
-        "counties), California 04:00.",
+        "Polls close (UTC, Nov 4): " + ", ".join(f"{STATES[s]} {POLL_CLOSE[s][11:16]}" for s in states)
+        + (" (Texas 02:00 in El Paso and Hudspeth counties)." if "tx" in states else "."),
     ]
     if phase == "pre-count":
-        notes.insert(0, "Before the count the model's estimate is the past certified results (2024 president / 2022 "
-                        "governor and Senate by county) with its uncertainty; it does not use polls.")
+        notes.insert(0, "Before the count the model's estimate is the past certified results by county (the race "
+                        "configs name which) with its uncertainty; it does not use polls.")
         notes.insert(1, "Pre-count timeline: every 30 minutes over the last 14 days; pm = Polymarket CLOB price "
                         "history, kalshi = Kalshi 1-minute candles sampled at each point (mid if spread ≤ 10c, else "
                         "last trade), P = the model's chance before any votes are counted (constant).")
@@ -1368,11 +1497,14 @@ def overview(now: pd.Timestamp, days: float = 14, step: str = "30min", registry:
     Polymarket and Kalshi P(dem_side), 14 days of history every 30 minutes, Senate holdovers and the chamber control
     markets. Prices only; the county model covers the races in configs/us2026_*_v1.toml (modeled = true)."""
     reg = json.loads((registry or RACES_REGISTRY).read_text())
+    modeled = {load_config(p)["election"]["race_id"] for p in (ROOT_DIR / "configs").glob(f"{EID}_*_v1.toml")}
     grid = pd.date_range(now - pd.Timedelta(days=days), now, freq=step)
 
     def entry(r: dict) -> dict:
         pm_v, k_v = _market_history(r, grid, days)
         out = {k: v for k, v in r.items() if k not in ("pm", "kalshi")}
+        out["modeled"] = r["race_key"] in modeled                 # configs with the county model, as of this run
+        out["race_id"] = r["race_key"] if out["modeled"] else None
         out["pm"] = None if not r.get("pm") else {**r["pm"], "price": _r(_last(pm_v))}
         out["kalshi"] = None if not r.get("kalshi") else {**r["kalshi"], "price": _r(_last(k_v))}
         out["history"] = [[_iso(t), _r(p), _r(k)] for t, p, k in zip(grid, pm_v, k_v)]
@@ -1502,6 +1634,23 @@ def cli(a) -> None:
 # https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt (tests check it against the file).
 
 _COUNTIES = {
+    "az": (
+        "Apache:001,Cochise:003,Coconino:005,Gila:007,Graham:009,Greenlee:011,La Paz:012,Maricopa:013,"
+        "Mohave:015,Navajo:017,Pima:019,Pinal:021,Santa Cruz:023,Yavapai:025,Yuma:027"
+    ),
+    "sc": (
+        "Abbeville:001,Aiken:003,Allendale:005,Anderson:007,Bamberg:009,Barnwell:011,Beaufort:013,"
+        "Berkeley:015,Calhoun:017,Charleston:019,Cherokee:021,Chester:023,Chesterfield:025,Clarendon:027,"
+        "Colleton:029,Darlington:031,Dillon:033,Dorchester:035,Edgefield:037,Fairfield:039,Florence:041,"
+        "Georgetown:043,Greenville:045,Greenwood:047,Hampton:049,Horry:051,Jasper:053,Kershaw:055,"
+        "Lancaster:057,Laurens:059,Lee:061,Lexington:063,McCormick:065,Marion:067,Marlboro:069,Newberry:071,"
+        "Oconee:073,Orangeburg:075,Pickens:077,Richland:079,Saluda:081,Spartanburg:083,Sumter:085,Union:087,"
+        "Williamsburg:089,York:091"
+    ),
+    "vt": (
+        "Addison:001,Bennington:003,Caledonia:005,Chittenden:007,Essex:009,Franklin:011,Grand Isle:013,"
+        "Lamoille:015,Orange:017,Orleans:019,Rutland:021,Washington:023,Windham:025,Windsor:027"
+    ),
     "ca": (
         "Alameda:001,Alpine:003,Amador:005,Butte:007,Calaveras:009,Colusa:011,Contra Costa:013,Del Norte:015,"
         "El Dorado:017,Fresno:019,Glenn:021,Humboldt:023,Imperial:025,Inyo:027,Kern:029,Kings:031,Lake:033,"

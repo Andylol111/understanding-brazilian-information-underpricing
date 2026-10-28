@@ -97,7 +97,7 @@ def test_race_and_party_keys():
 
 # ------------------------------------------------------------------ unit ids = Census county FIPS
 
-@pytest.mark.parametrize("st", ["ca", "tx", "oh", "ga"])
+@pytest.mark.parametrize("st", ["ca", "tx", "oh", "ga", "az", "sc", "vt"])
 def test_county_table_matches_census(st):
     census = _census()[st]
     c = us.counties(st)
@@ -733,3 +733,84 @@ def test_rem_fields_in_precount_and_live_files(tmp_path, monkeypatch):
     assert rows[-1]["rem_total"] < rows[0]["rem_total"] < ca["rem_total"]
     last = json.loads((d / "units" / "ca-gov.json").read_text())["frames"][-1]
     assert len(last["rem"]) == len(last["rem_margin"]) == 58
+
+
+# ------------------------------------------------------------------ AZ (Enhanced Voting), SC (Clarity), VT (static JSON)
+
+def test_parse_az_enhanced_voting_testdata():
+    df = us.parse_ga(rd("az_2026_governor_item_testdata.json.gz"), "az")
+    cty = df[df["level"] == "county"]
+    assert set(df["race"]) == {"gov"} and cty["unit_id"].nunique() == 15
+    assert set(cty["unit_id"]) == set(us.counties("az")["unit_id"])
+    assert {"DEM", "REP"} <= set(df["party"]) and (cty["units"] > 0).all()
+
+
+@pytest.mark.parametrize("eid,races", [("122436", {"pres"}), ("115412", {"gov", "sen"})])
+def test_parse_sc_clarity_totals(eid, races):
+    df = us.parse_clarity(rd(f"sc_{eid}_ALL.json.gz"), rd(f"sc_{eid}_summary.json.gz"), rd(f"sc_{eid}_status.json.gz"))
+    assert set(df["race"]) == races
+    for race, g in df.groupby("race"):
+        state = g[g["level"] == "state"].groupby("candidate")["votes"].sum()
+        units = g[g["level"] == "county"].groupby("candidate")["votes"].sum().reindex(state.index)
+        assert np.allclose(state.to_numpy(), units.to_numpy())
+        assert g.loc[g["level"] == "county", "unit_id"].nunique() == 46
+    abb = df[df["unit_id"] == "us-sc-45001"].iloc[0]
+    assert abb["reporting"] == abb["units"] > 0 and abb["ballots"] > 0 and abb["registered"] > abb["ballots"]
+    if eid == "115412":
+        gov = df[(df["race"] == "gov") & (df["level"] == "state")].set_index("party")["votes"]
+        assert gov["REP"] == 988501 and gov["DEM"] == 692691            # 2022 certified, SC Election Commission
+
+
+def test_parse_vt_towns_to_counties():
+    df = us.parse_vt(rd("vt_2024_main.json.gz"), rd("vt_2024_statewide_governor.json.gz"))
+    assert set(df["unit_id"]) == set(us.counties("vt")["unit_id"]) and set(df["race"]) == {"gov"}
+    tot = df.groupby("party")["votes"].sum()
+    assert tot["REP"] == 266439 and tot["DEM"] == 79217                  # 2024 certified (Vermont SoS)
+    assert (df["reporting"] == df["units"]).all()
+    pre = us.parse_vt(rd("vt_2026_main.json.gz"), rd("vt_2026_statewide_governor.json.gz"))
+    assert pre["votes"].sum() == 0 and (pre["reporting"] == 0).all() and {"DEM", "REP"} <= set(pre["party"])
+
+
+@pytest.mark.parametrize("name", ["us2026_sc_sen_v1", "us2026_sc_gov_v1", "us2026_vt_gov_v1"])
+def test_new_configs_have_public_priors(name):
+    cfg = us.load_config(ROOT / "configs" / f"{name}.toml")
+    pri = us.race_prior(cfg, us.load_priors(us.PUBLIC_PRIORS))
+    assert pri is not None and len(pri) == len(us.counties(cfg["election"]["state"]))
+    res, _ = us.project(us._frame([]), cfg, pri)
+    assert 0 <= res["p_win"] <= 1 and res["rem_total"] > 0
+
+
+def test_snap_resolver_clarity_listing_and_vt_static():
+    import asyncio
+    import httpx
+    from brunder import snap
+    page = ('<a href="https://www.enr-scvotes.org/SC/127000/web.1/#/">2026 Statewide General Election Runoffs</a>'
+            '<a href="https://www.enr-scvotes.org/SC/127500/web.345435/#/summary">2026 General Election</a>')
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        u = str(req.url)
+        if u.endswith("/SC/elections.json"):
+            return httpx.Response(200, json=[])
+        if u.startswith("https://scvotes.gov/"):
+            return httpx.Response(200, text=page)
+        if u.endswith("/SC/127500/current_ver.txt"):
+            return httpx.Response(200, text="380001\n")
+        if u.endswith("/elections/g1.json"):
+            return httpx.Response(200, json={"stateWide": {"path": "elections\\g1-s-20261103230500.json"}})
+        return httpx.Response(404)
+
+    snap._CLARITY_EID.clear()
+    spec = "https://www.enr-scvotes.org/SC|https://scvotes.gov/elections-statistics/election-results/|^\\s*2026 (Statewide )?General Election\\s*$"
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as web:
+            return await snap._resolve(web, [spec], [], "2026-11-03",
+                                       ["https://static.electionresults.vermont.gov/elections/g1.json"])
+    out = dict(asyncio.run(go()))
+    base = "https://www.enr-scvotes.org/SC/127500/380001/json"
+    assert out[us.FEEDS["sc"]["all"]] == f"{base}/ALL.json"
+    assert out[us.FEEDS["sc"]["summary"]] == f"{base}/en/summary.json"
+    assert out[us.FEEDS["sc"]["status"]] == f"{base}/status.json"
+    assert out["vt_static_main"] == "https://static.electionresults.vermont.gov/elections/g1.json"
+    assert out["vt_static_statewide"] == "https://static.electionresults.vermont.gov/elections/g1-s-20261103230500.json"
+    assert snap._CLARITY_EID[spec] == "127500"                          # found once, cached

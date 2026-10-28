@@ -159,6 +159,27 @@ at every checkpoint. These settings are in-sample for Georgia's past races; on 2
 Early-count errors (5–25 % counted) are about 2.5 points in every setting: before Election Day votes arrive, the
 model only knows the early batches and the prior. The sd covers that, which is the point of the wide τ.
 
+## More states (added 2026-10-28; settings chosen without any 2026 general-election data)
+
+| race_id | config | feed (recorder) | units | prior (official) | settings |
+|---|---|---|---|---|---|
+| sc-sen | `us2026_sc_sen_v1` | SC Election Commission Clarity ENR, `enr-scvotes.org/SC/<eid>/<version>/json/{ALL.json, en/summary.json, status.json}`; eid found on the day from scvotes.gov's results page | 46 counties | 2022 Senate share, 2022 governor two-party votes (Clarity, certified) | τ 0.06, ρ 0.3 (GA no-split calibration); complete = all precincts in (status.json PX = PY) → 98 %, learned turnout |
+| sc-gov | `us2026_sc_gov_v1` | same | 46 counties | 2022 governor | as sc-sen |
+| vt-gov | `us2026_vt_gov_v1` | Vermont SoS static JSON `static.electionresults.vermont.gov/elections/<guid>.json` + its statewide file, renamed on every update | 247 towns summed to 14 counties | 2024 governor (same incumbent), votes × 0.72 | τ 0.06, ρ 0.3; county complete when all its towns reported → 98 %, learned turnout |
+
+Arizona governor: the feed is ready, and `parse_ga(item, "az")` reads AZ's Enhanced Voting ballot items, tested on
+the live test data. The race has no config: AZ's certified county results (azsos.gov, apps.azsos.gov) sit behind a
+Cloudflare challenge that is not circumvented. Enhanced Voting holds no earlier AZ general election, and its 2026
+primary covers 3 counties only. AZ is listed with prices in the overview.
+
+Florida: skipped. Its results site is a set of ASP frame pages with no machine-readable county endpoint found in the
+time available.
+
+Settings: SC and VT feeds report no vote-type split, so they use the Georgia calibration without a split (τ 0.06,
+ρ 0.3). Both states count on election night (SC early and absentee ballots, VT town hand counts including
+absentees), so complete counties are taken as 98 % counted, as in GA and TX. SC's `PX`/`PY` were only seen on
+finished elections (equal); that they mean reported/total precincts on the night is an assumption.
+
 ## Before the count (`brunder us preelection`)
 
 ```

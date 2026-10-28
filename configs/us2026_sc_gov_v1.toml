@@ -1,0 +1,41 @@
+# US midterms 2026-11-03, South Carolina governor. Frozen before polls close (2026-11-04 00:00 UTC in SC); the
+# integrator registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence:
+# docs/us_midterms.md. Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_sc_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "sc-gov"
+name = "South Carolina governor"
+state = "sc"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "sc"                    # brunder.us.FEEDS (Clarity ENR, eid resolved on the day)
+poll_close_utc = "2026-11-04T00:00:00Z"
+a = { party = "DEM", name = "Jermaine Johnson", color = "#1f5fbf" }
+b = { party = "REP", name = "Alan Wilson", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "sc_gov_2022"        # 2022 governor (Cunningham v McMaster): same office, last midterm (SC Election Commission)
+votes = "sc_gov_2022"        # 2022 governor two-party votes
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays without a vote-type split (the SC feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# As sc-sen.
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "south-carolina-governor-winner-2026"
+market = "will-the-democrats-win-the-south-carolina-governor-race-in-2026"
+question = "Will the Democrats win the South Carolina governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

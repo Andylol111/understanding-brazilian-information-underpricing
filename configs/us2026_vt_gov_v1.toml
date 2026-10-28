@@ -1,0 +1,43 @@
+# US midterms 2026-11-03, Vermont governor. Frozen before polls close (2026-11-04 00:00 UTC in VT); the integrator
+# registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence:
+# docs/us_midterms.md. Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_vt_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "vt-gov"
+name = "Vermont governor"
+state = "vt"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "vt"                    # brunder.us.FEEDS (Vermont SoS static JSON; towns summed to the 14 counties)
+poll_close_utc = "2026-11-04T00:00:00Z"
+a = { party = "DEM", name = "Amanda Janoo", color = "#1f5fbf" }
+b = { party = "REP", name = "Phil Scott", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "vt_gov_2024"        # 2024 governor (Charlestin v Scott): same office and incumbent (Vermont SoS; VT elects governors every 2 years)
+votes = "vt_gov_2024"        # 2024 governor two-party votes × 0.72 (midterm / presidential-year ratio, below)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays without a vote-type split (the VT feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# Vermont towns count all ballots, absentee included, on election night: a county is complete when all its towns
+# reported (98% of its vote assumed in); complete counties re-scale the rest. turnout_ratio 0.72 = mean 2022/2024
+# two-party vote ratio in the CA, TX and GA official data of this project (0.69, 0.71, 0.75).
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "vermont-governor-winner-2026"
+market = "will-the-democrats-win-the-vermont-governor-race-in-2026"
+question = "Will the Democrats win the Vermont governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""
