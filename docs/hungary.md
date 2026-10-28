@@ -191,7 +191,10 @@ The results:
   - `tests/test_hungary.py`
 - **Config:** `configs/hu2026_v1.toml`, to be registered by the integrator.
 - **Site:**
-  - `site/data/hu2026/{meta,timeline,units,stats,entry}.json`
+  - `site/data/hu2026/{meta,timeline,units,stats,entry}.json`. Timeline rows and map frames cover poll close (19:00
+    CEST) to 08:00 CEST, i.e. the 40 night publications. The official final is a meta note and `stats.final`; later
+    publications are scored but not drawn. `stats.settle_gated` gives, per dashboard race, gate = first publication
+    with >= 1% counted, model = max(model settle, gate), and the lead vs Polymarket in minutes.
   - `site/data/geo/hu_districts.topo.json`
   - The geometry is from the NVI `OevkPoligonok.json`, simplified, 0.08 MB.
 

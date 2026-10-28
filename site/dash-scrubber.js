@@ -30,12 +30,14 @@ export function createScrubber(root, { onInput }) {
     svg.append("path").datum(rows).attr("fill", C.raw).attr("opacity", 0.35)
       .attr("d", d3.area().x((d) => x(+d.time)).y0(yBot).y1((d) => y(d.counted ?? 0)).curve(d3.curveStepAfter));
     svg.append("line").attr("x1", pad).attr("x2", w - pad).attr("y1", yBot).attr("y2", yBot).attr("stroke", "#bdb9ae");
-    // hour ticks
+    // hour ticks; past 24 h the labels carry the day ("12 Apr 22:00") and need more room
     const hours = (st.domain[1] - st.domain[0]) / 3600000;
-    const every = [1, 2, 3, 4, 6, 12].find((s) => (w / Math.max(1, hours)) * s >= 46) ?? 24;
+    const long = hours > 24;
+    const gapPx = long ? 84 : 46;
+    const every = [1, 2, 3, 4, 6, 12, 24, 48, 96].find((s) => (w / Math.max(1, hours)) * s >= gapPx) ?? 168;
     const ticks = d3.utcHour.every(every).range(st.wall(st.domain[0]), st.wall(st.domain[1]));
     svg.append("g").selectAll("text").data(ticks).join("text").attr("class", "scrub-tick")
-      .attr("x", (d) => x(+d - (+st.wall(0)))).attr("y", h - 0).attr("text-anchor", "middle").text(d3.utcFormat("%H:%M"));
+      .attr("x", (d) => x(+d - (+st.wall(0)))).attr("y", h - 0).attr("text-anchor", "middle").text(d3.utcFormat(long ? "%-d %b %H:%M" : "%H:%M"));
     // event markers: labels on two rows; markers within 40 px of the previous one go on the other row
     const ev = st.events.filter((e) => e.t != null).map((e) => ({ ...e, x: x(Math.max(st.domain[0], Math.min(st.domain[1], e.t))) })).sort((a, b) => a.x - b.x);
     const rowsEnd = [-Infinity, -Infinity];

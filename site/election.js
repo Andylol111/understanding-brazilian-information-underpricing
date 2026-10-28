@@ -464,7 +464,7 @@ function drawChart() {
   });
   const g = S.gateCut;
   $("tl-note").textContent = g
-    ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the ${esc(mainRace().name.toLowerCase())} vote was counted (at most ${pct(g.maxBefore)}).`
+    ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the vote was counted${g.maxBefore != null ? ` (at most ${pct(g.maxBefore)})` : ""}.`
     : "";
   S.tl.setCursor(S.t, S.preview);
 }

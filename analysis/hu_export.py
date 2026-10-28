@@ -21,7 +21,7 @@ from brunder.paths import POLYMARKET, ROOT
 RES = ROOT / "results" / "hungary"
 OUT = ROOT / "site" / "data" / "hu2026"
 CFG = ROOT / "configs" / "hu2026_v1.toml"
-NIGHT_END = pd.Timestamp("2026-04-13T08:00:00Z")
+NIGHT_END = pd.Timestamp("2026-04-13T06:00:00Z")    # 08:00 CEST
 TISZA, FIDESZ = "#253ba3", "#ee8016"          # party colours as published by the NVI (Jlcs.json)
 YES, NO = "#1b1b1b", "#9a9a9a"
 # race id -> (name, A, B, columns (counted, raw, share, sd), P column, price market, markets with yes_is)
@@ -57,6 +57,22 @@ def num(x, n=4):
     return None if x is None or pd.isna(x) else round(float(x), n)
 
 
+def settle_gated(R: pd.DataFrame, S: dict) -> dict:
+    out = {}
+    for rid, (_, _, _, cols, _, pm_id, _) in RACES.items():
+        ok = R.loc[R[cols[0]] >= 0.01, "t"]
+        gate = pd.Timestamp(ok.min()) if len(ok) else None
+        s = S["settle"][pm_id]
+        ms = pd.Timestamp(s["model"]) if s.get("model") else None
+        gm = max(ms, gate) if ms is not None and gate is not None else None
+        ps = pd.Timestamp(s["polymarket"]) if s.get("polymarket") else None
+        out[rid] = {"gate": iso(gate) if gate is not None else None, "model": iso(gm) if gm is not None else None,
+                    "polymarket": s.get("polymarket"), "kalshi": None, "raw": s.get("raw"),
+                    "lead": int(round((ps - gm).total_seconds() / 60)) if ps is not None and gm is not None else None,
+                    "lead_vs": "polymarket", "market": pm_id}
+    return out
+
+
 def main() -> None:
     cfg = hu.load_config(CFG)
     R = pd.read_csv(RES / "releases.csv", parse_dates=["t"])
@@ -65,11 +81,9 @@ def main() -> None:
     S = json.loads((RES / "stats.json").read_text())
     qs = {m["id"]: m for m in cfg["markets"]}
 
-    # ---- timeline: minutes through the night, then each later publication
+    # ---- timeline: one row per minute from poll close (19:00 CEST) to 08:00 CEST the next morning
     rel = R.set_index("t").sort_index()
-    grid = pd.date_range(pd.Timestamp(cfg["poll_close_utc"]), NIGHT_END, freq="1min")
-    later = rel.index[rel.index > NIGHT_END]
-    times = grid.union(later)
+    times = pd.date_range(pd.Timestamp(cfg["poll_close_utc"]), NIGHT_END, freq="1min")
     timeline = {}
     for rid, (_, _, _, cols, pcol, pm_id, _) in RACES.items():
         step = lambda s: s.reindex(s.index.union(times)).ffill().reindex(times)  # noqa: E731
@@ -82,13 +96,13 @@ def main() -> None:
                           "pm": num(px.iloc[i], 4), "kalshi": None} for i, t in enumerate(times)]
     dump("timeline.json", timeline)
 
-    # ---- units: prior and one frame per publication
+    # ---- units: prior and one frame per publication of the night
     prior = hu.prior_2022_for_2026(cfg)["district"].set_index("cd_mun")
     E = hu.ELECTIONS[2026]
     oevk = {hu.unit_id(r["maz"], r["evk"]): r for r in hu._list(hu._j(2026, f"{E['ver']}/ver/OevkAdatok.json"))}
     ids = sorted(prior.index)
     frames = []
-    for (v, t), g in D.groupby(["v", "t"], sort=True):
+    for (v, t), g in D[D["t"] <= NIGHT_END].groupby(["v", "t"], sort=True):
         g = g.set_index("unit").reindex(ids)
         frames.append({"t": iso(t), "f": [int(round(1000 * x)) for x in g["f"].fillna(0)],
                        "a": [int(round(1000 * x)) if pd.notna(x) else -1 for x in g["raw"]],
@@ -127,9 +141,14 @@ def main() -> None:
                 "race) or of the expected two-way list vote counted, incl. postal ballots (list race).",
                 "Share and raw are Tisza's share of the Tisza + Fidesz-KDNP vote. Map prior = the 2022 joint opposition's "
                 "two-way share, mapped onto the 2024 district map by polling station.",
-                "The count is replayed from the 40 official publications of election night (every 10 min from 20:00 CEST) "
-                "and 12 later ones; each is used from its publication time. Minute rows run to 08:00 UTC on 13 April, "
-                "then one row per later publication.",
+                "The count is replayed from the 40 official publications of election night (every 10 min from 20:00 "
+                "CEST, last at 06:00 CEST); each is used from its publication time. Timeline and map cover poll close "
+                "(19:00 CEST) to 08:00 CEST; later publications (postal and envelope ballots, to 7 May) are scored in "
+                "the stats but not drawn.",
+                (f"Official final (NVI, 7 May): Tisza {S['final']['seats_a']} seats, Fidesz-KDNP {S['final']['seats_b']}; "
+                 f"Tisza {100 * S['final']['list_share']:.2f}% of the two-way list vote (margin {S['final']['margin_pt']:.2f} "
+                 f"pts of all party-list votes), {100 * S['final']['smd_share']:.2f}% of the two-way district vote; "
+                 f"turnout {100 * S['final']['turnout']:.2f}%."),
                 "P for seat and margin markets comes from joint simulation of all districts and the list vote through "
                 "the seat law (D'Hondt with compensation votes); the next-PM markets are priced as 'most seats'.",
                 "Evidence: " + S["evidence_note"]]}
@@ -139,10 +158,15 @@ def main() -> None:
     stats = {"calibration": S["calibration"],
              "settle": {k: {kk: v.get(kk) for kk in ("model", "polymarket", "kalshi", "raw", "contested", "lead_min")}
                         for k, v in S["settle"].items()},
-             "settle_summary": S["settle_summary"], "catchup": S["catchup"], "early_error": S["early_error"],
+             "settle_summary": S["settle_summary"], "settle_gated": settle_gated(R, S), "catchup": S["catchup"],
+             "early_error": S["early_error"],
              "capacity": S["capacity"], "arbitrage": None,
-             "evidence": {k: "not-preregistered" for k in ("settle", "calibration", "catchup", "early_error", "capacity", "profit")},
+             "evidence": {k: "not-preregistered" for k in ("settle", "settle_gated", "calibration", "catchup", "early_error",
+                                                          "capacity", "profit")},
              "evidence_note": S["evidence_note"], "final": S["final"], "final_seats": S["final_seats"],
+             "settle_gated_note": "per race (its first market): gate = first publication with >= 1% counted for the "
+                                  "race; model = max(model settle, gate); lead = Polymarket settle - gated model settle, "
+                                  "minutes (settle = staying >= 0.9 on the outcome to the end of the price window)",
              "reasons": S["reasons"] | {"calibration": "edge-audit window: minutes with 1-95% counted from the first "
                                                        "publication to the end of the price window (6 days)"},
              "accuracy": S["accuracy"], "profit": S["profit"]}

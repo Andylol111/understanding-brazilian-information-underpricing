@@ -70,7 +70,8 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, count
   // probability panel
   svg.insert("g", "g").attr("class", "grid").selectAll("line").data([0, 0.5, 1]).join("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP).attr("y2", yP);
   svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yP).tickValues([0, 0.5, 0.9]).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
-  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${top2 + h2})`).call(d3.axisBottom(x).ticks(Math.max(3, Math.floor((width - m.l - m.r) / 70))).tickFormat(d3.utcFormat("%H:%M")).tickSizeOuter(0));
+  const long = domain[1] - domain[0] > 24 * 3600000; // past 24 h, ticks carry the day ("12 Apr 22:00")
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${top2 + h2})`).call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((width - m.l - m.r) / (long ? 100 : 70)))).tickFormat(d3.utcFormat(long ? "%-d %b %H:%M" : "%H:%M")).tickSizeOuter(0));
   svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", top2 - 7).text(`Probability ${race.a.name} wins`);
   for (const v of [0.1, 0.9]) g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP(v)).attr("y2", yP(v)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
   const step = (k) => d3.line().defined((d) => d[k] != null).x(X).y((d) => yP(d[k])).curve(d3.curveStepAfter);
