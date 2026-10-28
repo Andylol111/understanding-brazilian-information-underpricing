@@ -1,15 +1,23 @@
-# Serves the dashboard (site/) and the live files the model writes into site/data/ on localhost only;
-# brunder-tunnel publishes it. Same origin for pages and live data, so no CORS is needed.
+# Live data server for the election-night dashboard (src/brunder/liveserve.py): serves only site/data/us2026/**.json
+# plus elections.json and summary.json, on localhost; brunder-tunnel publishes it. Pages and geometry come from GitHub
+# Pages (election.html?id=us2026&live=<tunnel URL>), which reads these files cross-origin (CORS for the Pages origin).
+# gzip once per file change, ETag/304, no directory listing. Stdlib only: system python3 (>= 3.10), no project venv.
 [Unit]
-Description=brunder dashboard static server (localhost)
+Description=brunder live dashboard data server (localhost)
 
 [Service]
 User=brunder
-WorkingDirectory=/srv/brunder/repo/site
-ExecStart=/usr/bin/python3 -m http.server 8790 --bind 127.0.0.1
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONPATH=/srv/brunder/repo/src PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -m brunder.liveserve --root /srv/brunder/repo/site/data --election us2026 \
+  --host 127.0.0.1 --port 8790
 Restart=on-failure
-RestartSec=10
+RestartSec=5
 Nice=10
 CPUQuota=20%
 MemoryMax=256M
+LimitNOFILE=4096
 RuntimeMaxSec=2d
+NoNewPrivileges=yes
+ProtectSystem=strict
+PrivateTmp=yes

@@ -191,6 +191,64 @@ step raises publishes nothing for that minute and is retried on the next pass (l
 minute is left out; replay: left out at once) while the other races keep publishing, with no duplicate minutes.
 Open errors are printed every pass.
 
+## Serving the live dashboard
+
+Public URL on the night (pages and geometry from GitHub Pages, live files through the tunnel):
+
+```
+https://andylol111.github.io/understanding-brazilian-information-underpricing/election.html?id=us2026&live=<tunnel URL>
+```
+
+The tunnel URL is a random `https://<words>.trycloudflare.com` printed by cloudflared when brunder-tunnel starts,
+and it changes whenever that service restarts (re-publish the link then):
+
+```
+ssh oracle-slotbank 'journalctl -u brunder-tunnel | grep trycloudflare'
+ssh oracle-slotbank 'journalctl -u brunder-tunnel | grep -o "https://[a-z0-9-]*\.trycloudflare\.com" | tail -1'
+```
+
+`brunder-election-night.timer` (2026-11-03 22:30 UTC) starts three capped services: brunder-us-live (writes
+`site/data/us2026/` every 30 s), brunder-site and brunder-tunnel (Cloudflare quick tunnel to 127.0.0.1:8790).
+brunder-site runs `brunder.liveserve` (stdlib only, system `python3` ≥ 3.10, one asyncio loop): it serves only
+`us2026/**.json`, `elections.json` and `summary.json` from `site/data`, and 404 for everything else (no directory
+listing; `..`, percent-encoding, backslashes and symlinks out of the root are refused). Each file is read and
+gzipped once per change (the model replaces files atomically) and served from memory with
+`Cache-Control: public, max-age=10`, a content-hash `ETag` (a rewrite with the same content still answers 304),
+`Last-Modified` and `Access-Control-Allow-Origin: https://andylol111.github.io` (also on 404, so a missing optional
+file is a 404 to the page rather than a CORS error); GET/HEAD/OPTIONS only, no request bodies, 16 kB of headers,
+at most 1024 open connections (the longest-idle keep-alive is closed to admit a new one; 503 only when all are
+busy). One journal line a minute: `journalctl -u brunder-site` shows requests, 200/304/404 counts and MB sent.
+
+With `&live=` the page polls timeline/stats/arb and the selected race's units file every 15 s with
+`fetch(..., {cache: "no-cache"})`, so the browser revalidates (If-None-Match) and an unchanged file costs a 304.
+A failed refresh keeps the last good data and backs off 15 → 30 → 60 → 120 s, reset on the next success; a hidden
+tab does not poll. The top bar shows "Live · updated N s ago" or "Reconnecting… · updated N ago". Only a 404 counts
+as a missing optional file; a 5xx from the tunnel is a failed refresh, never an empty timeline.
+
+Local check: `PYTHONPATH=src python3 -m brunder.liveserve --root results/us_rehearsal/site_data --election us2026
+--allow-origin http://localhost:8000 --port 8790` with `python3 -m http.server 8000 -d site`, then
+`http://localhost:8000/election.html?id=us2026&live=http://127.0.0.1:8790/`.
+
+Payload (synthetic rehearsal, `analysis/us_rehearsal.py`, 5.2 h of minutes): timeline.json 262 kB raw / 12 kB
+gzipped; units/<race>.json 47–187 kB / 8–29 kB (bounded: ≤ 60 frames); meta.json 5 kB / 1.5 kB. The rehearsal
+compresses unusually well; a timeline with realistic noise is ~10 gzipped bytes per row and race, so 7 races reach
+~150 kB gzipped after ~21 h and ~250 kB (1.85 MB raw) at 37 h, every 30 s to every open page. If that matters,
+the incremental format is: the exporter also writes `timeline_tail.json` (the last 60 minutes per race, ~6 kB
+gzipped); the page loads timeline.json once and then polls only the tail, merging rows by `t`.
+
+Load test (local, Apple M-series, server on Python 3.10, 2 min, 300 clients each polling timeline + stats + arb +
+one units file every 15 s like the page, with If-None-Match, while the files are rewritten every 30 s):
+
+| data | origin connections | requests (200/304/404/503) | p50 / p99 / max | server CPU (mean / max of one core) | RSS max |
+|---|---|---|---|---|---|
+| rehearsal | pool of 100 (as cloudflared) | 9584 (2400/2392/4792/0) | 3.9 / 13.1 / 70 ms | 2.2 % / 4.8 % | 30 MB |
+| 37 h timeline (250 kB gz) | pool of 100 | 9600 (2400/2400/4800/0) | 4.1 / 10.8 / 41 ms | 1.7 % / 6.0 % | 35 MB |
+| 37 h timeline | up to 4 per client (~1200 sockets > the 1024 cap: idle ones closed) | 9524 (2400/2362/4762/0) | 6.0 / 23.5 / 55 ms | 4.2 % / 9.1 % | 63 MB |
+
+About 80 requests/s, a few percent of one core: well inside `CPUQuota=20%` and `MemoryMax=256M`. The limit is
+egress, not the server: with a 250 kB timeline, 300 pages pull ~2.7 MB/s (the tail format above cuts that to
+~0.1 MB/s). Gzipping that timeline once per change takes ~30 ms here (longer on the VM), once every 30 s.
+
 ## Known weaknesses
 
 - The expected vote is the weak point where completion flags are ignored (CA): a turnout far from the assumption
