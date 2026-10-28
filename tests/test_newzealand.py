@@ -72,6 +72,14 @@ def test_projection_finishes_at_the_count_and_outcomes():
                {"rid": "lab-ahead", "kind": "vote_ahead", "a": "LAB", "b": "NAT"}]
     out = nz.outcomes(votes, seats, p.parties, markets)
     assert set(out) == {"nat", "lab-ahead"} and len(out["nat"]) == 100
+    independent = c.copy()
+    independent.loc[1, [f"cv_{x}" for x in nz.PARTY_KEYS]] = 0
+    independent.loc[1, "cv_IND"] = 100
+    p_ind = nz.project(units, independent, nz.Settings(draws=100, floor_log_sd=0, candidate_log_sd=0))
+    _, electorate_ind, seats_ind = nz.seat_draws(
+        p_ind, nz.Settings(draws=100, floor_log_sd=0, candidate_log_sd=0), np.random.default_rng(1))
+    assert np.all(electorate_ind.sum(1) == 1)
+    assert np.all(seats_ind.sum(1) == 119)
 
 
 def test_feed_urls_are_bounded_electorate_aggregates():
@@ -88,3 +96,16 @@ def test_liveserve_allows_nz_when_configured(tmp_path):
     files = liveserve.Files(root, ["nz2026"], [])
     assert files.resolve("/nz2026/timeline_tail.json") == root / "nz2026" / "timeline_tail.json"
     assert files.resolve("/us2026/timeline_tail.json") is None
+
+
+def test_v2_only_adds_rank_markets_to_v1():
+    root = Path(__file__).parents[1] / "configs"
+    v1 = nz.load_config(root / "nz2026_v1.toml")
+    v2 = nz.load_config(root / "nz2026_v2.toml")
+    assert v2["model"] == v1["model"]
+    assert v2["prior"] == v1["prior"]
+    assert v2["seed"] == v1["seed"]
+    assert v2["feed"] == v1["feed"]
+    assert v2["markets"][:len(v1["markets"])] == v1["markets"]
+    assert len(v2["markets"]) == len(v1["markets"]) + 12
+    assert {(m["kind"], m["rank"]) for m in v2["markets"][len(v1["markets"]):]} == {("rank", 2), ("rank", 3)}

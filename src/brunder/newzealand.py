@@ -1,8 +1,8 @@
 """New Zealand 2026 general election: official XML feed, MMP seats, nowcast and dashboard export.
 
 The election-night source is the Electoral Commission's public XML media feed documented in its 2026
-Media Kit.  The recorder polls the five small reference files and 71 electorate aggregate files; it does
-not crawl the 9,000-plus voting-place result files.  Each snapshot is saved only when its bytes change.
+Media Kit. The recorder polls the five small reference files and 71 electorate aggregate files; it does
+not crawl the thousands of voting-place result files. Each snapshot is saved only when its bytes change.
 
 Seat allocation follows Electoral Act 1993 ss 191--193: parties with at least 5% of valid party votes or
 one electorate seat enter the Sainte-Lague allocation; quotients use divisors 1, 3, 5, ...; electorate
@@ -16,7 +16,6 @@ import asyncio
 import csv
 import gzip
 import hashlib
-import io
 import json
 import math
 import os
@@ -342,8 +341,9 @@ def empty_counts(units: pd.DataFrame) -> pd.DataFrame:
     d = pd.DataFrame(index=units.index)
     for c in ("f", "places", "places_total", "valid"):
         d[c] = 0.0
-    for p in PARTY_KEYS:
-        d[f"pv_{p}"] = 0.0
+    for p in (*PARTY_KEYS, "IND"):
+        if p != "IND":
+            d[f"pv_{p}"] = 0.0
         d[f"cv_{p}"] = 0.0
     return d
 
@@ -395,7 +395,8 @@ def project(units: pd.DataFrame, count: pd.DataFrame, st: Settings) -> Projectio
     mean = observed + rem.sum(0)
     final_u = cv + rem
     final_u /= np.maximum(final_u.sum(1, keepdims=True), 1e-12)
-    cand = C[[f"cv_{p}" for p in parties]].to_numpy(float)
+    candidate_keys = [*parties, "IND"]
+    cand = C[[f"cv_{p}" for p in candidate_keys]].to_numpy(float)
     cand_tot = cand.sum(1)
     cand_share = np.divide(cand, cand_tot[:, None], out=np.zeros_like(cand), where=cand_tot[:, None] > 0)
     places_total = C["places_total"].to_numpy(float)
@@ -414,9 +415,12 @@ def simulate(p: Projection, st: Settings, rng: np.random.Generator) -> tuple[np.
     sh /= sh.sum(1, keepdims=True)
     votes = sh * p.expected_total
     ratio = sh / np.maximum(base[None, :], 1e-12)
-    seats = np.zeros((st.draws, len(base)), dtype=np.int64)
+    # The last candidate column is IND (including candidates whose party did not submit a list). It can win an
+    # electorate but has no party-vote baseline and is excluded from party market rankings.
+    seats = np.zeros((st.draws, len(base) + 1), dtype=np.int64)
     for i, (_, u) in enumerate(p.unit.iterrows()):
-        score = p.unit_shares[i][None, :] * ratio
+        party_score = p.unit_shares[i][None, :] * ratio
+        score = np.column_stack([party_score, np.zeros(st.draws)])
         f = float(u["f"])
         if p.candidate_shares[i].sum() > 0:
             blend = min(1.0, f / max(st.lock_fraction, 1e-9))
@@ -432,8 +436,9 @@ def simulate(p: Projection, st: Settings, rng: np.random.Generator) -> tuple[np.
 
 
 def seat_draws(p: Projection, st: Settings, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    votes, electorate = simulate(p, st, rng)
-    return votes, electorate, allocate_many(votes, electorate)
+    votes, electorate_all = simulate(p, st, rng)
+    electorate, independent = electorate_all[:, :-1], electorate_all[:, -1]
+    return votes, electorate, allocate_many(votes, electorate, independent_seats=independent)
 
 
 def outcomes(votes: np.ndarray, seats: np.ndarray, parties: list[str], markets: list[dict]) -> dict[str, np.ndarray]:
@@ -835,10 +840,21 @@ def ingest(source: Path | str, year: int) -> Path:
     copied = []
     for name in expected:
         p = source / name
-        if not p.exists(): raise FileNotFoundError(p)
+        if not p.exists():
+            raise FileNotFoundError(p)
         text = p.read_text(encoding="utf-8-sig")
-        if "Election" not in text and "electorate" not in text.lower(): raise ValueError(f"unexpected file: {p}")
-        shutil.copyfile(p, dest / name); copied.append(name)
+        if "Election" not in text and "electorate" not in text.lower():
+            raise ValueError(f"unexpected file: {p}")
+        shutil.copyfile(p, dest / name)
+        copied.append(name)
+    for p in sorted(source.glob("*-votes-by-voting-place-*.csv")):
+        text = p.read_text(encoding="utf-8-sig")
+        if "Vote Details" not in text:
+            raise ValueError(f"unexpected voting-place file: {p}")
+        if p.name.startswith("party-"):
+            read_voting_place_party_votes(p)
+        shutil.copyfile(p, dest / p.name)
+        copied.append(p.name)
     print(f"ingested {', '.join(copied)} into {dest}")
     return dest
 

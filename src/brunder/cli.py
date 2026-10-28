@@ -114,7 +114,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--force", action="store_true", help="preelection: overwrite live/replay files")
     s = sub.add_parser("nz", help="New Zealand 2026: ingest official files; record, preelection, live, replay")
     s.add_argument("step", choices=["ingest", "record", "preelection", "export", "live"])
-    s.add_argument("config", nargs="?", type=Path, default=Path("configs/nz2026_v1.toml"))
+    s.add_argument("config", nargs="?", type=Path, default=Path("configs/nz2026_v2.toml"))
     s.add_argument("--source", type=Path, help="ingest: directory containing official browser downloads")
     s.add_argument("--year", type=int, default=2023, help="ingest: election year")
     s.add_argument("--out", type=Path, default=Path("site/data"))

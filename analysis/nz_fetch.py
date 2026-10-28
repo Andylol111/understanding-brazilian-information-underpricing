@@ -11,7 +11,6 @@ URLs in docs/newzealand.md, put them in one directory, then run:
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 import httpx

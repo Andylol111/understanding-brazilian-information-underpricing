@@ -1,14 +1,25 @@
 [
  {
   "id": "us2026",
-  "name": "US midterms: governor and Senate races in CA, TX, OH, GA",
+  "name": "US midterms: every Senate and governor race (county model in CA, TX, OH, GA)",
   "date": "2026-11-03",
   "country": "US",
   "status": "scheduled",
   "unit_level": "county",
   "n_units": 559,
   "evidence": "forward",
-  "summary": "County-level model frozen before polls close; it will run live on election night against Polymarket prices, and the replay will be posted here afterwards."
+  "summary": "Every Senate and governor race with live Polymarket and Kalshi prices; in California, Texas, Ohio and Georgia a county-level model frozen before polls close runs live against the markets on election night.",
+ },
+ {
+  "id": "nz2026",
+  "name": "New Zealand general election",
+  "date": "2026-11-07",
+  "country": "NZ",
+  "status": "scheduled",
+  "unit_level": "electorate",
+  "n_units": 71,
+  "evidence": "forward",
+  "summary": "A model frozen before polls close will follow the official count by electorate, project party votes and seats, and run live against Polymarket and Kalshi."
  },
  {
   "id": "br2026r2",

@@ -1,0 +1,16 @@
+# Live New Zealand model (configs/nz2026_v2.toml, registered): re-reads the recorder's archive every 60 s and
+# rewrites site/data/nz2026/, which brunder-site serves. Started by brunder-nz-night.timer.
+[Unit]
+Description=brunder live model: New Zealand general election 2026-11-07
+After=brunder-nz-record.service
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder nz live configs/nz2026_v2.toml --out /srv/brunder/repo/site/data --interval 60 --until 2026-11-28T12:00Z
+Restart=on-failure
+RestartSec=30
+Nice=10
+CPUQuota=30%
+MemoryMax=1G

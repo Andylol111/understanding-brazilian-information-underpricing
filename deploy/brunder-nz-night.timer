@@ -1,0 +1,10 @@
+[Unit]
+Description=Start the New Zealand live model, data server and tunnel (2026-11-07, 1 h before polls close at 06:00 UTC)
+
+[Timer]
+OnCalendar=2026-11-07 05:00:00 UTC
+Persistent=true
+Unit=brunder-nz-night.target
+
+[Install]
+WantedBy=timers.target

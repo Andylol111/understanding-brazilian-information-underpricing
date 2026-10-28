@@ -283,7 +283,8 @@ def test_export_dry_run_writes_valid_contract(tmp_path):
     tl = json.loads((d / "timeline.json").read_text())[rid]
     assert len(tl) == 116                                              # 04:05 … 06:00, one row per minute
     for row in tl:
-        assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "pm", "kalshi"}
+        assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "pm", "kalshi", "rem_total", "rem_margin_total"}
+        assert isinstance(row["rem_total"], int) and row["rem_total"] % 10 == 0 and row["rem_total"] >= 0
         assert 0 <= row["counted"] <= 1 and 0 <= row["P"] <= 1 and row["kalshi"] is None
     assert tl[-1]["pm"] == pytest.approx(0.96) and tl[-1]["counted"] > tl[0]["counted"]
     units = json.loads((d / "units" / f"{rid}.json").read_text())
@@ -689,3 +690,46 @@ def test_live_refreshes_overview_from_books(tmp_path, monkeypatch):
     assert r["history"][-2][1:] == [pytest.approx(0.71), pytest.approx(0.69)] and r["history"][-3][1] is None
     assert ov["offices"]["senate"]["control_markets"][0]["price"] == pytest.approx(0.71)
     assert ov["as_of"].startswith("2026-11-04T05:00")
+
+
+# ------------------------------------------------------------------ outstanding-vote display fields
+
+def test_remaining_votes_consistent_with_projection():
+    pri = _pri()
+    truth = np.clip(pri["s0"] + 0.03, 0, 1).to_numpy()
+    rows = _rows(pri.iloc[::2], truth[::2], 0.4)
+    res, units = us.project(rows, _cfg(), pri)
+    n, a = units["n"].sum(), units["a"].sum()
+    # projected final share = (counted + remaining) margins over all votes, exactly as the nowcast computes it
+    assert (2 * a - n + res["rem_margin_total"]) / (n + res["rem_total"]) == pytest.approx(2 * res["share_hat"] - 1)
+    assert res["rem_total"] == pytest.approx(units["rem"].sum()) and (units["rem"] >= 0).all()
+    assert abs(units["rem_margin"]).le(units["rem"] + 1e-9).all()
+    full, u_full = us.project(_rows(pri, truth, 1.0, complete=True), _cfg(f_complete=1.0), pri)
+    assert full["rem_total"] == pytest.approx(0, abs=1e-6) and u_full["rem"].abs().max() < 1e-6
+    pre, u_pre = us.project(_rows(pri, pri["s0"], 0.0).iloc[:0], _cfg(), pri)
+    assert pre["rem_total"] == pytest.approx(pri["V"].sum())                # before the count: all expected votes
+    assert pre["rem_margin_total"] == pytest.approx(((2 * pri["s0"] - 1) * pri["V"]).sum())
+
+
+def test_rem_fields_in_precount_and_live_files(tmp_path, monkeypatch):
+    paths, priors, by_state, pairs = _pre_setup(tmp_path, monkeypatch)
+    out = tmp_path / "site"
+    d = us.preelection(paths, out, days=1, now=NOW, priors=priors, pairs_path=pairs)
+    tl = json.loads((d / "timeline.json").read_text())
+    ca = tl["ca-gov"][-1]
+    assert ca["rem_total"] == int(round(by_state["ca"]["V"].sum(), -1)) and ca["rem_total"] % 10 == 0
+    assert tl["oh-sen"][-1]["rem_total"] is None
+    fr = json.loads((d / "units" / "ca-gov.json").read_text())["frames"][0]
+    assert all(isinstance(x, int) and x % 10 == 0 for x in fr["rem"] + fr["rem_margin"])
+    assert abs(sum(fr["rem"]) - ca["rem_total"]) <= 10 * len(fr["rem"])
+    snap = tmp_path / "snap"
+    (snap / us.FEEDS["ca"]["results"]).mkdir(parents=True)
+    for t, scale in (("20261104T040500", 0.2), ("20261104T042000", 0.5)):
+        (snap / us.FEEDS["ca"]["results"] / f"{t}.000000Z.json").write_bytes(_ca_snapshot(scale, 0.0, by_state["ca"]))
+    ex = us.Exporter(paths, snap, priors=priors, pairs_path=pairs)
+    ex.update()
+    d = ex.write(out)
+    rows = [r for r in json.loads((d / "timeline.json").read_text())["ca-gov"] if r["counted"] is not None]
+    assert rows[-1]["rem_total"] < rows[0]["rem_total"] < ca["rem_total"]
+    last = json.loads((d / "units" / "ca-gov.json").read_text())["frames"][-1]
+    assert len(last["rem"]) == len(last["rem_margin"]) == 58

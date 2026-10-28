@@ -1,0 +1,9 @@
+[Unit]
+Description=Start the New Zealand feed recorder (18 h before polls close at 2026-11-07 06:00 UTC)
+
+[Timer]
+OnCalendar=2026-11-06 12:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
