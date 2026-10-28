@@ -85,8 +85,10 @@ def rows_at(ev: pd.DataFrame, upto: int) -> pd.DataFrame:
 
 def main() -> None:
     priors = us.load_priors()
+    # the production Georgia [count] settings (configs/us2026_ga_*_v1.toml) except turnout_ratio, set per race
     cfg_base = {"election": {"state": "ga", "race": "x", "a": {"party": "DEM"}, "b": {"party": "REP"}},
-                "prior": {}, "count": {"f_complete": 0.98, "learn_turnout": True, "f_max": 0.95}}
+                "prior": {}, "count": {"f_complete": 0.98, "learn_turnout": True, "f_max": 0.95,
+                                       "early_share": 0.64}}
     rng = np.random.default_rng(20261103)
     results = []
     for name, eid, race, prior_src, ratio in RACES:

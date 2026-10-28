@@ -14,6 +14,7 @@ import asyncio
 import gzip
 import hashlib
 import json
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -109,7 +110,11 @@ async def run(tag: str, urls: list[str], pm_events: list[str], interval: float =
         d.mkdir(parents=True, exist_ok=True)
         big = len(body) > 1_000_000                       # e.g. Texas county files, ~5 MB each
         f = d / f"{t:%Y%m%dT%H%M%S.%fZ}.{ext}{'.gz' if big else ''}"
-        f.write_bytes(gzip.compress(body) if big else body)
+        # write elsewhere, then rename: readers scanning `d` (the live model) only ever see complete files
+        tmp = out / ".tmp" / f"{key}.{f.name}"
+        tmp.parent.mkdir(exist_ok=True)
+        tmp.write_bytes(gzip.compress(body) if big else body)
+        os.replace(tmp, f)
         with index.open("a") as fh:
             fh.write(json.dumps({"t": t.isoformat(), "key": key, "file": str(f.relative_to(out)), "sha256": h,
                                  "bytes": len(body), "gzip": big}) + "\n")

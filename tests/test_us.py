@@ -294,3 +294,129 @@ def test_export_dry_run_writes_valid_contract(tmp_path):
         assert all(len(fr[k]) == n and all(isinstance(x, int) for x in fr[k]) for k in ("f", "a", "proj"))
         assert all(0 <= x <= 1000 for x in fr["f"])
     assert json.loads((d / "units.json").read_text())["race_id"] == rid
+
+
+# ------------------------------------------------------------------ robustness (live night)
+
+def _synth_priors(cfgs: list[dict], seed=5) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+    rng = np.random.default_rng(seed)
+    parts, by_state = [], {}
+    for cfg in cfgs:
+        c = us.counties(cfg["election"]["state"])
+        p = pd.DataFrame({"unit_id": c["unit_id"], "name": c["name"], "s0": rng.uniform(0.35, 0.8, len(c)),
+                          "V": rng.integers(5_000, 300_000, len(c)).astype(float)})
+        by_state[cfg["election"]["state"]] = p
+        for src in {cfg["prior"]["share"], cfg["prior"]["votes"]}:
+            parts.append(pd.DataFrame({"source": src, "unit_id": p["unit_id"], "dem": p["V"] * p["s0"],
+                                       "rep": p["V"] * (1 - p["s0"]), "total": p["V"]}))
+    return pd.concat(parts, ignore_index=True), by_state
+
+
+def test_archive_skips_malformed_snapshot_and_ignores_tmp(tmp_path):
+    key = us.FEEDS["ca"]["results"]
+    d = tmp_path / key
+    d.mkdir()
+    good = rd("ca_governor_county_all.json")
+    (d / "20261104T040000.000000Z.json").write_bytes(good)
+    bad = d / "20261104T041000.000000Z.json"
+    bad.write_bytes(good[: len(good) // 2])                            # truncated write
+    (d / "20261104T042000.000000Z.json.gz").write_bytes(b"not gzip")    # corrupt gzip
+    (tmp_path / ".tmp").mkdir()
+    (tmp_path / ".tmp" / f"{key}.20261104T043000.000000Z.json").write_bytes(good)
+    arc = us.Archive(tmp_path)
+    arc.refresh()
+    assert arc.keys(key) == [key] and ".tmp" not in arc._files
+    t = pd.Timestamp("2026-11-04T04:30Z")
+    f = arc.at(key, t)
+    assert f.name == "20261104T040000.000000Z.json"                     # previous valid snapshot
+    assert len(arc.bad) == 2 and not (set(arc.bad) & set(arc._cache))   # malformed bytes never cached
+    assert us.parse_ca(arc.read(f))["votes"].sum() > 0
+    with pytest.raises(ValueError):
+        arc.read(bad)
+    bad.write_bytes(good)                                              # completed later (size changed): usable
+    assert arc.at(key, t) == bad and bad not in arc.bad
+
+
+def _two_feed_archive(tmp_path, cfgs, by_state, times):
+    snap = tmp_path / "snap"
+    for k in (us.FEEDS["ca"]["results"], us.FEEDS["tx"]["county"]):
+        (snap / k).mkdir(parents=True)
+    for t, scale in times:
+        (snap / us.FEEDS["ca"]["results"] / f"{t}.000000Z.json").write_bytes(_ca_snapshot(scale, 0.0, by_state["ca"]))
+        (snap / us.FEEDS["tx"]["county"] / f"{t}.000000Z.json").write_bytes(rd("tx_53815_countyInfo.json.gz"))
+    return snap
+
+
+TIMES = [("20261104T040000", 0.1), ("20261104T041000", 0.3), ("20261104T042000", 0.5)]
+
+
+def test_feed_parser_failure_does_not_block_other_races(tmp_path, monkeypatch):
+    paths = [ROOT / "configs" / "us2026_ca_gov_v1.toml", ROOT / "configs" / "us2026_tx_sen_v1.toml"]
+    cfgs = [us.load_config(p) for p in paths]
+    priors, by_state = _synth_priors(cfgs)
+    snap = _two_feed_archive(tmp_path, cfgs, by_state, TIMES)
+
+    def broken(*a, **k):
+        raise KeyError("Races")
+    monkeypatch.setattr(us, "parse_tx", broken)
+    ex = us.Exporter(paths, snap, priors=priors)
+    ex.update()
+    d = ex.write(tmp_path / "site")
+    tl = json.loads((d / "timeline.json").read_text())
+    assert len(tl["ca-gov"]) == 21 and tl["ca-gov"][-1]["counted"] > tl["ca-gov"][0]["counted"]
+    assert len(tl["tx-sen"]) == 21 and tl["tx-sen"][-1]["raw"] is None   # nothing parsed yet: prior only
+    assert "feed:tx" in ex.errors
+    assert (d / "units" / "ca-gov.json").exists()
+
+
+def test_failing_race_retries_without_duplicates_while_others_publish(tmp_path, monkeypatch):
+    paths = [ROOT / "configs" / "us2026_ca_gov_v1.toml", ROOT / "configs" / "us2026_tx_sen_v1.toml"]
+    cfgs = [us.load_config(p) for p in paths]
+    priors, by_state = _synth_priors(cfgs)
+    snap = _two_feed_archive(tmp_path, cfgs, by_state, TIMES[:2])
+    real = us.project
+    fault = {"on": True}
+
+    def project(rows, cfg, pri):
+        if fault["on"] and cfg["election"]["race_id"] == "tx-sen":
+            raise RuntimeError("model blew up")
+        return real(rows, cfg, pri)
+    monkeypatch.setattr(us, "project", project)
+    ex = us.Exporter(paths, snap, priors=priors, max_retries=3)
+    ex.update()
+    ex.write(tmp_path / "site")
+    assert len(ex.timeline["ca-gov"]) == 11 and ex.timeline["tx-sen"] == [] and ex.cursor["tx-sen"] is None
+    assert "tx-sen" in ex.errors
+    ex.update()                                                       # second pass: CA has nothing new
+    assert len(ex.timeline["ca-gov"]) == 11 and ex.timeline["tx-sen"] == []
+    t3, s3 = TIMES[2]
+    (snap / us.FEEDS["ca"]["results"] / f"{t3}.000000Z.json").write_bytes(_ca_snapshot(s3, 0.0, by_state["ca"]))
+    (snap / us.FEEDS["tx"]["county"] / f"{t3}.000000Z.json").write_bytes(rd("tx_53815_countyInfo.json.gz"))
+    fault["on"] = False                                               # fault cleared: the race backfills
+    ex.update()
+    for rid in ("ca-gov", "tx-sen"):
+        ts = [r["t"] for r in ex.timeline[rid]]
+        assert len(ts) == len(set(ts)) == 21, rid                     # 04:00 … 04:20, no duplicates, no gaps
+    assert not ex.errors
+
+
+def test_minute_failing_every_pass_is_skipped_not_retried_forever(tmp_path, monkeypatch):
+    paths = [ROOT / "configs" / "us2026_ca_gov_v1.toml"]
+    cfgs = [us.load_config(p) for p in paths]
+    priors, by_state = _synth_priors(cfgs)
+    snap = tmp_path / "snap"
+    (snap / us.FEEDS["ca"]["results"]).mkdir(parents=True)
+    for t, scale in TIMES[:2]:
+        (snap / us.FEEDS["ca"]["results"] / f"{t}.000000Z.json").write_bytes(_ca_snapshot(scale, 0.0, by_state["ca"]))
+    real = us.project
+
+    def project(rows, cfg, pri):                                      # the 04:00 state always fails
+        if rows.loc[rows["level"] == "county", "votes"].sum() < by_state["ca"]["V"].sum() * 0.2:
+            raise RuntimeError("bad state")
+        return real(rows, cfg, pri)
+    monkeypatch.setattr(us, "project", project)
+    ex = us.Exporter(paths, snap, priors=priors, max_retries=2)
+    for _ in range(25):
+        ex.update()
+    ts = [r["t"] for r in ex.timeline["ca-gov"]]
+    assert ts[0] == "2026-11-04T04:10:00Z" and len(ts) == len(set(ts)) == 1

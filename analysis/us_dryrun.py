@@ -1,9 +1,10 @@
 """Dry run of the US election-night pipeline on a SYNTHETIC night (never publish its output).
 
-Builds a fake snapshot archive in the recorder's layout — feed payloads in the real formats of CA, TX, AK and GA
+Builds a fake snapshot archive in the recorder's layout — feed payloads in the real formats of CA, TX and GA
 (templates: tests/fixtures/us), with county results drawn around the priors and posted in US-style batches
 (early + mail first, Election Day in chunks) — plus Polymarket books, then runs brunder.us.Exporter over every
-config and checks the dashboard contract files. Ohio is included only if its prior (MEDSL) is present.
+config and checks the dashboard contract files. Ohio is included only if its prior (MEDSL) is present; Alaska is
+not modelled (docs/us_midterms.md).
 
     BRUNDER_DATA=… uv run python analysis/us_dryrun.py [--out /tmp/us2026_dryrun]
 """
@@ -94,24 +95,6 @@ def tx_payload(states: dict[str, pd.DataFrame]) -> bytes:
     return json.dumps({"upload": base64.b64encode(json.dumps(up).encode()).decode()}).encode()
 
 
-def ak_payload(states: dict[str, pd.DataFrame]) -> bytes:
-    d = json.loads(_fix("ak_statewide.js.gz"))
-    names = ["Dem, Candidate (DEM)", "Rep, Candidate (REP)"]
-    d["candidateNames"] = names
-    d["contestNames"] = ["U.S. Senator", "Governor / Lieutenant Governor"]
-    d["totals"] = []
-    d["districts"] = []
-    for k in range(1, 41):
-        cons = []
-        for ci, race in enumerate(("sen", "gov")):
-            row = states[race].set_index("unit_id").loc[f"us-ak-hd{k:02d}"]
-            cons.append({"n": ci, "b": int(row["d"] + row["r"]), "t": int(row["d"] + row["r"]), "v": 15000,
-                         "p": 10, "r": 10 if row["done"] else 4,
-                         "c": [{"n": 0, "t": int(row["d"])}, {"n": 1, "t": int(row["r"])}]})
-        d["districts"].append({"number": str(k), "contests": cons})
-    return json.dumps(d).encode()
-
-
 def ga_payload(s: pd.DataFrame, title: str) -> bytes:
     c = us.counties("ga").set_index("unit_id")
 
@@ -161,8 +144,6 @@ def main() -> None:
             files[us.FEEDS["ca"]["results"]] = ca_payload(at["ca-gov"], us.race_prior(cfgs[ROOT / "configs" / "us2026_ca_gov_v1.toml"], priors))
         if {"tx-sen", "tx-gov"} <= set(at):
             files[us.FEEDS["tx"]["county"]] = tx_payload({"sen": at["tx-sen"], "gov": at["tx-gov"]})
-        if {"ak-sen", "ak-gov"} <= set(at):
-            files[us.FEEDS["ak"]["js"]] = ak_payload({"sen": at["ak-sen"], "gov": at["ak-gov"]})
         for rid, title in (("ga-sen", "US Senate"), ("ga-gov", "Governor")):
             if rid in at:
                 files[f"ga_enr_Georgia_item_{rid}"] = ga_payload(at[rid], title)

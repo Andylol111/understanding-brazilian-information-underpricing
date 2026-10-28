@@ -13,8 +13,7 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder us live \
   configs/us2026_ca_gov_v1.toml configs/us2026_tx_sen_v1.toml configs/us2026_tx_gov_v1.toml \
   configs/us2026_oh_sen_v1.toml configs/us2026_oh_gov_v1.toml \
   configs/us2026_ga_sen_v1.toml configs/us2026_ga_gov_v1.toml \
-  configs/us2026_ak_sen_v1.toml configs/us2026_ak_gov_v1.toml \
-  --out /srv/brunder/repo/site/data --interval 30 --until 2026-11-05T12:00Z
+  --out /srv/brunder/repo/site/data --interval 30 --until 2026-11-20T00:00Z
 Restart=on-failure
 RestartSec=30
 Nice=10

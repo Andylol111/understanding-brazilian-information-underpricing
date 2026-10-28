@@ -32,7 +32,7 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder snap us_midterms_2026 
   --pm-event georgia-senate-election-winner --pm-event georgia-governor-winner-2026 \
   --pm-event michigan-senate-election-winner --pm-event maine-senate-election-winner \
   --pm-event kansas-senate-election-winner \
-  --interval 30 --until 2026-11-04T18:00Z
+  --interval 30 --until 2026-11-20T00:00Z
 Restart=on-failure
 RestartSec=30
 Nice=10

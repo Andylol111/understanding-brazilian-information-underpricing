@@ -359,14 +359,32 @@ def parse_feed(kind: str, blobs: dict[str, bytes | list[bytes] | None]) -> pd.Da
 
 # ------------------------------------------------------------------ snapshot archive
 
+def _check(body: bytes) -> None:
+    """Raise if a snapshot body is not a complete document (JSON, XML, or UTF-8 text such as the OH CSV)."""
+    head = body.lstrip()[:1]
+    if not head:
+        raise ValueError("empty snapshot")
+    if head in (b"{", b"["):
+        json.loads(body)
+    elif head == b"<":
+        ET.fromstring(body)
+    else:
+        body.decode("utf-8")
+
+
 class Archive:
-    """The recorder's output directory: <root>/<key>/<YYYYmmddTHHMMSS.ffffffZ>.<ext>[.gz] (+ index.jsonl).
-    Reads only what was recorded; never contacts the feeds."""
+    """The recorder's output directory: <root>/<key>/<YYYYmmddTHHMMSS.ffffffZ>.<ext>[.gz] (+ index.jsonl;
+    dot-directories such as the recorder's .tmp are ignored). Reads only what was recorded; never contacts the
+    feeds. A snapshot that cannot be decompressed or is not a complete document is never cached and is skipped in
+    favour of the previous valid snapshot of the same key."""
+
+    CACHE = 32
 
     def __init__(self, root: Path):
         self.root = Path(root)
         self._files: dict[str, list[tuple[pd.Timestamp, Path]]] = {}
         self._cache: dict[Path, bytes] = {}
+        self.bad: dict[Path, int] = {}               # malformed snapshot -> its size when it failed
 
     def refresh(self) -> None:
         files: dict[str, list[tuple[pd.Timestamp, Path]]] = {}
@@ -374,7 +392,7 @@ class Archive:
             self._files = files
             return
         for d in self.root.iterdir():
-            if d.is_dir():
+            if d.is_dir() and not d.name.startswith("."):
                 lst = []
                 for f in d.iterdir():
                     m = re.match(r"(\d{8}T\d{6}\.\d{6})Z", f.name)
@@ -392,22 +410,48 @@ class Archive:
         return sorted({t for lst in self._files.values() for t, _ in lst})
 
     def at(self, key: str, t: pd.Timestamp) -> Path | None:
+        """Latest valid snapshot of `key` at or before t (malformed ones are skipped)."""
         lst = self._files.get(key, [])
         i = bisect.bisect_right(lst, t, key=lambda x: x[0])
-        return lst[i - 1][1] if i else None
+        while i:
+            f = lst[i - 1][1]
+            if self._load(f) is not None:
+                return f
+            i -= 1
+        return None
+
+    def _load(self, f: Path) -> bytes | None:
+        if f in self._cache:
+            return self._cache[f]
+        size = -1
+        try:
+            size = f.stat().st_size
+            if self.bad.get(f) == size:              # known bad and unchanged since
+                return None
+            b = f.read_bytes()
+            b = gzip.decompress(b) if f.suffix == ".gz" else b
+            _check(b)
+        except Exception as e:                       # partial write, bad gzip, truncated JSON/XML
+            if f not in self.bad:
+                print(f"snapshot skipped: {f.parent.name}/{f.name}: {type(e).__name__}: {e}", flush=True)
+            self.bad[f] = size
+            return None
+        self.bad.pop(f, None)
+        if len(self._cache) >= self.CACHE:           # TX files are ~5 MB and change every poll
+            self._cache.pop(next(iter(self._cache)))
+        self._cache[f] = b
+        return b
 
     def read(self, f: Path) -> bytes:
-        """Bytes of one snapshot (gunzipped). Small cache: TX files are ~5 MB and change every poll."""
-        if f not in self._cache:
-            b = f.read_bytes()
-            if len(self._cache) >= 16:
-                self._cache.pop(next(iter(self._cache)))
-            self._cache[f] = gzip.decompress(b) if f.suffix == ".gz" else b
-        return self._cache[f]
+        """Bytes of a snapshot returned by at() (gunzipped, validated)."""
+        b = self._load(f)
+        if b is None:
+            raise ValueError(f"malformed snapshot {f}")
+        return b
 
 
 def feed_files(arc: Archive, kind: str, t: pd.Timestamp) -> dict[str, Path | list[Path] | None]:
-    """Latest snapshot ≤ t of every key of a feed (a list for '*' keys)."""
+    """Latest valid snapshot ≤ t of every key of a feed (a list for '*' keys)."""
     out: dict[str, Path | list[Path] | None] = {}
     for role, pattern in FEEDS[kind].items():
         files = [f for f in (arc.at(k, t) for k in arc.keys(pattern)) if f is not None]
@@ -783,8 +827,8 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool]) -> dict:
             "counted = share of the expected two-party vote already counted (model estimate; US feeds report "
             "precincts, not remaining ballots).",
             "raw and share are the Democratic share of the Democrat + Republican vote.",
-            "Alaska is reported by state house district and uses ranked-choice voting; the model uses first-choice "
-            "votes summed by party (Democrats vs Republicans), a proxy for the final round.",
+            "Alaska's races are not modelled: under top-four ranked-choice voting several candidates share a party, "
+            "so party totals do not answer the candidate-specific markets.",
             "Kalshi prices are not shown (Kalshi's data terms do not allow public redistribution).",
             "Model frozen before polls closed (configs/us2026_*_v1.toml); see docs/us_midterms.md.",
         ],
@@ -793,29 +837,81 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool]) -> dict:
 
 class Exporter:
     """Builds timeline rows and unit frames for every configured race from the snapshot archive.
-    Incremental: each call processes only ticks after the last one, so the live loop can call it every ~30 s."""
+    Incremental: each call processes only minutes after each race's own cursor, so the live loop can call it every
+    ~30 s. Failures are isolated: a feed whose latest snapshot does not parse falls back to its last parsed state;
+    a race that still fails keeps its cursor (retried next pass, no duplicate rows) while the others publish."""
 
     def __init__(self, cfg_paths: list[Path], snap_root: Path | None = None, priors: pd.DataFrame | None = None,
-                 step: str = "1min", frame_every: str = "5min"):
+                 step: str = "1min", frame_every: str = "5min", max_retries: int = 3):
+        """max_retries: passes a failing minute is retried before it is skipped (live: the archive may still
+        change; replay: use 1, the archive is final)."""
+        self.max_retries = max_retries
+        self._retries: dict[str, tuple[pd.Timestamp, int]] = {}
         self.cfgs = [load_config(Path(p)) for p in cfg_paths]
         self.arc = Archive(snap_root or SNAP / TAG)
         pr = priors if priors is not None else load_priors()
         self.pri = {c["election"]["race_id"]: race_prior(c, pr) for c in self.cfgs}
         self.step, self.frame_every = pd.Timedelta(step), pd.Timedelta(frame_every)
-        self.timeline: dict[str, list[dict]] = {c["election"]["race_id"]: [] for c in self.cfgs}
-        self.frames: dict[str, list[dict]] = {c["election"]["race_id"]: [] for c in self.cfgs}
-        self._last_t: pd.Timestamp | None = None
-        self._memo: dict[tuple, tuple[dict, pd.DataFrame]] = {}
-        self._rows: dict[tuple, pd.DataFrame] = {}
+        rids = [c["election"]["race_id"] for c in self.cfgs]
+        self.timeline: dict[str, list[dict]] = {r: [] for r in rids}
+        self.frames: dict[str, list[dict]] = {r: [] for r in rids}
+        self.cursor: dict[str, pd.Timestamp | None] = {r: None for r in rids}   # last minute published per race
+        self.errors: dict[str, str] = {}                                         # latest error per race / feed
+        self._memo: dict[str, tuple[tuple, tuple[dict, pd.DataFrame]]] = {}    # race -> (sig, result), latest only
+        self._good: dict[str, tuple[tuple, pd.DataFrame]] = {}                 # feed -> last parsed (sig, rows)
+        self._failed: dict[str, tuple] = {}                                    # feed -> sig that failed to parse
         self._pm: tuple[Path | None, dict[str, float]] = (None, {})
 
     def _rows_for(self, kind: str, t: pd.Timestamp) -> tuple[pd.DataFrame, tuple]:
         files = feed_files(self.arc, kind, t)
         sig = tuple(x for f in files.values() for x in (f if isinstance(f, list) else [f]) if x is not None)
-        if (kind, sig) not in self._rows:
-            self._rows = {k: v for k, v in self._rows.items() if k[0] != kind}   # keep the latest only
-            self._rows[(kind, sig)] = parse_feed(kind, feed_blobs(self.arc, files))
-        return self._rows[(kind, sig)], sig
+        good = self._good.get(kind)
+        if good and good[0] == sig:
+            return good[1], sig
+        if self._failed.get(kind) != sig:
+            try:
+                rows = parse_feed(kind, feed_blobs(self.arc, files))
+                self._good[kind] = (sig, rows)
+                self._failed.pop(kind, None)
+                self.errors.pop(f"feed:{kind}", None)
+                return rows, sig
+            except Exception as e:                   # valid document, unexpected content
+                self._failed[kind] = sig
+                self.errors[f"feed:{kind}"] = f"{_iso(t)} {type(e).__name__}: {e}"
+                print(f"feed {kind}: parse failed at {_iso(t)}, using its last parsed state: "
+                      f"{type(e).__name__}: {e}", flush=True)
+        if good is None:                             # nothing parsable yet: same as no returns
+            return _frame([]), ("unparsed",) + sig
+        return good[1], good[0]
+
+    def _tick(self, c: dict, t: pd.Timestamp, prices: dict[str, float]) -> None:
+        rid, pri = c["election"]["race_id"], self.pri[c["election"]["race_id"]]
+        rows, sig = self._rows_for(c["election"]["feed"], t)
+        memo = self._memo.get(rid)
+        if memo is None or memo[0] != sig:
+            memo = (sig, project(rows, c, pri))
+            self._memo[rid] = memo
+        res, units = memo[1]
+        pm = _pm_market(c)
+        p_yes = prices.get(pm[0]) if pm else None
+        p_a = None if p_yes is None else (p_yes if pm[1] == "a" else 1 - p_yes)
+        row = {"t": _iso(t), "counted": _r(res["counted_frac"]), "raw": _r(res["raw"]),
+               "share": _r(res["share_hat"]), "sd": _r(res["share_sd"]), "P": _r(res["p_win"]),
+               "pm": _r(p_a), "kalshi": None}
+        fr = self.frames[rid]
+        frame = None
+        if units["n"].sum() > 0 and (not fr or t - pd.Timestamp(fr[-1]["t"]) >= self.frame_every):
+            frame = {"t": _iso(t),
+                     "f": (units["f"] * 1000).round().astype(int).tolist(),
+                     "a": np.where(units["n"] > 0, (units["a"] / units["n"].where(units["n"] > 0) * 1000)
+                                   .fillna(-1), -1).round().astype(int).tolist(),
+                     "proj": (units["proj"].fillna(units["s0"]) * 1000).round().astype(int).tolist()}
+        self.timeline[rid].append(row)                # only after everything for this minute succeeded
+        if frame:
+            fr.append(frame)
+            if len(fr) > 300:                        # bounded memory: thin older frames, keep the latest
+                fr[:] = fr[::-1][::2][::-1]
+        self.cursor[rid] = t
 
     def update(self, until: pd.Timestamp | None = None) -> None:
         self.arc.refresh()
@@ -823,37 +919,44 @@ class Exporter:
         if not ts:
             return
         end = min(until, ts[-1] + self.step) if until is not None else ts[-1]
-        start = ts[0].ceil(self.step) if self._last_t is None else self._last_t + self.step
-        for t in pd.date_range(start, end, freq=self.step):
-            books = self.arc.at("polymarket_books", t)
-            if books != self._pm[0]:
-                self._pm = (books, pm_prices(self.arc, books))
-            prices = self._pm[1]
-            for c in self.cfgs:
-                rid, pri = c["election"]["race_id"], self.pri[c["election"]["race_id"]]
-                if pri is None or pri.empty:
+        active = [c for c in self.cfgs if self.pri[c["election"]["race_id"]] is not None
+                  and not self.pri[c["election"]["race_id"]].empty]
+        first = ts[0].ceil(self.step)
+        starts = [first if self.cursor[c["election"]["race_id"]] is None
+                  else self.cursor[c["election"]["race_id"]] + self.step for c in active]
+        if not starts:
+            return
+        failed: set[str] = set()                     # races that failed this pass: retried next pass
+        for t in pd.date_range(min(starts), end, freq=self.step):
+            try:
+                books = self.arc.at("polymarket_books", t)
+                if books != self._pm[0]:
+                    self._pm = (books, pm_prices(self.arc, books))
+            except Exception as e:                   # market data must not block the model
+                self.errors["polymarket"] = f"{_iso(t)} {type(e).__name__}: {e}"
+            for c in active:
+                rid = c["election"]["race_id"]
+                cur = self.cursor[rid]
+                if rid in failed or (cur is not None and t <= cur):
                     continue
-                rows, sig = self._rows_for(c["election"]["feed"], t)
-                key = (rid, sig)
-                if key not in self._memo:
-                    self._memo = {k: v for k, v in self._memo.items() if k[0] != rid}
-                    self._memo[key] = project(rows, c, pri)
-                res, units = self._memo[key]
-                pm = _pm_market(c)
-                p_yes = prices.get(pm[0]) if pm else None
-                p_a = None if p_yes is None else (p_yes if pm[1] == "a" else 1 - p_yes)
-                self.timeline[rid].append({
-                    "t": _iso(t), "counted": _r(res["counted_frac"]), "raw": _r(res["raw"]),
-                    "share": _r(res["share_hat"]), "sd": _r(res["share_sd"]), "P": _r(res["p_win"]),
-                    "pm": _r(p_a), "kalshi": None})
-                fr = self.frames[rid]
-                if units["n"].sum() > 0 and (not fr or t - pd.Timestamp(fr[-1]["t"]) >= self.frame_every):
-                    fr.append({"t": _iso(t),
-                               "f": (units["f"] * 1000).round().astype(int).tolist(),
-                               "a": np.where(units["n"] > 0, (units["a"] / units["n"].where(units["n"] > 0) * 1000)
-                                             .fillna(-1), -1).round().astype(int).tolist(),
-                               "proj": (units["proj"].fillna(units["s0"]) * 1000).round().astype(int).tolist()})
-            self._last_t = t
+                try:
+                    self._tick(c, t, self._pm[1])
+                    self.errors.pop(rid, None)
+                    self._retries.pop(rid, None)
+                except Exception as e:
+                    prev = self._retries.get(rid)
+                    n = prev[1] + 1 if prev and prev[0] == t else 1
+                    self._retries[rid] = (t, n)
+                    self.errors[rid] = f"{_iso(t)} {type(e).__name__}: {e}"
+                    if n >= self.max_retries:        # a minute that keeps failing is left out, not retried forever
+                        self.cursor[rid] = t
+                        self._retries.pop(rid)
+                        print(f"race {rid}: {_iso(t)} failed {n} passes, minute skipped: {type(e).__name__}: {e}",
+                              flush=True)
+                    else:
+                        failed.add(rid)
+                        print(f"race {rid}: failed at {_iso(t)}, retry next pass: {type(e).__name__}: {e}",
+                              flush=True)
 
     def write(self, out: Path) -> Path:
         d = Path(out) / EID
@@ -866,15 +969,20 @@ class Exporter:
             pri = self.pri[rid]
             if not ok[rid]:
                 continue
-            fr = self.frames[rid]
-            if len(fr) > 60:                          # keep ~60 frames, always including the latest
-                idx = np.unique(np.linspace(0, len(fr) - 1, 60).round().astype(int))
-                fr = [fr[i] for i in idx]
-            obj = {"race_id": rid, "unit_ids": pri["unit_id"].tolist(), "region": [c["election"]["state"]] * len(pri),
-                   "names": pri["name"].tolist(), "prior": (pri["s0"] * 1000).round().astype(int).tolist(),
-                   "V0": (pri["V"] * rules(c).turnout_ratio).round().astype(int).tolist(), "frames": fr}
-            _write_json(d / "units" / f"{rid}.json", obj)
-            default = default or obj
+            try:
+                fr = self.frames[rid]
+                if len(fr) > 60:                      # keep ~60 frames, always including the latest
+                    idx = np.unique(np.linspace(0, len(fr) - 1, 60).round().astype(int))
+                    fr = [fr[i] for i in idx]
+                obj = {"race_id": rid, "unit_ids": pri["unit_id"].tolist(),
+                       "region": [c["election"]["state"]] * len(pri), "names": pri["name"].tolist(),
+                       "prior": (pri["s0"] * 1000).round().astype(int).tolist(),
+                       "V0": (pri["V"] * rules(c).turnout_ratio).round().astype(int).tolist(), "frames": fr}
+                _write_json(d / "units" / f"{rid}.json", obj)
+                default = default or obj
+            except Exception as e:                   # one race's map must not block the others
+                self.errors[rid] = f"write {type(e).__name__}: {e}"
+                print(f"race {rid}: units file not written: {type(e).__name__}: {e}", flush=True)
         if default:
             _write_json(d / "units.json", default)
         return d
@@ -882,7 +990,7 @@ class Exporter:
 
 def export(cfg_paths: list[Path], out: Path, snap_root: Path | None = None, until: str | None = None) -> Path:
     """Replay: everything recorded up to `until` (default: the end of the archive)."""
-    ex = Exporter(cfg_paths, snap_root)
+    ex = Exporter(cfg_paths, snap_root, max_retries=1)
     ex.update(pd.Timestamp(until).tz_convert("UTC") if until else None)
     return ex.write(out)
 
@@ -900,6 +1008,8 @@ async def run_live(cfg_paths: list[Path], out: Path, snap_root: Path | None = No
             last = {rid: rows[-1] for rid, rows in ex.timeline.items() if rows}
             print(f"{t0:%H:%M:%S} " + "  ".join(f"{rid} c={r['counted']} P={r['P']} pm={r['pm']}"
                                                for rid, r in last.items()), flush=True)
+            if ex.errors:
+                print(f"{t0:%H:%M:%S} open errors: {ex.errors}", flush=True)
         except Exception as e:                       # never stop on the night
             print(f"{t0:%H:%M:%S} export error, continuing: {type(e).__name__}: {e}", flush=True)
         await asyncio.sleep(max(0.0, interval - (datetime.now(timezone.utc) - t0).total_seconds()))
