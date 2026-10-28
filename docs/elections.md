@@ -81,8 +81,8 @@ registered before the 2022 section files were downloaded, with settings copied u
 | 2022, runoff | 50.90% | 18:41 (65% counted) | 18:44 (68% counted) | **+3 min** | +0.4 / −4.0 pts | 100% |
 
 In the first round the raw tally showed Bolsonaro ahead for almost three hours (the early count was
-heavy with states that lean to him), while the model's estimate stayed within a point or two of the
-final from the first sections. In the runoff, the closest race in this review (50.9%), the model's
+heavy with states that lean to him), while the model's estimate was within 2 points of the final at
+1% counted and within half a point by 5%. In the runoff, the closest race in this review (50.9%), the model's
 estimate was again far more accurate early (error 0.8 vs 7.5 points at 1% counted) but it stayed honest
 about a near coin flip and only became sure 3 minutes before the raw tally settled.
 
