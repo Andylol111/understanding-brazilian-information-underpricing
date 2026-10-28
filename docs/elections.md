@@ -24,7 +24,8 @@ Read the 30-minute column as: half an hour after the count implied something the
 the market had moved about 40–55% of the way there. The rest of the gap closed slowly or only once the
 raw tally itself turned. CIs are a cluster bootstrap over (market, 30-minute block), because one-minute
 windows overlap. The first round is in-sample (the model's settings were chosen on it); the runoff
-night uses settings frozen beforehand.
+night uses settings frozen beforehand. The catch-up measure itself was chosen after both nights, so it
+describes them; it is not a registered test.
 
 ![Gap predicts the next 30 minutes](figures/underpricing_gap_predicts.png)
 
