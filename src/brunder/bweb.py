@@ -78,7 +78,8 @@ def _parse(zpath: Path) -> pd.DataFrame:
                     frames.append(ch[ch["cargo"].isin(OFFICES)].drop(columns="DS_CARGO_PERGUNTA"))
     d = pd.concat(frames, ignore_index=True)
     d["QT_VOTOS"] = pd.to_numeric(d["QT_VOTOS"])
-    d["DT_BU_RECEBIDO"] = pd.to_datetime(d["DT_BU_RECEBIDO"])
+    # TSE writes dd/mm/yyyy; never let pandas guess (it read 2022's "02/10/2022" as 10 Feb)
+    d["DT_BU_RECEBIDO"] = pd.to_datetime(d["DT_BU_RECEBIDO"], format="%d/%m/%Y %H:%M:%S")
     return d.rename(columns={"SG_UF": "uf", "CD_MUNICIPIO": "cd_mun", "NR_ZONA": "zona", "NR_SECAO": "secao",
                              "DT_BU_RECEBIDO": "received", "NR_VOTAVEL": "cand_n", "QT_VOTOS": "votes"})
 
