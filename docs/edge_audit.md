@@ -6,17 +6,21 @@ runoff (`br2026r2`), six governor runoffs (`br2026r2gov`), Brazil 2022 first rou
 Script: `analysis/edge_audit.py`. Tables: `results/edge_audit/`. Site: an `accuracy` and a `profit` block in
 each `site/data/<eid>/stats.json` (schema at the end). Mexico 2024 (`mx2024`, not-preregistered: config
 committed after scoring, one exploratory look at 2024 before freezing) is scored with the same functions by
-`analysis/mx_score.py` (`results/mexico/mx2024_v1/score.json`); its numbers are quoted
-here but not produced by this script.
+`analysis/mx_score.py` (`results/mexico/mx2024_v1/score.json`), and Hungary 2026 (`hu2026`,
+not-preregistered: settings frozen from the 2022 count after the 2026 market resolutions had been seen, then
+scored once) by `analysis/hu_score.py` (`results/hungary/stats.json`); their numbers are quoted here but not
+produced by this script.
 
 Evidence labels: **in-sample** = settings were chosen on this night (Brazil first round);
 **pre-specified** = settings frozen and registered before the count data were examined, outcome already
 known (Brazil runoff and governors); **not-preregistered** = no frozen config or trading rule existed before
-scoring (Israel, Mexico; the Brazil rule is applied unchanged); **model-only** = no market prices (Brazil 2022).
+scoring (Israel, Mexico, Hungary; the Brazil rule is applied unchanged); **model-only** = no market prices
+(Brazil 2022).
 
 ## Summary
 
-**1. Does the model's projection hold? Mostly yes in Brazil; less so in Israel; not in Mexico.**
+**1. Does the model's projection hold? Mostly yes in Brazil; less so in Israel; not in Mexico; in Hungary
+the shares and intervals held but P(win) was far worse than the market.**
 
 - **Projected shares.** Early in the count the projection's error is about half the raw count's in Brazil
   and Israel; Mexico is the exception at 1% counted
@@ -30,9 +34,12 @@ scoring (Israel, Mexico; the Brazil rule is applied unchanged); **model-only** =
   | Brazil 2022 R1 / R2 (model-only) | 1 / 1 | 2.00 vs 6.75 / 0.76 vs 7.50 | 0.41 / 0.36 | 0.24 / 0.00 | 0.23 / 0.19 | 0.25 / 0.31 |
   | Israel lists (not-preregistered)¹ | 13 lists | 0.81 vs 1.90 | 0.45 vs 1.98 | 0.60 vs 1.53 | 0.45 vs 1.06 | 0.30 vs 0.50 |
   | Mexico 2024 (not-preregistered)⁴ | 1 | 1.86 vs 0.29 | 0.43 vs 1.56 | 0.59 vs 2.53 | 1.51 vs 2.90 | 1.55 vs 2.22 |
+  | Hungary 2026 list share (not-preregistered)⁵ | 1 | 10.20 vs 10.56 | 3.83 vs 3.87 | 2.91 vs 2.83 | 1.60 vs 1.04 | 0.39 vs 0.56 |
+  | Hungary 2026 seats (not-preregistered)⁵ | 1 | 2.23 vs 6.64 | 2.23 vs 6.64 | 0.66 vs 3.97 | 0.13 vs 2.12 | 0.14 vs 1.48 |
 
   ¹ first release at or above each threshold (the first one past 1% was at 2.5%); against the provisional count.
   ⁴ `analysis/mx_score.py`; at 1% counted the raw count was closer than the model.
+  ⁵ `analysis/hu_score.py`; absolute errors (the list projection added nothing over the raw count early on).
 - **Uncertainty.** Share of minutes (1–95% counted) whose 90% interval contains the final share,
   minutes pooled across races: runoff **96%** (2 of 28 races below 80%: Amapá 38%, Maranhão 68%), governors
   **99.6%**, 2022 **100%** (both rounds). The first round, where the settings were chosen, covers only
@@ -41,7 +48,7 @@ scoring (Israel, Mexico; the Brazil rule is applied unchanged); **model-only** =
   release pairs, 15 releases), i.e. the Israel intervals were too narrow. Mexico 2024: **10%** (mean z
   +3.3; 14% before 90% counted): the projection stayed biased about 1.5 points while its interval shrank, a
   clear calibration failure on a new country. Mexico adds no P(win) minutes (model and
-  market were both ≥ 0.9 before 1% was counted).
+  market were both ≥ 0.9 before 1% was counted). Hungary 2026: list share **99.8%**, seats **100%**.
 - **P(win) against the market, same minutes** (from 1% counted until both had settled ≥ 0.9; Brier score,
   lower is better; 95% interval from a bootstrap over races):
 
@@ -51,22 +58,25 @@ scoring (Israel, Mexico; the Brazil rule is applied unchanged); **model-only** =
   | Brazil first round (in-sample) | 10 | 1,099 | 0.0444 | 0.0615 | −0.017 [−0.041, +0.0002] |
   | all Brazil 2026 | 29 | 3,031 | 0.0376 | 0.0521 | −0.015 [−0.036, +0.006]; log score −0.065 [−0.125, −0.003] |
   | Israel (not-preregistered) | 4 | 211 | 0.0699 | 0.0126 | **+0.057 [+0.013, +0.113]** (market better) |
+  | Hungary, all 39 markets (not-preregistered)⁵ | 39 | 50,141 | 0.0794 | 0.0072 | **+0.072 [+0.032, +0.119]** (market better) |
 
   In Brazil the model scored better than the market in 17 of 29 races, but the Brier difference is
   within noise; only the log score over all three Brazil nights (one of them in-sample) excludes zero. In
-  Israel the market was clearly better. Reliability (pre-specified Brazil, minutes pooled): when the model
+  Israel and Hungary (model better in 15 of 39 markets) the market was clearly better. Reliability
+  (pre-specified Brazil, minutes pooled): when the model
   said ≥ 0.9 the favourite won in all 1,124 minutes (10 races); when the market priced 0.6–0.9 the
   favourite also won every time (639 minutes, up to 8 races), i.e. the market was under-confident during
   the count, which is the lag the project is about. The model's middle bins (0.4–0.8) rest on 2–3 races
   each and are not informative.
 
-**2. Is there real, executable profit after costs? Very little, and none that is statistically
-distinguishable from luck on the pre-specified nights.**
+**2. Is there real, executable profit after costs? Very little, none that is statistically
+distinguishable from luck on the pre-specified nights, and a large loss on Hungary.**
 
 Frozen rule (`night.evaluate`, favoured side only, edge ≥ 5¢ after costs, ≥ 1% of the market counted,
 first signal per market, hold to resolution). Headline execution: Brazil, real taker trades on our side at
 or better than the signal price from 60 s to 30 min after the signal (no order books were recorded for
-Brazil); Israel, a limit-order walk of the recorded order book 60 s after the signal.
+Brazil; Hungary likewise from real trades); Israel, a limit-order walk of the recorded order book 60 s after
+the signal.
 
 | | evidence | signals (won) | $ that could be bought | P&L | per $ | from the largest trade | p if prices were fair² |
 |---|---|---|---|---|---|---|---|
@@ -75,10 +85,12 @@ Brazil); Israel, a limit-order walk of the recorded order book 60 s after the si
 | Brazil governors | pre-specified | 3 (3) | **$0** ($2.40 with zero latency) | $0 | – | – | – |
 | Israel | not-preregistered | 3 (3)³ | $22,089 | **+$2,631** | +11.9% | 59% | 0.68 |
 | Mexico 2024 (`mx_score.py`) | not-preregistered | 0 | $0 | $0 | – | – | – |
+| Hungary 2026 (`hu_score.py`) | not-preregistered | 23 (13) | $78,364 | **−$16,618** | −21% | −$21,530 in one market⁶ | 0.89 |
 
 ² exact probability of at least this P&L if every filled trade had won with probability equal to the
 all-in price paid. ³ all three in the same event (Likud's seat band), so effectively one bet; outcome is
-the provisional count (markets not yet resolved).
+the provisional count (markets not yet resolved). ⁶ "Tisza ≥ 130 seats" bought NO at 18:00 UTC with model
+P(YES) 0.006; it resolved YES. Without it +$4,913; bootstrap over markets [−$64,368, +$12,748].
 
 - **At the signal price the pre-specified nights offered nothing**: on the runoff the minute price history
   lagged the trades by 2–4¢, so no taker trade happened at or below the signal price, at any size.
@@ -91,19 +103,25 @@ the provisional count (markets not yet resolved).
 - **First round**: the reported $4,111 (+2¢) and $6,906 (+5¢) are mostly **not** trades the rule would
   take: the national signal had a 6.4¢ edge, so 2¢ worse leaves 4.4¢ < 5¢. Rule-consistent fills at +5¢:
   $163 (P&L +$118).
-- **Israel** is the only night where real size was there: the recorded book offered $22k at prices still
+- **Israel** is the only night with real size and a gain: the recorded book offered $22k at prices still
   leaving ≥ 5¢ of model edge one minute after the signal (28k with zero latency; 24k at 30 s), and $25 to
   $1,000 per signal were fillable on all three signals. But the return was +12% on near-certain sides (paid
   0.85–0.93), the bets are one event, not pre-registered, against a provisional outcome, and a gain this
   size would happen 68% of the time if the prices paid were fair. The same night the market's P(win)
   beat the model's.
+- **Hungary** had size too ($78k fillable after 60 s at the signal price, 23 signals) and lost: 13 of 23
+  won, −$16,618 (−21% per $). The loss comes from one overconfident tail call (model P 0.006 on "Tisza ≥ 130
+  seats", which happened; a near-identical 130-seat market lost another $1,396); the other 22 signals made
+  +$4,913. Small sizes lost too ($25 per signal: −$144 on $325).
 - **Maximum total profit available** (all fills, no size cap), most generous definition per night: first
   round $6,972 (+5¢, zero latency, mostly rule-breaking), runoff + governors $6,512 (+5¢, zero latency),
-  Israel $3,708 (zero latency).
+  Israel $3,708 (zero latency); Hungary $1,225 (+2¢, zero latency, 5-minute window; every 30-minute window
+  loses).
 
-**What each answer depends on.** Few independent bets: 25 signals in total; only 6 are separate events
-(the two Brazil national markets, three governor races, Israel's Likud seat band), the other 17 are state
-markets moving with the same national swing. Brazil fills assume we could have taken the
+**What each answer depends on.** Few independent bets. Brazil and Israel: 25 signals, only 6 separate
+events (the two Brazil national markets, three governor races, Israel's Likud seat band), the other 17 are
+state markets moving with the same national swing. Hungary adds 23 signals on one election. Brazil fills
+assume we could have taken the
 liquidity other takers took (an upper bound for one trader; no book was recorded). The Israel outcome is
 provisional. Every interval treats a market as the unit; with 3–15 units they are wide, and the bootstrap
 cannot show downside when every sampled bet won (Israel), which is why the exact fair-price p-value is

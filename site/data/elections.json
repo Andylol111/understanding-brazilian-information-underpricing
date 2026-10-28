@@ -108,5 +108,16 @@
   "n_units": 300,
   "evidence": "not-preregistered",
   "summary": "Polymarket was already 90% sure of Sheinbaum two days before the vote, so the count offered no trade. At 25% counted the model was 1.5 points below her final share (raw count 2.9 points), but its 90% intervals held the final share in only 10% of minutes."
+ },
+ {
+  "id": "hu2026",
+  "name": "Hungary, National Assembly election",
+  "date": "2026-04-12",
+  "country": "HU",
+  "status": "replay",
+  "unit_level": "district",
+  "n_units": 106,
+  "evidence": "not-preregistered",
+  "summary": "The district model projected Tisza's seats within one of the final from 22:30 and settled first on 13 of 20 contested markets (median lead 11.5 minutes), but the market's probabilities were far better overall and the trading rule lost $16,618 on $78,364 of real fills, almost all on one early seat-band bet."
  }
 ]

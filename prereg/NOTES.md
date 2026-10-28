@@ -54,6 +54,17 @@ scripts) is input data, not a setting; if it is not in place before polls close,
 reported as not run rather than scored later. Parser fixes forced by the live feed format on the night are
 allowed and will be listed here; model settings cannot change.
 
+## Hungary 2026 (`configs/hu2026_v1.toml`): not pre-registered
+
+Settings chosen on the 2022 count only (9 official night publications kept by the Internet Archive) and
+written at 2026-10-28 18:59Z; one scoring run on the 2026 count at 19:01:53Z; nothing changed afterwards.
+Before writing the settings, the 2026 market resolutions, the 02:05 national list summary and one district
+row had been seen, and the config was first committed after scoring, so the result is **not
+pre-registered**. Only the header comment was later corrected (it had said "pre-specified"); the sha256 of
+the file as scored is in that header. Results: district projection held (100% interval coverage, seats
+within one of the final from 22:30); list-vote model did not early; market Brier 0.007 vs model 0.079; the
+frozen trading rule lost $16,618 on $78,364 of real fills (`docs/hungary.md`, `docs/edge_audit.md`).
+
 ## Mexico 2024 (`configs/mx2024_v1.toml`): not pre-registered
 
 Settings (τ = 0.01) were chosen on the 2018 count only and written to the config before the 2024 scoring
