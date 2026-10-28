@@ -1,0 +1,42 @@
+# US midterms 2026-11-03, Ohio Senate (special). Frozen before polls close (first close 2026-11-03 23:00 UTC); the integrator
+# registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence:
+# docs/us_midterms.md. Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_oh_sen_v1"
+
+[election]
+eid = "us2026"
+race_id = "oh-sen"
+name = "Ohio Senate (special)"
+state = "oh"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "oh"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T00:30:00Z"
+a = { party = "DEM", name = "Sherrod Brown", color = "#1f5fbf" }
+b = { party = "REP", name = "Jon Husted", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "oh_pres_2024"        # 2024 president (MEDSL county returns, CC0); Ohio SoS files are not reachable by script (403)
+votes = "oh_pres_2024"        # 2024 president two-party votes × 0.72 (mean 2022/2024 two-party ratio in CA, TX, GA official data)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays, no vote-type split (OH feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# OH reports, per county, ballots counted and ballots still outstanding (UOCAVA absentee +
+# provisional): once Election Day precincts are all in, remaining = outstanding ballots.
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.0
+use_outstanding = true
+learn_turnout = true
+
+[markets.polymarket]
+event = "ohio-senate-election-winner"
+market = "will-the-democrats-win-the-ohio-senate-race-in-2026"
+question = "Will the Democrats win the Ohio Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

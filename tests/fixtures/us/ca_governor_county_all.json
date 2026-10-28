@@ -1,0 +1,1241 @@
+[
+  {
+    "raceTitle": "Governor - Statewide Results",
+    "Reporting": "49.7% (11,849 of 23,863) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "1,424,200",
+        "Percent": "26.9",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "3,871,579",
+        "Percent": "73.1",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Alameda County Results",
+    "Reporting": "100% (627 of 627) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "359",
+        "Percent": "49.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "364",
+        "Percent": "50.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Alpine County Results",
+    "Reporting": "20% (1 of 5) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "70",
+        "Percent": "26.3",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "196",
+        "Percent": "73.7",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Amador County Results",
+    "Reporting": "36.2% (17 of 47) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "2,084",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "5,733",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Butte County Results",
+    "Reporting": "43.1% (59 of 137) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:09 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "14,013",
+        "Percent": "33.3",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "28,027",
+        "Percent": "66.7",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Calaveras County Results",
+    "Reporting": "100% (25 of 25) precincts reporting",
+    "ReportingTime": "October 28, 2026, 8:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "250",
+        "Percent": "56.8",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "190",
+        "Percent": "43.2",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Colusa County Results",
+    "Reporting": "36.8% (7 of 19) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "837",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "2,303",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Contra Costa County Results",
+    "Reporting": "37.4% (356 of 951) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "56,148",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "154,407",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Del Norte County Results",
+    "Reporting": "52.6% (10 of 19) precincts reporting",
+    "ReportingTime": "October 28, 2026, 8:52 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "2,155",
+        "Percent": "33.3",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "4,312",
+        "Percent": "66.7",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - El Dorado County Results",
+    "Reporting": "100% (179 of 179) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:10 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "174",
+        "Percent": "54.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "144",
+        "Percent": "45.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Fresno County Results",
+    "Reporting": "37.4% (148 of 396) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "40,784",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "112,158",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Glenn County Results",
+    "Reporting": "36.8% (42 of 114) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "1,088",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "2,993",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Humboldt County Results",
+    "Reporting": "0% (0 of 120) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "0",
+        "Percent": "0.0",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "0",
+        "Percent": "0.0",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Imperial County Results",
+    "Reporting": "6.1% (17 of 279) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:20 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "1,148",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "3,158",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Inyo County Results",
+    "Reporting": "37.5% (6 of 16) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "838",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "2,306",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Kern County Results",
+    "Reporting": "37.4% (336 of 898) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "35,619",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "97,955",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Kings County Results",
+    "Reporting": "100% (70 of 70) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:02 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "811",
+        "Percent": "72.9",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "302",
+        "Percent": "27.1",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Lake County Results",
+    "Reporting": "0% (0 of 37) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "0",
+        "Percent": "0.0",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "0",
+        "Percent": "0.0",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Lassen County Results",
+    "Reporting": "1.9% (1 of 52) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:16 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "1,156",
+        "Percent": "53.5",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "1,004",
+        "Percent": "46.5",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Los Angeles County Results",
+    "Reporting": "37.5% (1,069 of 2,853) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "453,877",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "1,248,164",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Madera County Results",
+    "Reporting": "36.7% (33 of 90) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "6,397",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "17,594",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Marin County Results",
+    "Reporting": "37.5% (48 of 128) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "13,354",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "36,725",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Mariposa County Results",
+    "Reporting": "11.1% (3 of 27) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "373",
+        "Percent": "33.3",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "746",
+        "Percent": "66.7",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Mendocino County Results",
+    "Reporting": "37.2% (96 of 258) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "4,165",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "11,457",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Merced County Results",
+    "Reporting": "100% (770 of 770) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:06 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "163",
+        "Percent": "44.8",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "201",
+        "Percent": "55.2",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Modoc County Results",
+    "Reporting": "12.5% (3 of 24) precincts reporting",
+    "ReportingTime": "October 28, 2026, 8:40 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "243",
+        "Percent": "33.2",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "488",
+        "Percent": "66.8",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Mono County Results",
+    "Reporting": "33.3% (4 of 12) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "611",
+        "Percent": "26.6",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "1,683",
+        "Percent": "73.4",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Monterey County Results",
+    "Reporting": "37.5% (78 of 208) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "16,936",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "46,574",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Napa County Results",
+    "Reporting": "100% (147 of 147) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:04 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "89",
+        "Percent": "67.4",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "43",
+        "Percent": "32.6",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Nevada County Results",
+    "Reporting": "37.1% (39 of 105) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "5,902",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "16,234",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Orange County Results",
+    "Reporting": "37.5% (891 of 2,377) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "146,756",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "403,582",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Placer County Results",
+    "Reporting": "100% (325 of 325) precincts reporting",
+    "ReportingTime": "October 28, 2026, 8:50 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "42",
+        "Percent": "95.5",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "2",
+        "Percent": "4.5",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Plumas County Results",
+    "Reporting": "48.3% (14 of 29) precincts reporting",
+    "ReportingTime": "October 28, 2026, 8:31 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "203",
+        "Percent": "33.2",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "408",
+        "Percent": "66.8",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Riverside County Results",
+    "Reporting": "37.5% (452 of 1,206) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "111,279",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "306,020",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Sacramento County Results",
+    "Reporting": "37.4% (269 of 719) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "70,670",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "194,344",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - San Benito County Results",
+    "Reporting": "37.3% (25 of 67) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "3,061",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "8,418",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - San Bernardino County Results",
+    "Reporting": "100% (2,066 of 2,066) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:06 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "123",
+        "Percent": "57.5",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "91",
+        "Percent": "42.5",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - San Diego County Results",
+    "Reporting": "37.5% (1,122 of 2,994) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "154,690",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "425,401",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - San Francisco County Results",
+    "Reporting": "37.4% (192 of 514) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "41,121",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "113,085",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - San Joaquin County Results",
+    "Reporting": "37.3% (125 of 335) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "31,885",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "87,684",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - San Luis Obispo County Results",
+    "Reporting": "30.7% (47 of 153) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "11,725",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "32,245",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - San Mateo County Results",
+    "Reporting": "31.2% (104 of 333) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "28,693",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "78,906",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Santa Barbara County Results",
+    "Reporting": "31.1% (73 of 235) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "15,845",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "43,574",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Santa Clara County Results",
+    "Reporting": "100% (708 of 708) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:18 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "656",
+        "Percent": "66.6",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "329",
+        "Percent": "33.4",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Santa Cruz County Results",
+    "Reporting": "30.8% (62 of 201) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "11,066",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "30,433",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Shasta County Results",
+    "Reporting": "30.9% (21 of 68) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "7,405",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "20,364",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Sierra County Results",
+    "Reporting": "26.3% (5 of 19) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "138",
+        "Percent": "26.5",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "382",
+        "Percent": "73.5",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Siskiyou County Results",
+    "Reporting": "30.6% (19 of 62) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "1,770",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "4,868",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Solano County Results",
+    "Reporting": "31.1% (61 of 196) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "17,762",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "48,847",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Sonoma County Results",
+    "Reporting": "31% (125 of 403) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "20,505",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "56,391",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Stanislaus County Results",
+    "Reporting": "31.1% (64 of 206) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "19,333",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "53,169",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Sutter County Results",
+    "Reporting": "28% (7 of 25) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "3,537",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "9,729",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Tehama County Results",
+    "Reporting": "0% (0 of 38) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:24 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "0",
+        "Percent": "0.0",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "0",
+        "Percent": "0.0",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Trinity County Results",
+    "Reporting": "31.2% (5 of 16) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "492",
+        "Percent": "26.6",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "1,356",
+        "Percent": "73.4",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Tulare County Results",
+    "Reporting": "100% (388 of 388) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "18,954",
+        "Percent": "40.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "27,658",
+        "Percent": "59.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Tuolumne County Results",
+    "Reporting": "29.8% (14 of 47) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "2,289",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "6,297",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Ventura County Results",
+    "Reporting": "31.2% (447 of 1,433) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "33,707",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "92,697",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Yolo County Results",
+    "Reporting": "31.2% (20 of 64) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "7,861",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "21,618",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  },
+  {
+    "raceTitle": "Governor - Yuba County Results",
+    "Reporting": "30.4% (7 of 23) precincts reporting",
+    "ReportingTime": "October 28, 2026, 9:14 a.m.",
+    "candidates": [
+      {
+        "Name": "Xavier Becerra",
+        "Party": "Dem",
+        "Votes": "2,988",
+        "Percent": "26.7",
+        "incumbent": false
+      },
+      {
+        "Name": "Steve Hilton",
+        "Party": "Rep",
+        "Votes": "8,220",
+        "Percent": "73.3",
+        "incumbent": false
+      }
+    ]
+  }
+]

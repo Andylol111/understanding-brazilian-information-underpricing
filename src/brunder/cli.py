@@ -94,6 +94,22 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--clarity", action="append", default=[], help="Clarity ENR base (day-of EID/version resolved)")
     s.add_argument("--ga-enr", action="append", default=[], help="Enhanced Voting jurisdiction URL (day-of id resolved)")
     s.add_argument("--date", help="election date YYYY-MM-DD for the resolvers")
+    s = sub.add_parser("kalshi", help="Kalshi public market data: find series, list an event, record order books")
+    s.add_argument("step", choices=["search", "event", "record"])
+    s.add_argument("arg", help="search: regex on series ticker/title; event: event ticker; record: snap tag")
+    s.add_argument("--ticker", action="append", default=[], help="record: market ticker (repeatable)")
+    s.add_argument("--event", action="append", default=[], help="record: every open market of an event (repeatable)")
+    s.add_argument("--pairs", action="append", default=[], type=Path, help="record: Kalshi tickers of configs/pairs/<eid>.toml")
+    s.add_argument("--interval", type=float, default=30.0)
+    s.add_argument("--until", help="UTC stop time, e.g. 2026-11-04T12:00Z")
+    s = sub.add_parser("us", help="US midterms 2026: build county priors; dashboard files from recorded snapshots")
+    s.add_argument("step", choices=["priors", "export", "live"])
+    s.add_argument("configs", nargs="*", type=Path, help="configs/us2026_*_v1.toml (export/live)")
+    s.add_argument("--source", action="append", default=[], help="priors: only these sources (repeatable)")
+    s.add_argument("--out", type=Path, default=Path("site/data"), help="data root; files go to <out>/us2026/")
+    s.add_argument("--snap", type=Path, help="recorder directory (default data/raw/snap/us_midterms_2026)")
+    s.add_argument("--until", help="export: replay up to this UTC time; live: stop time")
+    s.add_argument("--interval", type=float, default=30.0, help="live: seconds between passes")
 
     a = ap.parse_args(argv)
     pd.set_option("display.width", 200, "display.max_colwidth", 80, "display.max_rows", 200)
@@ -162,6 +178,21 @@ def main(argv: list[str] | None = None) -> None:
             from . import snap
             until = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
             asyncio.run(snap.run(a.tag, a.url, a.pm_event, a.interval, until, a.clarity, a.ga_enr, a.date))
+        case "kalshi":
+            from . import arb, kalshi
+            match a.step:
+                case "search":
+                    print(kalshi.search_series(a.arg).to_string(index=False))
+                case "event":
+                    m = kalshi.markets(kalshi.event(a.arg))
+                    print(m[["ticker", "label", "status", "yes_bid", "yes_ask", "volume", "close_time"]].to_string(index=False))
+                case "record":
+                    tickers = a.ticker + [p.kalshi_ticker for f in a.pairs for p in arb.load_pairs(f)[1]]
+                    until = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
+                    asyncio.run(kalshi.record(a.arg, kalshi.expand(tickers, a.event), a.interval, until))
+        case "us":
+            from . import us
+            us.cli(a)
 
 
 if __name__ == "__main__":

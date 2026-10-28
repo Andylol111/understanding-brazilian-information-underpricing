@@ -221,8 +221,7 @@ def kalshi_markets(eid: str) -> dict[str, list[dict]]:
     out: dict[str, list[dict]] = {}
     for pr in tomllib.loads(p.read_text()).get("pair", []):
         side = pr.get("kalshi_yes_is")
-        mk = {"platform": "kalshi", "id": pr["kalshi_ticker"], "question": pr.get("kalshi_title", pr["kalshi_ticker"]),
-              "yes_is": side}
+        mk = {"platform": "kalshi", "id": pr["kalshi_ticker"], "yes_is": side}   # question: our own wording, in race()
         if side in ("a", "b") and mk not in out.setdefault(pr["race_id"], []):
             out[pr["race_id"]].append(mk)
     return out
@@ -322,8 +321,10 @@ def export(eid: str, names: pd.Series) -> dict:
     ev, kind = E["evidence"], E["kind"]
     timeline, races, results = {}, [], []
     stats = {"calibration": {}, "settle": {}, "catchup": {}, "early_error": {}, "capacity": {}, "arbitrage": None,
-             "evidence": {}, "reasons": {"arbitrage": "Kalshi workstream adds cross-platform pairs",
-                                              "settle.kalshi": "Kalshi workstream adds Kalshi prices"}}
+             "evidence": {}, "reasons": {"arbitrage": "Kalshi data licence (docs/kalshi.md)",
+                                         "settle.kalshi": "Kalshi data licence (docs/kalshi.md)",
+                                         "catchup.kalshi": "Kalshi data licence (docs/kalshi.md)",
+                                         "capacity.kalshi": "Kalshi data licence (docs/kalshi.md)"}}
     kal = kalshi_markets(eid)
     notes = ["counted = model's share of the expected two-way votes already counted (timeline); map f = share of the "
              "municipality's polling sections received.",
@@ -371,7 +372,8 @@ def export(eid: str, names: pd.Series) -> dict:
                         "yes_is": "a"}] if mk else []
             races.append({"race_id": rid, "name": name, "region": reg,
                           "a": {"id": a, "name": na, "color": COLOR_A}, "b": {"id": b, "name": nb, "color": COLOR_B},
-                          "markets": markets + kal.get(rid, [])})
+                          "markets": markets + [{**k, "question": "Kalshi lists a market on this outcome; its prices are not "
+                                                 "shown (Kalshi data licence)"} for k in kal.get(rid, [])]})
 
         office = "Governor" if kind == "gov" else "President"
         mk = cfg.get("markets", {}).get("national")

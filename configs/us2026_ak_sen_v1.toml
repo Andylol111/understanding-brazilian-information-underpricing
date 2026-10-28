@@ -1,0 +1,43 @@
+# US midterms 2026-11-03, Alaska Senate. Frozen before polls close (first close 2026-11-03 23:00 UTC); the integrator
+# registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence:
+# docs/us_midterms.md. Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_ak_sen_v1"
+
+[election]
+eid = "us2026"
+race_id = "ak-sen"
+name = "Alaska Senate"
+state = "ak"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "ak"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T05:00:00Z"
+a = { party = "DEM", name = "Mary Peltola", color = "#1f5fbf" }
+b = { party = "REP", name = "Dan Sullivan", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "ak_sen_p2026"        # 2026 top-four primary (same candidates, open to all voters), Democrats v Republicans by house district
+votes = "ak_sen_p2026"        # 2026 primary two-bloc votes × 1.4 (AK 2022 official: 192,542 primary vs 267,047 general ballots)
+
+[model]                    # brunder.nowcast.Params; GA no-split value 0.06 widened for a weeks-long count (judgment, not calibrated)
+tau = 0.08
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# AK counts many absentee and questioned ballots after election night: precincts reporting
+# is ignored and f = counted / expected (primary × 1.4). Ranked-choice: first-choice votes summed by
+# party bloc stand in for the final round.
+turnout_ratio = 1.4
+f_max = 0.95
+f_complete = 0.0
+use_outstanding = false
+learn_turnout = false
+
+[markets.polymarket]
+event = "alaska-senate-election-winner"
+market = "will-mary-peltola-win-the-alaska-senate-race-in-2026"
+question = "Will Mary Peltola win the Alaska Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

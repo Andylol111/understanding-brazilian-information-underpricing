@@ -1,0 +1,41 @@
+# US midterms 2026-11-03, Ohio governor. Frozen before polls close (first close 2026-11-03 23:00 UTC); the integrator
+# registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence:
+# docs/us_midterms.md. Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_oh_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "oh-gov"
+name = "Ohio governor"
+state = "oh"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "oh"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T00:30:00Z"
+a = { party = "DEM", name = "Amy Acton", color = "#1f5fbf" }
+b = { party = "REP", name = "Vivek Ramaswamy", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "oh_pres_2024"        # 2024 president (MEDSL, CC0); see oh-sen
+votes = "oh_pres_2024"        # as oh-sen
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays, no vote-type split (OH feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# As oh-sen.
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.0
+use_outstanding = true
+learn_turnout = true
+
+[markets.polymarket]
+event = "ohio-governor-winner-2026"
+market = "will-the-democrats-win-the-ohio-governor-race-in-2026"
+question = "Will the Democrats win the Ohio governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

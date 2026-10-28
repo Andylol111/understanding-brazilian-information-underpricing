@@ -1,0 +1,42 @@
+# US midterms 2026-11-03, California governor. Frozen before polls close (first close 2026-11-03 23:00 UTC); the integrator
+# registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence:
+# docs/us_midterms.md. Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_ca_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "ca-gov"
+name = "California governor"
+state = "ca"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "ca"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T04:00:00Z"
+a = { party = "DEM", name = "Xavier Becerra", color = "#1f5fbf" }
+b = { party = "REP", name = "Steve Hilton", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "ca_gov_2022"        # 2022 governor (Newsom v Dahle): same office, last midterm, top-two D v R
+votes = "ca_gov_2022"        # 2022 governor two-party votes (midterm turnout pattern)
+
+[model]                    # brunder.nowcast.Params; GA no-split value 0.06 widened for a weeks-long count (judgment, not calibrated)
+tau = 0.08
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# CA counts vote-by-mail and provisional ballots for weeks: precincts reporting says nothing about
+# ballots left, so f = counted / expected (2022 governor two-party votes × 1.0), capped at 0.90.
+turnout_ratio = 1.0
+f_max = 0.9
+f_complete = 0.0
+use_outstanding = false
+learn_turnout = false
+
+[markets.polymarket]
+event = "california-governor-election-2026"
+market = "will-xavier-becerra-win-the-california-governor-election-in-2026"
+question = "Will Xavier Becerra win the California Governor Election in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""
