@@ -1,7 +1,7 @@
 # Always-on host
 
-The long-running jobs (forward-test recorder, TSE BU-web watcher) run on `oracle-slotbank`, an Oracle
-Cloud Always Free ARM VM (2 cores / 12 GB, Ubuntu 22.04) shared with other services. brunder runs as its
+The long-running jobs (forward-test recorder, TSE BU-web watcher, scheduled election-night recordings)
+run on an Oracle Cloud Always Free ARM VM (2 cores / 12 GB, Ubuntu 22.04) shared with other services. brunder runs as its
 own user (`brunder`, home `/srv/brunder`) under systemd, capped and at low CPU and IO priority so the
 host's other services keep priority. CPU-heavy work (rehearsals, replays) stays on the laptop.
 
@@ -15,9 +15,9 @@ largest state, presidential + governor rows): 1.4 GB zip, 1.43 M rows kept, **pe
 3 GB), 54 min (CPU-bound at the 50% cap), no OOM. Disk: 24 GB free; each zip is deleted after parsing.
 The runoff files are smaller (one or two offices), so expect a few hours for all 28 states.
 
-The host's `system.slice` shows past OOM kills: Firecrawl's RabbitMQ container (`beam.smp`, 512 MB
-limit) on 2026-10-13 and 10-23, and the camoufox container once. None in brunder's units
-(`memory.events` oom_kill = 0); systemd re-reports the slice's cumulative counter on `daemon-reload`.
+Other services on the host have had their own memory-limit kills; none in brunder's units
+(`memory.events` oom_kill = 0). systemd re-reports the slice's cumulative counter on `daemon-reload`,
+so a slice-level OOM message at that moment is not necessarily new.
 
 Setup (once, as a sudoer on the host):
 
