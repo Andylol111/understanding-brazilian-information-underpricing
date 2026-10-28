@@ -31,12 +31,27 @@ def _name(url: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "_", url.split("://", 1)[-1])[:120]
 
 
+_GA_ITEMS: dict[str, list[str]] = {}       # election data URL -> ballot-item ids to record (stable per election)
+_GA_RACES = ("governor", "us senate", "u.s. senate", "united states senate")
+
+
+def _ga_item_ids(data: dict) -> list[str]:
+    """Ballot items worth recording county breakdowns for: Governor and US Senate (names are language lists)."""
+    ids = []
+    for item in data.get("ballotItems") or []:
+        names = item.get("name") or []
+        text = " ".join(n.get("text", "") for n in names if isinstance(n, dict)).lower()
+        if any(text.startswith(r) for r in _GA_RACES):
+            ids.append(item["id"])
+    return ids
+
 async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str], date: str | None) -> list[tuple[str, str]]:
     """Day-of URLs whose election id / version is only known once published. Returns (key, url) pairs.
       clarity: Clarity/Scytl ENR base, e.g. https://electionresults.iowa.gov/IA. The election is the one
                dated `date` in elections.json; data lives under a version that changes on every upload.
       ga_enr:  Enhanced Voting jurisdiction URL, e.g. …/public/api/jurisdictions/Georgia; the election is
-               the one with electionDate == `date`; records its per-county `localities`."""
+               the one with electionDate == `date`; records its per-county `localities`, the statewide
+               `data` file, and the per-county breakdown (`data/ballot-item/<id>`) of Governor and US Senate."""
     out = []
     if not date:
         return out
@@ -57,7 +72,12 @@ async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str]
             if ids:
                 api = url.split("/jurisdictions/")[0]
                 name = url.rsplit("/", 1)[-1]
-                out.append((f"ga_enr_{name}_localities", f"{api}/elections/{name}/{ids[0]}/localities"))
+                base = f"{api}/elections/{name}/{ids[0]}"
+                out.append((f"ga_enr_{name}_localities", f"{base}/localities"))
+                out.append((f"ga_enr_{name}_data", f"{base}/data"))
+                if not _GA_ITEMS.get(base):
+                    _GA_ITEMS[base] = _ga_item_ids((await web.get(f"{base}/data")).json())
+                out += [(f"ga_enr_{name}_item_{i}", f"{base}/data/ballot-item/{i}") for i in _GA_ITEMS[base]]
         except Exception as e:
             print(f"resolver {url}: {type(e).__name__}: {e}", flush=True)
     return out

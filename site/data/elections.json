@@ -1,0 +1,52 @@
+[
+ {
+  "id": "br2026r2",
+  "name": "Brazil presidential runoff",
+  "date": "2026-10-25",
+  "country": "BR",
+  "status": "replay",
+  "unit_level": "municipality",
+  "evidence": "pre-specified",
+  "summary": "From 1% counted (19:04), the model was already 90% sure of Lula's win, about 80 minutes before Polymarket (20:24); the raw tally showed Flávio Bolsonaro ahead from 19:45 to 20:23."
+ },
+ {
+  "id": "br2026r1",
+  "name": "Brazil presidential election, first round",
+  "date": "2026-10-04",
+  "country": "BR",
+  "status": "replay",
+  "unit_level": "municipality",
+  "evidence": "in-sample",
+  "summary": "From 1% counted (17:19), the model became 90% sure of Flávio Bolsonaro's first place at 18:02, about 28 minutes before Polymarket (18:30); the raw tally showed Lula ahead from 17:09 to 17:13."
+ },
+ {
+  "id": "br2026r2gov",
+  "name": "Brazil governor runoffs (6 states)",
+  "date": "2026-10-25",
+  "country": "BR",
+  "status": "replay",
+  "unit_level": "municipality",
+  "evidence": "pre-specified",
+  "summary": "Counting from the moment each race reached 1% counted, the model was 90% sure of the winner a median 3 minutes after Polymarket (lead range -140 to +42 minutes across 6 governor runoffs); in 4 of 6 races Polymarket was already 90% sure before 1% was counted."
+ },
+ {
+  "id": "br2022r1",
+  "name": "Brazil presidential election, first round",
+  "date": "2022-10-02",
+  "country": "BR",
+  "status": "replay",
+  "unit_level": "municipality",
+  "evidence": "model-only",
+  "summary": "From 1% counted (17:38), the model was already 90% sure of Lula's first place, 142 minutes before the raw tally settled on Lula (20:00); the raw tally showed Jair Bolsonaro ahead from 17:14 to 19:59. Model only: no market prices survive."
+ },
+ {
+  "id": "br2022r2",
+  "name": "Brazil presidential runoff",
+  "date": "2022-10-30",
+  "country": "BR",
+  "status": "replay",
+  "unit_level": "municipality",
+  "evidence": "model-only",
+  "summary": "From 1% counted (17:14), the model became 90% sure of Lula's win at 18:41, 3 minutes before the raw tally settled on Lula (18:44); the raw tally showed Jair Bolsonaro ahead from 17:07 to 18:43. Model only: no market prices survive."
+ }
+]

@@ -1,0 +1,147 @@
+# FROZEN 2026-10-28T16:53Z, before any model run on 2026 count data. Evidence label: PRE-SPECIFIED
+# (frozen after the election, outcome partly known: the aggregate count and the market prices had been
+# looked at while taking inventory of the recording; no 2026 data went into any setting below).
+# Settings come only from replaying the official 2021 and 2022 counts (analysis/il_calibrate.py,
+# results/israel/calibration_*.csv). New versions get new files; do not edit this one.
+# Integrator: commit, then register (`brunder register configs/il2026_v1.toml`) before running
+#   BRUNDER_DATA=... uv run python analysis/il_score.py configs/il2026_v1.toml
+id = "il2026_v1"
+election = "26th Knesset, 2026-10-27; polls closed 20:00 UTC"
+poll_close_utc = "2026-10-27T20:00:00Z"
+seed = 20261027
+
+[model]                      # brunder.israel.Settings
+prior_votes = 100.0          # calibration grid 100..80000: lowest share MAE (0.18 pt); a numerical stabiliser only
+own_votes = 100.0            # grid 25..4000: 100 best (differences < 0.01 pt)
+var_votes = 20000.0          # default, not tuned
+growth_votes = 20000.0       # default, not tuned
+tau = 0.01                   # smallest tau with 90% coverage >= 0.90 in both halves of the 2021+2022 counts (0.91 / 0.99)
+turnout_sd = 0.155           # RMS log error of the projected uncounted vote total, 2021+2022
+min_list_share = 0.003
+draws = 4000
+
+[prior]                      # 25th Knesset final, by locality; official CEC ballot-box file
+source = "https://web.archive.org/web/20221108165910/https://media25.bechirot.gov.il/files/expb.csv"
+file = "israel/cec_wayback/k25/expb_20221108165910.csv"
+sha256 = "07c71db1bf844d40cbc4d96c606550f2ada3c9f258287d08679180d0b9a413bc"
+min_share = 0.01             # prior lists with >= 1% nationally enter the regression on their own
+
+[feed]
+# Locality-level content of each CEC release: results.json in github.com/navonyaniv/election-il-2026
+# (third-party mirror, private research only). A release becomes usable at the first time our own
+# recorder (data/raw/snap/israel_2026) shows its national valid-vote total, in the votes26 live file or
+# the earthelects file, whichever is earlier. Releases first seen after the recording ended are not used.
+content = "israel/navonyaniv"
+recording = "snap/israel_2026"
+recording_end_utc = "2026-10-28T12:00:00Z"
+
+# Surplus-vote agreements filed with the CEC by the 16 Oct 2026 deadline (as reported by Kikar HaShabbat
+# and Emess on 16 Oct; the CEC's own page answers 403 from outside Israel). Only count if both pass 3.25%.
+[agreements]
+pairs = [["מחל", "ט"], ["שס", "ג"], ["דרך", "אמת"], ["רק", "ל"], ["עם", "ודם"]]
+
+[lists]                      # ballot letter -> name
+"מחל" = "Likud"
+"דרך" = "Yashar! (Eisenkot)"
+"רק" = "Together (Bennett)"
+"ודם" = "Joint List"
+"אמת" = "The Democrats"
+"ג" = "United Torah Judaism"
+"ל" = "Yisrael Beiteinu"
+"ב" = "Otzma Yehudit"
+"שס" = "Shas"
+"עם" = "Ra'am"
+"ט" = "Religious Zionism-Zehut"
+"די" = "Reservists-Economic (Hendel-Zelicha)"
+"ך" = "Amcha Yisrael (Winter)"
+
+[blocs]                      # as named in the Polymarket bloc market
+netanyahu = ["מחל", "ב", "ט", "ך", "ג", "שס"]
+opposition = ["אמת", "דרך", "רק", "ל"]
+
+[evaluation]
+settle_level = 0.9           # settled = first time after which P(eventual outcome) >= 0.9 holds to the end
+catchup_horizon_min = 30
+window_end_utc = "2026-10-28T12:00:00Z"
+# outcome: official CEC final seats when published; until then the allocation of the last count
+# available (labelled provisional in every output)
+
+# Polymarket markets the count model prices (YES token = first outcome). Not modelled: next prime
+# minister and hung parliament (decided by coalition talks, not by the count).
+[[markets]]
+id = "will-likud-win-the-most-seats-in-the-2026-israeli-legislative-election"
+event = "israeli-legislative-election-winner"
+kind = "most_seats"
+party = "מחל"
+[[markets]]
+id = "will-yashar-win-the-most-seats-in-the-2026-israeli-legislative-election"
+event = "israeli-legislative-election-winner"
+kind = "most_seats"
+party = "דרך"
+[[markets]]
+id = "will-together-win-the-most-seats-in-the-2026-israeli-legislative-election"
+event = "israeli-legislative-election-winner"
+kind = "most_seats"
+party = "רק"
+[[markets]]
+id = "will-the-democrats-win-the-most-seats-in-the-2026-israeli-legislative-election"
+event = "israeli-legislative-election-winner"
+kind = "most_seats"
+party = "אמת"
+[[markets]]
+id = "will-shas-win-the-most-seats-in-the-2026-israeli-legislative-election"
+event = "israeli-legislative-election-winner"
+kind = "most_seats"
+party = "שס"
+[[markets]]
+id = "will-otzma-yehudit-win-the-most-seats-in-the-2026-israeli-legislative-election"
+event = "israeli-legislative-election-winner"
+kind = "most_seats"
+party = "ב"
+[[markets]]
+id = "will-likud-win-fewer-than-20-seats-in-the-2026-israeli-legislative-election"
+event = "israel-election-likud-of-seats"
+kind = "seats_band"
+party = "מחל"
+lo = 0
+hi = 19
+[[markets]]
+id = "will-likud-win-20-24-seats-in-the-2026-israeli-legislative-election"
+event = "israel-election-likud-of-seats"
+kind = "seats_band"
+party = "מחל"
+lo = 20
+hi = 24
+[[markets]]
+id = "will-likud-win-25-29-seats-in-the-2026-israeli-legislative-election"
+event = "israel-election-likud-of-seats"
+kind = "seats_band"
+party = "מחל"
+lo = 25
+hi = 29
+[[markets]]
+id = "will-likud-win-30-34-seats-in-the-2026-israeli-legislative-election"
+event = "israel-election-likud-of-seats"
+kind = "seats_band"
+party = "מחל"
+lo = 30
+hi = 34
+[[markets]]
+id = "will-likud-win-35-or-more-seats-in-the-2026-israeli-legislative-election"
+event = "israel-election-likud-of-seats"
+kind = "seats_band"
+party = "מחל"
+lo = 35
+hi = 120
+[[markets]]
+id = "israel-election-which-bloc-wins-more-seats"
+event = "israel-election-which-bloc-wins-more-seats"
+kind = "bloc"
+a = "netanyahu"
+b = "opposition"
+
+[[model_only]]               # no market recorded; reported, not scored against a price
+id = "netanyahu-bloc-61"
+kind = "majority"
+a = "netanyahu"
+n = 61

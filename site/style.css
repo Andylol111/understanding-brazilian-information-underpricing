@@ -144,3 +144,94 @@ footer { font: 14px/1.6 var(--sans); color: var(--muted); border-top: 1px solid 
   .numbers b { font-size: 32px; }
   .pair { grid-template-columns: 1fr; }
 }
+
+/* ---------- multi-election pages (index.html, election.html) ---------- */
+
+h3 { font: 700 19px/1.3 var(--serif); margin: 36px 0 8px; }
+
+.sitenav { font: 14px/1.4 var(--sans); color: var(--muted); margin-bottom: 36px; }
+.sitenav a { color: var(--ink); }
+
+.label.fwd { background: #e6f0e8; color: #2f5c3a; }
+.label.mo { background: #eeeeec; color: #55575a; }
+.label { vertical-align: 2px; }
+
+.status { font: 600 12px/1 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.status.live { color: var(--model); }
+
+.elections { list-style: none; padding: 0; margin: 8px 0 0; border-top: 2px solid var(--ink); }
+.election { border-bottom: 1px solid var(--rule); padding: 14px 0 12px; margin: 0; }
+.election p { margin: 0; }
+.election .when { font: 13px/1.5 var(--sans); color: var(--muted); }
+.election .what { font-weight: 700; font-size: 20px; line-height: 1.35; margin: 2px 0 4px; }
+.election .summary { font-size: 17px; line-height: 1.5; color: #3a3a3a; }
+.election .aside { font: 400 14px var(--sans); color: var(--muted); margin-left: 6px; }
+
+.defs { margin: 0 0 18px; }
+.defs dt { font-weight: 700; margin-top: 12px; }
+.defs dd { margin: 2px 0 0; }
+
+.flush { margin-left: 0; margin-right: 0; }
+#map-section h2, #race-section h2, #arb-section h2 { margin-top: 64px; }
+
+.mapgrid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 28px; align-items: start; margin-top: 12px; }
+.map { min-width: 0; }
+.mapsvg { display: block; }
+.units path { cursor: crosshair; }
+.region-mesh { fill: none; stroke: #1b1b1b; stroke-width: 0.8; stroke-opacity: 0.7; stroke-linejoin: round; pointer-events: none; }
+.outline { fill: none; stroke: #8d8a82; stroke-width: 0.6; pointer-events: none; }
+.hover { stroke: var(--ink); stroke-width: 1.6; pointer-events: none; }
+
+.mapside { font: 14px/1.45 var(--sans); }
+.mapside .toggle { flex-wrap: wrap; }
+.scrub { display: flex; gap: 10px; align-items: center; margin: 4px 0 6px; }
+.scrub button {
+  font: 14px/1 var(--sans); padding: 7px 12px; min-width: 64px;
+  border: 1px solid var(--ink); background: transparent; color: var(--ink); border-radius: 3px; cursor: pointer;
+}
+.scrub input[type="range"] { flex: 1; min-width: 0; accent-color: var(--raw); }
+.frame-time { font: 13px/1.4 var(--sans); color: var(--muted); margin: 0 0 14px; font-variant-numeric: tabular-nums; }
+.frame-time b { color: var(--ink); font-size: 16px; }
+.legend svg { display: block; overflow: visible; max-width: 100%; }
+.legend-text { font: 11.5px var(--sans); fill: var(--muted); }
+.mode-note { font: 13px/1.45 var(--sans); color: var(--muted); margin: 4px 0 16px; }
+.unit-readout { border-top: 1px solid var(--rule); padding-top: 10px; min-height: 12em; }
+.unit-readout p { margin: 0 0 6px; }
+table.kv { font-size: 13.5px; margin: 0; }
+table.kv td { padding: 3px 6px 3px 0; }
+
+.select { font: 14px/1 var(--sans); color: var(--muted); display: inline-flex; gap: 8px; align-items: center; margin: 4px 0 14px; max-width: 100%; }
+.select select { font: 15px var(--sans); padding: 5px 6px; border: 1px solid var(--ink); border-radius: 3px; background: transparent; color: var(--ink); max-width: 100%; min-width: 0; }
+
+.end-label { font: 12px var(--sans); }
+.chart-note { font: 11.5px var(--sans); }
+.frame-rule { stroke: var(--raw); stroke-width: 1; stroke-dasharray: 3,3; }
+.readout .dim { color: var(--muted); }
+code { font-size: 0.9em; overflow-wrap: anywhere; }
+
+.stat { margin-bottom: 8px; }
+.stat h3 { margin-top: 40px; }
+.stat .def { font: 14.5px/1.5 var(--sans); color: var(--muted); margin: 0 0 6px; }
+.stat table { font-size: 14px; margin-top: 4px; }
+.na { color: var(--muted); font: italic 14px/1.5 var(--sans); }
+.scroll { max-height: 380px; overflow-y: auto; border-bottom: 1px solid var(--rule); }
+.scroll thead th { position: sticky; top: 0; background: var(--paper); }
+
+.arb-pair { margin: 22px 0 8px; }
+
+@media (max-width: 860px) {
+  .mapgrid { grid-template-columns: 1fr; gap: 12px; }
+  .unit-readout { min-height: 0; }
+}
+@media (max-width: 720px) {
+  main { padding: 32px 16px 72px; }
+  .stat table { font-size: 12.5px; }
+  th, td { padding-right: 6px; }
+  .election .what { font-size: 18px; }
+}
+.legend-names { display: flex; justify-content: space-between; gap: 12px; font: 12px/1.3 var(--sans); color: var(--ink); margin-top: -2px; }
+.legend-names span:last-child { text-align: right; }
+@media (max-width: 560px) {
+  #tl-readout { min-height: 4.5em; }
+  .end-label { font-size: 11px; }
+}

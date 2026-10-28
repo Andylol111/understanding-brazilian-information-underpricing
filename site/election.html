@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Election night</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+
+<nav class="col sitenav"><a href="./" id="home">Election nights</a> / <span id="crumb">…</span></nav>
+
+<header class="col">
+  <p class="kicker" id="kicker"></p>
+  <h1 id="title">Loading…</h1>
+  <p class="dek" id="dek"></p>
+  <p class="byline" id="byline"></p>
+</header>
+
+<section class="wide" id="map-section" hidden>
+  <div class="col flush">
+    <h2 id="map-title">The count by place</h2>
+    <p id="map-intro"></p>
+  </div>
+  <div class="mapgrid">
+    <div id="map" class="map"></div>
+    <div class="mapside">
+      <div class="toggle" id="map-mode" role="group" aria-label="Map colour">
+        <button data-mode="counted" aria-pressed="false">Counted</button>
+        <button data-mode="swing" aria-pressed="false">Swing from prior</button>
+        <button data-mode="margin" aria-pressed="true">Projected margin</button>
+      </div>
+      <div class="scrub">
+        <button id="play" type="button">Play</button>
+        <input id="frame" type="range" min="0" max="0" value="0" step="1" aria-label="Time">
+      </div>
+      <p class="frame-time" id="frame-time"></p>
+      <div id="legend" class="legend"></div>
+      <p class="mode-note" id="mode-note"></p>
+      <div class="unit-readout" id="map-readout"></div>
+    </div>
+  </div>
+</section>
+
+<section class="wide" id="race-section" hidden>
+  <div class="col flush">
+    <h2>Count, model and market prices for one race</h2>
+    <p id="race-intro"></p>
+    <label class="select">Race <select id="race"></select></label>
+  </div>
+  <p class="readout" id="tl-readout"></p>
+  <div id="timeline"></div>
+  <p class="note" id="tl-note"></p>
+  <p class="note" id="markets-note"></p>
+</section>
+
+<section class="col" id="stats-section" hidden>
+  <h2>Standard statistics</h2>
+  <p>These six measures are computed the same way for every election; the <a href="./">overview page</a> defines them. The label next to each says how its model settings were fixed: chosen on this data (in-sample), frozen before the data was examined (pre-specified), or frozen before the outcome existed (forward).</p>
+  <div id="stats"></div>
+</section>
+
+<section class="wide" id="arb-section" hidden>
+  <div class="col flush">
+    <h2>Price differences between Polymarket and Kalshi</h2>
+    <p>For each race listed on both platforms: the cost of buying one candidate on one platform and the other candidate on the other, at the quoted asks and after both platforms' fees. The <i>net edge</i> is $1 minus that cost; above zero, holding both sides pays out more than it costs whoever wins.</p>
+  </div>
+  <div id="arb"></div>
+</section>
+
+<section class="col" id="notes-section" hidden>
+  <h2>Notes</h2>
+  <ul id="notes"></ul>
+</section>
+
+<footer class="col" id="sources"></footer>
+
+</main>
+<script type="module" src="election.js"></script>
+</body>
+</html>

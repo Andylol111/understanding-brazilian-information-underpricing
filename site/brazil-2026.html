@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The count knew first: how Polymarket prices an election night</title>
+<meta name="description" content="On Brazil's 2026 election nights the public vote count said more than the Polymarket price showed. How much, how fast the market caught up, and whether any money could be made from it.">
+<meta property="og:title" content="The count knew first: how Polymarket prices an election night">
+<meta property="og:description" content="Half an hour after the public count implied something the price didn't show, the market had moved only 40–55% of the way there.">
+<meta property="og:type" content="article">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="col sitenav"><a href="./">Election nights</a> / Brazil 2026 article</nav>
+
+<header class="col">
+  <p class="kicker">Prediction markets · Brazil 2026</p>
+  <h1>The count knew first</h1>
+  <p class="dek">On election night the public vote count says more than the Polymarket price shows. I measured how much, how fast the market catches up, and whether any of it could be traded.</p>
+  <p class="byline">A replay of Brazil's 2026 presidential and governor counts, minute by minute, from official section-level data. Code, tests and pre-registrations: <a href="https://github.com/Andylol111/understanding-brazilian-information-underpricing">GitHub</a>.</p>
+
+  <div class="numbers">
+    <div><b>40–55%</b><span>of the gap between count and price the market had closed 30 minutes later</span></div>
+    <div><b>~80 min</b><span>the count model was sure of the runoff before the market was, from the first moment it could trade</span></div>
+    <div><b>$2,741 / $0</b><span>bought at the signal prices within 30 minutes: first round (in-sample) / runoff (frozen settings)</span></div>
+  </div>
+</header>
+
+<section class="col">
+  <h2>Runoff night, minute by minute</h2>
+  <p>Brazil counts electronic ballots fast and publishes results by polling section. The catch: sections don't arrive in a random order. Early on, the running national tally is dominated by whichever states report first, so it can point the wrong way for an hour or more.</p>
+  <p>The <span class="m">model</span> corrects for that. It projects each municipality's final result from the sections already in, using only information available before the night (for the runoff, each municipality's first-round result) to fill in what hasn't reported. The <span class="r">raw tally</span> is what the official results page showed. The <span class="k">market</span> is the Polymarket price.</p>
+</section>
+
+<figure class="wide">
+  <div class="toggle" id="night-toggle" role="group" aria-label="Choose night">
+    <button data-night="r2" aria-pressed="true">Runoff, 25 Oct</button>
+    <button data-night="r1" aria-pressed="false">First round, 4 Oct</button>
+  </div>
+  <p class="readout" id="night-readout"></p>
+  <div id="night"></div>
+  <figcaption>Brasília time. Shaded band: the model's 90% interval for the final share. Dashed: the final result. Runoff values are from a replay with settings frozen before the night's data was examined; the first round is the night the model was developed on.</figcaption>
+</figure>
+
+<section class="col">
+  <p>At 19:04 on runoff night, with 1.5% of sections counted, the model put Lula's chance of winning at 0.95; the market said 0.38. The market crossed 0.5 at 19:10. Then from 19:45 to 20:23, between 14% and 46% counted, the raw tally showed Flávio ahead, and the market fell from 0.86 to 0.62 while the model's projection barely moved. The market settled above 0.9 at 20:24, the same minute the raw tally turned back to Lula. He won 51.79–48.21.</p>
+  <p>The market seems to have been reading the raw tally, not the count underneath it.</p>
+</section>
+
+<section class="col">
+  <h2>How much of the gap does the market close?</h2>
+  <p>If the market had already priced what the count implied, today's gap between model and price would tell you nothing about where the price goes next. It does. Each dot below is a tenth of all market-minutes, from 1% counted until the market settled, grouped by the size of the gap.</p>
+</section>
+
+<figure class="wide">
+  <div class="pair">
+    <div id="binned-r1"></div>
+    <div id="binned-r2"></div>
+  </div>
+  <figcaption>Each dot: one tenth of the market-minutes, at its average gap and average move. Dashed diagonal: the price moves the full gap. Solid line: fitted slope over all market-minutes. Brackets: 95% interval, resampling whole market × half-hour blocks because one-minute windows overlap. First round: 8 presidential markets (national and states); runoff night: 12 markets including governor races.</figcaption>
+</figure>
+
+<section class="col">
+  <p>The slope is the share of the gap the price closes in the next 30 minutes. Repeating it for every horizon gives the market's catch-up curve:</p>
+</section>
+
+<figure class="wide">
+  <p class="chart-title">The market catches up, but slowly</p>
+  <p class="chart-sub">Share of the model–market gap the price had closed, by minutes since the gap appeared. Bands: 95% intervals.</p>
+  <div id="catchup"></div>
+  <figcaption>After five minutes the price had moved 13–18% of the way, after half an hour 40–55%. By an hour the intervals are wide (from about 0.1 to just under 1), and beyond an hour they include zero, so the long-run share is not pinned down.</figcaption>
+</figure>
+
+<section class="col">
+  <h2>Is that just noise in the price?</h2>
+  <p>It's a fair worry. The gap and the move both contain the current price, so a stale or bouncing price alone would produce a positive slope even in a market that priced the count perfectly. The checks below each break that link in a different way. If noise were the story, the effect would vanish when the move is measured from a minute later, and the placebos would show the same slope as the model. Neither happens.</p>
+</section>
+
+<figure class="wide">
+  <p class="chart-title">The slope survives every check; the placebos find nothing</p>
+  <p class="chart-sub"><span class="r">First round</span> and <span class="m">runoff night</span>, 30-minute move, 95% intervals.</p>
+  <div id="robust"></div>
+  <figcaption>Measuring from 5 minutes later lowers the slope, partly because some catch-up has already happened by then. One check not run: replacing the model with each state market's own raw tally (only the national raw tally is cached). This measure was chosen after both nights, so it describes them; it is not a pre-registered test.</figcaption>
+</figure>
+
+<section class="col">
+  <h2>Every race I could replay</h2>
+  <p>Ten races, three elections. For 2026 the comparison is with the market. For 2022 there are no Polymarket prices left, so the comparison is with the raw tally the market appears to follow. Each 2026 runoff replay ran once, with settings frozen before its data was downloaded.</p>
+</section>
+
+<figure class="wide">
+  <p class="chart-title">Minutes by which the model was sure (90%) before the market or raw tally</p>
+  <div id="races"></div>
+  <figcaption>The runoff bar (+198) counts from the first sections at 17:06; from the 1% point where the model could first trade, the lead is about 80 minutes. Distrito Federal is one municipality, so the model's only uncertainty is the order sections report, which it narrows slowly; the market was sure before counting began. Lighter bars: 2022, compared with the raw tally. In every frozen-settings replay the model's 90% interval contained the final result for 97–100% of the count.</figcaption>
+</figure>
+
+<section class="col">
+  <h2>Could you have traded it?</h2>
+  <p>Barely. Using every real trade on Polymarket after each signal, here is what could have been bought within 30 minutes at the signal price, or by paying a little more:</p>
+  <table>
+    <thead><tr><th>Night</th><th class="n">at signal price</th><th class="n">+2¢</th><th class="n">+5¢</th></tr></thead>
+    <tbody>
+      <tr><td>First round, all signals <span class="label in">in-sample</span></td><td class="n">$2,741</td><td class="n">$4,111</td><td class="n">$6,906</td></tr>
+      <tr><td>Runoff, presidential <span class="label pre">pre-specified</span></td><td class="n">$0</td><td class="n">$100</td><td class="n">$4,375</td></tr>
+      <tr><td>Runoff, governors <span class="label pre">pre-specified</span></td><td class="n">$2</td><td class="n">$5</td><td class="n">$45</td></tr>
+    </tbody>
+  </table>
+  <p>On the first round, 98% of the fillable amount was in one market in its first four minutes. On the runoff, the minute price history lagged real trades by 2–4¢, so nothing traded at the price the signal saw. The information gap is real; the money in it is small and goes fast.</p>
+</section>
+
+<section class="col">
+  <h2>Beyond Brazil</h2>
+  <p>Is Brazil a case or a pattern? Before looking at held-out data I registered three tests across ten Polymarket categories, each with its hypothesis, sample and statistic hashed in advance and run once:</p>
+  <ul>
+    <li><strong>Thin markets over-react to sharp moves and then revert</strong>: significant in 6 of 10 categories after multiple-testing correction, same sign in all ten. <span class="label reg">pre-registered</span></li>
+    <li><strong>"Mentions" markets under-price near-certain outcomes</strong>: +2.1% per dollar after spread and fees, but only $8.3k fillable across 1,851 entries. <span class="label reg">pre-registered</span></li>
+    <li><strong>Deep markets reacting too slowly in general</strong>: not supported. <span class="label reg">pre-registered</span></li>
+  </ul>
+  <p>So the slow pricing on Brazil's count nights is a specific case, not something this sample finds across deep markets.</p>
+</section>
+
+<section class="col">
+  <h2>How much to trust each piece</h2>
+  <ul>
+    <li><span class="label in">in-sample</span> The model's settings were chosen on the first-round night. It shows the method can work, not that it will.</li>
+    <li><span class="label pre">pre-specified</span> Settings frozen before the data was examined, each run once. Outcomes were already known when the replays ran.</li>
+    <li><span class="label reg">pre-registered</span> Tests fixed and hashed before seeing held-out data; the hashes and every look are in the repository.</li>
+  </ul>
+  <p>What would change my mind: a live, forward-recorded count night where the gap stops predicting the price. The tool runs live (<code>brunder night</code>) and is being tested on upcoming elections.</p>
+</section>
+
+<footer class="col">
+  Data: Tribunal Superior Eleitoral section-level results (runoff via the MIT-licensed <a href="https://github.com/cicerohellmann/eleicao-2026">eleicao-2026</a> extraction of the official ballot-box files), Polymarket public price and trade APIs. Code under MIT licence. Charts: D3 and Observable Plot. All numbers on this page are generated by <code>analysis/site_data.py</code> from the replay outputs.
+</footer>
+
+</main>
+<script type="module" src="brazil-2026.js"></script>
+</body>
+</html>
