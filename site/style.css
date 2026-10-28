@@ -467,3 +467,12 @@ table.venues td:first-child a { text-decoration: none; }
 @media (max-width: 700px) {
   .money-variants .table-scroll { overflow-x: auto; }
 }
+.money-races { margin: 4px 0 0; font: 12px/1.4 var(--sans); color: var(--ink); }
+.race-profit { margin-bottom: 6px; }
+#countdown { font: 13px/1 var(--sans); color: var(--muted); letter-spacing: 0; text-transform: none; }
+td.sched.pre { padding-top: 6px; }
+.pre-races { width: 100%; font: 13px/1.35 var(--sans); border-collapse: collapse; }
+.pre-races th { font-weight: 600; color: var(--muted); text-align: left; padding: 2px 8px 4px 0; }
+.pre-races th.n, .pre-races td.n { text-align: right; font-variant-numeric: tabular-nums; }
+.pre-races td { padding: 2px 8px 2px 0; border-top: 1px solid var(--rule); }
+.pre-races .note { font-size: 11.5px; }

@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths: ["site/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
+  # Before the US count: rebuild the pre-election data (prices, model baseline) every 30 minutes.
+  schedule:
+    - cron: "*/30 * * * *"
 
 permissions:
   contents: read
@@ -23,6 +26,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Refresh the US pre-election files until the first polls close (2026-11-04 00:00 UTC); after that the
+      # live numbers come from the election-night server and the committed files are left alone.
+      - name: Refresh US pre-election data
+        if: github.event_name == 'schedule'
+        run: |
+          now=$(date -u +%s); close=$(date -u -d "2026-11-04T00:00:00Z" +%s)
+          if [ "$now" -lt "$close" ]; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            ~/.local/bin/uv run --frozen brunder us preelection configs/us2026_*_v1.toml --out site/data
+          else
+            echo "polls have closed: not refreshing pre-election data"
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

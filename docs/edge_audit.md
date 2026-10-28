@@ -163,9 +163,23 @@ is everything that qualified: an upper bound for one trader, since other traders
   round: 10¢ / 300 s, 10% → $10,925. Hungary turns negative at 20¢ (eligible P&L −$14,923; all-of-each-trade
   bankroll $325): the high-edge trades there are the model's overconfident tail calls ("Tisza ≥ 130 seats").
   Israel has no eligible depth at 20¢ and $8,717 at 10¢.
+- **Coverage** (`results/edge_audit/coverage.csv`, one row per market): every market of every election was
+  read, from poll close to the end of the night (taker trades; archive where one exists, else the public
+  data API, fetched once and cached). Markets with at least one taker trade / markets: first round 24 / 28
+  (3,326 trades), runoff 21 / 28 (19,450, of which 19,093 in the national market), governors 6 / 6 (208),
+  Hungary 39 / 39 (37,470), Mexico 2 / 2 (157); Israel uses the recorded books. Markets with eligible trades
+  at 5¢ / 60 s: first round 7, runoff 7, governors 1 (Rio Grande do Norte), Hungary 24, Mexico 0, Israel 3.
+  Every market with none gets a reason in `profit_model_limit.by_race` (no taker trades; no trade on the
+  favoured side after the gate; or the best trade's margin, with the model's and the market's price for that
+  side at 1% counted). Runoff, per market: national 4,809 eligible trades, $3,086,875, +$887,190, bankroll
+  stake $9,907 → +$10,737; Amazonas $1,052 (+$249; stake $91 → +$23); Amapá $19,443 (+$2,648; stake $2);
+  Minas Gerais $285 (+$1,922), Pará $81, Distrito Federal $6, Tocantins $9 (−$9) came after the $10,000 was
+  spent; the other 21 had none (in 18 of them the market already priced the favoured side at 0.96–1.00 at
+  1% counted; in RJ, SP and SE no favoured-side trade came within 5¢ of the model, best 0.7–2.7¢). Governors: only Rio Grande do Norte (56 eligible trades, $695, +$319; stake $69 → +$32); AC,
+  AM, ES, TO best 0.8–4.0¢, DF −16¢ (the market was more confident than the model).
 - **Reconciliation with the integrator's quick check** (runoff $21,876 / $20,660 / $16,649 for all / 10% /
   10¢-300 s-10%): here $21,905 / $20,762 / $16,554. The check used only the cached 2-hour trade windows after
-  each first signal; this audit reads every taker trade of every market from the gate to the end of the night
+  each first signal; this audit reads every taker trade of every market from poll close to the end of the night
   (archive or data API, `results/edge_audit/trades/`), so eligible runoff volume is $3.11M here vs $2.19M.
   First round (check $24,882 / $16,716 / $11,905; here $21,643 / $14,763 / $10,925): the two cached
   national-market files overlap (entries at 20:19 and 20:28), so reading both counts 2,328 of their 4,874
@@ -339,7 +353,13 @@ the signal-price result nested in it:
 `"profit_model_limit"` (same elections): `{"markets_scored", "grid": {"edge{5,10,20}c_delay{60,300}s":
 {"eligible_trades", "eligible_volume", "eligible_pnl", "eligible_return", "markets", "largest_market",
 "largest_market_volume_share", "largest_market_pnl_share", "volume_won_share", "bankroll": {"first" | "first_cap"
-| "10pct" | "10pct_cap": {"ending_value", "deployed", "fills", "markets", "return_pct"}}}}}`.
+| "10pct" | "10pct_cap": {"ending_value", "deployed", "fills", "markets", "return_pct"}}}},
+"by_race": {"<race_id>": {"market", "trades_read", "first_trade", "last_trade", "source": "archive" | "api",
+"eligible_trades", "eligible_volume", "eligible_pnl", "bankroll_stake", "bankroll_pnl",
+"first_eligible": {"t", "side", "model_p", "price", "margin"} | null, "reason": null | "<sentence>"}}}` at the
+headline rule (5¢, 60 s, 10%); `model_p` and `price` are for the side bought, `margin` = model_p − all-in
+price; `by_race` is null for Israel. In `summary.json`, `invest10k.by_election[eid].by_race` lists the races
+with eligible trades: `{"market", "eligible_volume", "eligible_pnl", "bankroll_stake", "bankroll_pnl"}`.
 
 `value_path`: from poll close to the end of the price data, every 5 minutes (coarser, in multiples of 5 minutes,
 when that would exceed 150 points), cash + open positions marked to market at the last known Polymarket minute

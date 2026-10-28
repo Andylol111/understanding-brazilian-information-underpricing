@@ -11,6 +11,7 @@ import { createMap } from "./dash-map.js";
 import { drawTimeline } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
+import { untilText, polymarketP } from "./dash-precount.js";
 
 const EID = param("id");
 const $ = (id) => document.getElementById(id);
@@ -22,6 +23,15 @@ const S = {
   perf: { firstPaintMs: null, firstRenderMs: null, tickMs: [], frameDrawMs: [] },
 };
 window.__dashPerf = S.perf;
+
+// Before the count (meta.phase "pre-count", and no &live=): the map shows the model's projection
+// before any votes (past certified results), the chart the last 14 days of prices, and Polymarket's
+// current price is read in the browser every minute. From phase "live" (or with &live=) the page
+// is the election-night dashboard.
+const PRE = () => S.meta?.phase === "pre-count" && !LIVE;
+const closeOf = (reg) => Date.parse((reg && (S.meta.poll_close_by_region?.[reg] ?? S.meta.regions?.find((r) => r.id === reg)?.poll_close_utc)) || S.meta.poll_close_utc);
+const dayOf = (t) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: S.tz }).format(t);
+const closeText = (reg) => { const t = closeOf(reg); return Number.isFinite(t) ? `${clock(t, S.tz)} ${tzName(S.tz, t)} on ${dayOf(t)}` : "poll close"; };
 
 /* ---------------------------------------------------------------- map engine: worker, else page */
 
@@ -273,7 +283,7 @@ const clampT = (t) => Math.max(S.domain[0], Math.min(S.domain[1], t));
 // Replays open at the first map frame after the main race reached 25% counted; live pages and
 // elections without a count open at the end.
 function defaultTime() {
-  if (LIVE || !S.countTimeline) return S.domain[1];
+  if (LIVE || PRE() || !S.countTimeline) return S.domain[1];
   const hit = S.rows.get(mainRace()?.race_id)?.find((d) => d.counted >= 0.25);
   if (!hit) return S.domain[1];
   return clampT(S.frameTimes?.find((t) => t >= hit.tms) ?? hit.tms);
@@ -319,11 +329,12 @@ function winnerAt(k, j) {
 
 function modes() {
   if (!S.units) return [];
+  if (PRE()) return ["margin", "counted"];
   const w = hasWinner() ? ["winner"] : [];
   if (!S.units.K) return [...w, "prior"];
   return [...w, ...(S.countTimeline ? ["margin", "swing", "counted"] : ["margin", "swing"])];
 }
-const modeLabel = (m) => ({ winner: "Winning party", margin: S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", counted: "Counted", prior: "Comparison election" })[m];
+const modeLabel = (m) => ({ winner: "Winning party", margin: PRE() ? "Before any votes" : S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", counted: "Counted", prior: "Comparison election" })[m];
 
 const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is at full strength (dash-worker.js)
 
@@ -346,19 +357,21 @@ function render() {
     }
     const lk = `${S.mode}|${S.mode === "winner" ? k : ""}|${S.race?.race_id}`;
     if (lk !== S.legendKey) { S.legendKey = lk; renderLegend(); }
-    $("frame-label").textContent = k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
-      : tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames`
-        : `Map frame ${clock(S.units.times[k], S.tz)}`;
+    $("frame-label").textContent = PRE() ? (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}` : "Before any votes: past certified results, not polls")
+      : k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
+        : tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames`
+          : `Map frame ${clock(S.units.times[k], S.tz)}`;
     if (S.hover >= 0 || S.pinned >= 0) placeCard();
   }
   S.tl?.setCursor(S.t, S.preview);
-  S.scrub.setTime(S.t, `${clock(S.t, S.tz)} ${tzName(S.tz, S.t)}`);
+  S.scrub.setTime(S.t, `${PRE() ? `${dayOf(S.t)} ` : ""}${clock(S.t, S.tz)} ${tzName(S.tz, S.t)}`);
   const frameT = k >= 0 && S.units ? S.units.times[k] : null;
   $("scrub-time").innerHTML = S.preview != null
     ? `<b>${clock(S.preview, S.tz)}</b> preview · scrubber at ${clock(S.t, S.tz)}`
-    : `<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
+    : `${PRE() ? `${esc(dayOf(S.t))} ` : ""}<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing && !PRE() ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
   if (S.race) {
-    renderReadout($("readout"), { race: S.race, row: rowAt(S.race.race_id, tt), t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT });
+    const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
+    renderReadout($("readout"), { race: S.race, row: rowAt(S.race.race_id, tt), t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre });
   }
   // race list and region picker: at most every 200 ms while playing
   const now = performance.now();
@@ -607,7 +620,7 @@ function buildPicker() {
   const list = pickerRegions();
   el.hidden = !list.length;
   if (!list.length) return;
-  el.innerHTML = `<p class="rp-head"><span>Region</span><span>${S.countTimeline ? "Counted" : ""}</span><span title="Model probability (orange dot), Polymarket price (black line) and Kalshi price (green line) for the region's race, 0 to 1">Chance</span></p>
+  el.innerHTML = `<p class="rp-head"><span>Region</span><span>${PRE() ? "Polls close" : S.countTimeline ? "Counted" : ""}</span><span title="Model probability (orange dot), Polymarket price (black line) and Kalshi price (green line) for the region's race, 0 to 1">Chance</span></p>
     <div class="rp-list" role="listbox" aria-label="Regions">${list.map((r) => {
       const rs = racesIn(r.id);
       const chips = rs.length > 1 ? `<span class="rp-races">${rs.map((x) => `<button type="button" class="rp-chip" data-race="${esc(x.race_id)}">${esc(shortRaceName(x))}</button>`).join("")}</span>` : "";
@@ -650,7 +663,7 @@ function updatePicker(t) {
     }
     const race = regionRace(reg), r = race ? rowAt(race.race_id, t) : null;
     if (S.countTimeline && r?.counted != null) c = r.counted; // the region's own race, when it has one
-    row.children[1].textContent = c == null ? "" : pct(c, 0);
+    row.children[1].textContent = PRE() ? untilText(closeOf(reg) - Date.now(), true) ?? "closed" : c == null ? "" : pct(c, 0);
     const ind = row.children[2];
     const m = r?.P ?? null, pm = r?.pm ?? null, kx = r?.kalshi ?? null;
     [m, pm, kx].forEach((v, i) => {
@@ -718,13 +731,16 @@ function chartHeight() {
 function drawChart() {
   S.tl = drawTimeline($("timeline"), {
     race: S.race, rows: S.rows.get(S.race.race_id) ?? [], domain: S.domain, tz: S.tz, wall: S.wall, height: chartHeight(), countPanel: S.countTimeline,
+    placeholder: PRE() ? `Fills in from ${closeText(S.race.region)}` : null,
     onPreview: (t) => { S.preview = t; render(); },
     onSet: (t) => { pause(); S.preview = null; setTime(t); },
   });
   const g = S.gateCut;
-  $("tl-note").textContent = g
-    ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the vote was counted${g.maxBefore != null ? ` (at most ${pct(g.maxBefore)})` : ""}.`
-    : "";
+  $("tl-note").textContent = PRE()
+    ? "Before the count: prices every 30 minutes over the last 14 days, and Polymarket's current price as the last point. The orange line is the model's chance before any votes."
+    : g
+      ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the vote was counted${g.maxBefore != null ? ` (at most ${pct(g.maxBefore)})` : ""}.`
+      : "";
   S.tl.setCursor(S.t, S.preview);
 }
 
@@ -834,7 +850,8 @@ function renderTopbar() {
   $("title").textContent = m.name;
   $("date").textContent = fmtDate(m.date);
   // the evidence label lives in the Statistics and Method & sources tabs; the bar only says live/scheduled
-  $("evidence").innerHTML = e?.status && e.status !== "replay" ? `<span class="status ${esc(e.status)}">${esc(STATUS[e.status] ?? e.status)}</span>` : "";
+  $("evidence").innerHTML = PRE() ? `<span class="status pre">Before the count</span> <span id="countdown"></span>`
+    : e?.status && e.status !== "replay" ? `<span class="status ${esc(e.status)}">${esc(STATUS[e.status] ?? e.status)}</span>` : "";
   const names = new Intl.DisplayNames(["en"], { type: "region" });
   const groups = d3.groups(S.elections, (x) => x.country ?? "");
   groups.sort((a, b) => (names.of(a[0] || "ZZ") ?? a[0]).localeCompare(names.of(b[0] || "ZZ") ?? b[0]));
@@ -880,8 +897,26 @@ function initTabs() {
   show(tabs[0]);
 }
 
+// The race's entry in stats.profit_model_limit.by_race: keyed by race_id, or (Hungary) by market id,
+// in which case the entries of all the race's markets are added up.
+function profitOf(r) {
+  const by = S.stats?.profit_model_limit?.by_race;
+  if (!by || !r) return null;
+  if (by[r.race_id]) return by[r.race_id];
+  const ids = new Set((r.markets ?? []).map((m) => m.id));
+  const list = Object.values(by).filter((p) => ids.has(p.market));
+  if (list.length <= 1) return list[0] ?? null;
+  const sum = (k) => d3.sum(list, (p) => p[k] ?? 0);
+  const firsts = list.map((p) => p.first_eligible).filter(Boolean).sort((a, b) => a.t.localeCompare(b.t));
+  return {
+    markets: list.length, eligible_trades: sum("eligible_trades"), eligible_volume: sum("eligible_volume"), eligible_pnl: sum("eligible_pnl"),
+    bankroll_stake: sum("bankroll_stake"), bankroll_pnl: sum("bankroll_pnl"), first_eligible: firsts[0] ?? null,
+    reason: list.every((p) => !p.eligible_trades) ? list[0].reason : null,
+  };
+}
+
 function renderStatsTab() {
-  renderStats($("pane-stats"), { stats: S.stats, race: S.race, races: races(), raceName, tz: S.tz, arb: S.arb, settleOf });
+  renderStats($("pane-stats"), { stats: S.stats, race: S.race, races: races(), raceName, tz: S.tz, arb: S.arb, settleOf, profitOf });
 }
 
 function geometryCredit() {
@@ -931,7 +966,7 @@ async function refresh() {
 
 function buildRaceList() {
   const hasKalshi = [...(S.rows?.values() ?? [])].some((rows) => rows.some((d) => d.kalshi != null));
-  S.list = createRaceList($("pane-races"), { races: races(), raceName, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi });
+  S.list = createRaceList($("pane-races"), { races: races(), raceName, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf });
   S.list.select(S.race.race_id);
 }
 
@@ -973,6 +1008,81 @@ function startLive() {
 }
 
 /* ---------------------------------------------------------------- main */
+
+// Before the count: Polymarket's current price for every race, read in the browser once a minute while
+// the tab is visible, is added as each race's latest row (model chance and Kalshi carried from the
+// last row the scheduled build wrote). Every 10 minutes the meta and timeline are read again; when
+// the phase is no longer "pre-count" the page reloads as the election-night dashboard.
+const PRE_POLL_MS = 60000, PRE_FILES_MS = 10 * 60000;
+function startPreCount() {
+  // nothing to play before the count (one map frame); the scrubber still moves through the prices
+  $("play").style.display = "none";
+  $("speed").style.display = "none";
+  const el = $("live");
+  el.hidden = false;
+  let lastOk = 0, lastFiles = Date.now(), failed = false, timer = 0, busy = false;
+  const prices = new Map();
+  const pmOf = (r) => (r.markets ?? []).find((m) => m.platform === "polymarket" && m.id);
+  const fresh = async (path) => {
+    const r = await fetch(absUrl(path), { cache: "no-cache" });
+    return r.ok ? r.json() : null;
+  };
+  const apply = () => {
+    const now = Date.now(), iso = new Date(now).toISOString();
+    for (const r of races()) {
+      const p = prices.get(r.race_id);
+      const rows = (S.rows.get(r.race_id) ?? []).filter((d) => !d.live);
+      const last = rows[rows.length - 1];
+      if (p != null) rows.push({ ...(last ?? {}), t: iso, time: new Date(now), tms: now, pm: p, live: true });
+      S.rows.set(r.race_id, rows);
+    }
+    const kRow = [...(S.rows.get(S.race.race_id) ?? [])].reverse().find((d) => !d.live && d.kalshi != null);
+    S.liveNote = `Polymarket price live${kRow ? `; Kalshi as of ${dayOf(kRow.tms)} ${clock(kRow.tms, S.tz)}` : ""}`;
+    const follow = S.followLatest || S.t >= S.domain[1];
+    computeDomain();
+    S.t = follow ? S.domain[1] : clampT(S.t);
+    S.followLatest = S.t >= S.domain[1];
+    drawChart();
+    updateScrubber();
+    render();
+  };
+  const show = () => {
+    const left = untilText(closeOf(null) - Date.now());
+    const cd = $("countdown");
+    if (cd) cd.textContent = left ? `· first polls close in ${left}` : "· polls are closing";
+    const s = Math.round((Date.now() - lastOk) / 1000);
+    el.innerHTML = lastOk
+      ? `<span class="dot" aria-hidden="true"></span>Polymarket live · ${s < 120 ? `${s} s` : `${Math.round(s / 60)} min`} ago${failed ? " (last try failed)" : ""}`
+      : failed ? "Polymarket price unavailable; showing the last recorded one" : "Reading Polymarket prices…";
+  };
+  async function poll() {
+    timer = 0;
+    if (busy || document.hidden) return;
+    busy = true;
+    if (Date.now() - lastFiles >= PRE_FILES_MS) {
+      lastFiles = Date.now();
+      const [meta, timeline] = await Promise.all([fresh(`${EID}/meta.json`), fresh(`${EID}/timeline.json`)]).catch(() => [null, null]);
+      if (meta && meta.phase !== "pre-count") { location.reload(); return; }
+      if (timeline) S.rows = timelineRows(timeline);
+    }
+    const got = await Promise.allSettled(races().map(async (r) => [r.race_id, pmOf(r) ? await polymarketP(pmOf(r)) : null]));
+    let n = 0;
+    for (const x of got) if (x.status === "fulfilled" && x.value[1] != null) { prices.set(...x.value); n++; }
+    failed = !n;
+    if (n) lastOk = Date.now();
+    busy = false;
+    apply();
+    show();
+    timer = setTimeout(poll, PRE_POLL_MS);
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { clearTimeout(timer); timer = 0; return; }
+    if (!timer && !busy) { clearTimeout(timer); timer = setTimeout(poll, Math.max(0, lastOk + PRE_POLL_MS - Date.now())); }
+  });
+  show();
+  setInterval(show, 1000);
+  poll();
+}
 
 // A scheduled election whose data folder does not exist yet: say what will appear on the night
 // and where the frozen model settings are, from its elections.json entry alone.
@@ -1053,6 +1163,7 @@ async function main() {
   renderCrumbs();
   render();
   S.perf.firstPaintMs = Math.round(performance.now());
+  if (PRE()) startPreCount();
 
   $("play").addEventListener("click", () => (S.playing ? pause() : play()));
   document.querySelectorAll("#speed button").forEach((b) => b.addEventListener("click", () => {

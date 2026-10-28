@@ -4,7 +4,8 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { C, pct, clock } from "./common.js";
 
-export function drawTimeline(root, { race, rows, domain, tz, wall, height, countPanel = true, onPreview, onSet }) {
+// placeholder: before the count, the count panel is a grey box naming what fills in on the night.
+export function drawTimeline(root, { race, rows, domain, tz, wall, height, countPanel = true, placeholder = null, onPreview, onSet }) {
   root.innerHTML = "";
   if (!rows.length) {
     root.innerHTML = `<p class="note">No count or price data for this race yet.</p>`;
@@ -30,7 +31,17 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, count
   const last = rows[rows.length - 1];
   const final = countPanel && last.counted >= 0.999 && last.raw != null ? last.raw : null;
 
-  if (countPanel) {
+  if (countPanel && placeholder) {
+    g.append("rect").attr("x", m.l).attr("y", m.t).attr("width", width - m.l - m.r).attr("height", h1).attr("fill", "#f1efe9");
+    svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", m.t - 6).attr("fill", C.muted).text(`${race.a.name}'s share of the two-candidate vote`);
+    const lines = [["raw count", C.raw], ["model projection and 90% band", C.model], ["share of the vote counted", C.muted]];
+    lines.forEach(([label, color], i) => {
+      const y = m.t + h1 / 2 - 20 + i * 15;
+      svg.append("line").attr("x1", m.l + 14).attr("x2", m.l + 34).attr("y1", y - 4).attr("y2", y - 4).attr("stroke", color).attr("stroke-width", 2).attr("opacity", 0.45);
+      svg.append("text").attr("class", "chart-note").attr("x", m.l + 40).attr("y", y).attr("fill", C.muted).text(label);
+    });
+    svg.append("text").attr("class", "chart-note").attr("x", m.l + 14).attr("y", m.t + h1 / 2 + 30).attr("fill", C.muted).text(placeholder);
+  } else if (countPanel) {
     const lo = (d) => (d.share != null && d.sd != null ? d.share - 1.645 * d.sd : null);
     const hi = (d) => (d.share != null && d.sd != null ? d.share + 1.645 * d.sd : null);
     const counted = vis.filter((d) => d.counted > 0.005);
@@ -71,7 +82,8 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, count
   svg.insert("g", "g").attr("class", "grid").selectAll("line").data([0, 0.5, 1]).join("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP).attr("y2", yP);
   svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yP).tickValues([0, 0.5, 0.9]).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
   const long = domain[1] - domain[0] > 24 * 3600000; // past 24 h, ticks carry the day ("12 Apr 22:00")
-  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${top2 + h2})`).call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((width - m.l - m.r) / (long ? 100 : 70)))).tickFormat(d3.utcFormat(long ? "%-d %b %H:%M" : "%H:%M")).tickSizeOuter(0));
+  const days = domain[1] - domain[0] > 72 * 3600000; // past 3 days, the date only ("12 Apr")
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${top2 + h2})`).call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((width - m.l - m.r) / (days ? 60 : long ? 100 : 70)))).tickFormat(d3.utcFormat(days ? "%-d %b" : long ? "%-d %b %H:%M" : "%H:%M")).tickSizeOuter(0));
   svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", top2 - 7).text(`Probability ${race.a.name} wins`);
   for (const v of [0.1, 0.9]) g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP(v)).attr("y2", yP(v)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
   const step = (k) => d3.line().defined((d) => d[k] != null).x(X).y((d) => yP(d[k])).curve(d3.curveStepAfter);

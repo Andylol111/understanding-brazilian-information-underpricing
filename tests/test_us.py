@@ -472,8 +472,8 @@ def test_kalshi_column_from_books_with_isolation(tmp_path):
     assert len(k) == 21                                                     # the race never stopped
     race = json.loads((d / "meta.json").read_text())["races"][0]
     km = [m for m in race["markets"] if m["platform"] == "kalshi"]
-    assert km == [{"platform": "kalshi", "id": "KXTEST-BEC", "question": "Yes if Becerra is elected (our words).",
-                   "yes_is": "a"}]
+    assert km == [{"platform": "kalshi", "id": "KXTEST-BEC", "series": "",
+                   "question": "Yes if Becerra is elected (our words).", "yes_is": "a"}]
 
 
 def test_no_kalshi_pairs_or_books_gives_null_column(tmp_path):
@@ -508,3 +508,116 @@ def test_timeline_tail_is_last_60_minutes_of_full_timeline(tmp_path):
         assert len(full[rid]) == 91
         assert tail[rid] == full[rid][-60:]                               # 04:31 … 05:30
     assert tail["since"] == "2026-11-04T04:31:00Z"
+
+
+# ------------------------------------------------------------------ before the count (brunder us preelection)
+
+PAIRS_PRE = '''election = "us2026"
+[[pair]]
+id = "ca"
+race_id = "ca-gov"
+proposition = "Becerra wins"
+pm_market = "will-xavier-becerra-win-the-california-governor-election-in-2026"
+pm_yes_token = "111"
+kalshi_ticker = "KXCA-BEC"
+kalshi_series = "KXCA"
+same_side = true
+kalshi_yes_is = "a"
+[[pair]]
+id = "oh"
+race_id = "oh-sen"
+proposition = "Democrats win"
+pm_market = "will-the-democrats-win-the-ohio-senate-race-in-2026"
+pm_yes_token = "222"
+kalshi_ticker = "KXOH-D"
+kalshi_series = "KXOH"
+same_side = true
+kalshi_yes_is = "a"
+'''
+NOW = pd.Timestamp("2026-11-03T12:00Z")
+
+
+def _mock_prices(monkeypatch):
+    from brunder import kalshi, polymarket
+
+    def ph(token, start, end, fidelity_min=1, **k):
+        t = pd.date_range(start.ceil("10min"), end, freq="10min")
+        return pd.DataFrame({"time": t, "price": 0.6 if token == "111" else 0.3})
+
+    def cs(series, ticker, start, end, period_min=1):
+        t = pd.date_range(start.ceil("1min"), end, freq="7min")
+        p = 0.62 if ticker == "KXCA-BEC" else 0.33
+        return pd.DataFrame({"time": t, "yes_bid": p - .01, "yes_ask": p + .01, "price": p, "volume": 1.0,
+                             "open_interest": 1.0})
+    monkeypatch.setattr(polymarket, "price_history", ph)
+    monkeypatch.setattr(kalshi, "candlesticks", cs)
+
+
+def _pre_setup(tmp_path, monkeypatch):
+    _mock_prices(monkeypatch)
+    paths = [ROOT / "configs" / "us2026_ca_gov_v1.toml", ROOT / "configs" / "us2026_oh_sen_v1.toml"]
+    priors, by_state = _synth_priors([us.load_config(paths[0])])          # no Ohio prior
+    pairs = tmp_path / "pairs.toml"
+    pairs.write_text(PAIRS_PRE)
+    return paths, priors, by_state, pairs
+
+
+def test_preelection_writes_precount_contract(tmp_path, monkeypatch):
+    paths, priors, by_state, pairs = _pre_setup(tmp_path, monkeypatch)
+    d = us.preelection(paths, tmp_path / "site", days=14, now=NOW, priors=priors, pairs_path=pairs)
+    meta = json.loads((d / "meta.json").read_text())
+    assert meta["phase"] == "pre-count" and meta["poll_close_utc"] == "2026-11-04T00:30:00Z"   # ca + oh only here
+    assert meta["poll_close_by_region"] == {"ca": "2026-11-04T04:00:00Z", "oh": "2026-11-04T00:30:00Z"}
+    assert any("does not use polls" in n for n in meta["notes"])
+    ca, oh = (next(r for r in meta["races"] if r["race_id"] == k) for k in ("ca-gov", "oh-sen"))
+    assert ca["precount"]["P"] is not None and 0 < ca["precount"]["sd"] < 0.2 and ca["units"] == "units/ca-gov.json"
+    assert oh["precount"] is None and oh["model_note"] == us.NO_PRIOR and oh["units"] is None
+    pm = next(m for m in ca["markets"] if m["platform"] == "polymarket")
+    assert pm["token_yes"] == "111"
+    tl = json.loads((d / "timeline.json").read_text())
+    assert json.loads((d / "timeline_precount.json").read_text()) == tl
+    for rid, pmv, kv in (("ca-gov", 0.6, 0.62), ("oh-sen", 0.3, 0.33)):
+        rows = tl[rid]
+        assert len(rows) == 14 * 48 + 1 and rows[-1]["t"] == "2026-11-03T12:00:00Z"
+        assert all(r["counted"] is None and r["raw"] is None for r in rows)
+        assert rows[-1]["pm"] == pytest.approx(pmv) and rows[-1]["kalshi"] == pytest.approx(kv)
+    assert {r["P"] for r in tl["ca-gov"]} == {ca["precount"]["P"]} and all(r["P"] is None for r in tl["oh-sen"])
+    u = json.loads((d / "units" / "ca-gov.json").read_text())
+    assert len(u["frames"]) == 1 and set(u["frames"][0]["f"]) == {0} and u["frames"][0]["proj"] == u["prior"]
+    assert len(u["prior_margin"]) == len(u["unit_ids"]) == 58
+    st = json.loads((d / "stats.json").read_text())
+    assert all(st[k] is None for k in us.STATS_KEYS) and st["reasons"]["calibration"] == "count has not started"
+    tail = json.loads((d / "timeline_tail.json").read_text())
+    assert tail["tail"] is True and len(tail["ca-gov"]) == 2               # 11:30 and 12:00
+
+
+def test_live_takes_over_precount_files_without_manual_step(tmp_path, monkeypatch):
+    paths, priors, by_state, pairs = _pre_setup(tmp_path, monkeypatch)
+    out = tmp_path / "site"
+    us.preelection(paths, out, days=1, now=NOW, priors=priors, pairs_path=pairs)
+    snap = tmp_path / "snap"
+    (snap / us.FEEDS["ca"]["results"]).mkdir(parents=True)
+    (snap / "polymarket_books").mkdir()
+    cfg_oh = us.load_config(paths[1])
+    book = {"bids": [{"price": "0.30", "size": "1"}], "asks": [{"price": "0.32", "size": "1"}]}
+    for t, scale in (("20261104T040500", 0.1), ("20261104T042000", 0.3)):
+        (snap / us.FEEDS["ca"]["results"] / f"{t}.000000Z.json").write_bytes(_ca_snapshot(scale, 0.0, by_state["ca"]))
+        key = f"{cfg_oh['markets']['polymarket']['event']}/{cfg_oh['markets']['polymarket']['market']}"
+        (snap / "polymarket_books" / f"{t}.000001Z.json").write_text(json.dumps({key: book}))
+    ex = us.Exporter(paths, snap, priors=priors, pairs_path=pairs)       # live phase by default
+    ex.update()
+    d = ex.write(out)
+    meta = json.loads((d / "meta.json").read_text())
+    assert meta["phase"] == "live" and all("precount" not in r for r in meta["races"])
+    tl = json.loads((d / "timeline.json").read_text())
+    ca = tl["ca-gov"]
+    pre = [r for r in ca if r["counted"] is None]
+    assert len(pre) == 49 and pre[-1]["t"] == "2026-11-03T12:00:00Z"        # pre-count rows kept in front
+    assert ca[49]["t"] == "2026-11-04T04:05:00Z" and ca[-1]["counted"] > 0
+    oh = [r for r in tl["oh-sen"] if r["t"] >= "2026-11-04"]
+    assert len(oh) == 16 and all(r["P"] is None for r in oh) and oh[-1]["pm"] == pytest.approx(0.31)
+    assert len(json.loads((d / "units" / "ca-gov.json").read_text())["frames"]) >= 1
+    assert json.loads((d / "stats.json").read_text())["reasons"]["calibration"] == "computed after the count"
+    # the scheduled pre-count job must not overwrite the live files
+    us.preelection(paths, out, days=1, now=NOW, priors=priors, pairs_path=pairs)
+    assert json.loads((d / "meta.json").read_text())["phase"] == "live"

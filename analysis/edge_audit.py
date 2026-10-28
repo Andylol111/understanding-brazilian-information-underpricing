@@ -614,49 +614,73 @@ def _pm_meta() -> dict[str, dict]:
     return out
 
 
-def night_trades(event: str, slug: str, cid: str, lo: pd.Timestamp, hi: pd.Timestamp) -> pd.DataFrame:
+def _gamma_meta(event: str, slug: str) -> dict | None:
+    """Market metadata from the public Gamma API for markets no local markets.parquet holds (cached)."""
+    f = OUT / "pm_meta_gamma.json"
+    cache = json.loads(f.read_text()) if f.exists() else {}
+    if slug not in cache:
+        r = httpx.get("https://gamma-api.polymarket.com/events", params={"slug": event}, timeout=30).json()
+        for ev in r:
+            for m in ev.get("markets", []):
+                outs, toks = json.loads(m.get("outcomes") or "[]"), json.loads(m.get("clobTokenIds") or "[]")
+                if not toks:
+                    continue
+                fs = m.get("feeSchedule") or {}
+                cache[m["slug"]] = {"event": event, "condition_id": m["conditionId"],
+                                    "yes_token": toks[outs.index("Yes") if "Yes" in outs else 0],
+                                    "fee": float(fs.get("rate") or 0) if m.get("feesEnabled") else 0.0}
+        OUT.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(cache, indent=1))
+    return cache.get(slug)
+
+
+def night_trades(event: str, slug: str, cid: str, lo: pd.Timestamp, hi: pd.Timestamp) -> tuple[pd.DataFrame, str]:
     """Taker trades in [lo, hi): an archived trades file with is_taker rows if any root has one, else the data API
-    (cached in results/edge_audit/trades/)."""
+    (cached in results/edge_audit/trades/). Returns (trades, source)."""
     for root in PM_ROOTS:
         f = root / event / "trades" / f"{slug}.parquet"
         if f.exists():
             t = pd.read_parquet(f)
             if "is_taker" in t:
                 t["time"] = pd.to_datetime(t["time"], utc=True)
-                return t[t["is_taker"] & (t["time"] >= lo) & (t["time"] < hi)].reset_index(drop=True)
+                return t[t["is_taker"] & (t["time"] >= lo) & (t["time"] < hi)].reset_index(drop=True), "archive"
     from night_capacity import _fetch_takers
     cache = OUT / "trades" / f"{slug}_{int(lo.timestamp())}_{int(hi.timestamp())}.parquet"
     if cache.exists():
-        return pd.read_parquet(cache)
+        return pd.read_parquet(cache), "api"
     t = _fetch_takers(cid, int(lo.timestamp()), int(hi.timestamp()))
     cache.parent.mkdir(parents=True, exist_ok=True)
     t.to_parquet(cache)
-    return t
+    return t, "api"
 
 
 def ml_markets(eid: str, meta: dict) -> list[dict]:
-    """Per market: scope key, slug, fee rate, outcome (YES won) and the model minute series (t, P, counted, price)."""
+    """Per market: scope key, race id, slug, fee rate, outcome (YES won), poll close and the model minute series
+    (t, P, counted, price)."""
     out = []
     if eid in NIGHTS:
-        for cid, cfg_path, *_ in NIGHTS[eid][1]:
+        for cid, cfg_path, _stage, nat_id in NIGHTS[eid][1]:
             cfg = night.load_config(ROOT / cfg_path)
             tk = _ticks(cid)
             ev = pd.read_csv(RES / "night" / cid / "evaluation.csv")
             y = dict(zip(ev["scope"], ev["outcome"].astype(int)))
+            t0 = _poll_close(eid, tk["t"].min())
             for m in night._markets(cfg):
                 g = tk[tk["scope"] == m["scope"]]
                 if len(g) and m["scope"] in y:
-                    out.append({"scope": f"{cid}|{m['scope']}", "slug": m["market"], "event": m["event"],
+                    out.append({"scope": f"{cid}|{m['scope']}", "race": nat_id if m["scope"] == "br" else m["scope"],
+                                "slug": m["market"], "event": m["event"], "t0": t0,
                                 "fee": float(cfg["trade"].get("fee_rate", 0.0)), "y": y[m["scope"]],
                                 "ticks": g[["t", "P", "scope_counted", "price"]].rename(columns={"scope_counted": "counted"})})
     elif eid == "hu2026" and (HU / "ticks.parquet").exists():
         cfg = tomllib.loads((ROOT / "configs" / "hu2026_v1.toml").read_text())
         tk = pd.read_parquet(HU / "ticks.parquet", columns=["t", "scope", "P", "price", "scope_counted", "outcome"])
         tk["t"] = pd.to_datetime(tk["t"], utc=True)
+        t0 = _poll_close(eid, tk["t"].min())
         for m in cfg["markets"]:
             g = tk[tk["scope"] == m["id"]]
             if len(g):
-                out.append({"scope": m["id"], "slug": m["market"], "event": m["event"],
+                out.append({"scope": m["id"], "race": m["id"], "slug": m["market"], "event": m["event"], "t0": t0,
                             "fee": (meta.get(m["market"]) or {}).get("fee") or 0.0, "y": int(g["outcome"].iloc[0]),
                             "ticks": g[["t", "P", "scope_counted", "price"]].rename(columns={"scope_counted": "counted"})})
     elif eid == "mx2024" and (MX / "ticks.parquet").exists():
@@ -664,27 +688,45 @@ def ml_markets(eid: str, meta: dict) -> list[dict]:
         tk = pd.read_parquet(MX / "ticks.parquet")
         tk["t"] = pd.to_datetime(tk["t"], utc=True)
         fee = float(cfg.get("trade", {}).get("fee_rate", 0.0))
+        t0 = _poll_close(eid, tk["t"].min())
         for sc, m in cfg["markets"].items():
             g = tk[tk["scope"] == sc]
             if len(g):
-                out.append({"scope": sc, "slug": m["market"], "event": m["event"], "fee": fee, "y": int(m["outcome"]),
+                out.append({"scope": sc, "race": sc, "slug": m["market"], "event": m["event"], "t0": t0, "fee": fee,
+                            "y": int(m["outcome"]),
                             "ticks": g[["t", "P", "scope_counted", "price"]].rename(columns={"scope_counted": "counted"})})
     return out
 
 
-def ml_candidates(mk: dict, meta: dict, delay: int) -> pd.DataFrame:
-    """Every taker trade long either side after the gate, with the model P known >= delay earlier and the margin
-    (P of the trade's side - all-in unit cost); filter by side (favoured) and edge later."""
+def ml_candidates(mk: dict, meta: dict, delay: int) -> tuple[pd.DataFrame, dict]:
+    """Every taker trade on the favoured side after the gate + delay, with the model P known >= delay earlier and
+    the margin (P of that side - all-in unit cost); edge filtering happens later. Trades are read from poll close
+    to the end of the night. Also returns coverage diagnostics."""
     g = mk["ticks"].dropna(subset=["P"]).sort_values("t")
     gated = g[g["counted"] >= 0.01]
-    md = meta.get(mk["slug"])
-    if gated.empty or md is None:
-        return pd.DataFrame()
-    lo, hi = gated["t"].iloc[0] + pd.Timedelta(seconds=delay), g["t"].iloc[-1] + pd.Timedelta(minutes=1)
-    tr = night_trades(mk["event"], mk["slug"], md["condition_id"], gated["t"].iloc[0], hi)
-    if tr.empty:
-        return pd.DataFrame()
-    tr = tr[tr["time"] >= lo].copy()
+    md = meta.get(mk["slug"]) or _gamma_meta(mk["event"], mk["slug"])
+    diag = {"race": mk["race"], "market": mk["slug"], "source": None, "trades_read": 0, "first_trade": None,
+            "last_trade": None, "gate": _iso(gated["t"].iloc[0]) if len(gated) else None, "after_gate_fav": 0,
+            "max_margin": None, "gate_p_fav": None, "gate_price_fav": None}
+    empty = pd.DataFrame(columns=["t", "scope", "market", "yes", "q", "cost", "margin", "shares", "won"])
+    if md is None:
+        diag["reason"] = "no market metadata (condition id / YES token) found"
+        return empty, diag
+    lo = min(mk["t0"], mk["ticks"]["t"].min())
+    hi = mk["ticks"]["t"].max() + pd.Timedelta(minutes=1)
+    tr, diag["source"] = night_trades(mk["event"], mk["slug"], md["condition_id"], lo, hi)
+    diag["trades_read"] = int(len(tr))
+    if len(tr):
+        diag["first_trade"], diag["last_trade"] = _iso(tr["time"].min()), _iso(tr["time"].max())
+    if len(gated):
+        g0 = gated.iloc[0]
+        fy = g0["P"] >= 0.5
+        diag["gate_p_fav"] = _r(g0["P"] if fy else 1 - g0["P"], 4)
+        diag["gate_price_fav"] = _r(g0["price"] if fy else 1 - g0["price"], 4) if pd.notna(g0["price"]) else None
+    if gated.empty or tr.empty:
+        diag["reason"] = "never reached 1% counted" if gated.empty else "no taker trades during the night"
+        return empty, diag
+    tr = tr[tr["time"] >= gated["t"].iloc[0] + pd.Timedelta(seconds=delay)].copy()
     is_yes = tr["asset"].astype(str) == str(md["yes_token"])
     p_yes = np.where(is_yes, tr["price"].astype(float), 1 - tr["price"].astype(float))
     long_yes = (tr["side"] == "BUY") == is_yes
@@ -692,13 +734,17 @@ def ml_candidates(mk: dict, meta: dict, delay: int) -> pd.DataFrame:
                    known=tr["time"] - pd.Timedelta(seconds=delay)).sort_values("known")
     tr = pd.merge_asof(tr, gated[["t", "P"]].rename(columns={"t": "known"}), on="known", direction="backward")
     tr = tr.dropna(subset=["P"])
-    fav_yes = tr["P"] >= 0.5
-    tr = tr[tr["yes"] == fav_yes]
+    tr = tr[tr["yes"] == (tr["P"] >= 0.5)]
     c = tr["q"] + mk["fee"] * tr["q"] * (1 - tr["q"])
     p_side = np.where(tr["yes"], tr["P"], 1 - tr["P"])
-    return pd.DataFrame({"t": tr["time"].to_numpy(), "scope": mk["scope"], "market": mk["slug"], "yes": tr["yes"].to_numpy(),
-                         "cost": c.to_numpy(), "margin": p_side - c.to_numpy(), "shares": tr["shares"].to_numpy(),
-                         "won": (tr["yes"] == (mk["y"] == 1)).to_numpy()})
+    out = pd.DataFrame({"t": tr["time"].to_numpy(), "scope": mk["scope"], "market": mk["slug"], "yes": tr["yes"].to_numpy(),
+                        "q": tr["q"].to_numpy(), "cost": c.to_numpy(), "margin": p_side - c.to_numpy(),
+                        "shares": tr["shares"].to_numpy(), "won": (tr["yes"] == (mk["y"] == 1)).to_numpy()})
+    diag["after_gate_fav"] = int(len(out))
+    diag["max_margin"] = _r(out["margin"].max(), 4) if len(out) else None
+    if out.empty:
+        diag["reason"] = "no taker trade on the model's favoured side after the 1% gate"
+    return out, diag
 
 
 def il_ml_candidates(delay: int) -> pd.DataFrame:
@@ -730,7 +776,7 @@ def il_ml_candidates(delay: int) -> pd.DataFrame:
             fee = fees.get(m["id"], 0.0)
             for q, size in sorted(levels):
                 c = q + fee * q * (1 - q)
-                rows.append({"t": times[j], "scope": m["id"], "market": m["id"], "yes": yes, "cost": c,
+                rows.append({"t": times[j], "scope": m["id"], "market": m["id"], "yes": yes, "q": q, "cost": c,
                              "margin": (P if yes else 1 - P) - c, "shares": size, "won": (y[m["id"]] == 1.0) == yes})
     return pd.DataFrame(rows)
 
@@ -789,11 +835,43 @@ def _bets_by_market(F: pd.DataFrame) -> list[dict]:
              "pnl": round(r.payout - r.stake, 2)} for r in g.itertuples()]
 
 
-def model_limit(eids: list[str]) -> tuple[dict, dict, pd.DataFrame]:
-    """Per election: eligible volume / P&L per (edge, delay), bankroll results per mode, the headline bankroll."""
+def _race_row(x: pd.DataFrame, f: pd.DataFrame, diag: dict | None) -> dict:
+    """One race at the headline rule: eligible trades / volume / P&L, the bankroll's stake and P&L, the first
+    eligible trade (model P and price of the side bought) and, when nothing was eligible, why."""
+    vol = float((x["shares"] * x["cost"]).sum()) if len(x) else 0.0
+    pnl = float((x["won"] * x["shares"]).sum()) - vol if len(x) else 0.0
+    stake = float(f["stake"].sum()) if len(f) else 0.0
+    row = {"eligible_trades": int(len(x)), "eligible_volume": round(vol, 2), "eligible_pnl": round(pnl, 2),
+           "bankroll_stake": round(stake, 2), "bankroll_pnl": round(float(f["payout"].sum()) - stake, 2) if len(f) else 0.0,
+           "first_eligible": None, "reason": None}
+    if len(x):
+        r = x.sort_values("t").iloc[0]
+        row["first_eligible"] = {"t": _iso(r["t"]), "side": "YES" if r["yes"] else "NO",
+                                 "model_p": _r(r["margin"] + r["cost"], 4), "price": _r(r["q"], 4), "margin": _r(r["margin"], 4)}
+        if stake == 0:
+            row["reason"] = "eligible trades came after the $10,000 was already spent"
+    elif diag is not None:
+        e = int(round(ML_HEAD[0] * 100))
+        if diag.get("reason"):
+            row["reason"] = diag["reason"]
+        else:
+            row["reason"] = (f"no trade on the favoured side was {e}c below the model (best "
+                             f"{round(100 * diag['max_margin'], 1) + 0.0:.1f}c)" if diag.get("max_margin") is not None else
+                             f"no trade on the favoured side was {e}c below the model")
+        if diag.get("gate_p_fav") is not None and diag.get("gate_price_fav") is not None:
+            row["reason"] += (f"; at 1% counted the model gave {diag['gate_p_fav']:.2f} and the market "
+                              f"{diag['gate_price_fav']:.2f} for that side")
+    return row
+
+
+def model_limit(eids: list[str]) -> tuple[dict, dict, pd.DataFrame, pd.DataFrame]:
+    """Per election: eligible volume / P&L per (edge, delay), bankroll results per mode, the headline bankroll,
+    per-race results at the headline rule; plus the per-market coverage table."""
     meta = _pm_meta()
-    res, head, rows = {}, {}, []
+    res, head, rows, cov = {}, {}, [], []
+    e5, d5, _ = ML_HEAD
     for eid in eids:
+        diags, mks = {}, []
         if eid == "il2026":
             cands = {d: il_ml_candidates(d) for d in ML_DELAYS}
             tk = pd.read_parquet(RES / "israel" / "ticks.parquet", columns=["t", "scope", "price"])
@@ -803,7 +881,13 @@ def model_limit(eids: list[str]) -> tuple[dict, dict, pd.DataFrame]:
             mks = ml_markets(eid, meta)
             if not mks:
                 continue
-            cands = {d: pd.concat([ml_candidates(m, meta, d) for m in mks], ignore_index=True) for d in ML_DELAYS}
+            cands = {}
+            for d in ML_DELAYS:
+                parts = [ml_candidates(m, meta, d) for m in mks]
+                cands[d] = pd.concat([p[0] for p in parts if len(p[0])], ignore_index=True) if any(len(p[0]) for p in parts) \
+                    else parts[0][0]
+                if d == d5:
+                    diags = {m["scope"]: p[1] for m, p in zip(mks, parts)}
             prices = pd.concat([m["ticks"][["t", "price"]].assign(scope=m["scope"]) for m in mks], ignore_index=True)
             t0, t1, n_mk = _poll_close(eid, prices["t"].min()), prices["t"].max(), len(mks)
         res[eid] = {"markets_scored": int(n_mk), "grid": {}}
@@ -831,7 +915,25 @@ def model_limit(eids: list[str]) -> tuple[dict, dict, pd.DataFrame]:
                 if (e, d, name) == ML_HEAD:
                     head[eid] = {"F": F, "b": b, "prices": prices, "t0": t0, "t1": t1}
             res[eid]["grid"][f"edge{int(round(e * 100))}c_delay{d}s"] = g
-    return res, head, pd.DataFrame(rows)
+        # per race at the headline rule, and the coverage table
+        c = cands[d5]
+        el5 = c[c["margin"] >= e5 - 1e-12] if len(c) else c
+        F5 = head[eid]["F"]
+        by_race = {}
+        scopes = [(m["scope"], m["race"], m["slug"]) for m in mks] or [(s, s, s) for s in prices["scope"].unique()]
+        for sc, race, slug in scopes:
+            dg = diags.get(sc)
+            r = _race_row(el5[el5["scope"] == sc] if len(el5) else el5, F5[F5["scope"] == sc] if len(F5) else F5, dg)
+            if dg is not None:
+                by_race[race] = {"market": slug, "trades_read": dg["trades_read"], "first_trade": dg["first_trade"],
+                                 "last_trade": dg["last_trade"], "source": dg["source"], **r}
+            cov.append({"election": eid, "race": race, "market": slug, "source": dg["source"] if dg else "book",
+                        "trades_read": dg["trades_read"] if dg else None, "first_trade": dg["first_trade"] if dg else None,
+                        "last_trade": dg["last_trade"] if dg else None,
+                        **{k: v for k, v in r.items() if k != "first_eligible"},
+                        "first_eligible_t": (r["first_eligible"] or {}).get("t")})
+        res[eid]["by_race"] = by_race if eid != "il2026" else None
+    return res, head, pd.DataFrame(rows), pd.DataFrame(cov)
 
 
 def ml_invest(eid: str, h: dict, grid5: dict, evidence: str | None) -> dict:
@@ -1391,11 +1493,15 @@ def main(site: bool) -> None:
     # ---------------- $10,000 per election and the homepage summary
     inv = invest_all(BR, il)                                            # "signal price" execution
     land = landing_summary(races, ila, COV, mins, inv)
-    ml_res, ml_head, ML = model_limit([*NIGHTS, "il2026", "hu2026", "mx2024"])
+    ml_res, ml_head, ML, CVG = model_limit([*NIGHTS, "il2026", "hu2026", "mx2024"])
     _write("profit_model_limit.csv", ML)
+    _write("coverage.csv", CVG)
     e5 = f"edge{int(ML_HEAD[0] * 100)}c_delay{ML_HEAD[1]}s"
     inv_ml = {eid: {**ml_invest(eid, ml_head[eid], ml_res[eid]["grid"][e5], (inv.get(eid) or {}).get("evidence") or _evidence(eid)),
-                    "note": _ml_note(eid, ml_res[eid]["grid"][e5])} for eid in ml_res}
+                    "note": _ml_note(eid, ml_res[eid]["grid"][e5]),
+                    "by_race": {r: {k: x[k] for k in ("market", "eligible_volume", "eligible_pnl", "bankroll_stake", "bankroll_pnl")}
+                                for r, x in (ml_res[eid].get("by_race") or {}).items() if x["eligible_trades"] > 0}}
+              for eid in ml_res}
     land["invest10k"] = {"rule": ML_RULE, "headline": "model_limit", "by_election": inv_ml, "pooled": _pool(inv_ml),
                          "signal_price": land["invest10k"],
                          "grid": {eid: {k: {"eligible_volume": g["eligible_volume"], "eligible_pnl": g["eligible_pnl"],

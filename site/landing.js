@@ -2,6 +2,7 @@
 // analysis/edge_audit.py) and the list of elections (elections.json, each election's files).
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes } from "./common.js";
+import { polymarketP } from "./dash-precount.js";
 
 const $ = (id) => document.getElementById(id);
 const tbody = document.querySelector("#overview tbody");
@@ -188,6 +189,7 @@ function drawMoney(S) {
       <p class="money-end"><b>${money(b.ending_value)}</b> <span class="${b.return_pct > 0 ? "up" : b.return_pct < 0 ? "down" : ""}">${signedPct(b.return_pct)}</span></p>
       ${strict ? `<p class="money-strict">buying only at the signal's own price: ${money(strict.ending_value)}</p>` : ""}
       <div class="money-chart"></div>
+      <p class="money-races" hidden></p>
       <p class="money-note">${esc(moneySentence(b))}</p>
     </figure>`;
   }).join("");
@@ -219,6 +221,27 @@ function drawMoney(S) {
   drawCharts();
   new ResizeObserver(() => drawCharts()).observe(root);
   concentration(inv, p);
+  for (const cell of root.querySelectorAll(".money-cell")) topRaces(cell, inv.by_election[cell.dataset.id]);
+}
+
+// Under each election's line: the (up to) three races that made the $10,000 the most, named from
+// the election's meta. Entries keyed by market id (Hungary) are added up per race. Hidden when
+// by_race is absent.
+async function topRaces(cell, b) {
+  const entries = Object.entries(b?.by_race ?? {});
+  if (!entries.some(([, r]) => r.bankroll_pnl)) return;
+  const id = cell.dataset.id;
+  const meta = await getJSON(`${id}/meta.json`, { optional: true, root: rootOf(id) }).catch(() => null);
+  const races = meta?.races ?? [];
+  const raceOf = (rid, r) => races.find((x) => x.race_id === rid) ?? races.find((x) => (x.markets ?? []).some((m) => m.id === r.market));
+  const byRace = d3.rollups(entries, (list) => ({ pnl: d3.sum(list, ([, r]) => r.bankroll_pnl ?? 0), stake: d3.sum(list, ([, r]) => r.bankroll_stake ?? 0), vol: d3.sum(list, ([, r]) => r.eligible_volume ?? 0) }),
+    ([rid, r]) => raceOf(rid, r)?.name ?? `${rid[0].toUpperCase()}${rid.slice(1).replace(/_/g, " ")}`);
+  const top = byRace.filter(([, v]) => v.pnl).sort((x, y) => y[1].pnl - x[1].pnl).slice(0, 3);
+  if (!top.length) return;
+  const sgn = (x) => `${x > 0 ? "+" : x < 0 ? "−" : ""}$${Math.abs(Math.round(x)).toLocaleString("en-US")}`;
+  const el = cell.querySelector(".money-races");
+  el.innerHTML = `${top.length === 1 ? "From one race" : `Top ${top.length} races`}: ${top.map(([name, v]) => `<span title="${esc(`$${Math.round(v.stake).toLocaleString("en-US")} staked; trades that qualified: $${Math.round(v.vol).toLocaleString("en-US")}`)}">${esc(name)} ${sgn(v.pnl)}</span>`).join(" · ")}`;
+  el.hidden = false;
 }
 
 // The single market behind most of the pooled gain, named by its question from the election's meta.
@@ -292,14 +315,40 @@ function render(elections) {
         <td><span class="status ${esc(e.status)}">${esc(STATUS[e.status] ?? e.status)}</span></td>
         <td class="n">${e.n_units != null ? `${e.n_units.toLocaleString("en-US")} ` : ""}<span class="note">${esc(plural(e.unit_level, e.n_units))}</span></td>
         ${e.status === "scheduled"
-          ? `<td class="sched" colspan="3">Runs live on election night</td>`
+          ? `<td class="sched" colspan="3" data-pre="${esc(e.id)}">Runs live on election night</td>`
           : `<td class="n lead">–</td><td class="n cal">–</td><td class="sp" data-id="${esc(e.id)}"><svg class="spark" width="150" height="34" aria-hidden="true"></svg></td>`}
       </tr>`).join("")}`).join("");
   tbody.querySelectorAll("tr[data-id]").forEach((tr) => {
     tr.addEventListener("click", (ev) => { if (!ev.target.closest("a")) location.href = href(tr.dataset.id); });
     const sp = tr.querySelector(".sp");
     if (sp) lazy.observe(sp);
+    const pre = tr.querySelector("[data-pre]");
+    if (pre) preCell(pre);
   });
+}
+
+// A scheduled election in its "pre-count" phase: each race's model chance before any votes against
+// Polymarket's current price (read in the browser) and the last recorded Kalshi price.
+async function preCell(td) {
+  const id = td.dataset.pre;
+  const m = await getJSON(`${id}/meta.json`, { optional: true, root: rootOf(id) }).catch(() => null);
+  if (m?.phase !== "pre-count" || !m.races?.length) return;
+  const timeline = await getJSON(`${id}/timeline.json`, { optional: true, root: rootOf(id) }).catch(() => null);
+  const lastRow = (rid) => { const rows = (timeline?.[rid] ?? []).filter((d) => d.t); return rows[rows.length - 1] ?? null; };
+  const live = new Map(await Promise.all(m.races.map(async (r) => {
+    const mk = (r.markets ?? []).find((x) => x.platform === "polymarket" && x.id);
+    return [r.race_id, mk ? await polymarketP(mk).catch(() => null) : null];
+  })));
+  const f = (x) => (x == null ? "–" : x.toFixed(2));
+  const regions = new Map((m.regions ?? []).map((r) => [r.id, r.name]));
+  const label = (r) => (r.region && !r.name.includes(regions.get(r.region) ?? "") ? `${regions.get(r.region)} ${r.name}` : r.name);
+  const anyLive = [...live.values()].some((v) => v != null);
+  td.classList.add("pre");
+  td.innerHTML = `<table class="pre-races"><thead><tr><th>Chance the first-named candidate wins</th><th class="n">Model</th><th class="n">Polymarket</th><th class="n">Kalshi</th></tr></thead><tbody>${m.races.map((r) => {
+    const row = lastRow(r.race_id);
+    return `<tr><td>${esc(label(r))} <span class="note">${esc(r.a.name)}</span></td><td class="n m">${f(row?.P ?? r.precount?.P)}</td><td class="n">${f(live.get(r.race_id) ?? row?.pm)}</td><td class="n kx">${f(row?.kalshi)}</td></tr>`;
+  }).join("")}</tbody></table>
+    <p class="note">Before the count: the model's chance before any votes (from past certified results, not polls), ${anyLive ? "Polymarket's price now" : "the last recorded Polymarket price"} and the last recorded Kalshi price. Counting starts ${esc(fmtDate(m.date))}.</p>`;
 }
 
 const mainRace = (m) => m?.races?.find((r) => !r.region) ?? m?.races?.[0];

@@ -638,8 +638,36 @@ def build_priors(sources: list[str] | None = None) -> Path:
     return out
 
 
+PUBLIC_PRIORS = ROOT_DIR / "data_public" / "us2026_priors.csv"
+
+
 def load_priors(path: Path | None = None) -> pd.DataFrame:
-    return pd.read_csv(path or US_PROC / "priors.csv")
+    """data/processed/us2026/priors.csv when built locally (brunder us priors), else the committed public copy
+    data_public/us2026_priors.csv (same derived table, attribution header) so CI runs need no private data."""
+    if path is None:
+        path = US_PROC / "priors.csv" if (US_PROC / "priors.csv").exists() else PUBLIC_PRIORS
+    return pd.read_csv(path, comment="#")
+
+
+def write_public_priors(priors: pd.DataFrame | None = None, dest: Path = PUBLIC_PRIORS) -> Path:
+    """The derived county priors (two-party votes by county per source race) as a public file with an attribution
+    header. Only official public-record or CC BY sources; the MEDSL Ohio file (CC0) is included when built."""
+    pr = (priors if priors is not None else pd.read_csv(US_PROC / "priors.csv"))[["source", "unit_id", "dem", "rep", "total"]]
+    head = [
+        "# US midterms 2026 county priors: certified results by county (Alaska: state house district), derived by",
+        "# brunder.us.build_priors (src/brunder/us.py). Columns: source race, unit_id (us-<st>-<county FIPS>), Democratic",
+        "# votes, Republican votes, all candidates' votes.",
+        "# Sources: ca_* California Secretary of State, Statement of Vote (public record);",
+        "#   tx_* Texas Legislative Council, Capitol Data Portal, https://data.capitol.texas.gov/ (CC BY; VTD returns",
+        "#   summed to counties by this project); ga_* Georgia Secretary of State, results.sos.ga.gov (public record);",
+        "#   ak_* Alaska Division of Elections (public record); oh_* MIT Election Data and Science Lab, County",
+        "#   Presidential Election Returns 2000-2024, doi:10.7910/DVN/VOQCHQ (CC0).",
+    ]
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dest.with_suffix(".tmp")
+    tmp.write_text("\n".join(head) + "\n" + pr.to_csv(index=False))
+    os.replace(tmp, dest)
+    return dest
 
 
 # ------------------------------------------------------------------ config + model
@@ -795,15 +823,17 @@ def _pm_market(cfg: dict) -> tuple[str, str] | None:
     return (f"{m['event']}/{m['market']}", m.get("yes_is", "a")) if m.get("market") else None
 
 
+def _pairs(pairs_path: Path | None = None) -> list:
+    from .arb import load_pairs
+    path = pairs_path or ROOT_DIR / "configs" / "pairs" / f"{EID}.toml"
+    return load_pairs(path)[1] if path.exists() else []
+
+
 def kalshi_markets(cfgs: list[dict], pairs_path: Path | None = None) -> dict[str, dict]:
     """Per race the Kalshi market for its timeline line, from configs/pairs/us2026.toml (Kalshi workstream):
     a market whose YES is side a, preferring the one paired with the race's Polymarket market, first listed wins.
-    {race_id: {ticker, yes_is, question (our paraphrase)}}; {} when the pairs file is absent."""
-    from .arb import load_pairs
-    path = pairs_path or ROOT_DIR / "configs" / "pairs" / f"{EID}.toml"
-    if not path.exists():
-        return {}
-    _, pairs = load_pairs(path)
+    {race_id: {ticker, series, yes_is, question (our paraphrase)}}; {} when the pairs file is absent."""
+    pairs = _pairs(pairs_path)
     out = {}
     for c in cfgs:
         rid, pm = c["election"]["race_id"], c.get("markets", {}).get("polymarket", {}).get("market")
@@ -811,10 +841,51 @@ def kalshi_markets(cfgs: list[dict], pairs_path: Path | None = None) -> dict[str
         cand.sort(key=lambda p: p.pm_market != pm)                    # stable: listed order within each group
         if cand:
             p = cand[0]
-            out[rid] = {"ticker": p.kalshi_ticker, "yes_is": "a",
+            out[rid] = {"ticker": p.kalshi_ticker, "series": p.kalshi_series, "yes_is": "a",
                         "question": p.kalshi_resolution or f"{c['election']['name']}: {c['election']['a']['name']} "
                                                            "(Democrat) wins"}
     return out
+
+
+def pm_tokens(cfgs: list[dict], pairs_path: Path | None = None, lookup: bool = False) -> dict[str, str]:
+    """YES CLOB token id of each race's configured Polymarket market (pairs file; Gamma lookup if missing)."""
+    by_market = {p.pm_market: p.pm_yes_token for p in _pairs(pairs_path) if p.pm_yes_token}
+    out = {}
+    for c in cfgs:
+        pm = c.get("markets", {}).get("polymarket", {})
+        if not pm.get("market"):
+            continue
+        tok = by_market.get(pm["market"])
+        if tok is None and not lookup:
+            continue
+        if tok is None:
+            from . import polymarket
+            m = next(m for m in polymarket.event(pm["event"])["markets"] if m["slug"] == pm["market"])
+            ids = json.loads(m["clobTokenIds"]) if isinstance(m["clobTokenIds"], str) else m["clobTokenIds"]
+            tok = ids[0]
+        out[c["election"]["race_id"]] = tok
+    return out
+
+
+# Polls close (UTC) on 2026-11-03, after US daylight saving time ended on 2026-11-01. Official hours: GA 7 a.m.-7 p.m.
+# ET (georgia.gov/vote-in-person-election-day), OH 6:30 a.m.-7:30 p.m. ET (Ohio SoS 2026 elections calendar), TX
+# 7 a.m.-7 p.m. local, central and mountain time (Texas SoS news release 2026-10-27), CA 7 a.m.-8 p.m. PT (California
+# SoS, Elections Officers' Digest: Election Day).
+POLL_CLOSE = {"ga": "2026-11-04T00:00:00Z", "oh": "2026-11-04T00:30:00Z", "tx": "2026-11-04T01:00:00Z",
+              "ca": "2026-11-04T04:00:00Z", "ak": "2026-11-04T05:00:00Z"}
+POLL_CLOSE_LAST = {"tx": "2026-11-04T02:00:00Z", "ak": "2026-11-04T06:00:00Z"}   # El Paso/Hudspeth (MT); Aleutians
+POLL_SOURCES = [
+    {"name": "Georgia.gov, Vote in person on Election Day (polls 7 a.m.-7 p.m.)",
+     "url": "https://georgia.gov/vote-in-person-election-day", "licence": "public record"},
+    {"name": "Ohio Secretary of State, 2026 Ohio elections calendar (polls 6:30 a.m.-7:30 p.m.)",
+     "url": "https://www.ohiosos.gov/assets/election-calendar-2026.pdf", "licence": "public record"},
+    {"name": "Texas Secretary of State, news release 2026-10-27 (polls 7 a.m.-7 p.m.)",
+     "url": "https://www.sos.state.tx.us/about/newsreleases/2026/102726.shtml", "licence": "public record"},
+    {"name": "California Secretary of State, Elections Officers' Digest: Election Day (polls 7 a.m.-8 p.m.)",
+     "url": "https://www.sos.ca.gov/elections/publications-and-resources/elections-officers-digest/election-day",
+     "licence": "public record"},
+]
+NO_PRIOR = "county prior not available yet"
 
 
 def kalshi_prices(arc: Archive, f: Path | None) -> dict[str, float]:
@@ -829,49 +900,77 @@ def kalshi_prices(arc: Archive, f: Path | None) -> dict[str, float]:
     return out
 
 
-def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict] | None = None) -> dict:
+def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict] | None = None,
+         phase: str = "live", precount: dict[str, dict | None] | None = None,
+         tokens: dict[str, str] | None = None) -> dict:
+    """phase: "pre-count" (brunder us preelection), "live" (brunder us live) or "replay" (brunder us export)."""
     races = []
-    kalshi_mk = kalshi_mk or {}
+    kalshi_mk, tokens, precount = kalshi_mk or {}, tokens or {}, precount or {}
     for c in cfgs:
         E = c["election"]
+        rid = E["race_id"]
         mk = []
         pm = c.get("markets", {}).get("polymarket", {})
         if pm.get("market"):
             mk.append({"platform": "polymarket", "id": pm["market"], "question": pm.get("question", ""),
-                       "yes_is": pm.get("yes_is", "a")})
-        k = kalshi_mk.get(E["race_id"])
+                       "yes_is": pm.get("yes_is", "a"), "token_yes": tokens.get(rid)})
+        k = kalshi_mk.get(rid)
         if k:
-            mk.append({"platform": "kalshi", "id": k["ticker"], "question": k["question"], "yes_is": k["yes_is"]})
-        races.append({"race_id": E["race_id"], "name": E["name"], "region": E["state"],
-                      "a": {"id": E["a"]["party"].lower(), "name": E["a"]["name"], "color": E["a"]["color"]},
-                      "b": {"id": E["b"]["party"].lower(), "name": E["b"]["name"], "color": E["b"]["color"]},
-                      "markets": mk, "units": f"units/{E['race_id']}.json" if priors_ok[E["race_id"]] else None,
-                      "config": Path(c["_path"]).name})
+            mk.append({"platform": "kalshi", "id": k["ticker"], "series": k["series"], "question": k["question"],
+                       "yes_is": k["yes_is"]})
+        race = {"race_id": rid, "name": E["name"], "region": E["state"],
+                "a": {"id": E["a"]["party"].lower(), "name": E["a"]["name"], "color": E["a"]["color"]},
+                "b": {"id": E["b"]["party"].lower(), "name": E["b"]["name"], "color": E["b"]["color"]},
+                "markets": mk, "units": f"units/{rid}.json" if priors_ok[rid] else None,
+                "poll_close_utc": POLL_CLOSE.get(E["state"]), "config": Path(c["_path"]).name}
+        if phase == "pre-count":
+            race["precount"] = precount.get(rid)
+        if not priors_ok[rid]:
+            race["model_note"] = NO_PRIOR
+        races.append(race)
     states = sorted({c["election"]["state"] for c in cfgs})
     srcs = [{"name": "Official results feeds: " + ", ".join(STATES[s] for s in states) + " (election night)",
              "url": "https://www.sos.ca.gov/elections", "licence": "public record"}]
     srcs += [{"name": SOURCE_INFO[s][0], "url": SOURCE_INFO[s][1], "licence": SOURCE_INFO[s][2]} for s in states]
     srcs.append({"name": "US Census Bureau county codes / cartographic boundaries",
                  "url": "https://www.census.gov/geographies/reference-files.html", "licence": "public domain"})
+    srcs.append({"name": "Polymarket: market prices (CLOB)", "url": "https://polymarket.com",
+                 "licence": "public market data"})
     if kalshi_mk:
         srcs.append({"name": "© Kalshi: market prices (order-book midpoints)", "url": "https://kalshi.com",
                      "licence": "© Kalshi; shown per the project's decision and pending exception request, "
                                 "see docs/kalshi.md"})
+    srcs += POLL_SOURCES
+    notes = [
+        "counted = share of the expected two-party vote already counted (model estimate; US feeds report "
+        "precincts, not remaining ballots).",
+        "raw and share are the Democratic share of the Democrat + Republican vote.",
+        "Alaska's races are not modelled: under top-four ranked-choice voting several candidates share a party, "
+        "so party totals do not answer the candidate-specific markets.",
+        "kalshi = Kalshi P(Democrat): midpoint of the market's order book when the spread is at most 10c, else "
+        "empty; market per race from configs/pairs/us2026.toml. Prices © Kalshi.",
+        "Model frozen before polls closed (configs/us2026_*_v1.toml); see docs/us_midterms.md.",
+        "Polls close (UTC, Nov 4): Georgia 00:00, Ohio 00:30, Texas 01:00 (02:00 in El Paso and Hudspeth "
+        "counties), California 04:00.",
+    ]
+    if phase == "pre-count":
+        notes.insert(0, "Before the count the model's estimate is the past certified results (2024 president / 2022 "
+                        "governor and Senate by county) with its uncertainty; it does not use polls.")
+        notes.insert(1, "Pre-count timeline: every 30 minutes over the last 14 days; pm = Polymarket CLOB price "
+                        "history, kalshi = Kalshi 1-minute candles sampled at each point (mid if spread ≤ 10c, else "
+                        "last trade), P = the model's chance before any votes are counted (constant).")
+    missing = [c["election"]["name"] for c in cfgs if not priors_ok[c["election"]["race_id"]]]
+    if missing:
+        notes.append(f"{', '.join(missing)}: {NO_PRIOR}; prices are shown, model fields are empty.")
     return {
         "id": EID, "name": "US midterm elections", "date": "2026-11-03", "tz": "America/New_York",
-        "poll_close_utc": "2026-11-03T23:00:00Z", "geometry": "geo/us_counties.topo.json",
-        "geometry_object": "counties", "unit_key": "unit_id",
-        "regions": [{"id": s, "name": STATES[s]} for s in states], "races": races, "sources": srcs,
-        "notes": [
-            "counted = share of the expected two-party vote already counted (model estimate; US feeds report "
-            "precincts, not remaining ballots).",
-            "raw and share are the Democratic share of the Democrat + Republican vote.",
-            "Alaska's races are not modelled: under top-four ranked-choice voting several candidates share a party, "
-            "so party totals do not answer the candidate-specific markets.",
-            "kalshi = Kalshi P(Democrat): midpoint of the market's order book when the spread is at most 10c, else "
-            "empty; market per race from configs/pairs/us2026.toml. Prices © Kalshi.",
-            "Model frozen before polls closed (configs/us2026_*_v1.toml); see docs/us_midterms.md.",
-        ],
+        "phase": phase, "poll_close_utc": min(POLL_CLOSE[s] for s in states),
+        "poll_close_by_region": {s: POLL_CLOSE[s] for s in states},
+        "geometry": "geo/us_counties.topo.json", "geometry_object": "counties", "unit_key": "unit_id",
+        "regions": [{"id": s, "name": STATES[s], "poll_close_utc": POLL_CLOSE[s],
+                     **({"poll_close_last_utc": POLL_CLOSE_LAST[s]} if s in POLL_CLOSE_LAST else {})}
+                    for s in states],
+        "races": races, "sources": srcs, "notes": notes,
     }
 
 
@@ -883,10 +982,10 @@ class Exporter:
 
     def __init__(self, cfg_paths: list[Path], snap_root: Path | None = None, priors: pd.DataFrame | None = None,
                  step: str = "1min", frame_every: str = "5min", max_retries: int = 3,
-                 pairs_path: Path | None = None):
+                 pairs_path: Path | None = None, phase: str = "live"):
         """max_retries: passes a failing minute is retried before it is skipped (live: the archive may still
         change; replay: use 1, the archive is final)."""
-        self.max_retries = max_retries
+        self.max_retries, self.phase = max_retries, phase
         self._retries: dict[str, tuple[pd.Timestamp, int]] = {}
         self.cfgs = [load_config(Path(p)) for p in cfg_paths]
         self.arc = Archive(snap_root or SNAP / TAG)
@@ -903,6 +1002,11 @@ class Exporter:
         self._failed: dict[str, tuple] = {}                                    # feed -> sig that failed to parse
         self._pm: tuple[Path | None, dict[str, float]] = (None, {})
         self.kalshi_mk = kalshi_markets(self.cfgs, pairs_path)
+        try:
+            self.tokens = pm_tokens(self.cfgs, pairs_path)
+        except Exception as e:                       # token ids are for the page's own price polling only
+            self.tokens = {}
+            self.errors["tokens"] = f"{type(e).__name__}: {e}"
         self._ks: tuple[Path | None, dict[str, float]] = (None, {})
 
     def _rows_for(self, kind: str, t: pd.Timestamp) -> tuple[pd.DataFrame, tuple]:
@@ -929,21 +1033,28 @@ class Exporter:
 
     def _tick(self, c: dict, t: pd.Timestamp, prices: dict[str, float], kprices: dict[str, float]) -> None:
         rid, pri = c["election"]["race_id"], self.pri[c["election"]["race_id"]]
-        rows, sig = self._rows_for(c["election"]["feed"], t)
-        memo = self._memo.get(rid)
-        if memo is None or memo[0] != sig:
-            memo = (sig, project(rows, c, pri))
-            self._memo[rid] = memo
-        res, units = memo[1]
+        has_model = pri is not None and not pri.empty
+        res, units = {}, None
+        if has_model:
+            rows, sig = self._rows_for(c["election"]["feed"], t)
+            memo = self._memo.get(rid)
+            if memo is None or memo[0] != sig:
+                memo = (sig, project(rows, c, pri))
+                self._memo[rid] = memo
+            res, units = memo[1]
         pm = _pm_market(c)
         p_yes = prices.get(pm[0]) if pm else None
         p_a = None if p_yes is None else (p_yes if pm[1] == "a" else 1 - p_yes)
         km = self.kalshi_mk.get(rid)
         k_yes = kprices.get(km["ticker"]) if km else None
         k_a = None if k_yes is None else (k_yes if km["yes_is"] == "a" else 1 - k_yes)
-        row = {"t": _iso(t), "counted": _r(res["counted_frac"]), "raw": _r(res["raw"]),
-               "share": _r(res["share_hat"]), "sd": _r(res["share_sd"]), "P": _r(res["p_win"]),
+        row = {"t": _iso(t), "counted": _r(res.get("counted_frac")), "raw": _r(res.get("raw")),
+               "share": _r(res.get("share_hat")), "sd": _r(res.get("share_sd")), "P": _r(res.get("p_win")),
                "pm": _r(p_a), "kalshi": _r(k_a)}
+        if not has_model:                             # prices only (e.g. Ohio without its county prior)
+            self.timeline[rid].append(row)
+            self.cursor[rid] = t
+            return
         fr = self.frames[rid]
         frame = None
         if units["n"].sum() > 0 and (not fr or t - pd.Timestamp(fr[-1]["t"]) >= self.frame_every):
@@ -965,8 +1076,7 @@ class Exporter:
         if not ts:
             return
         end = min(until, ts[-1] + self.step) if until is not None else ts[-1]
-        active = [c for c in self.cfgs if self.pri[c["election"]["race_id"]] is not None
-                  and not self.pri[c["election"]["race_id"]].empty]
+        active = self.cfgs                            # races without a prior still publish their prices
         first = ts[0].ceil(self.step)
         starts = [first if self.cursor[c["election"]["race_id"]] is None
                   else self.cursor[c["election"]["race_id"]] + self.step for c in active]
@@ -1010,44 +1120,52 @@ class Exporter:
                         print(f"race {rid}: failed at {_iso(t)}, retry next pass: {type(e).__name__}: {e}",
                               flush=True)
 
-    def tail(self, minutes: int = 60) -> dict:
-        """timeline.json's shape restricted to each race's last `minutes` minutes (rows with t > its last row's
-        t − minutes), plus "tail": true and "since" (ISO time of the earliest row included, null if none). The live
-        page polls this small file; timeline.json stays complete for the first load."""
-        out: dict = {}
+    def tail(self, minutes: int = 60, timeline: dict[str, list[dict]] | None = None) -> dict:
+        return timeline_tail(timeline if timeline is not None else self.timeline, minutes)
+
+    def merged_timeline(self, d: Path) -> dict[str, list[dict]]:
+        """The count timeline with the pre-count rows (us2026/timeline_precount.json, written by `brunder us
+        preelection`) in front of each race's first count row, so the page shows one continuous line."""
+        f = d / "timeline_precount.json"
+        try:
+            pre = json.loads(f.read_text()) if f.exists() else {}
+        except Exception as e:                       # a damaged pre-count file must not block the live files
+            self.errors["precount"] = f"{type(e).__name__}: {e}"
+            pre = {}
+        out = {}
         for rid, rows in self.timeline.items():
-            if rows:
-                cut = pd.Timestamp(rows[-1]["t"]) - pd.Timedelta(minutes=minutes)
-                i = len(rows)
-                while i and pd.Timestamp(rows[i - 1]["t"]) > cut:
-                    i -= 1
-                out[rid] = rows[i:]
-            else:
-                out[rid] = []
-        firsts = [r[0]["t"] for r in out.values() if r]
-        return {**out, "tail": True, "since": min(firsts) if firsts else None}
+            first = rows[0]["t"] if rows else None
+            out[rid] = [r for r in pre.get(rid, []) if first is None or r["t"] < first] + rows
+        return out
 
     def write(self, out: Path) -> Path:
         d = Path(out) / EID
         ok = {rid: p is not None and not p.empty for rid, p in self.pri.items()}
-        _write_json(d / "meta.json", meta(self.cfgs, ok, self.kalshi_mk))
-        _write_json(d / "timeline.json", self.timeline)
-        _write_json(d / "timeline_tail.json", self.tail())
+        _write_json(d / "meta.json", meta(self.cfgs, ok, self.kalshi_mk, phase=self.phase, tokens=self.tokens))
+        tl = self.merged_timeline(d)
+        _write_json(d / "timeline.json", tl)
+        _write_json(d / "timeline_tail.json", self.tail(timeline=tl))
+        st = d / "stats.json"                        # never overwrite real statistics written by the analysis
+        try:
+            placeholder = not st.exists() or all(json.loads(st.read_text()).get(k) is None for k in STATS_KEYS)
+        except Exception:
+            placeholder = True
+        if placeholder:
+            _write_json(st, empty_stats("computed after the count" if self.phase == "live"
+                                        else "not computed by the exporter"))
         default = None
+        now = _iso(pd.Timestamp.now(tz="UTC").floor("1min"))
         for c in self.cfgs:
             rid = c["election"]["race_id"]
             pri = self.pri[rid]
             if not ok[rid]:
                 continue
             try:
-                fr = self.frames[rid]
+                fr = self.frames[rid] or [precount_frame(pri, now)]   # before the first returns: the prior map
                 if len(fr) > 60:                      # keep ~60 frames, always including the latest
                     idx = np.unique(np.linspace(0, len(fr) - 1, 60).round().astype(int))
                     fr = [fr[i] for i in idx]
-                obj = {"race_id": rid, "unit_ids": pri["unit_id"].tolist(),
-                       "region": [c["election"]["state"]] * len(pri), "names": pri["name"].tolist(),
-                       "prior": (pri["s0"] * 1000).round().astype(int).tolist(),
-                       "V0": (pri["V"] * rules(c).turnout_ratio).round().astype(int).tolist(), "frames": fr}
+                obj = units_object(c, pri, fr)
                 _write_json(d / "units" / f"{rid}.json", obj)
                 default = default or obj
             except Exception as e:                   # one race's map must not block the others
@@ -1058,11 +1176,131 @@ class Exporter:
         return d
 
 
+def timeline_tail(timeline: dict[str, list[dict]], minutes: int = 60) -> dict:
+    """timeline.json's shape restricted to each race's last `minutes` minutes (rows with t > its last row's
+    t − minutes), plus "tail": true and "since" (ISO time of the earliest row included, null if none). The live
+    page polls this small file; timeline.json stays complete for the first load."""
+    out: dict = {}
+    for rid, rows in timeline.items():
+        if rows:
+            cut = pd.Timestamp(rows[-1]["t"]) - pd.Timedelta(minutes=minutes)
+            i = len(rows)
+            while i and pd.Timestamp(rows[i - 1]["t"]) > cut:
+                i -= 1
+            out[rid] = rows[i:]
+        else:
+            out[rid] = []
+    firsts = [r[0]["t"] for r in out.values() if r]
+    return {**out, "tail": True, "since": min(firsts) if firsts else None}
+
+
+STATS_KEYS = ("calibration", "settle", "catchup", "early_error", "capacity", "arbitrage", "evidence")
+
+
+def empty_stats(reason: str) -> dict:
+    """stats.json with the standard keys all null and the reason (the standard metrics need the finished count)."""
+    return {**{k: None for k in STATS_KEYS}, "reasons": {k: reason for k in STATS_KEYS}}
+
+
+def precount_frame(pri: pd.DataFrame, t: str) -> dict:
+    """A units frame before any returns: nothing counted, projection = the prior."""
+    n = len(pri)
+    return {"t": t, "f": [0] * n, "a": [-1] * n, "proj": (pri["s0"] * 1000).round().astype(int).tolist()}
+
+
+def units_object(c: dict, pri: pd.DataFrame, frames: list[dict]) -> dict:
+    return {"race_id": c["election"]["race_id"], "unit_ids": pri["unit_id"].tolist(),
+            "region": [c["election"]["state"]] * len(pri), "names": pri["name"].tolist(),
+            "prior": (pri["s0"] * 1000).round().astype(int).tolist(),
+            "prior_margin": ((2 * pri["s0"] - 1) * 1000).round().astype(int).tolist(),
+            "V0": (pri["V"] * rules(c).turnout_ratio).round().astype(int).tolist(), "frames": frames}
+
+
 def export(cfg_paths: list[Path], out: Path, snap_root: Path | None = None, until: str | None = None) -> Path:
     """Replay: everything recorded up to `until` (default: the end of the archive)."""
-    ex = Exporter(cfg_paths, snap_root, max_retries=1)
+    ex = Exporter(cfg_paths, snap_root, max_retries=1, phase="replay")
     ex.update(pd.Timestamp(until).tz_convert("UTC") if until else None)
     return ex.write(out)
+
+
+def _asof(series: pd.Series, grid: pd.DatetimeIndex) -> list[float | None]:
+    """Last value at or before each grid time (None before the first)."""
+    if series is None or series.empty:
+        return [None] * len(grid)
+    s = series.sort_index()
+    s = s[~s.index.duplicated(keep="last")]
+    v = s.reindex(s.index.union(grid)).ffill().reindex(grid)
+    return [None if not np.isfinite(x) else float(x) for x in v.to_numpy(dtype=float)]
+
+
+def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = "30min",
+                now: pd.Timestamp | None = None, priors: pd.DataFrame | None = None,
+                pairs_path: Path | None = None, force: bool = False) -> Path:
+    """Dashboard files before the count (phase "pre-count"): per race the model's chance with zero votes counted
+    (constant; the frozen config on the county prior), Polymarket CLOB price history and Kalshi 1-minute candles
+    sampled every `step` over the last `days`, and a map frame = the prior. Network: Polymarket and Kalshi public
+    APIs only. Refuses to overwrite files of the live or replay phase unless force."""
+    from . import polymarket
+    cfgs = [load_config(Path(p)) for p in cfg_paths]
+    d = Path(out) / EID
+    if (d / "meta.json").exists() and not force:
+        phase = json.loads((d / "meta.json").read_text()).get("phase")
+        if phase in ("live", "replay"):
+            print(f"{d}: phase is {phase!r}, pre-count files not written (use --force)", flush=True)
+            return d
+    pr = priors if priors is not None else load_priors()
+    pri = {c["election"]["race_id"]: race_prior(c, pr) for c in cfgs}
+    ok = {rid: p is not None and not p.empty for rid, p in pri.items()}
+    now = (now or pd.Timestamp.now(tz="UTC")).floor(step)
+    grid = pd.date_range(now - pd.Timedelta(days=days), now, freq=step)
+    kmk, tokens = kalshi_markets(cfgs, pairs_path), pm_tokens(cfgs, pairs_path, lookup=True)
+    pre: dict[str, dict | None] = {}
+    timeline: dict[str, list[dict]] = {}
+    for c in cfgs:
+        rid = c["election"]["race_id"]
+        pre[rid] = None
+        if ok[rid]:
+            res, _ = project(_frame([]), c, pri[rid])
+            pre[rid] = {"P": _r(res["p_win"]), "share": _r(res["share_hat"]), "sd": _r(res["share_sd"])}
+        pm_vals = [None] * len(grid)
+        pm = c.get("markets", {}).get("polymarket", {})
+        if tokens.get(rid):
+            try:
+                h = polymarket.price_history(tokens[rid], grid[0] - pd.Timedelta(hours=6), now, fidelity_min=30)
+                s = h.set_index("time")["price"].astype(float)
+                s = s if pm.get("yes_is", "a") == "a" else 1 - s
+                pm_vals = _asof(s, grid)
+            except Exception as e:
+                print(f"{rid}: Polymarket history failed: {type(e).__name__}: {e}", flush=True)
+        k_vals = [None] * len(grid)
+        km = kmk.get(rid)
+        if km:
+            try:
+                cnd = kalshi.candlesticks(km["series"], km["ticker"], grid[0] - pd.Timedelta(hours=6), now, 1)
+                p = kalshi.prob_from_candles(cnd, grid) if len(cnd) else pd.Series(np.nan, index=grid)
+                p = p if km["yes_is"] == "a" else 1 - p
+                k_vals = [None if x is None or not np.isfinite(x) else float(x) for x in p.to_numpy(dtype=float)]
+            except Exception as e:
+                print(f"{rid}: Kalshi history failed: {type(e).__name__}: {e}", flush=True)
+        m = pre[rid] or {}
+        timeline[rid] = [{"t": _iso(t), "counted": None, "raw": None, "share": m.get("share"), "sd": m.get("sd"),
+                          "P": m.get("P"), "pm": _r(pv), "kalshi": _r(kv)}
+                         for t, pv, kv in zip(grid, pm_vals, k_vals)]
+    _write_json(d / "meta.json", meta(cfgs, ok, kmk, phase="pre-count", precount=pre, tokens=tokens))
+    _write_json(d / "timeline_precount.json", timeline)    # kept: the live exporter puts these rows first
+    _write_json(d / "timeline.json", timeline)
+    _write_json(d / "timeline_tail.json", timeline_tail(timeline))
+    _write_json(d / "stats.json", empty_stats("count has not started"))
+    default = None
+    for c in cfgs:
+        rid = c["election"]["race_id"]
+        if ok[rid]:
+            obj = units_object(c, pri[rid], [precount_frame(pri[rid], _iso(now))])
+            _write_json(d / "units" / f"{rid}.json", obj)
+            default = default or obj
+    if default:
+        _write_json(d / "units.json", default)
+    return d
 
 
 async def run_live(cfg_paths: list[Path], out: Path, snap_root: Path | None = None, interval: float = 30.0,
@@ -1086,10 +1324,13 @@ async def run_live(cfg_paths: list[Path], out: Path, snap_root: Path | None = No
 
 
 def cli(a) -> None:
-    """`brunder us priors|export|live …` (see src/brunder/cli.py)."""
+    """`brunder us priors|preelection|export|live …` (see src/brunder/cli.py)."""
     match a.step:
         case "priors":
             print(build_priors(a.source or None))
+            print(write_public_priors())
+        case "preelection":
+            print(preelection(a.configs, a.out, days=a.days, force=a.force))
         case "export":
             print(export(a.configs, a.out, a.snap, a.until))
         case "live":

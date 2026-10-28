@@ -159,6 +159,37 @@ at every checkpoint. These settings are in-sample for Georgia's past races; on 2
 Early-count errors (5–25 % counted) are about 2.5 points in every setting: before Election Day votes arrive, the
 model only knows the early batches and the prior. The sd covers that, which is the point of the wide τ.
 
+## Before the count (`brunder us preelection`)
+
+```
+uv run brunder us preelection configs/us2026_*_v1.toml --out site/data      # CI-safe: no private data needed
+```
+
+Writes `site/data/us2026/` with `meta.phase = "pre-count"`:
+- per race the model's chance with zero votes counted (`races[].precount` and the `P`/`share`/`sd` of every
+  timeline row). It is the frozen config applied to the county prior: the past certified results with their
+  uncertainty, no polls.
+- 14 days of prices every 30 minutes: `pm` from Polymarket's public CLOB price history, `kalshi` from Kalshi 1-minute
+  candles sampled at each point (mid if the spread is at most 10c, else last trade). `counted`/`raw` are null.
+- one map frame per race (nothing counted, projection = prior) and `prior_margin`.
+- `stats.json` with null metrics, reason "count has not started".
+- per-state poll closes (`poll_close_by_region`, `regions[].poll_close_utc`) and the Polymarket YES token ids.
+
+Poll closes, Nov 4 UTC: Georgia 00:00 (7 p.m. ET), Ohio 00:30 (7:30 p.m. ET), Texas 01:00 (7 p.m. CT; 02:00 in
+El Paso and Hudspeth, mountain time) and California 04:00 (8 p.m. PT). Standard time applies, because daylight saving
+time ended on Nov 1. Sources: georgia.gov (vote in person on Election Day), Ohio SoS 2026 elections calendar, Texas
+SoS news release of 2026-10-27, and the California SoS Elections Officers' Digest.
+
+Priors come from `data/processed/us2026/priors.csv` when it exists, else from the committed `data_public/us2026_priors.csv`.
+That file is the same derived county table (official public-record and CC BY sources, attribution header), written
+by `brunder us priors`. Races without a prior (Ohio, until the MEDSL file is added) are listed with prices and
+`model_note` "county prior not available yet". The command refuses to overwrite files whose phase is live or
+replay (`--force` overrides).
+
+On the night `brunder us live` writes the same files with `phase = "live"`. It keeps
+`timeline_precount.json` and puts those rows in front of its minute rows, so the switch needs no manual step.
+Until a race has returns, its map shows the prior frame.
+
 ## Live and replay
 
 ```
