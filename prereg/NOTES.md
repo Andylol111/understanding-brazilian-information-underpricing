@@ -3,6 +3,12 @@
 `registry.jsonl` is append-only and records hashes; this file records what was already known when each
 spec was registered, so readers can judge how out-of-sample each result is.
 
+**History rewrite, 2026-10-28.** Before the repository was made public, its history was rewritten to
+remove a personal email and to replace lines carrying figures derived from unlicensed third-party data
+with a marker. Commit ids in `registry.jsonl`, `holdout_runs.jsonl` and the docs are the original ids;
+`commit_map_2026-10-28.txt` maps each to its rewritten commit. Spec files and their SHA-256 hashes are
+unchanged, so every registration still verifies.
+
 | id | registered | already known at registration | what registration guarantees |
 |---|---|---|---|
 | shock_depth_v1, favourite_tilt_v1, late_certainty_v1 | 2026-10-26, before any run on the cross-category universe | election markets of every period (from the earlier exploration) — the **elections** holdout is not clean | parameters fixed before any discovery or holdout run on the other 10 categories |
