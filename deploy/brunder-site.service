@@ -1,0 +1,15 @@
+# Serves the dashboard (site/) and the live files the model writes into site/data/ on localhost only;
+# brunder-tunnel publishes it. Same origin for pages and live data, so no CORS is needed.
+[Unit]
+Description=brunder dashboard static server (localhost)
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo/site
+ExecStart=/usr/bin/python3 -m http.server 8790 --bind 127.0.0.1
+Restart=on-failure
+RestartSec=10
+Nice=10
+CPUQuota=20%
+MemoryMax=256M
+RuntimeMaxSec=2d

@@ -1,0 +1,17 @@
+# Temporary public URL for the live dashboard: a Cloudflare quick tunnel (random *.trycloudflare.com
+# address, no account). `--config /dev/null` keeps it from reading any other tunnel's configuration on
+# this host; it is a separate process. Find the URL with: journalctl -u brunder-tunnel | grep trycloudflare
+[Unit]
+Description=brunder dashboard quick tunnel (trycloudflare)
+After=brunder-site.service
+Requires=brunder-site.service
+
+[Service]
+User=brunder
+ExecStart=/usr/local/bin/cloudflared --config /dev/null tunnel --no-autoupdate --url http://127.0.0.1:8790
+Restart=on-failure
+RestartSec=10
+Nice=10
+CPUQuota=20%
+MemoryMax=256M
+RuntimeMaxSec=2d

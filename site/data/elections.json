@@ -1,5 +1,15 @@
 [
  {
+  "id": "us2026",
+  "name": "US midterms: governor and Senate races in CA, TX, OH, GA, AK",
+  "date": "2026-11-03",
+  "country": "US",
+  "status": "scheduled",
+  "unit_level": "county",
+  "evidence": "forward",
+  "summary": "County-level model frozen before polls close; it will run live on election night against Polymarket prices, and the replay will be posted here afterwards."
+ },
+ {
   "id": "br2026r2",
   "name": "Brazil presidential runoff",
   "date": "2026-10-25",

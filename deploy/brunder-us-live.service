@@ -1,0 +1,22 @@
+# Live US midterm model (2026-11-03): re-reads the recorder's archive (brunder-snap-us) every 30 s and
+# rewrites the dashboard files under site/data/us2026/, which brunder-site serves. Never polls the official
+# feeds itself. Started by brunder-election-night.timer together with brunder-site and brunder-tunnel.
+[Unit]
+Description=brunder live model: US midterms 2026-11-03
+After=brunder-snap-us.service
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder us live \
+  configs/us2026_ca_gov_v1.toml configs/us2026_tx_sen_v1.toml configs/us2026_tx_gov_v1.toml \
+  configs/us2026_oh_sen_v1.toml configs/us2026_oh_gov_v1.toml \
+  configs/us2026_ga_sen_v1.toml configs/us2026_ga_gov_v1.toml \
+  configs/us2026_ak_sen_v1.toml configs/us2026_ak_gov_v1.toml \
+  --out /srv/brunder/repo/site/data --interval 30 --until 2026-11-05T12:00Z
+Restart=on-failure
+RestartSec=30
+Nice=10
+CPUQuota=40%
+MemoryMax=1536M

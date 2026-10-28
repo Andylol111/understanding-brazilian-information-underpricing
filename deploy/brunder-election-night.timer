@@ -1,0 +1,10 @@
+[Unit]
+Description=Start the US midterms live model, dashboard server and tunnel (2026-11-03, before 23:00 UTC poll close)
+
+[Timer]
+OnCalendar=2026-11-03 22:30:00 UTC
+Persistent=true
+Unit=brunder-election-night.target
+
+[Install]
+WantedBy=timers.target
