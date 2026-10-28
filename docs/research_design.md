@@ -93,9 +93,10 @@ release while the market already reacted to it — this favours the market.
 
 ## Preliminary results (`analysis/r2_night.py`, reconstructed path) — SUPERSEDED
 
-> Superseded: the municipal reconstruction saw ~5% counted at 20:00 BRT when the real count was
-[removed: figure derived from unlicensed third-party data]
-> observers saw and must be rerun on the real count path before use.
+> Superseded: the municipal reconstruction lagged the real count badly (a third-party count history
+> shows the real count several times further along at 20:00 BRT; figures withheld, see below). The
+> lags, scores and capacity below understate what live observers saw and must be rerun on the
+> official runoff section files before use.
 
 Prior = 2026 R1 two-party share per municipality (proportional transfers). Metrics from release
 (22:00 UTC) to 02:30 UTC.
@@ -172,46 +173,23 @@ Readings:
   on order flow, which is what the nowcast lag result measures.
 
 
-### Poliwave's stored projection history, live status unverified (`brunder.poliwave`, `fig6_poliwave.png`)
+### Third-party runoff count history (Poliwave): unlicensed, figures withheld
 
-poliwave.com/br/live/presidente-2026 embeds a timestamped history of the national count (% of
-sections, raw shares) and a projected final share. Archived in `data/raw/poliwave/`, fetched
-*after* the count ended.
+poliwave.com publishes a timestamped history of the runoff's national count (share of sections, raw
+shares) and a projected final share. A copy was archived privately after the count ended. Its terms
+forbid scraping and a licence has been requested ([data_requests.md](data_requests.md)), so **no
+figure derived from it is published in this repo**; they will be re-derived from the official
+runoff section files (BU-web, receipt time per section) once TSE publishes them.
 
-Verification status:
-- Raw count columns: consistent with TSE-published partials (17:06 BRT: 0.25%, Lula 57.66%,
-  InfoMoney) and with the national path implied by the TSE feed. Treat as the real live count.
-[removed: figure derived from unlicensed third-party data]
-  20:00 BRT; reconstruction: ~5%).
-- Projection column: **not verified as what readers saw live.** It could have been recomputed
-  afterwards with hindsight. Checks so far: Wayback CDX has captures at 16:53, 19:26 and
-  20:55 BRT (plus 06:47 next day), all 204/403 with no content; a re-fetch on 2026-10-26 gives an
-  identical history (stability only); no contemporaneous news or social mention found. Needed:
-  a screenshot/post from the night, or Poliwave's methodology/changelog confirming stored
-  projections are frozen at publication time.
-
-[removed: figure derived from unlicensed third-party data]
-|---|---|---|---|---|
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-
-[removed: figure derived from unlicensed third-party data]
-  and market both verified).
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-  that stretch, and the market was trading the raw count rather than a public projection that
-[removed: figure derived from unlicensed third-party data]
-  This bullet is the one that needs the verification above.
-- Amapá: Poliwave's state page has no stored history, and the TSE reconstruction sees no Amapá
-  municipality until 19:56. A claim about a call "at 3% in Amapá" can't be checked from the
-  archived data yet.
+What it was used for privately, and how far it was checked:
+- Raw-count columns: consistent with TSE-published partials reported in the press and with the
+  national path implied by the TSE feed, so likely the real live count. Used only to see that the
+  municipal reconstruction above lagged the real count, which is why that section is superseded.
+- Projection column: **not verified as what readers saw live** (it could have been recomputed
+  afterwards; Wayback captures of the page have no content; no contemporaneous mention found).
+- Qualitatively, the history suggests the market followed the raw national count, including a dip
+  while the raw count briefly favoured Flávio, rather than a projection that corrects for reporting
+  order. This is a hypothesis for the official replay to test, not a finding.
 
 ### Third-party captures of the TSE feed (Wayback Machine, `data/raw/wayback/`)
 
@@ -318,9 +296,8 @@ evidence is currently the stronger of the two.
 
 ## Count-night section: what the paper can claim now
 
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
-[removed: figure derived from unlicensed third-party data]
+1. Market vs the runoff's raw national count, minute by minute: to be measured on the official
+   runoff section files (the only series seen so far is third-party and unlicensed; see above).
 2. The raw count was predictably biased by which states report first; a state-level nowcast built
    from public state files and ex-ante priors removes most of that bias (R1 test: −2.97 → +0.50 pt).
 3. Whether that model called the runoff earlier than the market needs the runoff state files over
