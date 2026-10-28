@@ -67,12 +67,38 @@ to 0.62; the model, which accounts for which municipalities had reported, stayed
 *On the runoff nothing traded at the signal's price because the minute price history lagged real
 trades by 2–4¢ in a fast market; accepting 5¢ worse, about $4,400 could have been bought.*
 
+## Brazil 2022: model only, on counts it never saw
+
+No Polymarket prices survive for 2022, so there is no market to compare against. Instead the
+benchmark is the raw running tally on the electoral court's site: when did the model become sure of
+the winner, and when did the raw tally settle on that winner for good? Both configs were frozen and
+registered before the 2022 section files were downloaded, with settings copied unchanged from the
+2026 runoff config; each was run once.
+
+| race | final (Lula, two-party) | model ≥ 0.9 | raw tally settled | lead | error at 5% counted: model / raw | 90% interval held (1–95% counted) |
+|---|---|---|---|---|---|---|
+| 2022, 1st round | 52.86% | 17:20 (0.4% counted) | 20:00 (69% counted) | **+160 min** (142 from 1% counted) | +0.4 / −6.5 pts | 100% |
+| 2022, runoff | 50.90% | 18:41 (65% counted) | 18:44 (68% counted) | **+3 min** | +0.4 / −4.0 pts | 100% |
+
+In the first round the raw tally showed Bolsonaro ahead for almost three hours (the early count was
+heavy with states that lean to him), while the model's estimate stayed within a point or two of the
+final from the first sections. In the runoff, the closest race in this review (50.9%), the model's
+estimate was again far more accurate early (error 0.8 vs 7.5 points at 1% counted) but it stayed honest
+about a near coin flip and only became sure 3 minutes before the raw tally settled.
+
+![2022 first round: model vs raw tally](figures/hist_2022_r1.png)
+
+![2022 runoff: model vs raw tally](figures/hist_2022_r2.png)
+
+**Brazil 2018 cannot be replayed:** its section files record when each ballot box closed, not when its
+result reached the court, so the order in which the count arrived is unknown. The registered 2018
+configs were not run.
+
 ## Coming next
 
 | election | what | status |
 |---|---|---|
-| Brazil 2022, both rounds | model only (Polymarket's 2022 market predates its current order book; no prices survive): how early and how accurately the model reads a count it never saw | section files available from TSE; configs to be frozen and registered before the count paths are examined |
-| Brazil 2018, both rounds | model only, as above | section files available |
+| Brazil 2018, both rounds | model only | not possible: the 2018 files have no receipt times |
 | Israel, Knesset, 2026-10-27 | count recorded live with order books for 74 markets | recorded; needs a seat-allocation model before it can be scored |
 | US midterms, 2026-11-03 | official county feeds (CA, TX, OH, AK, GA) and order books for 257 markets, recorded live | scheduled |
 

@@ -93,29 +93,50 @@ def main(cfg_path: str) -> None:
     (out / "summary.json").write_text(json.dumps(summary, indent=1))
     print(json.dumps(summary, indent=1))
 
+    draw(out)
+
+
+def draw(out: Path) -> Path:
+    """Chart from a finished run's saved ticks and summary (never touches the registry: not a look).
+    Window: from 15 min before 1% counted to 99.5% counted (votes from abroad trickle in all day)."""
+    d = pd.read_parquet(out / "ticks.parquet")
+    s = json.loads((out / "summary.json").read_text())
+    final, lead = s["final_share_a"], s["lead_min"]
     tt = d.assign(t=d["t"].dt.tz_convert(BRT).dt.tz_localize(None))
-    tt = tt[tt["counted"] > 0]
+    t0 = tt.loc[tt["counted"] >= 0.01, "t"].iloc[0] - pd.Timedelta("15min")
+    t1 = tt.loc[tt["counted"] >= 0.995, "t"].iloc[0]
+    tt = tt[(tt["t"] >= t0) & (tt["t"] <= t1)]
+    gate = tt.loc[tt["counted"] >= 0.01, "t"].iloc[0]
     fig, (a1, a2) = plt.subplots(2, 1, figsize=(10, 6.5), sharex=True)
     a1.plot(tt.t, 100 * tt.tally, color="0.35", label="raw running tally")
     a1.plot(tt.t, 100 * tt.share, color="C3", label="model's projected final share")
-    a1.fill_between(tt.t, 100 * (tt.share - 1.645 * tt.sd), 100 * (tt.share + 1.645 * tt.sd), color="C3", alpha=0.15)
+    a1.fill_between(tt.t, 100 * (tt.share - 1.645 * tt.sd), 100 * (tt.share + 1.645 * tt.sd), color="C3", alpha=0.15,
+                    label="model's 90% interval")
     a1.axhline(100 * final, color="k", ls="--", lw=1, label=f"final {100 * final:.2f}%")
     a1.axhline(50, color="0.6", lw=0.8)
-    a1.set_ylim(100 * final - 6, 100 * final + 6)
-    a1.set_ylabel(f"candidate {E['cand_a']}, % two-party")
-    a1.legend(fontsize=8)
-    a1.set_title(f"{summary['id']} (model only, pre-specified): model {brt(t_model)}, raw tally {brt(t_tally)}, lead {lead:+.0f} min")
-    a2.plot(tt.t, tt.P, color="C3", label=f"model P(candidate {E['cand_a']} wins)")
-    a2.plot(tt.t, tt.counted, color="0.6", ls=":", label="share counted")
+    a1.set_ylim(100 * final - 8, 100 * final + 6)
+    a1.set_ylabel("Lula, % of two-party vote")
+    a1.legend(fontsize=8, loc="lower right")
+    a1.set_title(f"{s['id']} (model only, pre-specified): model sure at {s['model_settles']}, raw tally settled "
+                 f"at {s['raw_tally_settles']} ({lead:+.0f} min)", fontsize=10)
+    a2.plot(tt.t, tt.P, color="C3", label="model P(Lula wins)")
+    a2.plot(tt.t, tt.counted, color="0.6", ls=":", label="share of sections counted")
+    a2.axvline(gate, color="0.5", lw=0.8, ls="--")
+    a2.text(gate, 0.05, " 1% counted", fontsize=8, color="0.4")
     a2.set_ylim(0, 1.02)
-    a2.legend(fontsize=8)
+    a2.legend(fontsize=8, loc="center right")
     for ax in (a1, a2):
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
         ax.grid(alpha=0.25)
     a2.set_xlabel("Brasília time")
     fig.tight_layout()
-    fig.savefig(out / "night.png", dpi=150)
+    p = out / "night.png"
+    fig.savefig(p, dpi=150)
+    return p
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    if sys.argv[1] == "draw":
+        print(draw(ROOT / "results" / "history" / sys.argv[2]))
+    else:
+        main(sys.argv[1])
