@@ -533,3 +533,20 @@ td.sched.pre { padding-top: 6px; }
 #overview col.c-chart { width: 17%; }
 #overview th { white-space: normal; }
 #overview .spark { max-width: 100%; }
+/* national view: the office summary replaces the race readout, chart and tabs */
+.p-summary { display: none; padding: 12px 18px 16px; overflow-y: auto; min-height: 0; }
+.dash.nat-on .p-summary { display: block; grid-area: readout; }
+.dash.nat-on .p-readout, .dash.nat-on .p-timeline, .dash.nat-on .p-tabs { display: none; }
+@media (min-width: 1100px) {
+  .dash.nat-on .p-summary { grid-area: auto; grid-column: 2; grid-row: 2 / 6; border-left: 1px solid var(--ink); }
+}
+.p-summary .tab-h:first-of-type { margin-top: 10px; }
+.nat-sum-ctl { font: 14px/1.5 var(--sans); margin: 0 0 6px; }
+.p-summary > p { font: 13.5px/1.5 var(--sans); }
+.nat-ctl-chart svg { display: block; width: 100%; height: auto; }
+table.nat-races td { padding: 4px 8px 4px 0; }
+table.nat-races td small { color: var(--muted); }
+table.nat-races .ring { display: inline-block; width: 8px; height: 8px; border: 1.5px solid var(--ink); border-radius: 50%; vertical-align: 0; }
+@media (max-width: 1099.98px) {
+  .dash.nat-on .p-summary { grid-area: timeline; } /* under the map on narrow screens */
+}

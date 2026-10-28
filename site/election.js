@@ -1129,6 +1129,10 @@ function updateNational(yes = natYes) {
       const y = r.pm?.slug ? yes.get(r.pm.slug) : null;
       if (y != null) live.set(r.race_key, r.pm.yes_is === "rep" ? 1 - y : y);
     }
+    for (const c of o.control_markets ?? []) {
+      const y = c.platform === "polymarket" && c.slug ? yes.get(c.slug) : null;
+      if (y != null) live.set(`ctl:${c.slug}`, c.yes_is === "rep" ? 1 - y : y);
+    }
   }
   const model = new Map(races().map((r) => [r.race_id, rowAt(r.race_id, S.t)?.P ?? null]).filter(([, p]) => p != null));
   S.nat.update({ overview: S.overview, live, model });
@@ -1140,7 +1144,7 @@ async function initNational() {
   if (!overview || !topo) return;
   S.overview = overview;
   S.nat = createNational($("national"), {
-    topo, overview, office: "senate",
+    topo, overview, office: "senate", summary: $("nat-summary"),
     onDrill: (id) => { const r = raceById(id); if (r) selectRace(r); },
   });
   showNational();
@@ -1148,9 +1152,11 @@ async function initNational() {
   renderCrumbs();
 }
 
+// While the national map shows, the right column shows the office summary instead of one race.
 function showNational() {
   const on = !!S.nat && !S.region;
   $("national").hidden = !on;
+  $("dash").classList.toggle("nat-on", on);
   if (on) S.nat.draw();
 }
 
