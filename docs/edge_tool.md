@@ -186,11 +186,11 @@ extraction, validated before the looks (`prereg/NOTES.md`). Pre-specified, outco
 | Governor RN (first-round leader lost) | 20:36 | 20:58 | +22 | contested; the model called the upset first |
 | Governor AC, AM | 17:04 | 17:04 | 0, 0 | market already ≥ 0.9 when counting began |
 | Governor TO | 17:08 | 17:04 | −4 | market already ≥ 0.9 when counting began |
-| Governor DF | 19:24 | 17:04 | −140 | DF is a single municipality: the municipal model has nothing to compare across and stays uncertain |
+| Governor DF | 19:24 | 17:04 | −140 | market ≥ 0.9 before counting began. Not the prior: first-round two-party share 59.2% vs final 57.2%, P = 0.91 before any section. DF is a single municipality, so all the model's uncertainty is within-municipality reporting order, which it narrows slowly: sd 8.1 pt at 1.5% counted, 6.4 pt at 18%, against a 7-pt final margin; P stayed 0.84–0.89 until ~19:24 |
 
 Median across the seven: **0 min**, neither the pre-stated failure (a negative median) nor a general
 lead. The lead appears in the three races the market had not already decided (+198, +42, +22) and
-fails structurally in a one-municipality race.
+is slow in a one-municipality race, where cross-municipality comparison can't narrow the uncertainty.
 
 **Primary 2, calibration** (share of ticks between 1% and 95% counted whose 90% interval contains the
 final share): President 100%, AC 100%, AM 99%, DF 100%, ES 97%, RN 100%, TO 100%; mean z between −0.9

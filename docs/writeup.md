@@ -107,8 +107,10 @@ The first-round result was in-sample, so the next steps are about evidence that 
      of the market from the first moment the rule could trade. Espírito Santo: 42 minutes. Rio Grande
      do Norte, where the first-round leader lost: 22 minutes, calling the upset first.
    - **Where the market was already sure, there was nothing to beat** (Acre, Amazonas, Tocantins).
-   - **It failed in the Federal District**, 140 minutes behind: Brasília is a single municipality, so
-     a model that learns by comparing municipalities has nothing to compare.
+   - **It was slow in the Federal District**, 140 minutes behind a market that was sure before counting
+     began. Its starting point was fine (first-round share 59%, final 57%), but Brasília is a single
+     municipality, so its only uncertainty is the order in which that municipality's sections report,
+     which it narrows slowly: ±6 points at 18% counted against a 7-point final margin.
    - Its 90% uncertainty bands contained the final result through 97–100% of the count in every race.
 
    ![Runoff night: model vs market](figures/r2_national_replay.png)
