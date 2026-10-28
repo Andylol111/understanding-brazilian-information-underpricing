@@ -1,0 +1,66 @@
+# NOT PRE-REGISTERED (evidence label "not-preregistered"; not registered in prereg/registry.jsonl and will not be)
+# — Mexico presidential election, 2 June 2024. Written 2026-10-28.
+# Why not pre-registered:
+#   - this file was first committed after the 2024 replay had been scored, so nothing outside the account in
+#     docs/mexico.md documents that the settings were fixed before the 2024 count was examined;
+#   - before this file was written, one exploratory run of the same model with tau = 0.015 on the 2024 count
+#     (30-minute ticks) was looked at while testing the code;
+#   - the outcome (Sheinbaum won; cómputo 59.8% of all votes cast) and the market path were public long before.
+# How the settings were chosen: on the 2018 count only (configs/mx2024_dev_2018.toml, analysis/mx_calibrate.py:
+# tau = 0.01 is the smallest grid value with >= 90% coverage over 1-95% counted on 2018, the Brazil criterion),
+# or copied unchanged from the registered Brazil rule (configs/night_r2_v1.toml [trade]). Nothing below was changed
+# after the exploratory run, and the 2018 criterion picked a different tau (0.01) from the one explored.
+# Results (analysis/mx_replay.py, then analysis/mx_score.py):
+#   (1) accuracy: projected two-way share vs the official cómputo along the count (error at 1/5/10/25/50%,
+#       90% coverage over 1-95% counted, split at 90%); P(win) Brier/log vs the market on the same minutes;
+#   (2) profit: the Brazil rule on both resolved markets, fills from real taker trades.
+id = "mx2024_v1"
+eid = "mx2024"
+
+[election]
+date = "2024-06-02"
+# A = Sheinbaum (Sigamos Haciendo Historia: MORENA, PT, PVEM), B = Gálvez (Fuerza y Corazón por México: PAN, PRI,
+# PRD); share = A / (A + B) > ½ is "Sheinbaum beats Gálvez" (Máynez, MC, is a distant third and cannot win).
+prep = "mx2024/pres/PRES_2024.csv"
+a_cols = ["MORENA", "PT", "PVEM", "PVEM_PT_MORENA", "PVEM_PT", "PVEM_MORENA", "PT_MORENA"]
+b_cols = ["PAN", "PRI", "PRD", "PAN-PRI-PRD", "PAN-PRI", "PAN-PRD", "PRI-PRD"]
+
+[final]                  # official cómputos distritales by section (SICEE 2024), scoring only
+file = "mx2024c/2024_SEE_PRE_NAL_SEC.csv"
+a_cols = ["MORENA", "PT", "PVEM", "PVEM_PT_MORENA", "PVEM_PT", "PVEM_MORENA", "PT_MORENA"]
+b_cols = ["PAN", "PRI", "PRD", "PAN_PRI_PRD", "PAN_PRI", "PAN_PRD", "PRI_PRD"]
+
+[prior]                  # 2018 cómputos by casilla: López Obrador vs Anaya + Meade (same definition as the dev set)
+file = "mx2018c/pres/20180708_2130_CW_presidencia/presidencia.csv"
+a_cols = ["PT", "MORENA", "ENCUENTRO SOCIAL", "PT_MORENA_PES", "PT_MORENA", "PT_PES", "MORENA_PES"]
+b_cols = ["PAN", "PRI", "PRD", "PVEM", "MOVIMIENTO CIUDADANO", "NUEVA ALIANZA", "PAN_PRD_MC", "PAN_PRD", "PAN_MC",
+          "PRD_MC", "PRI_PVEM_NA", "PRI_PVEM", "PRI_NA", "PVEM_NA"]
+
+[publication]            # PREP 2024 opened 20:00 central time (UTC-6) = 02:00 UTC; 5-minute cuts (brunder.mexico)
+opening_utc = "2024-06-03T02:00:00Z"
+step_min = 5.0
+include_min = 3.5
+delay_min = 5.0
+
+[model]                  # section-level brunder.nowcast; every other parameter at the nowcast defaults
+unit = "section"
+tau = 0.01
+
+[trade]                  # the registered Brazil rule, unchanged
+min_edge = 0.05
+min_counted = 0.01
+favoured_only = true
+half_spread = 0.01
+fee_rate = 0.0           # Polymarket charged no taker fee on these markets (2024)
+
+[markets.sheinbaum]
+event = "mexican-presidential-election-who-will-win"
+market = "mexican-presidential-election-will-claudia-sheinbaum-win"
+yes_is = "a"
+outcome = 1
+
+[markets.galvez]
+event = "mexican-presidential-election-who-will-win"
+market = "mexican-presidential-election-will-xochitl-galvez-win"
+yes_is = "b"
+outcome = 0

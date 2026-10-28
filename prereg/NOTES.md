@@ -54,6 +54,15 @@ scripts) is input data, not a setting; if it is not in place before polls close,
 reported as not run rather than scored later. Parser fixes forced by the live feed format on the night are
 allowed and will be listed here; model settings cannot change.
 
+## Mexico 2024 (`configs/mx2024_v1.toml`): not pre-registered
+
+Settings (τ = 0.01) were chosen on the 2018 count only and written to the config before the 2024 scoring
+run, but one exploratory 2024 run with τ = 0.015 was made while testing the code before the freeze, and
+the config was first committed after scoring. Labelled **not pre-registered**. Result: the projection
+beat the raw count from 5% counted, but the 90% interval covered the final share in only 10% of minutes
+(1–95% counted): the model's uncertainty does not transfer from 2018 to 2024. No trade signal fired:
+Polymarket was ≥ 0.9 on the winner about 50 hours before counting began (`docs/mexico.md`).
+
 ## Israel 2026 (`configs/il2026_v1.toml`): not pre-registered
 
 Settings were chosen on the 2021 and 2022 official counts and written to the config at 2026-10-28

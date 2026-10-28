@@ -25,6 +25,7 @@ the integrator merges `entry.json` into `elections.json`. Downloads are cached i
 | Official Voting Results, 45th GE, Table 12 (candidates by electoral district), CSV, 351 KB | https://www.elections.ca/res/rep/off/ovrGE45/62/data_donnees/table_tableau12.csv (report: https://www.elections.ca/res/rep/off/ovrGE45/home.html) | Elections Canada [Terms and Conditions](https://www.elections.ca/content.aspx?section=pri&document=index&lang=e), "Non-commercial Reproduction": *"Unless otherwise specified, you may reproduce the materials in whole or in part for non-commercial purposes, and in any format, without charge or further permission from Elections Canada, provided you … Exercise due diligence in ensuring the accuracy of the materials reproduced; Indicate both the complete title of the materials reproduced, as well as the author …; Indicate that the reproduction is a copy of the version available at [URL] …"*. The 45th GE results are not on open.canada.ca yet, but Elections Canada publishes the 42nd–44th GE official results there under the Open Government Licence – Canada (e.g. dataset 065439a9-c194-4259-9c95-245a852be4a1). |
 | Transposition of the Vote from the 44th GE to the 2023 Representation Orders (`transposition_343_fed_vote_count.csv`, 57 KB) | https://open.canada.ca/data/en/dataset/08c4ffbc-c513-41a4-b741-d35b41b50c22 | [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada) (CKAN `license_id: ca-ogl-lgo`) |
 | Electoral Geography Boundary Files (45th GE), Federal Electoral Districts 2025, SHP (10.3 MB zip) | https://open.canada.ca/data/en/dataset/97a2a33c-54cc-4f2e-82c1-047ad8212f05 (file: https://www.elections.ca/res/cir/mapsCorner/vector/FederalElectoralDistricts_2025_SHP.zip) | Open Government Licence – Canada (`ca-ogl-lgo`) |
+| Natural Earth 1:10m land (shoreline clip; the Elections Canada file includes water and runs Nunavut to the pole) | https://naciscdn.org/naturalearth/10m/physical/ne_10m_land.zip | Public domain ([terms](https://www.naturalearthdata.com/about/terms-of-use/)) |
 | Election-night national results page `https://enr.elections.ca/National.aspx?lang=e`, 6 Internet Archive captures (2025-04-28 23:30 to 04-29 10:27 UTC) | https://web.archive.org/web/2025*/https://enr.elections.ca/National.aspx?lang=e | Elections Canada non-commercial reproduction terms (above); `enr.elections.ca/robots.txt` is a 404 |
 | Polymarket price history (1-minute) and questions | public CLOB / Gamma APIs | Polymarket public data |
 
@@ -32,14 +33,14 @@ The dashboard is non-commercial research, which these terms allow. Every file na
 `meta.sources`.
 
 ### What is published
-- **Map** (`geo/ca_districts.topo.json`, object `districts`, 0.15 MB): the 343 federal electoral districts
-  (2023 Representation Order), simplified to 1.5 % with mapshaper, `unit_id = ca-<province>-<FED number>`
+- **Map** (`geo/ca_districts.topo.json`, object `districts`, 0.19 MB): the 343 federal electoral districts
+  (2023 Representation Order), clipped to Natural Earth land, then simplified to 1.5 % with mapshaper. Statistics Canada's shoreline-clipped cartographic FED file returns HTTP 403 to scripted requests, so it isn't used. `unit_id = ca-<province>-<FED number>`
   (e.g. `ca-on-35075`), `name` = English district name.
 - **units.json**: one final frame. `a` is the Liberal share of Liberal + Conservative votes (×1000). `prior` is
   the same share in Elections Canada's own transposition of the 2021 vote onto the 2023 districts, and `V0` is the
-  transposed Liberal + Conservative votes. Extra frame arrays: `winner` (party code), `margin` (winner minus
-  runner-up as a share of valid votes, ×1000) and `swing` (change in Liberal two-way share, ×1000). The result
-  matches the official total: LPC 169, CPC 144, BQ 22, NDP 7, GPC 1.
+  transposed Liberal + Conservative votes. Top-level `winner` (party id from `meta.parties`, which gives each party's
+  colour) and `margin` (winner minus runner-up, points of valid votes ×10), plus the frame array `swing` (change in
+  Liberal two-way share, ×1000). The result matches the official total: LPC 169, CPC 144, BQ 22, NDP 7, GPC 1.
 - **Races** (26): each Polymarket binary question is its own race, with A = YES.
 
 | Race | Polymarket market slug (event) |
@@ -99,7 +100,8 @@ clause.
 ### What is published
 - **Map** (`geo/ca_qc_circonscriptions.topo.json`, object `circonscriptions`, 0.06 MB): 127 circonscriptions,
   `unit_id = ca-qc-p<circonscription number>`. The `p` keeps these apart from the federal `ca-qc-24xxx`.
-- **units.json**: one final frame, the PQ share of PQ + Liberal votes, plus `winner` and `margin`. There is **no
+- **units.json**: one final frame, the PQ share of PQ + Liberal votes, plus top-level `winner` and `margin` (as for
+  `ca2025`; party colours in `meta.parties`). There is **no
   prior**: 2022 was held on 125 different circonscriptions, and Élections Québec publishes no transposition onto
   the 2026 map, so `prior` is -1 and `V0` is 0. Result: PQ 60, PLQ 39, PCQ 19, QS 9.
 - **Races** (6): PQ, PLQ, CAQ and PCQ "most seats"; PQ majority; St-Pierre Plamondon as premier. The price

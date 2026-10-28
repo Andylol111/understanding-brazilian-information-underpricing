@@ -1,0 +1,12 @@
+{
+ "id": "mx2024",
+ "name": "Mexico presidential election",
+ "date": "2024-06-02",
+ "country": "MX",
+ "status": "replay",
+ "unit_level": "federal district",
+ "n_units": 300,
+ "evidence": "not-preregistered",
+ "evidence_note": "not pre-registered: settings chosen on the 2018 count only (configs/mx2024_dev_2018.toml), but configs/mx2024_v1.toml was first committed after scoring, and one exploratory run on the 2024 count (tau = 0.015, 30-minute ticks) was looked at before the config was frozen; outcome long known",
+ "summary": "Polymarket was already 90% sure of Sheinbaum two days before the vote, so the count offered no trade; at 25% counted the section model was 1.5 points below her final share (raw count 2.9), but its 90% intervals held the final share in only 10% of minutes."
+}

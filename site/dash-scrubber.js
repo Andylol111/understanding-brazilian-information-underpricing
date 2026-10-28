@@ -31,7 +31,9 @@ export function createScrubber(root, { onInput }) {
       .attr("d", d3.area().x((d) => x(+d.time)).y0(yBot).y1((d) => y(d.counted ?? 0)).curve(d3.curveStepAfter));
     svg.append("line").attr("x1", pad).attr("x2", w - pad).attr("y1", yBot).attr("y2", yBot).attr("stroke", "#bdb9ae");
     // hour ticks
-    const ticks = d3.utcHour.every(1).range(st.wall(st.domain[0]), st.wall(st.domain[1]));
+    const hours = (st.domain[1] - st.domain[0]) / 3600000;
+    const every = [1, 2, 3, 4, 6, 12].find((s) => (w / Math.max(1, hours)) * s >= 46) ?? 24;
+    const ticks = d3.utcHour.every(every).range(st.wall(st.domain[0]), st.wall(st.domain[1]));
     svg.append("g").selectAll("text").data(ticks).join("text").attr("class", "scrub-tick")
       .attr("x", (d) => x(+d - (+st.wall(0)))).attr("y", h - 0).attr("text-anchor", "middle").text(d3.utcFormat("%H:%M"));
     // event markers: labels on two rows; markers within 40 px of the previous one go on the other row

@@ -46,6 +46,7 @@ TRANSPOSITION = ("https://open.canada.ca/data/dataset/08c4ffbc-c513-41a4-b741-d3
 TRANSPOSITION_PAGE = "https://open.canada.ca/data/en/dataset/08c4ffbc-c513-41a4-b741-d35b41b50c22"
 BOUNDARIES = "https://www.elections.ca/res/cir/mapsCorner/vector/FederalElectoralDistricts_2025_SHP.zip"
 BOUNDARIES_PAGE = "https://open.canada.ca/data/en/dataset/97a2a33c-54cc-4f2e-82c1-047ad8212f05"
+NE_LAND = "https://naciscdn.org/naturalearth/10m/physical/ne_10m_land.zip"   # Natural Earth, public domain
 EC_TERMS = "https://www.elections.ca/content.aspx?section=pri&document=index&lang=e"
 OGL = "https://open.canada.ca/en/open-government-licence-canada"
 ENR = "https://enr.elections.ca/National.aspx?lang=e"
@@ -62,6 +63,9 @@ SETTLE = 0.9
 NAV, OPP = "#c8102e", "#1a4782"                # Liberal red, Conservative blue
 PARTY_NAME = {"LPC": "Liberal", "CPC": "Conservative", "NDP": "NDP", "BQ": "Bloc Québécois", "GPC": "Green",
               "PPC": "People's Party", "OTH": "Other"}
+# party colours for the 'winning party' map (party brand colours; avoid the dashboard's #c4501b / #1b1b1b)
+CA_COLORS = {"LPC": "#d71920", "CPC": "#1a4782", "BQ": "#33b2cc", "NDP": "#f37021", "GPC": "#3d9b35",
+             "PPC": "#4e2e7f", "OTH": "#8a8a8a"}
 REASON = "no official count over time is available"
 
 
@@ -87,14 +91,20 @@ def dump(path: Path, obj) -> None:
 
 # ------------------------------------------------------------------ geometry
 def build_geo() -> None:
+    """Elections Canada's FED file is a digital boundary file (water included; Nunavut runs to the pole), so the
+    districts are clipped to Natural Earth 1:10m land (public domain). Statistics Canada's shoreline-clipped
+    cartographic FED file answers HTTP 403 to scripted requests, so it is not used."""
     z = fetch(BOUNDARIES, "FederalElectoralDistricts_2025_SHP.zip")
     d = CACHE / "fed2025"
     if not d.exists():
         zipfile.ZipFile(z).extractall(d)
+    land = CACHE / "ne_10m_land"
+    if not land.exists():
+        zipfile.ZipFile(fetch(NE_LAND, "ne_10m_land.zip")).extractall(land)
     prov = json.dumps({str(k): v for k, v in ca.PROV.items()})
     topo(next(d.rglob("FED_CA_2025_EN.shp")), GEO,
          f"unit_id='ca-'+({prov})[String(Math.floor(FED_NUM/1000))]+'-'+FED_NUM, name=ED_NAMEE", "districts", 343,
-         "1.5%", proj=True)
+         "1.5%", proj=True, clip=next(land.rglob("ne_10m_land.shp")))
 
 
 # ------------------------------------------------------------------ Polymarket
@@ -167,9 +177,10 @@ def null_stats(settle: dict) -> dict:
     }
 
 
-def topo(src: Path, out: Path, each: str, layer: str, n: int, pct: str, proj: bool) -> None:
+def topo(src: Path, out: Path, each: str, layer: str, n: int, pct: str, proj: bool, clip: Path | None = None) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([*MAPSHAPER, "-i", str(src), *(["-proj", "wgs84"] if proj else []), "-each", each,
+    subprocess.run([*MAPSHAPER, "-i", str(src), *(["-proj", "wgs84"] if proj else []),
+                    *(["-clip", str(clip), "remove-slivers"] if clip else []), "-each", each,
                     "-filter-fields", "unit_id,name", "-simplify", pct, "keep-shapes", "-rename-layers", layer,
                     "-o", "format=topojson", "quantization=100000", str(out)], check=True, stdout=subprocess.DEVNULL)
     t = json.loads(out.read_text())
@@ -218,9 +229,11 @@ def canada_main() -> None:
         "unit_ids": [ca.unit_id(f) for f in feds], "region": [prov_of[f] for f in feds],
         "names": [names[f] for f in feds],
         "prior": [i1000(x) for x in a21], "V0": [int(x) for x in tw21],
+        # winner = party id (meta.parties); margin = winner minus runner-up, points of valid votes x10
+        "winner": winner.tolist(), "margin": [i1000(x) for x in margin],
+        "a": {"name": "Liberal", "color": CA_COLORS["LPC"]}, "b": {"name": "Conservative", "color": CA_COLORS["CPC"]},
         "frames": [{"t": iso(END), "f": [1000] * len(feds), "a": [i1000(x) for x in a25],
                     "proj": [i1000(x) for x in a25],
-                    "winner": winner.tolist(), "margin": [i1000(x) for x in margin],
                     "swing": [-1 if pd.isna(x) or pd.isna(y) else int(round(1000 * (x - y))) for x, y in zip(a25, a21)]}],
     }
 
@@ -269,8 +282,11 @@ def canada_main() -> None:
                  "Orders (transposition_343_fed_vote_count.csv)", "url": TRANSPOSITION_PAGE,
          "licence": f"Open Government Licence - Canada ({OGL})"},
         {"name": "Elections Canada, Electoral Geography Boundary Files (45th General Election), Federal Electoral "
-                 "Districts 2025 (SHP), simplified", "url": BOUNDARIES_PAGE,
+                 "Districts 2025 (SHP), clipped to land and simplified", "url": BOUNDARIES_PAGE,
          "licence": f"Open Government Licence - Canada ({OGL})"},
+        {"name": "Natural Earth 1:10m land polygons (shoreline clip for the district map)",
+         "url": "https://www.naturalearthdata.com/downloads/10m-physical-vectors/10m-land/",
+         "licence": "Public domain (https://www.naturalearthdata.com/about/terms-of-use/)"},
         {"name": "Elections Canada election-night results page (National.aspx), Internet Archive captures",
          "url": "https://web.archive.org/web/2025*/" + ENR,
          "licence": f"Elections Canada non-commercial reproduction terms ({EC_TERMS})"},
@@ -291,8 +307,8 @@ def canada_main() -> None:
         "Map: one final frame (its time is the end of the price window; the official results were published later). "
         "Colour = Liberal share of the Liberal + Conservative vote in the official 2025 results; "
         "prior = the same share in Elections Canada's transposition of the 2021 vote onto the 2023 districts. "
-        "Frame extras: 'winner' (party code), 'margin' (winner minus runner-up, share of valid votes x1000), 'swing' "
-        "(change in Liberal two-way share x1000).",
+        "Units: 'winner' (party id, see parties) and 'margin' (winner minus runner-up, points of valid votes x10) "
+        "are top-level arrays; frame extra 'swing' = change in Liberal two-way share x1000.",
         f"Result: Liberals {seats.get('LPC', 0)} seats, Conservatives {seats.get('CPC', 0)}, Bloc "
         f"{seats.get('BQ', 0)}, NDP {seats.get('NDP', 0)}, Green {seats.get('GPC', 0)} (Official Voting Results, "
         "Table 12).",
@@ -319,6 +335,7 @@ def canada_main() -> None:
         "count_note": "Prices only: Elections Canada publishes no count over time; the map shows the official final "
                       "results.",
         "regions": [{"id": p, "name": ca.PROV_NAME[p]} for p in ca.PROV.values()],
+        "parties": [{"id": k, "name": PARTY_NAME[k], "color": c} for k, c in CA_COLORS.items()],
         "races": races,
         "map": {"prior": "Liberal share of Liberal + Conservative votes, 2021 transposed to 2023 districts (official)",
                 "final": "official 2025 results (Table 12)"},
@@ -364,6 +381,8 @@ QC_COLOR = {"Parti Québécois": "#004c9d", "Quebec Liberal Party": "#d71920", "
 QC_NAME = {"PQ": "Parti Québécois", "PLQ": "Quebec Liberal Party", "CAQ": "Coalition Avenir Québec",
            "PCQ": "Conservative Party of Quebec", "QS": "Québec solidaire", "PVQ": "Green Party of Quebec",
            "OTH": "Other"}
+QC_PARTY_COLORS = {"PQ": "#004c9d", "PLQ": "#ed1b2f", "CAQ": "#00a5e0", "PCQ": "#2d3e8c", "QS": "#ff5505",
+                   "PVQ": "#3d9b35", "OTH": "#8a8a8a"}
 
 
 def quebec_main() -> None:
@@ -382,9 +401,11 @@ def quebec_main() -> None:
     i1000 = lambda x: -1 if pd.isna(x) else int(round(1000 * x))
     units = {"unit_ids": [ca.qc_unit_id(n) for n in nums], "region": ["qc"] * len(nums),
              "names": [fin["names"][n] for n in nums], "prior": [-1] * len(nums), "V0": [0] * len(nums),
+             "winner": winner.loc[nums].tolist(), "margin": [i1000(x) for x in margin],
+             "a": {"name": QC_NAME["PQ"], "color": QC_PARTY_COLORS["PQ"]},
+             "b": {"name": QC_NAME["PLQ"], "color": QC_PARTY_COLORS["PLQ"]},
              "frames": [{"t": iso(fin["updated"]), "f": [1000] * len(nums), "a": [i1000(x) for x in a.loc[nums]],
-                         "proj": [i1000(x) for x in a.loc[nums]], "winner": winner.loc[nums].tolist(),
-                         "margin": [i1000(x) for x in margin]}]}
+                         "proj": [i1000(x) for x in a.loc[nums]]}]}
 
     races, timeline, settle = market_block(ca.quebec_markets(), QC_START, QC_END, QC_COLOR)
 
@@ -422,8 +443,8 @@ def quebec_main() -> None:
         f"Polls closed at {QC_CLOSE} (20:00 EDT).",
         "Map: one final frame, the official final results file (isResultatsFinaux true). Colour = Parti Québécois "
         "share of PQ + Liberal votes. No prior: 2022 was held on 125 different circonscriptions and Élections Québec "
-        "publishes no transposition onto the 2026 map. Frame extras: 'winner' (party code), 'margin' (winner minus "
-        "runner-up, share of valid votes x1000).",
+        "publishes no transposition onto the 2026 map. Units: 'winner' (party id, see parties) and 'margin' (winner "
+        "minus runner-up, points of valid votes x10).",
         "Result: " + ", ".join(f"{QC_NAME[k]} {n}" for k, n in sorted(seats.items(), key=lambda x: -x[1]))
         + " seats (127).",
         QC_MENTION,
@@ -442,6 +463,7 @@ def quebec_main() -> None:
         "geometry_object": "circonscriptions", "unit_key": "unit_id", "count_timeline": False,
         "count_note": "Prices only: no official count over time survives; the map shows the official final results.",
         "regions": [{"id": "qc", "name": "Quebec"}], "races": races,
+        "parties": [{"id": k, "name": QC_NAME[k], "color": c} for k, c in QC_PARTY_COLORS.items()],
         "map": {"prior": None, "final": "official final results (Élections Québec)"},
         "sources": [
             {"name": "Élections Québec (directeur général des élections), résultats de l'élection générale du "

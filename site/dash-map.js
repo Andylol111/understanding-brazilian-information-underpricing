@@ -8,11 +8,15 @@ const BASE = 1000; // base projection extent
 const PAD = 14; // screen padding when fitting (CSS px)
 const NONE = "#efede7";
 
-export function createMap(container, { topo, objectName, unitKey, isUS, onHover, onClick }) {
+// projection: (featureCollection) => unfitted d3 projection, chosen per country by the caller;
+// it is fitted here. populatedFirst: open fitted to the units below the 90th percentile of area
+// (e.g. Canada's south), with setExtent("all") for the whole country.
+export function createMap(container, { topo, objectName, unitKey, projection: makeProjection, populatedFirst = false, onHover, onClick }) {
   const obj = topo.objects[objectName];
   const features = topojson.feature(topo, obj).features;
   const regionOf = (f) => String(f.properties[unitKey]).split("-")[1];
-  const projection = (isUS ? d3.geoAlbersUsa() : d3.geoMercator()).fitSize([BASE, BASE], { type: "FeatureCollection", features });
+  const fc = { type: "FeatureCollection", features };
+  const projection = makeProjection(fc).fitSize([BASE, BASE], fc);
   const geo = d3.geoPath(projection);
   const isPoint = features.map((f) => /Point$/.test(f.geometry?.type ?? ""));
   const centre = features.map((f, i) => {
@@ -43,7 +47,9 @@ export function createMap(container, { topo, objectName, unitKey, isUS, onHover,
     colours: null, inUnits: null, regionIdx: null, focus: null, fade: null, hover: -1, pinned: -1,
     radius: features.map(() => 3), // CSS px, for point features
     pointOrder: features.map((_, i) => i).filter((i) => isPoint[i]),
+    extent: populatedFirst ? "populated" : "all", populated: null,
   };
+  const areas = features.map((f, i) => (isPoint[i] ? 0 : geo.area(f)));
 
   function fitView(idx) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -113,7 +119,8 @@ export function createMap(container, { topo, objectName, unitKey, isUS, onHover,
 
   function currentFitIdx() {
     if (st.focus && st.regionIdx?.has(st.focus)) return st.regionIdx.get(st.focus);
-    return st.inUnits?.length ? st.inUnits : features.map((_, i) => i);
+    const all = st.inUnits?.length ? st.inUnits : features.map((_, i) => i);
+    return st.extent === "populated" && st.populated?.length ? st.populated : all;
   }
 
   function resize() {
@@ -199,6 +206,10 @@ export function createMap(container, { topo, objectName, unitKey, isUS, onHover,
         st.pointOrder.forEach((i) => { st.radius[i] = index[i] >= 0 ? r(Math.max(0, votes?.[index[i]] ?? 0)) : 1.5; });
         st.pointOrder.sort((a, b) => st.radius[b] - st.radius[a]); // big dots under small ones
       }
+      // "populated" view: units up to the 90th percentile of projected area
+      const inA = st.inUnits.filter((i) => !isPoint[i]).map((i) => areas[i]).sort(d3.ascending);
+      const p90 = d3.quantileSorted(inA, 0.9);
+      st.populated = p90 != null ? st.inUnits.filter((i) => isPoint[i] || areas[i] <= p90) : null;
     },
     setColours(cols) { st.colours = cols; draw(); },
     focus(region, animate = true) {
@@ -209,6 +220,13 @@ export function createMap(container, { topo, objectName, unitKey, isUS, onHover,
       if (animate) animateTo(view); else { st.view = view; draw(); }
     },
     pin(i) { st.pinned = i; draw(); },
+    get extent() { return st.extent; },
+    hasPopulatedView: populatedFirst,
+    setExtent(ext) {
+      st.extent = ext;
+      if (!st.w) return;
+      animateTo(fitView(currentFitIdx()));
+    },
     resize,
   };
   return api;

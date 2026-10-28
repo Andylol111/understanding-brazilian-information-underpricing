@@ -4,18 +4,22 @@ One method, applied to every election the project can score: Brazil 2026 first r
 runoff (`br2026r2`), six governor runoffs (`br2026r2gov`), Brazil 2022 first round and runoff
 (`br2022r1`, `br2022r2`; model only, no prices survive) and Israel 2026 (`il2026`).
 Script: `analysis/edge_audit.py`. Tables: `results/edge_audit/`. Site: an `accuracy` and a `profit` block in
-each `site/data/<eid>/stats.json` (schema at the end).
+each `site/data/<eid>/stats.json` (schema at the end). Mexico 2024 (`mx2024`, not-preregistered: config
+committed after scoring, one exploratory look at 2024 before freezing) is scored with the same functions by
+`analysis/mx_score.py` (`results/mexico/mx2024_v1/score.json`); its numbers are quoted
+here but not produced by this script.
 
 Evidence labels: **in-sample** = settings were chosen on this night (Brazil first round);
 **pre-specified** = settings frozen and registered before the count data were examined, outcome already
 known (Brazil runoff and governors); **not-preregistered** = no frozen config or trading rule existed before
-scoring (Israel; the Brazil rule is applied unchanged); **model-only** = no market prices (Brazil 2022).
+scoring (Israel, Mexico; the Brazil rule is applied unchanged); **model-only** = no market prices (Brazil 2022).
 
 ## Summary
 
-**1. Does the model's projection hold? Mostly yes in Brazil; less so in Israel.**
+**1. Does the model's projection hold? Mostly yes in Brazil; less so in Israel; not in Mexico.**
 
-- **Projected shares.** Early in the count the projection's error is about half the raw count's
+- **Projected shares.** Early in the count the projection's error is about half the raw count's in Brazil
+  and Israel; Mexico is the exception at 1% counted
   (mean absolute error across races, percentage points):
 
   | | races | 1% counted | 5% | 10% | 25% | 50% |
@@ -25,14 +29,19 @@ scoring (Israel; the Brazil rule is applied unchanged); **model-only** = no mark
   | Brazil first round (in-sample) | 28 | 3.59 vs 5.41 | 1.75 vs 3.39 | 1.60 vs 3.17 | 1.10 vs 2.52 | 0.65 vs 1.63 |
   | Brazil 2022 R1 / R2 (model-only) | 1 / 1 | 2.00 vs 6.75 / 0.76 vs 7.50 | 0.41 / 0.36 | 0.24 / 0.00 | 0.23 / 0.19 | 0.25 / 0.31 |
   | Israel lists (not-preregistered)¹ | 13 lists | 0.81 vs 1.90 | 0.45 vs 1.98 | 0.60 vs 1.53 | 0.45 vs 1.06 | 0.30 vs 0.50 |
+  | Mexico 2024 (not-preregistered)⁴ | 1 | 1.86 vs 0.29 | 0.43 vs 1.56 | 0.59 vs 2.53 | 1.51 vs 2.90 | 1.55 vs 2.22 |
 
   ¹ first release at or above each threshold (the first one past 1% was at 2.5%); against the provisional count.
+  ⁴ `analysis/mx_score.py`; at 1% counted the raw count was closer than the model.
 - **Uncertainty.** Share of minutes (1–95% counted) whose 90% interval contains the final share,
   minutes pooled across races: runoff **96%** (2 of 28 races below 80%: Amapá 38%, Maranhão 68%), governors
   **99.6%**, 2022 **100%** (both rounds). The first round, where the settings were chosen, covers only
   **85%** (8 of 28 races below 80%), and **64%** between 90% and 95% counted: the late-count
   overconfidence already documented in `docs/edge_tool.md`. Israel list shares: **76%** (195 list ×
-  release pairs, 15 releases), i.e. the Israel intervals were too narrow.
+  release pairs, 15 releases), i.e. the Israel intervals were too narrow. Mexico 2024: **10%** (mean z
+  +3.3; 14% before 90% counted): the projection stayed biased about 1.5 points while its interval shrank, a
+  clear calibration failure on a new country. Mexico adds no P(win) minutes (model and
+  market were both ≥ 0.9 before 1% was counted).
 - **P(win) against the market, same minutes** (from 1% counted until both had settled ≥ 0.9; Brier score,
   lower is better; 95% interval from a bootstrap over races):
 
@@ -65,6 +74,7 @@ Brazil); Israel, a limit-order walk of the recorded order book 60 s after the si
 | Brazil runoff | pre-specified | 12 (11) | **$0** | $0 | – | – | – |
 | Brazil governors | pre-specified | 3 (3) | **$0** ($2.40 with zero latency) | $0 | – | – | – |
 | Israel | not-preregistered | 3 (3)³ | $22,089 | **+$2,631** | +11.9% | 59% | 0.68 |
+| Mexico 2024 (`mx_score.py`) | not-preregistered | 0 | $0 | $0 | – | – | – |
 
 ² exact probability of at least this P&L if every filled trade had won with probability equal to the
 all-in price paid. ³ all three in the same event (Likud's seat band), so effectively one bet; outcome is

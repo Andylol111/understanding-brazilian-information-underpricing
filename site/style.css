@@ -377,3 +377,10 @@ main.dash { padding: 0; }
 .landing-top #measured h2 { margin-top: 30px; }
 .landing-top #measured p { font-size: 17px; }
 @media (max-width: 900px) { .landing-top { grid-template-columns: minmax(0, 1fr); } }
+.map-legend:has(.party-legend) { width: auto; max-width: 260px; }
+.party-legend { list-style: none; margin: 0; padding: 0 !important; font: 12.5px/1.5 var(--sans); display: flex; flex-wrap: wrap; gap: 0 12px; }
+.party-legend li { margin: 0; white-space: nowrap; }
+.party-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+.party-legend b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.legend-note { font: 11px/1.4 var(--sans); color: var(--muted); margin: 4px 0 0; }
+.map-modes { flex-wrap: wrap; max-width: calc(100% - 150px); }

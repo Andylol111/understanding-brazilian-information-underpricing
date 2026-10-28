@@ -97,5 +97,16 @@
   "n_units": 127,
   "evidence": "market-only",
   "summary": "Market prices and official final results only. The 'most seats' and premier markets were above 0.9 before polls closed; 'PQ wins a majority' settled on no at 21:30 ET, when the official file showed the PQ leading in 60 seats, short of the 64 needed."
+ },
+ {
+  "id": "mx2024",
+  "name": "Mexico presidential election",
+  "date": "2024-06-02",
+  "country": "MX",
+  "status": "replay",
+  "unit_level": "federal district",
+  "n_units": 300,
+  "evidence": "not-preregistered",
+  "summary": "Polymarket was already 90% sure of Sheinbaum two days before the vote, so the count offered no trade. At 25% counted the model was 1.5 points below her final share (raw count 2.9 points), but its 90% intervals held the final share in only 10% of minutes."
  }
 ]

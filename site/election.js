@@ -154,12 +154,28 @@ function divLUT(race) {
 const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4 };
 const lutIdx = (v) => Math.round((Math.max(-1, Math.min(1, v)) + 1) * 100);
 
+// Multi-party elections: meta.parties + units.winner/margin (top level = final result, or per
+// frame when the exporter has count frames) give a "Winning party" map mode.
+const winnerSource = (k) => (k >= 0 && S.units.frames[k]?.winner ? S.units.frames[k] : S.units);
+const hasWinner = () => !!(S.meta.parties?.length && (S.units?.winner || S.units?.frames?.[0]?.winner));
+
 function modes() {
   if (!S.units) return [];
-  if (!S.units.frames?.length) return ["prior"];
-  return S.countTimeline ? ["margin", "swing", "counted"] : ["margin", "swing"];
+  const w = hasWinner() ? ["winner"] : [];
+  if (!S.units.frames?.length) return [...w, "prior"];
+  return [...w, ...(S.countTimeline ? ["margin", "swing", "counted"] : ["margin", "swing"])];
 }
-const modeLabel = (m) => ({ margin: S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", counted: "Counted", prior: "Comparison election" })[m];
+const modeLabel = (m) => ({ winner: "Winning party", margin: S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", counted: "Counted", prior: "Comparison election" })[m];
+
+const partyLUTs = new Map();
+const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is at full strength
+function partyLUT(id) {
+  if (!partyLUTs.has(id)) {
+    const color = S.meta.parties?.find((p) => p.id === id)?.color ?? "#8a8a8a";
+    partyLUTs.set(id, d3.range(21).map((i) => d3.interpolateLab(NEUTRAL, color)(0.3 + 0.7 * (i / 20))));
+  }
+  return partyLUTs.get(id);
+}
 
 function coloursFor(mode, k) {
   const key = `${mode}|${k}`;
@@ -167,6 +183,7 @@ function coloursFor(mode, k) {
   if (out) return out;
   const t0 = performance.now();
   const u = S.units, fr = k >= 0 ? u.frames[k] : null, prior = u.prior, idx = S.featIdx, luts = S.unitLUT;
+  const win = mode === "winner" ? winnerSource(k) : null;
   out = new Array(idx.length);
   for (let i = 0; i < idx.length; i++) {
     const j = idx[i];
@@ -184,6 +201,9 @@ function coloursFor(mode, k) {
     } else if (mode === "prior") {
       const p = prior[j];
       if (p >= 0) c = luts[j][lutIdx((2 * p / 1000 - 1) / SCALE.prior)];
+    } else if (mode === "winner") {
+      const p = win.winner?.[j];
+      if (p != null) c = partyLUT(p)[Math.round(Math.min(1, (win.margin?.[j] ?? 0) / 1000 / WIN_FULL) * 20)];
     }
     out[i] = c;
   }
@@ -254,6 +274,7 @@ function updateList(t) {
 function renderLegend() {
   const root = d3.select("#legend").html("");
   if (!S.units) return;
+  if (S.mode === "winner") { partyLegend(root); return; }
   const w = 200, h = 8;
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
   const svg = root.append("svg").attr("viewBox", `0 0 ${w} 24`).attr("width", w).attr("height", 24);
@@ -273,15 +294,41 @@ function renderLegend() {
   }
 }
 
+function partyLegend(root) {
+  const src = winnerSource(frameIndex(S.preview ?? S.t));
+  const counts = d3.rollup((src.winner ?? []).filter((x) => x != null), (v) => v.length, (d) => d);
+  const rows = [...counts].sort((a, b) => b[1] - a[1]);
+  const party = (id) => S.meta.parties.find((p) => p.id === id) ?? { name: id, color: "#8a8a8a" };
+  root.html(`<ul class="party-legend">${rows.map(([id, n]) => `<li><i style="background:${esc(party(id).color)}"></i>${esc(party(id).name)} <b>${n}</b></li>`).join("")}</ul>
+    <p class="legend-note">Units won. Paler: narrower win (full colour at a ${WIN_FULL * 100}-point margin).</p>`);
+}
+
+// Projection by country: Statistics Canada's Lambert conformal conic for Canada, Albers with insets
+// for the US, an equal-area conic centred on the extent for large mid-latitude countries, else Mercator.
+function projectionFor(country) {
+  return (fc) => {
+    if (country === "CA") return d3.geoConicConformal().parallels([49, 77]).rotate([96, 0]);
+    if (country === "US") return d3.geoAlbersUsa();
+    if (country === "BR" || country === "MX") {
+      const [[x0, y0], [x1, y1]] = d3.geoBounds(fc);
+      const pad = (y1 - y0) / 6;
+      return d3.geoConicEqualArea().parallels([y0 + pad, y1 - pad]).rotate([-(x0 + x1) / 2, 0]);
+    }
+    return d3.geoMercator();
+  };
+}
+
 /* ---------------------------------------------------------------- map */
 
 async function initMap() {
   if (!S.meta.geometry) return;
   const topo = await getJSON(S.meta.geometry, { root: STATIC });
   const key = S.meta.unit_key ?? "unit_id";
+  const first = String(Object.values(topo.objects)[0]?.geometries?.[0]?.properties?.[key] ?? "");
+  const country = (S.entry?.country ?? first.split("-")[0]).toUpperCase();
   S.map = createMap($("map"), {
     topo, objectName: S.meta.geometry_object, unitKey: key,
-    isUS: String(Object.values(topo.objects)[0]?.geometries?.[0]?.properties?.[key] ?? "").startsWith("us-"),
+    projection: projectionFor(country), populatedFirst: country === "CA",
     onHover: (i, ev) => { S.hover = i; S.hoverPos = ev ? pointIn(ev) : null; placeCard(); },
     onClick: (i, ev) => mapClick(i, ev),
   });
@@ -302,12 +349,13 @@ function mapClick(i, ev) {
 
 function setupModes() {
   const ms = modes();
-  if (!ms.includes(S.mode)) S.mode = ms[0];
+  if (!ms.includes(S.mode) || (!S.modeChosen && ms.includes("winner"))) S.mode = ms.includes("winner") && !S.modeChosen ? "winner" : ms[0];
   const box = $("map-mode");
   box.hidden = ms.length < 2;
   box.innerHTML = ms.map((m) => `<button type="button" data-mode="${m}" aria-pressed="${m === S.mode}">${modeLabel(m)}</button>`).join("");
   box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
     S.mode = b.dataset.mode;
+    S.modeChosen = true;
     box.querySelectorAll("button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
     S.shownKey = null;
     render();
@@ -329,6 +377,9 @@ function focusMap(animate = true) {
   S.map?.focus(reg, animate);
   $("national").hidden = !reg;
   $("national").textContent = national() ? "Back to national race" : "Whole map";
+  const ext = $("extent");
+  ext.hidden = !S.map?.hasPopulatedView || !!reg;
+  ext.textContent = S.map?.extent === "populated" ? "Whole map" : "Populated areas";
   $("reset-race").hidden = !(national() && S.race !== national());
 }
 
@@ -349,9 +400,13 @@ function placeCard() {
     const swing = a != null && prior != null ? a - prior : null;
     const sw = swing == null ? "–" : `${swing >= 0 ? "+" : "−"}${Math.abs(100 * swing).toFixed(1)} pt`;
     const an = esc(r.a.name);
+    const win = S.meta.parties && winnerSource(k).winner;
+    const winRow = win?.[j] != null
+      ? [["Winner", `${esc(S.meta.parties.find((p) => p.id === win[j])?.name ?? win[j])}${winnerSource(k).margin?.[j] != null ? `, by ${(winnerSource(k).margin[j] / 10).toFixed(1)} pt` : ""}`]]
+      : [];
     const rows = S.countTimeline
-      ? [["Counted", pct(counted, 0)], [`${an}, votes counted`, pct(a)], [`${an}, model projection`, pct(proj)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]]
-      : [[`${an}, result`, pct(a)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]];
+      ? [...winRow, ["Counted", pct(counted, 0)], [`${an}, votes counted`, pct(a)], [`${an}, model projection`, pct(proj)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]]
+      : [...winRow, [`${an}, result`, pct(a)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]];
     body = `<table class="kv"><tbody>${rows.map(([k2, x]) => `<tr><td>${k2}</td><td class="n">${x}</td></tr>`).join("")}</tbody></table>`;
   }
   const name = (j >= 0 && S.units.names?.[j]) || f.properties.name || f.properties[S.meta.unit_key ?? "unit_id"];
@@ -577,6 +632,11 @@ function initRaceSelect() {
   sel.addEventListener("change", () => selectRace(raceById(sel.value)));
   $("reset-race").addEventListener("click", () => selectRace(national()));
   $("national").addEventListener("click", () => (national() ? selectRace(national()) : (S.map?.focus(null), ($("national").hidden = true))));
+  $("extent").addEventListener("click", () => {
+    if (!S.map) return;
+    S.map.setExtent(S.map.extent === "populated" ? "all" : "populated");
+    $("extent").textContent = S.map.extent === "populated" ? "Whole map" : "Populated areas";
+  });
 }
 
 /* ---------------------------------------------------------------- live */

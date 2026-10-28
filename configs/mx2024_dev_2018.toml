@@ -1,0 +1,38 @@
+# DEVELOPMENT SET (in-sample): Mexico 2018 presidential count, used only to choose the model settings that are
+# then frozen for 2024 (configs/mx2024_v1.toml). Run: uv run python analysis/mx_calibrate.py configs/mx2024_dev_2018.toml
+# Files are relative to $BRUNDER_DATA/raw (docs/mexico.md lists the INE URLs).
+id = "mx2024_dev_2018"
+eid = "mx2018"
+
+[election]
+date = "2018-07-01"
+# A = López Obrador (Juntos Haremos Historia), B = Anaya (Por México al Frente) + Meade (Todos por México):
+# the left candidate against the PAN- and PRI-led candidates combined. Share = A / (A + B).
+prep = "mx2018/pres/20180702_2100_PREP_presidencia/presidencia.csv"
+a_cols = ["PT", "MORENA", "PES", "C_PT_MORENA_PES", "C_PT_MORENA", "C_PT_PES", "C_MORENA_PES"]
+b_cols = ["PAN", "PRI", "PRD", "PVEM", "MC", "PANAL", "C_PAN_PRD_MC", "C_PAN_PRD", "C_PAN_MC", "C_PRD_MC",
+          "C_PRI_PVEM_PANAL", "C_PRI_PVEM", "C_PRI_PANAL", "C_PVEM_PANAL"]
+
+[final]                  # official cómputos distritales by casilla (computos2018.ine.mx), scoring only
+file = "mx2018c/pres/20180708_2130_CW_presidencia/presidencia.csv"
+a_cols = ["PT", "MORENA", "ENCUENTRO SOCIAL", "PT_MORENA_PES", "PT_MORENA", "PT_PES", "MORENA_PES"]
+b_cols = ["PAN", "PRI", "PRD", "PVEM", "MOVIMIENTO CIUDADANO", "NUEVA ALIANZA", "PAN_PRD_MC", "PAN_PRD", "PAN_MC",
+          "PRD_MC", "PRI_PVEM_NA", "PRI_PVEM", "PRI_NA", "PVEM_NA"]
+
+[prior]                  # 2012 presidential by section (SICEE): López Obrador vs Peña Nieto + Vázquez Mota
+file = "mx2012c/2012_SEE_PRE_NAL_SEC.csv"
+a_cols = ["PRD", "PT", "MC", "PRD_PT_MC", "PRD_PT", "PRD_MC", "PT_MC"]
+b_cols = ["PAN", "PRI", "PVEM", "PRI_PVEM"]
+
+[publication]            # PREP 2018 opened 20:00 central (summer) time = 01:00 UTC
+opening_utc = "2018-07-02T01:00:00Z"
+step_min = 5.0
+include_min = 3.5
+delay_min = 5.0
+
+[calibration]
+# Criterion fixed in advance by the Brazil tool (docs/edge_tool.md, development item 3): the smallest tau whose
+# 90% intervals contain the final share in >= 90% of 1-minute ticks between 1% and 95% counted.
+tau_grid = [0.0, 0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02, 0.03]
+target = 0.90
+window = [0.01, 0.95]
