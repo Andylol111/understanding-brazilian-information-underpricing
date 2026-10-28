@@ -27,16 +27,18 @@ live, before outcomes existed).
 | **How much is underpriced:** the gap between what the count implies and the price predicts the price's next move. Thirty minutes later the market had closed only **40–55% of the gap** (runoff night 0.40 [0.19, 0.67], 12 markets; first round 0.55 [0.31, 0.76], 8 markets); a fully informed market would show 0. Price-noise and mean-reversion placebos give ~0 and leave the slope intact ([checks](docs/elections.md#how-much-does-polymarket-underprice-the-count)). | runoff pre-specified; first round in-sample; measure chosen after both nights |
 | Early in the count the **raw national tally is predictably skewed** by which states report first; a model of that reporting order, using only pre-election information, removes most of the skew (first-round test at 1.7% counted: error −2.97 → +0.50 points; `analysis/reporting_order_test.py`). On runoff night the market followed the skew: while the raw tally showed Flávio ahead (19:45–20:23, 14–46% counted) it fell from 0.86 to 0.62, and settled above 0.9 only at 47% counted; Lula won 51.79–48.21. | official TSE data (per-section receipt times) |
 | On the first-round night a municipality-level model was sure of the national result **28 minutes before the market** (up to ~3 hours in some state markets); 7 trade signals, 71% won, +16.6% per $. | **in-sample** (development night) |
-| …but only **$2,741** could actually have been bought at those prices within 30 minutes, 98% of it in one market in its first ~4 minutes. On the runoff, **$0** traded at the signal price (the minute price lagged real trades by 2–4¢); accepting 5¢ worse, ~$4,400, almost all in the national market. | first round in-sample; runoff after the frozen looks; from real trades |
+| **The underpricing was tradable in Brazil.** After the model's signal (60 s delay, ≥1% counted), real buyers bought **$3.1M** of the runoff's winning side at prices at least 5¢ below the model's probability and made **+$892k** on it; $10,000 taking a tenth of each such trade ends at **$20,762** (stricter: ≥10¢ edge, 5-min delay, $16,554). First round: $10,000 → $14,763. 99% of the volume is the national market, so it is one outcome per night; the volume is a ceiling for one trader. An earlier, stricter test (fills only at the exact minute price at the signal) found $2,741 on the first round and $0 on the runoff, because the market already traded a few cents above that price, still far below the model. | runoff pre-specified, first round in-sample; buying rule defined after the outcomes (`docs/edge_audit.md`) |
 | On the runoff and six governor runoffs, run once each with settings frozen beforehand: the model led the market where the race was still open (**President ~80 min** from the first point it could trade, ES +42, RN +22, where it called the upset first), matched it where the market was already sure (AC, AM, TO), and **lagged by 140 min in DF**: the market was sure before counting began, and with a single municipality the model's only uncertainty is the order sections report within it, which it narrows slowly (±6.4 pts at 18% counted). Its 90% intervals held in 97–100% of the count. | **pre-specified** (frozen before the data; outcomes known) |
 | Across categories, **thin markets over-react to sharp moves and revert**: significant in 6 of 10 categories after multiple-testing correction, same sign in all 10. | **pre-registered**, held-out data |
 | "Mentions" markets (what will X say) under-price near-certain outcomes: +2.1% per $ after spread and fees, but only $8.3k fillable across 1,851 entries. | **pre-registered**, held-out data |
 | Deep markets reacting too slowly in general: **not supported**. Brazil's lag is a case, not a pattern this sample detects. | pre-registered (null) |
 
-**The short version:** on count night Polymarket prices only about half of what the public count
-already implies within half an hour, but the money in that gap is small and gone within minutes. The
-cross-market pattern that holds up out of sample is over-reaction in thin markets, not under-reaction
-in deep ones.
+**The short version:** on Brazil's count nights Polymarket priced only part of what the public count
+already implied, and that gap was large and liquid enough to trade: $10,000 roughly doubles on the runoff
+under a buying rule that only takes real trades well below the model's probability. Across six elections
+the same rule turns $60,000 into $77,420, but most of that is one market on one night, and Hungary loses
+under a stricter edge. The cross-market pattern that holds up out of sample is over-reaction in thin
+markets, not under-reaction in deep ones.
 
 ![How fast the market catches up with the count](docs/figures/underpricing_catchup.png)
 

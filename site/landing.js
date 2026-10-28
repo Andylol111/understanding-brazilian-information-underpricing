@@ -161,28 +161,38 @@ function drawCalibration(S) {
   new ResizeObserver(() => { const cap = relRoot.querySelector("figcaption"); drawRel(); relRoot.append(cap); }).observe(relRoot);
 }
 
-// 3. $10,000 per election under the frozen trading rule
+// 3. $10,000 per election. Headline: the model-limit rule (invest10k.headline); the stricter
+// signal-price rule and the sensitivity grid sit beside it.
+const SHARED_NOTES = [/Single event:[^.]*\.\s*/i, /Eligible volume is an upper bound:[^.]*\.\s*/i];
+const shareOfGain = (s) => (s >= 0.995 && s < 1 ? `Almost all (${(100 * s).toFixed(1)}%)` : pct(s, 0));
+const MODEL_LIMIT_RULE = "The rule: from the moment 1% of the vote is counted, buy 10% of every real trade (Israel: every offer in the recorded order book, one snapshot per release) on the side the model favours whose price, fees included, is at least 5¢ below the model's probability as known 60 seconds earlier; no limit per market; keep buying until the $10,000 is spent and hold to the result.";
 function drawMoney(S) {
   const inv = S.invest10k;
   if (!inv) return;
   $("ev-money").hidden = false;
-  const p = inv.pooled;
-  const signals = d3.sum(Object.values(inv.by_election), (b) => b.signals ?? 0);
-  $("ev-money-lead").textContent = p
-    ? `Across ${p.elections} elections, ${money(p.bankroll)} became ${money(p.ending_value)} (${signedPct(p.return_pct)}). ${p.bets} of ${signals} signals could be filled at the signal's price; ${p.won} of those bets won.`
+  const p = inv.pooled, sp = inv.signal_price;
+  const markets = d3.sum(Object.values(inv.by_election), (b) => b.markets ?? 0);
+  const strictPooled = sp?.pooled ? ` Buying only at each signal's own price, the same ${money(sp.pooled.bankroll)} would have become ${money(sp.pooled.ending_value)} (${signedPct(sp.pooled.return_pct)}).` : "";
+  $("ev-money-lead").innerHTML = p
+    ? `${esc(`Across ${p.elections} elections, ${money(p.bankroll)} became ${money(p.ending_value)} (${signedPct(p.return_pct)}): ${p.bets.toLocaleString("en-US")} trades in ${markets} markets, ${p.won.toLocaleString("en-US")} of them on the winning side.${strictPooled}`)}<span id="money-conc"></span>
+      Each election is one outcome: all of its markets ride on the same count, so these are a handful of results, not many independent bets.${inv.headline === "model_limit" ? " This buying rule was defined after the outcomes were known." : ""}`
     : "";
-  $("ev-money-rule").textContent = inv.rule ?? "";
+  $("ev-money-rule").textContent = `${inv.headline === "model_limit" ? MODEL_LIMIT_RULE : inv.rule ?? ""} The trades the rule could take are an upper bound for one trader: other traders took them.`;
   const list = S.elections.filter((e) => inv.by_election[e.id]);
   const root = $("money");
   root.innerHTML = list.map((e) => {
     const b = inv.by_election[e.id];
+    const strict = sp?.by_election?.[e.id];
     return `<figure class="money-cell" data-id="${esc(e.id)}">
       <figcaption><a href="${href(e.id)}">${esc(e.name)}</a></figcaption>
       <p class="money-end"><b>${money(b.ending_value)}</b> <span class="${b.return_pct > 0 ? "up" : b.return_pct < 0 ? "down" : ""}">${signedPct(b.return_pct)}</span></p>
+      ${strict ? `<p class="money-strict">buying only at the signal's own price: ${money(strict.ending_value)}</p>` : ""}
       <div class="money-chart"></div>
       <p class="money-note">${esc(moneySentence(b))}</p>
     </figure>`;
   }).join("");
+  $("money-variants").innerHTML = gridTable(inv.grid, list, sp);
+  $("money-variants").hidden = !$("money-variants").innerHTML;
   const drawCharts = () => {
     for (const cell of root.querySelectorAll(".money-cell")) {
       const b = inv.by_election[cell.dataset.id];
@@ -200,27 +210,62 @@ function drawMoney(S) {
       svg.append("path").datum(path).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.5).attr("d", d3.line().x((d) => x(d.t)).y((d) => y(d.v)).curve(d3.curveStepAfter));
       for (const bet of b.bets_path ?? []) {
         const t = Date.parse(bet.t);
+        const fills = bet.n_fills != null ? `${bet.n_fills} ${bet.n_fills === 1 ? "trade" : "trades"}, ` : "";
         svg.append("circle").attr("cx", x(t)).attr("cy", y(d3.least(path, (d) => Math.abs(d.t - t))?.v ?? b.bankroll)).attr("r", 2.5).attr("fill", bet.won ? C.model : C.raw)
-          .append("title").text(`${bet.side} ${bet.market}: $${Math.round(bet.stake)} staked, ${bet.won ? "won" : "lost"} (${bet.pnl >= 0 ? "+" : "−"}$${Math.abs(Math.round(bet.pnl))})`);
+          .append("title").text(`${bet.side} ${bet.market}: ${fills}$${Math.round(bet.stake).toLocaleString("en-US")} staked, ${bet.won ? "won" : "lost"} (${bet.pnl >= 0 ? "+" : "−"}$${Math.abs(Math.round(bet.pnl)).toLocaleString("en-US")})`);
       }
     }
   };
   drawCharts();
   new ResizeObserver(() => drawCharts()).observe(root);
+  concentration(inv, p);
+}
+
+// The single market behind most of the pooled gain, named by its question from the election's meta.
+async function concentration(inv, p) {
+  const gain = p ? p.ending_value - p.bankroll : 0;
+  const [id, b] = d3.greatest(Object.entries(inv.by_election), ([, x]) => x.largest_market_pnl ?? -Infinity) ?? [];
+  if (!b?.largest_market || !(gain > 0) || !(b.largest_market_pnl > gain / 2)) return;
+  const meta = await getJSON(`${id}/meta.json`, { optional: true, root: rootOf(id) }).catch(() => null);
+  const mk = meta?.races?.flatMap((r) => r.markets ?? []).find((m) => m.id === b.largest_market);
+  const what = mk?.question ? `“${mk.question.replace(/\?$/, "")}”` : "one market";
+  const el = $("money-conc");
+  if (el) el.textContent = ` Most of the gain is one market: ${money(b.largest_market_pnl)} of the ${money(gain)} came from ${what} in the ${names.get(id) ?? id}.`;
 }
 
 function moneySentence(b) {
   const parts = [];
-  if (!b.signals) parts.push("No signal fired.");
-  else if (!b.bets) parts.push(`${b.signals} signals; none could be filled at the signal's price.`);
+  if (!b.bets) parts.push("No trade qualified.");
   else {
-    parts.push(`${b.signals ?? b.bets} signals, ${b.bets} bets filled, ${b.won} won.`);
-    if (b.largest_market_share != null && b.largest_market_share >= 0.5) parts.push(`${pct(b.largest_market_share, 0)} of the profit came from one market.`);
-    else if (b.return_pct < 0 && b.largest_market_pnl != null && b.largest_market_pnl < 0) parts.push(`The largest single loss was ${money(-b.largest_market_pnl)} in one market.`);
+    parts.push(`${b.bets.toLocaleString("en-US")} ${b.bets === 1 ? "trade" : "trades"} in ${b.markets} ${b.markets === 1 ? "market" : "markets"}, ${b.won.toLocaleString("en-US")} on the winning side.`);
+    if (b.largest_market_share != null && b.largest_market_share >= 0.5 && b.markets > 1) parts.push(`${shareOfGain(b.largest_market_share)} of the gain came from one market.`);
+    else if (b.return_pct < 0 && b.largest_market_pnl != null && b.largest_market_pnl < 0) parts.push(`The largest loss was ${money(-b.largest_market_pnl)} in one market.`);
   }
   if (b.outcome && /provisional|not yet/i.test(b.outcome)) parts.push("Markets not yet resolved.");
-  if (b.note) parts.push(b.note[0].toUpperCase() + b.note.slice(1) + (b.note.endsWith(".") ? "" : "."));
+  let note = b.note ?? "";
+  for (const re of SHARED_NOTES) note = note.replace(re, "");
+  note = note.replace(/\d+% of the eligible volume was in one market \([^)]*\)\.\s*/i, "").trim();
+  if (note) parts.push(note[0].toUpperCase() + note.slice(1) + (note.endsWith(".") ? "" : "."));
   return parts.join(" ");
+}
+
+// Ending value of $10,000 under each variant of the rule (invest10k.grid), and the strict rule.
+const GRID_COLS = [
+  ["edge5c_delay60s", "10pct", "Headline: 5¢, 60 s, 10% of each trade"],
+  ["edge5c_delay60s", "first", "All of each trade"],
+  ["edge5c_delay60s", "10pct_cap", "$1,000 cap per market"],
+  ["edge10c_delay60s", "10pct", "10¢ below the model"],
+  ["edge20c_delay60s", "10pct", "20¢ below the model"],
+  ["edge5c_delay300s", "10pct", "300 s delay"],
+];
+function gridTable(grid, list, sp) {
+  const rows = list.filter((e) => grid?.[e.id]);
+  if (!rows.length) return "";
+  return `<summary>The same $10,000 under other versions of the rule</summary><div class="table-scroll"><table class="compact"><thead><tr><th>Election</th>${GRID_COLS.map(([, , l]) => `<th class="n">${l}</th>`).join("")}${sp ? `<th class="n">Only at the signal's price</th>` : ""}</tr></thead><tbody>${rows.map((e) => {
+    const g = grid[e.id];
+    const v = (k, mode) => (g[k]?.[mode] != null ? money(g[k][mode]) : "–");
+    return `<tr><td>${esc(e.name)}</td>${GRID_COLS.map(([k, mode]) => `<td class="n">${v(k, mode)}</td>`).join("")}${sp ? `<td class="n">${sp.by_election?.[e.id] ? money(sp.by_election[e.id].ending_value) : "–"}</td>` : ""}</tr>`;
+  }).join("")}</tbody></table></div>`;
 }
 
 /* ---------------------------------------------------------------- elections list */

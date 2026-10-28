@@ -23,7 +23,7 @@
   <ul>
     <li>When the model and the price disagreed, the price had moved 40% of the way towards the model 30 minutes later on runoff night (12 markets, settings frozen beforehand) and 55% on the first round (8 markets, the night the settings were chosen on).</li>
     <li>On the runoff, from the point where 1% of sections were counted (19:04), the model was 90% sure of Lula's win about 80 minutes before the market was.</li>
-    <li>Very little could have been traded. At the prices the model would have traded at, $2,741 was available within 30 minutes on the first round and $0 on the runoff.</li>
+    <li>The underpricing could be traded. After the model's signal, real buyers bought $3.1 million of Lula "yes" on runoff night at prices at least 5¢ below the model's probability, and made $892,000 on it. $10,000 that took a tenth of each of those trades would have ended at $20,762. Almost all of it was one market, the national "Lula wins", on one outcome.</li>
   </ul>
 </header>
 
@@ -97,16 +97,16 @@
 
 <section class="col">
   <h2>How much could have been traded</h2>
-  <p>Using every Polymarket trade after each signal, this is the amount that could have been bought within 30 minutes at the signal price, or by paying 2¢ or 5¢ more:</p>
+  <p>For every real Polymarket trade after 1% of sections were counted, I asked whether the buyer paid at least 5¢ less than the model's probability for that side, using the model's figure from at least 60 seconds before the trade, fees included. Those buyers were buying underpriced shares; this is what they bought and what it paid:</p>
   <table>
-    <thead><tr><th>Night</th><th class="n">at signal price</th><th class="n">+2¢</th><th class="n">+5¢</th></tr></thead>
+    <thead><tr><th>Night</th><th class="n">underpriced volume bought</th><th class="n">profit on it</th><th class="n">$10,000, a tenth of each trade</th></tr></thead>
     <tbody>
-      <tr><td>First round, all signals <span class="label in">in-sample</span></td><td class="n">$2,741</td><td class="n">$4,111</td><td class="n">$6,906</td></tr>
-      <tr><td>Runoff, presidential <span class="label pre">pre-specified</span></td><td class="n">$0</td><td class="n">$100</td><td class="n">$4,375</td></tr>
-      <tr><td>Runoff, governors <span class="label pre">pre-specified</span></td><td class="n">$2</td><td class="n">$5</td><td class="n">$45</td></tr>
+      <tr><td>Runoff, presidential and state markets</td><td class="n">$3,107,751</td><td class="n">+$892,007</td><td class="n">$20,762</td></tr>
+      <tr><td>First round (settings chosen on this night)</td><td class="n">$143,228</td><td class="n">+$52,005</td><td class="n">$14,763</td></tr>
+      <tr><td>Governor runoffs</td><td class="n">$695</td><td class="n">+$319</td><td class="n">$10,032</td></tr>
     </tbody>
   </table>
-  <p>On the first round, 98% of the fillable amount was in one market in its first four minutes. On the runoff, the minute price history lagged real trades by 2–4¢, so nothing traded at the price the signal saw.</p>
+  <p>On the runoff the edge lasted: between 19:00 and 20:45 the model gave Lula 0.90–0.99 while the market traded at 0.69–0.76. With a stricter test (at least 10¢ below the model, a 5-minute delay, a tenth of each trade) $10,000 still ends at $16,554. The volume is a ceiling for one trader, since other buyers took it, and 99% of it was the national market, so the result rests on one outcome. This buying rule was defined after the results were known. An earlier, stricter test that only accepted the exact minute price at the signal found almost nothing ($0 on the runoff), because by the signal the market already traded 2–4¢ above that price, still far below the model.</p>
 </section>
 
 <section class="col">

@@ -460,3 +460,10 @@ table.venues td:first-child a { text-decoration: none; }
   table.races td, table.races th { padding-right: 5px; }
   .gapbar { width: 36px; }
 }
+.money-strict { margin: -2px 0 4px; font: 12px/1.35 var(--sans); color: var(--muted); }
+.money-variants { margin-top: 18px; font: 13px/1.45 var(--sans); }
+.money-variants summary { cursor: pointer; color: var(--muted); }
+.money-variants table { margin-top: 8px; }
+@media (max-width: 700px) {
+  .money-variants .table-scroll { overflow-x: auto; }
+}

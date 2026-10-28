@@ -33,6 +33,10 @@ to resolution):
   bootstrap over markets (each signal = one unit), an exact p-value under "the price paid was the fair win
   probability", and the share of the total from the single largest trade.
 
+Second execution model, "model limit" (post hoc, same for every election with trades or books): any real taker
+trade (Israel: resting ask) on the favoured side priced >= 5/10/20c below the model's P known 60/300 s earlier,
+after the 1% gate; eligible volume / P&L and the $10,000 bankroll (headline: 10% of each eligible trade).
+
     uv run python analysis/edge_audit.py [--no-site]      # from the repo root; no env vars needed
 (Israel books: $BRUNDER_DATA/raw/snap/... if present, else $BRUNDER_IL_DATA, default ~/brunder-data-local.)
 Writes results/edge_audit/*.csv + summary.json and adds "accuracy" / "profit" blocks to site/data/<eid>/stats.json
@@ -579,14 +583,315 @@ def israel_accuracy() -> dict:
     return {"d": d, "share_error_mae": err, "coverage_list_shares": cov}
 
 
+# ============================================================== profit: "model limit" execution
+# A second execution model, the same for every election with trades or books: after the 1% gate, any real taker
+# trade on the favoured side (Israel: any resting ask in the recorded book) whose all-in price leaves the model
+# >= edge_min, using the model P known >= delay earlier. Volumes are an upper bound (others took those trades).
+
+ML_EDGES = (0.05, 0.10, 0.20)
+ML_DELAYS = (60, 300)
+ML_MODES = (("first", 1.0, None), ("first_cap", 1.0, 1_000.0), ("10pct", 0.1, None), ("10pct_cap", 0.1, 1_000.0))
+ML_HEAD = (0.05, 60, "10pct")
+IL_DATA = Path(os.environ.get("BRUNDER_IL_DATA", Path.home() / "brunder-data-local"))
+PM_ROOTS = [RAW / "polymarket", IL_DATA / "raw" / "polymarket", *sorted(STAGES.glob("*/raw/polymarket"))]
+
+
+def _pm_meta() -> dict[str, dict]:
+    """slug -> event, condition_id, yes_token, fee rate (event.json feeSchedule when present)."""
+    out: dict[str, dict] = {}
+    for root in PM_ROOTS:
+        for f in root.glob("*/markets.parquet"):
+            d = pd.read_parquet(f, columns=["slug", "condition_id", "yes_token"])
+            fees = {}
+            ej = f.parent / "event.json"
+            if ej.exists():
+                for g in json.loads(ej.read_text()).get("markets", []):
+                    fs = g.get("feeSchedule") or {}
+                    fees[g["slug"]] = float(fs.get("rate") or 0) if g.get("feesEnabled") else 0.0
+            for r in d.itertuples():
+                out.setdefault(r.slug, {"event": f.parent.name, "condition_id": r.condition_id, "yes_token": r.yes_token,
+                                        "fee": fees.get(r.slug)})
+    return out
+
+
+def night_trades(event: str, slug: str, cid: str, lo: pd.Timestamp, hi: pd.Timestamp) -> pd.DataFrame:
+    """Taker trades in [lo, hi): an archived trades file with is_taker rows if any root has one, else the data API
+    (cached in results/edge_audit/trades/)."""
+    for root in PM_ROOTS:
+        f = root / event / "trades" / f"{slug}.parquet"
+        if f.exists():
+            t = pd.read_parquet(f)
+            if "is_taker" in t:
+                t["time"] = pd.to_datetime(t["time"], utc=True)
+                return t[t["is_taker"] & (t["time"] >= lo) & (t["time"] < hi)].reset_index(drop=True)
+    from night_capacity import _fetch_takers
+    cache = OUT / "trades" / f"{slug}_{int(lo.timestamp())}_{int(hi.timestamp())}.parquet"
+    if cache.exists():
+        return pd.read_parquet(cache)
+    t = _fetch_takers(cid, int(lo.timestamp()), int(hi.timestamp()))
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    t.to_parquet(cache)
+    return t
+
+
+def ml_markets(eid: str, meta: dict) -> list[dict]:
+    """Per market: scope key, slug, fee rate, outcome (YES won) and the model minute series (t, P, counted, price)."""
+    out = []
+    if eid in NIGHTS:
+        for cid, cfg_path, *_ in NIGHTS[eid][1]:
+            cfg = night.load_config(ROOT / cfg_path)
+            tk = _ticks(cid)
+            ev = pd.read_csv(RES / "night" / cid / "evaluation.csv")
+            y = dict(zip(ev["scope"], ev["outcome"].astype(int)))
+            for m in night._markets(cfg):
+                g = tk[tk["scope"] == m["scope"]]
+                if len(g) and m["scope"] in y:
+                    out.append({"scope": f"{cid}|{m['scope']}", "slug": m["market"], "event": m["event"],
+                                "fee": float(cfg["trade"].get("fee_rate", 0.0)), "y": y[m["scope"]],
+                                "ticks": g[["t", "P", "scope_counted", "price"]].rename(columns={"scope_counted": "counted"})})
+    elif eid == "hu2026" and (HU / "ticks.parquet").exists():
+        cfg = tomllib.loads((ROOT / "configs" / "hu2026_v1.toml").read_text())
+        tk = pd.read_parquet(HU / "ticks.parquet", columns=["t", "scope", "P", "price", "scope_counted", "outcome"])
+        tk["t"] = pd.to_datetime(tk["t"], utc=True)
+        for m in cfg["markets"]:
+            g = tk[tk["scope"] == m["id"]]
+            if len(g):
+                out.append({"scope": m["id"], "slug": m["market"], "event": m["event"],
+                            "fee": (meta.get(m["market"]) or {}).get("fee") or 0.0, "y": int(g["outcome"].iloc[0]),
+                            "ticks": g[["t", "P", "scope_counted", "price"]].rename(columns={"scope_counted": "counted"})})
+    elif eid == "mx2024" and (MX / "ticks.parquet").exists():
+        cfg = tomllib.loads((ROOT / "configs" / "mx2024_v1.toml").read_text())
+        tk = pd.read_parquet(MX / "ticks.parquet")
+        tk["t"] = pd.to_datetime(tk["t"], utc=True)
+        fee = float(cfg.get("trade", {}).get("fee_rate", 0.0))
+        for sc, m in cfg["markets"].items():
+            g = tk[tk["scope"] == sc]
+            if len(g):
+                out.append({"scope": sc, "slug": m["market"], "event": m["event"], "fee": fee, "y": int(m["outcome"]),
+                            "ticks": g[["t", "P", "scope_counted", "price"]].rename(columns={"scope_counted": "counted"})})
+    return out
+
+
+def ml_candidates(mk: dict, meta: dict, delay: int) -> pd.DataFrame:
+    """Every taker trade long either side after the gate, with the model P known >= delay earlier and the margin
+    (P of the trade's side - all-in unit cost); filter by side (favoured) and edge later."""
+    g = mk["ticks"].dropna(subset=["P"]).sort_values("t")
+    gated = g[g["counted"] >= 0.01]
+    md = meta.get(mk["slug"])
+    if gated.empty or md is None:
+        return pd.DataFrame()
+    lo, hi = gated["t"].iloc[0] + pd.Timedelta(seconds=delay), g["t"].iloc[-1] + pd.Timedelta(minutes=1)
+    tr = night_trades(mk["event"], mk["slug"], md["condition_id"], gated["t"].iloc[0], hi)
+    if tr.empty:
+        return pd.DataFrame()
+    tr = tr[tr["time"] >= lo].copy()
+    is_yes = tr["asset"].astype(str) == str(md["yes_token"])
+    p_yes = np.where(is_yes, tr["price"].astype(float), 1 - tr["price"].astype(float))
+    long_yes = (tr["side"] == "BUY") == is_yes
+    tr = tr.assign(yes=long_yes.to_numpy(), q=np.where(long_yes, p_yes, 1 - p_yes), shares=tr["size"].astype(float),
+                   known=tr["time"] - pd.Timedelta(seconds=delay)).sort_values("known")
+    tr = pd.merge_asof(tr, gated[["t", "P"]].rename(columns={"t": "known"}), on="known", direction="backward")
+    tr = tr.dropna(subset=["P"])
+    fav_yes = tr["P"] >= 0.5
+    tr = tr[tr["yes"] == fav_yes]
+    c = tr["q"] + mk["fee"] * tr["q"] * (1 - tr["q"])
+    p_side = np.where(tr["yes"], tr["P"], 1 - tr["P"])
+    return pd.DataFrame({"t": tr["time"].to_numpy(), "scope": mk["scope"], "market": mk["slug"], "yes": tr["yes"].to_numpy(),
+                         "cost": c.to_numpy(), "margin": p_side - c.to_numpy(), "shares": tr["shares"].to_numpy(),
+                         "won": (tr["yes"] == (mk["y"] == 1)).to_numpy()})
+
+
+def il_ml_candidates(delay: int) -> pd.DataFrame:
+    """Israel: at the first recorded book >= delay after each release (>= 1% counted), every ask level of the
+    favoured side with its margin under that release's P (one snapshot per release, so resting depth is not
+    counted twice)."""
+    cfg = tomllib.loads(IL_CFG.read_text())
+    fees = il_fees(cfg)
+    rel = pd.read_csv(RES / "israel" / "releases.csv")
+    rel["t"] = pd.to_datetime(rel["t"], utc=True)
+    rel = rel[rel["counted"] >= 0.01].sort_values("t")
+    y = pd.read_parquet(RES / "israel" / "ticks.parquet").groupby("scope")["outcome"].first().to_dict()
+    files = sorted(IL_BOOKS.glob("*.json"))
+    times = pd.DatetimeIndex([_book_t(p) for p in files])
+    rows = []
+    for r in rel.to_dict("records"):
+        j = int(times.searchsorted(r["t"] + pd.Timedelta(seconds=delay)))
+        if j >= len(files):
+            continue
+        b = json.loads(files[j].read_text())
+        for m in cfg["markets"]:
+            k = f"{m['event']}/{m['id']}"
+            if k not in b:
+                continue
+            P = float(r[f"P:{m['id']}"])
+            yes = P >= 0.5
+            levels = ([(float(x["price"]), float(x["size"])) for x in b[k].get("asks") or []] if yes else
+                      [(1 - float(x["price"]), float(x["size"])) for x in b[k].get("bids") or []])
+            fee = fees.get(m["id"], 0.0)
+            for q, size in sorted(levels):
+                c = q + fee * q * (1 - q)
+                rows.append({"t": times[j], "scope": m["id"], "market": m["id"], "yes": yes, "cost": c,
+                             "margin": (P if yes else 1 - P) - c, "shares": size, "won": (y[m["id"]] == 1.0) == yes})
+    return pd.DataFrame(rows)
+
+
+def ml_bankroll(el: pd.DataFrame, frac: float, cap: float | None) -> tuple[dict, pd.DataFrame]:
+    """$10,000 at poll close; eligible fills in time order (cheapest first within a timestamp), each taking frac of
+    the eligible size, until cash runs out (and, with cap, at most cap $ per market)."""
+    cash, spent_mk, fills = BANKROLL, {}, []
+    for r in el.sort_values(["t", "cost"]).itertuples():
+        if cash < 0.01:
+            break
+        want = frac * r.shares * r.cost
+        if cap is not None:
+            want = min(want, cap - spent_mk.get(r.market, 0.0))
+        stake = min(want, cash)
+        if stake < 0.005:
+            continue
+        sh = stake / r.cost
+        cash -= stake
+        spent_mk[r.market] = spent_mk.get(r.market, 0.0) + stake
+        fills.append((r.t, r.scope, r.market, r.yes, stake, sh, sh if r.won else 0.0))
+    F = pd.DataFrame(fills, columns=["t", "scope", "market", "yes", "stake", "shares", "payout"])
+    ending = cash + float(F["payout"].sum())
+    return {"ending_value": round(ending, 2), "deployed": round(float(F["stake"].sum()), 2), "fills": int(len(F)),
+            "markets": int(F["market"].nunique()), "return_pct": round(100 * (ending / BANKROLL - 1), 2)}, F
+
+
+def _price_map(prices: pd.DataFrame) -> dict[str, pd.Series]:
+    """YES price per scope by time, missing minutes dropped, so a position is marked at its last known price."""
+    return {s: g.dropna(subset=["price"]).set_index("t")["price"].sort_index() for s, g in prices.groupby("scope")}
+
+
+def ml_value_path(F: pd.DataFrame, prices: pd.DataFrame, t0: pd.Timestamp, t1: pd.Timestamp, ending: float) -> list[dict]:
+    px = _price_map(prices)
+    out = []
+    for t in _value_grid(t0, t1):
+        f = F[F["t"] <= t]
+        v = BANKROLL - float(f["stake"].sum())
+        for (sc, yes), g in f.groupby(["scope", "yes"]):
+            s = px.get(sc)
+            pr = s[:t].iloc[-1] if s is not None and len(s[:t]) else np.nan
+            v += (float(g["shares"].sum()) * (pr if yes else 1 - pr) if np.isfinite(pr)
+                  else float(g["stake"].sum()))                     # no price known yet: at cost
+        out.append({"t": _iso(t), "value": round(v, 2)})
+    out.append({"t": _iso(max(t0, t1)), "value": round(ending, 2), "resolved": True})
+    return out
+
+
+def _bets_by_market(F: pd.DataFrame) -> list[dict]:
+    if F.empty:
+        return []
+    g = F.groupby(["market", "yes"]).agg(t=("t", "min"), t_last=("t", "max"), n_fills=("t", "size"), stake=("stake", "sum"),
+                                         payout=("payout", "sum")).reset_index().sort_values("t")
+    return [{"t": _iso(r.t), "t_last": _iso(r.t_last), "market": r.market, "side": "YES" if r.yes else "NO",
+             "n_fills": int(r.n_fills), "stake": round(r.stake, 2), "won": bool(r.payout > 0), "payout": round(r.payout, 2),
+             "pnl": round(r.payout - r.stake, 2)} for r in g.itertuples()]
+
+
+def model_limit(eids: list[str]) -> tuple[dict, dict, pd.DataFrame]:
+    """Per election: eligible volume / P&L per (edge, delay), bankroll results per mode, the headline bankroll."""
+    meta = _pm_meta()
+    res, head, rows = {}, {}, []
+    for eid in eids:
+        if eid == "il2026":
+            cands = {d: il_ml_candidates(d) for d in ML_DELAYS}
+            tk = pd.read_parquet(RES / "israel" / "ticks.parquet", columns=["t", "scope", "price"])
+            tk["t"] = pd.to_datetime(tk["t"], utc=True)
+            prices, t0, t1, n_mk = tk, _poll_close("il2026", tk["t"].min()), tk["t"].max(), tk["scope"].nunique()
+        else:
+            mks = ml_markets(eid, meta)
+            if not mks:
+                continue
+            cands = {d: pd.concat([ml_candidates(m, meta, d) for m in mks], ignore_index=True) for d in ML_DELAYS}
+            prices = pd.concat([m["ticks"][["t", "price"]].assign(scope=m["scope"]) for m in mks], ignore_index=True)
+            t0, t1, n_mk = _poll_close(eid, prices["t"].min()), prices["t"].max(), len(mks)
+        res[eid] = {"markets_scored": int(n_mk), "grid": {}}
+        for e, d in itertools.product(ML_EDGES, ML_DELAYS):
+            c = cands[d]
+            el = c[c["margin"] >= e - 1e-12] if len(c) else c
+            vol = el["shares"] * el["cost"] if len(el) else pd.Series(dtype=float)
+            pnl = (el["won"] * el["shares"] - vol) if len(el) else pd.Series(dtype=float)
+            by = (pd.DataFrame({"market": el["market"], "vol": vol, "pnl": pnl}).groupby("market").sum()
+                  if len(el) else pd.DataFrame(columns=["vol", "pnl"]))
+            top = by["vol"].idxmax() if len(by) else None
+            tot_v, tot_p = float(vol.sum()), float(pnl.sum())
+            g = {"eligible_trades": int(len(el)), "eligible_volume": round(tot_v, 2), "eligible_pnl": round(tot_p, 2),
+                 "eligible_return": round(tot_p / tot_v, 4) if tot_v > 0 else None, "markets": int(len(by)),
+                 "largest_market": top, "largest_market_volume_share": round(float(by.at[top, "vol"]) / tot_v, 3) if top else None,
+                 "largest_market_pnl_share": round(float(by.at[top, "pnl"]) / tot_p, 3) if top and tot_p > 0 else None,
+                 "volume_won_share": round(float(vol[el["won"]].sum()) / tot_v, 3) if tot_v > 0 else None,
+                 "bankroll": {}}
+            for name, frac, cap in ML_MODES:
+                b, F = ml_bankroll(el, frac, cap) if len(el) else ({"ending_value": BANKROLL, "deployed": 0.0, "fills": 0,
+                                                                     "markets": 0, "return_pct": 0.0}, pd.DataFrame(
+                    columns=["t", "scope", "market", "yes", "stake", "shares", "payout"]))
+                g["bankroll"][name] = b
+                rows.append({"eid": eid, "edge": e, "delay_s": d, "mode": name, **{k: v for k, v in g.items() if k != "bankroll"}, **b})
+                if (e, d, name) == ML_HEAD:
+                    head[eid] = {"F": F, "b": b, "prices": prices, "t0": t0, "t1": t1}
+            res[eid]["grid"][f"edge{int(round(e * 100))}c_delay{d}s"] = g
+    return res, head, pd.DataFrame(rows)
+
+
+def ml_invest(eid: str, h: dict, grid5: dict, evidence: str | None) -> dict:
+    b, F = h["b"], h["F"]
+    pnl = F.groupby("market").apply(lambda g: g["payout"].sum() - g["stake"].sum(), include_groups=False) if len(F) else pd.Series(dtype=float)
+    tot = float(pnl.sum()) if len(pnl) else 0.0
+    big = pnl.abs().idxmax() if len(pnl) else None
+    e, d, mode = ML_HEAD
+    return {"evidence": evidence, "variant": f"model_limit_edge{int(e * 100)}c_delay{d}s_{mode}",
+            "execution": (f"model limit: after the 1% gate, {int(round(ML_MODES[2][1] * 100))}% of every real taker trade "
+                          f"(Israel: resting ask in the recorded book) on the favoured side whose all-in price leaves the "
+                          f"model >= {int(e * 100)}c, using the model P known >= {d} s earlier; no per-market cap"),
+            "bankroll": BANKROLL, "ending_value": b["ending_value"], "deployed": b["deployed"],
+            "bets": b["fills"], "markets": b["markets"], "won": int((F["payout"] > 0).sum()) if len(F) else 0,
+            "return_pct": b["return_pct"], "eligible_volume": grid5["eligible_volume"], "eligible_pnl": grid5["eligible_pnl"],
+            "largest_market": big, "largest_market_pnl": round(float(pnl[big]), 2) if big else None,
+            "largest_market_share": round(float(pnl[big]) / tot, 3) if big and tot > 0 else None,
+            "bets_path": _bets_by_market(F),
+            "value_path": ml_value_path(F, h["prices"], h["t0"], h["t1"], b["ending_value"])}
+
+
 def _il_totals(v: dict) -> dict:
     """Israel for publication: totals only. Bet times / markets / value path stay in results/ (they reveal when
     the model, run on the private-research 2026 count, wanted to trade)."""
-    keep = ("evidence", "execution", "bankroll", "ending_value", "deployed", "bets", "won", "return_pct", "signals")
-    return {**{k: v[k] for k in keep}, "bets_path": None, "value_path": None,
+    keep = ("evidence", "variant", "execution", "bankroll", "ending_value", "deployed", "bets", "markets", "won",
+            "return_pct", "signals", "eligible_volume", "eligible_pnl")
+    return {**{k: v[k] for k in keep if k in v}, "bets_path": None, "value_path": None,
             "outcome": "provisional count; markets not yet resolved",
-            "note": "totals only: the three bets are one event (Likud's seat band); bet times and the bankroll path are "
-                    "not published because they come from the 2026 count (private-research data)"}
+            "note": "totals only: every Israel bet rides on one election's count (one event); bet times, markets and the "
+                    "bankroll path are not published because they come from the 2026 count (private-research data)"}
+
+
+def _il_grid(r: dict) -> dict:
+    """Israel model-limit grid for publication: no market names."""
+    return {**r, "grid": {k: {kk: vv for kk, vv in g.items() if kk != "largest_market"} for k, g in r["grid"].items()}}
+
+
+def _pool(d: dict) -> dict:
+    p = {"elections": len(d), "bankroll": BANKROLL * len(d), "ending_value": round(sum(v["ending_value"] for v in d.values()), 2),
+         "deployed": round(sum(v["deployed"] for v in d.values()), 2), "bets": sum(v["bets"] for v in d.values()),
+         "won": sum(v["won"] for v in d.values())}
+    p["return_pct"] = round(100 * (p["ending_value"] / p["bankroll"] - 1), 2)
+    return p
+
+
+def _ml_note(eid: str, g: dict) -> str:
+    s = g.get("largest_market_volume_share")
+    where = ("" if s is None else f" {s:.0%} of the eligible volume was in one market"
+             + ("" if eid == "il2026" else f" ({g['largest_market']})") + ".")
+    return ("Single event: every bet depends on the same election-night count, so the markets move together and "
+            "this is one outcome, not many independent bets." + where +
+            " Eligible volume is an upper bound: other traders took those trades.")
+
+
+ML_RULE = ("$10,000 at poll close. Model limit: after the 1% gate, take 10% of every real taker trade (Israel: resting ask "
+           "in the recorded book) on the side the model favours whose all-in price (incl. taker fee) leaves the model's "
+           "probability >= 5c above it, using the model P known >= 60 s earlier; in time order until cash runs out; no "
+           "per-market cap; held to resolution; ending value = cash + payouts. Variants in 'grid': all of each eligible "
+           "trade ('first'), $1,000-per-market cap ('_cap'), 10c / 20c edge, 300 s delay.")
+
 
 
 # ============================================================== landing: $10,000 per election, homepage summary
@@ -594,6 +899,15 @@ def _il_totals(v: dict) -> dict:
 BANKROLL, MAX_STAKE = 10_000.0, 1_000.0
 QS_LAND = (0.01, 0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90)
 VALUE_STEP = "5min"
+VALUE_MAX_POINTS = 150
+
+
+def _value_grid(t0: pd.Timestamp, t1: pd.Timestamp) -> pd.DatetimeIndex:
+    """Every 5 minutes from poll close to the end, coarser (whole multiples of 5 min) to keep <= 150 points."""
+    k = max(1, math.ceil((t1 - t0) / pd.Timedelta(VALUE_STEP) / VALUE_MAX_POINTS))
+    return pd.date_range(t0, t1, freq=f"{5 * k}min")
+
+
 HU = RES / "hungary"
 MX = RES / "mexico" / "mx2024_v1"
 INVEST_RULE = (f"${BANKROLL:,.0f} at poll close. Each signal of the election's frozen trading rule, in time order, "
@@ -628,15 +942,15 @@ def invest10k(eid: str, bets: pd.DataFrame, prices: pd.DataFrame, t0: pd.Timesta
         path.append({"t": _iso(b.t), "market": b.market, "side": b.side, "stake": round(stake, 2),
                      "won": bool(b.won), "payout": round(payout, 2), "pnl": round(payout - stake, 2)})
     ending = cash + sum(p["payout"] for p in path)
-    px = {s: g.set_index("t")["price"].sort_index() for s, g in prices.groupby("scope")} if len(prices) else {}
+    px = _price_map(prices) if len(prices) else {}
     vals = []
-    for t in pd.date_range(t0, t1, freq=VALUE_STEP):
+    for t in _value_grid(t0, t1):
         v = BANKROLL - sum(p["stake"] for p, q in zip(path, pos) if q[0] <= t)
-        for (tb, scope, yes, sh) in pos:
+        for (tb, scope, yes, sh), p in zip(pos, path):
             if tb <= t:
                 s = px.get(scope)
                 pr = s[:t].iloc[-1] if s is not None and len(s[:t]) else np.nan
-                v += sh * ((pr if yes else 1 - pr) if np.isfinite(pr) else 0.0)
+                v += sh * (pr if yes else 1 - pr) if np.isfinite(pr) else p["stake"]
         vals.append({"t": _iso(t), "value": round(v, 2)})
     vals.append({"t": _iso(max(t1, t0)), "value": round(ending, 2), "resolved": True})
     pnl = pd.Series({p["market"]: p["pnl"] for p in path}, dtype=float)
@@ -1075,21 +1389,47 @@ def main(site: bool) -> None:
             _site_update(eid, blocks)
 
     # ---------------- $10,000 per election and the homepage summary
-    inv = invest_all(BR, il)
+    inv = invest_all(BR, il)                                            # "signal price" execution
     land = landing_summary(races, ila, COV, mins, inv)
+    ml_res, ml_head, ML = model_limit([*NIGHTS, "il2026", "hu2026", "mx2024"])
+    _write("profit_model_limit.csv", ML)
+    e5 = f"edge{int(ML_HEAD[0] * 100)}c_delay{ML_HEAD[1]}s"
+    inv_ml = {eid: {**ml_invest(eid, ml_head[eid], ml_res[eid]["grid"][e5], (inv.get(eid) or {}).get("evidence") or _evidence(eid)),
+                    "note": _ml_note(eid, ml_res[eid]["grid"][e5])} for eid in ml_res}
+    land["invest10k"] = {"rule": ML_RULE, "headline": "model_limit", "by_election": inv_ml, "pooled": _pool(inv_ml),
+                         "signal_price": land["invest10k"],
+                         "grid": {eid: {k: {"eligible_volume": g["eligible_volume"], "eligible_pnl": g["eligible_pnl"],
+                                            **{m: b["ending_value"] for m, b in g["bankroll"].items()}}
+                                        for k, g in r["grid"].items()} for eid, r in ml_res.items()}}
+    land["profit_model_limit"] = ml_res
     text = json.dumps(_clean(land), ensure_ascii=False, separators=(",", ":"))
     (OUT / "landing_summary.json").write_text(text)                  # full, incl. Israel's bet and value paths
     if site:
-        pub = {e: (_il_totals(v) if e == "il2026" else v) for e, v in inv.items()}
-        land["invest10k"]["by_election"] = pub
-        (SITE / "summary.json").write_text(json.dumps(_clean(land), ensure_ascii=False, separators=(",", ":")))
-        for eid, v in pub.items():
+        pub_ml = {e: (_il_totals(v) if e == "il2026" else v) for e, v in inv_ml.items()}
+        pub_sp = {e: (_il_totals(v) if e == "il2026" else v) for e, v in inv.items()}
+        pub_res = {e: (_il_grid(v) if e == "il2026" else v) for e, v in ml_res.items()}
+        land["invest10k"]["by_election"] = pub_ml
+        # summary.json stays small: signal-price paths and the full model-limit grid live in stats.json only
+        land["invest10k"]["signal_price"]["by_election"] = {e: {k: v for k, v in x.items() if k not in ("bets_path", "value_path")}
+                                                           for e, x in pub_sp.items()}
+        land.pop("profit_model_limit", None)
+        site_text = json.dumps(_clean(land), ensure_ascii=False, separators=(",", ":"))
+        (SITE / "summary.json").write_text(site_text)
+        for eid in sorted(set(pub_ml) | set(pub_sp)):
             if (SITE / eid / "stats.json").exists():
-                _site_update(eid, {"invest10k": v})
-    for eid, v in inv.items():
-        print(f"invest10k {eid:12s} end ${v['ending_value']:>10,.2f} deployed ${v['deployed']:>9,.2f} bets {v['bets']:2d} "
-              f"won {v['won']:2d} return {v['return_pct']:+.2f}% largest {v['largest_market_share']}")
-    print("invest10k pooled", land["invest10k"]["pooled"], f"summary.json {len(text) / 1024:.0f} kB")
+                blk = {**(pub_ml.get(eid) or {}), "signal_price": pub_sp.get(eid)}
+                _site_update(eid, {"invest10k": blk, "profit_model_limit": pub_res.get(eid)})
+        print(f"site summary.json {len(site_text) / 1024:.0f} kB")
+    for name, d in (("signal price", inv), ("model limit", inv_ml)):
+        for eid, v in d.items():
+            print(f"invest10k [{name}] {eid:12s} end ${v['ending_value']:>10,.2f} deployed ${v['deployed']:>10,.2f} "
+                  f"bets {v['bets']:4d} return {v['return_pct']:+.2f}% largest {v['largest_market_share']}")
+        print(f"invest10k [{name}] pooled", _pool(d))
+    for eid, r in ml_res.items():
+        for k, g in r["grid"].items():
+            print(f"model limit {eid:12s} {k:18s} trades {g['eligible_trades']:6d} vol ${g['eligible_volume']:>13,.0f} "
+                  f"pnl ${g['eligible_pnl']:>12,.0f} top {g['largest_market_volume_share']} "
+                  + " ".join(f"{m}={b['ending_value']:,.0f}" for m, b in g["bankroll"].items()))
 
     # ---------------- console
     print(REC.to_string(index=False))

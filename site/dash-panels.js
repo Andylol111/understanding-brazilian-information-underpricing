@@ -164,7 +164,7 @@ export function renderStats(el, { stats, race, races, raceName, tz, arb, settleO
     `<div class="st-row"><dt>${esc(k.replace(/_/g, " "))} ${ev(k)}</dt><dd>${flat(v)}</dd></div>`).join("")}</dl>` : "";
 
   el.innerHTML = `${stats.evidence_note ? `<p class="st-evnote">${esc(stats.evidence_note)}</p>` : ""}
-    ${auditHTML(stats, race, raceName)}
+    ${auditHTML(stats, race, raceName, races)}
     <h3 class="tab-h">${esc(raceName(race))}</h3><dl class="st">${raceRows.join("")}</dl>
     <h3 class="tab-h">All markets in this election</h3><dl class="st">${allRows.join("")}</dl>
     ${arb?.length ? arbHTML(arb, race, raceName, races, tz) : ""}
@@ -173,7 +173,7 @@ export function renderStats(el, { stats, race, races, raceName, tz, arb, settleO
     <p class="note">The same measures are computed for every election; the <a href="./#measures">overview page</a> defines them.</p>`;
 }
 
-const KNOWN = new Set(["calibration", "settle", "settle_gated", "catchup", "early_error", "capacity", "arbitrage", "evidence", "evidence_note", "reasons", "null_reasons", "accuracy", "profit"]);
+const KNOWN = new Set(["calibration", "settle", "settle_gated", "catchup", "early_error", "capacity", "arbitrage", "evidence", "evidence_note", "reasons", "null_reasons", "accuracy", "profit", "invest10k", "profit_model_limit"]);
 
 /* ---------------------------------------------------------------- edge audit (stats.accuracy, stats.profit) */
 
@@ -182,8 +182,8 @@ const money = (x) => (x == null ? "–" : `${x < 0 ? "−" : x > 0 ? "+" : ""}$$
 const ret = (x) => (x == null ? "–" : `${x < 0 ? "−" : "+"}${Math.abs(100 * x).toFixed(0)}%`);
 const races_ = (n) => `${n} race${n === 1 ? "" : "s"}`;
 
-function auditHTML(stats, race, raceName) {
-  return `<section class="audit">${accuracyHTML(stats.accuracy, race, raceName)}${profitHTML(stats.profit)}</section>`;
+function auditHTML(stats, race, raceName, races) {
+  return `<section class="audit">${accuracyHTML(stats.accuracy, race, raceName)}${profitHTML(stats.invest10k, stats.profit_model_limit, stats.profit, races)}</section>`;
 }
 
 function accuracyHTML(acc, race, raceName) {
@@ -241,9 +241,47 @@ function reliabilityPlot(model, market) {
   return `<figure class="reliability">${svg.node().outerHTML}<figcaption>How often the favoured outcome happened (up) against the probability given (across), in bins: <span class="m">model</span>${market?.length ? `, <span class="k">market price</span>` : ""}. On the dashed line the probabilities were right on average. Dot size: minutes in the bin.</figcaption></figure>`;
 }
 
-function profitHTML(p) {
-  const head = (ans) => `<h3 class="tab-h">Was there profit after costs? ${p?.evidence ? evidenceLabel(p.evidence) : ""}</h3>${ans ? `<p class="answer">${ans}</p>` : ""}`;
-  if (!p) return `${head("")}<p class="na">Not computed for this election (no market prices, or not run yet).</p>`;
+// Headline: $10,000 under the model-limit rule (stats.invest10k); beside it the strict rule of buying
+// only at each signal's own price (invest10k.signal_price, and stats.profit by stake size).
+const usd0 = (x) => (x == null ? "–" : `$${Math.round(x).toLocaleString("en-US")}`);
+const signedPct = (x) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(1)}%`);
+const SHARED_NOTES = [/Single event:[^.]*\.\s*/i, /Eligible volume is an upper bound:[^.]*\.\s*/i, /\d+% of the eligible volume was in one market \([^)]*\)\.\s*/i];
+const shareOfGain = (s) => (s >= 0.995 && s < 1 ? `Almost all (${(100 * s).toFixed(1)}%)` : pct(s, 0));
+function profitHTML(inv, mlGrid, old, races) {
+  // no evidence label here: the headline buying rule was defined after the outcomes were known
+  const head = (ans) => `<h3 class="tab-h">Was there profit after costs?</h3>${ans ? `<p class="answer">${ans}</p>` : ""}`;
+  if (!inv) return old ? signalPriceHTML(old, head) : `${head("")}<p class="na">Not computed for this election (no market prices, or not run yet).</p>`;
+  const end = `$10,000 became ${usd0(inv.ending_value)} (${signedPct(inv.return_pct)})`;
+  const answer = !inv.bets ? "No: no trade qualified under the model-limit rule, so the $10,000 was never used."
+    : inv.ending_value > inv.bankroll ? `Yes, under the model-limit rule: ${end}.`
+      : `No: under the model-limit rule ${end}.`;
+  const sp = inv.signal_price;
+  const question = (id) => races.flatMap((r) => r.markets ?? []).find((m) => m.id === id)?.question;
+  const facts = [];
+  if (inv.bets) facts.push(`${inv.bets.toLocaleString("en-US")} trades in ${inv.markets} ${inv.markets === 1 ? "market" : "markets"}, ${inv.won.toLocaleString("en-US")} of them on the winning side; ${usd0(inv.deployed)} spent.`);
+  if (sp) facts.push(`Buying only at each signal's own price: ${usd0(sp.ending_value)} (${signedPct(sp.return_pct)})${sp.signals === 0 ? ", no signal fired" : sp.signals != null ? `, ${sp.bets} of ${sp.signals} signals filled` : ""}.`);
+  if (inv.largest_market_share != null && inv.largest_market_share >= 0.5 && inv.markets > 1) facts.push(`${shareOfGain(inv.largest_market_share)} of the gain came from one market${question(inv.largest_market) ? `: “${esc(question(inv.largest_market).replace(/\?$/, ""))}”` : ""}.`);
+  facts.push("The election is one outcome: all of its markets ride on the same count.");
+  if (inv.eligible_volume) facts.push(`Trades that qualified: ${usd0(inv.eligible_volume)}, with a P&amp;L of ${money(inv.eligible_pnl)}. That is an upper bound for one trader, since other traders took them.`);
+  facts.push("This buying rule was defined after the outcomes were known.");
+  let note = inv.note ?? "";
+  for (const re of SHARED_NOTES) note = note.replace(re, "");
+  note = note.trim();
+  const grid = Object.entries(mlGrid?.grid ?? {});
+  const modes = [["10pct", "10% of each trade"], ["first", "All of each trade"], ["10pct_cap", "10%, $1,000 cap per market"], ["first_cap", "All, $1,000 cap"]];
+  const gridTable = grid.length ? `<details class="st-others"><summary>The same $10,000 under other versions of the rule</summary>
+    <table class="compact"><thead><tr><th>Price at least … below the model, delay</th>${modes.map(([, l]) => `<th class="n">${l}</th>`).join("")}</tr></thead><tbody>${grid.map(([k, g]) => {
+      const m = /edge(\d+)c_delay(\d+)s/.exec(k);
+      return `<tr><td>${m ? `${m[1]}¢, ${m[2]} s` : esc(k)}</td>${modes.map(([mode]) => `<td class="n">${usd0(g.bankroll?.[mode]?.ending_value)}</td>`).join("")}</tr>`;
+    }).join("")}</tbody></table></details>` : "";
+  return `${head(answer, inv.evidence)}<p class="st-facts">${facts.join(" ")}</p>
+    ${note ? `<p class="note">${esc(note[0].toUpperCase() + note.slice(1))}</p>` : ""}
+    <p class="note">The rule: from the moment 1% of the vote is counted, buy 10% of every real trade (Israel: every offer in the recorded order book, one snapshot per release) on the side the model favours whose price, fees included, is at least 5¢ below the model's probability as known 60 seconds earlier; no limit per market; keep buying until the $10,000 is spent and hold to the result.</p>
+    ${gridTable}
+    ${old ? `<details class="st-others"><summary>Buying only at the signal's own price, by stake size</summary>${signalPriceHTML(old, (ans) => (ans ? `<p class="answer">${ans}</p>` : ""))}</details>` : ""}`;
+}
+
+function signalPriceHTML(p, head) {
   const best = p.max_profit;
   const lo = Array.isArray(p.max_profit_ci) ? p.max_profit_ci[0] : null;
   const answer = !p.signals ? "No signals were triggered, so nothing was traded."

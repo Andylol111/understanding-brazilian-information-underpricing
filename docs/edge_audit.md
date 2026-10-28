@@ -69,8 +69,10 @@ the shares and intervals held but P(win) was far worse than the market.**
   the count, which is the lag the project is about. The model's middle bins (0.4–0.8) rest on 2–3 races
   each and are not informative.
 
-**2. Is there real, executable profit after costs? Very little, none that is statistically
-distinguishable from luck on the pre-specified nights, and a large loss on Hungary.**
+**2. Is there real, executable profit after costs? At the signal price, very little; none that is
+statistically distinguishable from luck on the pre-specified nights, and a large loss on Hungary. Under the
+looser "model limit" execution (below, defined after the outcomes were known) the Brazil runoff's national
+market alone offered $3.1M of trades the model priced ≥ 5¢ too cheap; everything else is small.**
 
 Frozen rule (`night.evaluate`, favoured side only, edge ≥ 5¢ after costs, ≥ 1% of the market counted,
 first signal per market, hold to resolution). Headline execution: Brazil, real taker trades on our side at
@@ -129,12 +131,50 @@ reported beside it.
 
 ### $10,000 in each election
 
-One rule for every election, fixed before looking at its result: **$10,000 at poll close; each signal of
-the election's frozen trading rule, in time order, stakes min($1,000, cash left, what real execution could
-fill) and is held to resolution; ending value = cash + payouts, net of fees and the half-spread.** Payouts
-arrive at resolution, so nothing is reinvested during the night. Execution: Brazil and Hungary, real taker
-trades at or better than the signal price from 60 s to 30 min after the signal; Israel, the recorded book
-walked 60 s after the signal at the average cost of a $1,000 limit walk; Mexico, no signal fired.
+Two execution models, the same for every election with trades or recorded books. The headline (`invest10k`)
+is **model limit**; the stricter **signal price** model is kept beside it (`invest10k.signal_price`).
+
+**Model limit** (added on 2026-10-28 at the integrator's request, after every outcome here was known, so it
+is a post-hoc execution model, not a pre-registered one). From the 1% gate on, any real taker trade on the side
+the model favours (Israel: any resting ask in the recorded book, one snapshot per release, taken ≥ 60 s after
+it) is eligible when the model's probability for that side, as known ≥ 60 s earlier, exceeds the trade's
+all-in price (incl. taker fee) by ≥ 5¢. **$10,000 at poll close takes 10% of each eligible trade in time order
+until cash runs out, no per-market cap, held to resolution; ending value = cash + payouts.** Variants: all of
+each eligible trade (`first`), a $1,000-per-market cap (`_cap`), 10¢ / 20¢ edge, 300 s delay. "Eligible volume"
+is everything that qualified: an upper bound for one trader, since other traders took those trades.
+
+| | evidence | eligible volume, 5¢ / 60 s | its P&L | $10,000 → (10% of each trade) | all of each trade | with $1,000/market cap (10%) | signal price (old headline) |
+|---|---|---|---|---|---|---|---|
+| Brazil first round | in-sample | $143,228 | +$52,005 | **$14,763** | $21,643 | $11,215 | $11,282 |
+| Brazil runoff | pre-specified | $3,107,751 | +$892,007 | **$20,762** | $21,905 | $11,637 | $10,000 |
+| Brazil governors | pre-specified | $695 | +$319 | **$10,032** | $10,319 | $10,032 | $10,000 |
+| Israel | not-preregistered | $123,421 (book depth) | +$9,786 | **$10,852** | $11,581 | $10,341 | $10,425 |
+| Hungary | not-preregistered | $614,795 | +$52,748 | **$11,011** | $10,365 | $11,218 | $7,989 |
+| Mexico | not-preregistered | $0 | $0 | **$10,000** | $10,000 | $10,000 | $10,000 |
+| **all six** | | | | **$77,420 of $60,000 (+29.0%)** | | | $59,695 (−0.5%) |
+
+- **Concentration.** 99% of the runoff's eligible volume, and 99.8% of its bankroll gain, is the national
+  "Lula wins" market; 98.5% of the first round's is its national market; the governors' is all one market
+  (Rio Grande do Norte); Hungary's largest market holds 38% of its eligible volume. **Each election is one
+  event**: all of its markets ride on the same count, so the six elections are six outcomes, and +29% pooled
+  rests mainly on one market (the runoff national, +$10,737 of the runoff's +$10,762 and of the +$17,420 pooled gain) and on the in-sample
+  first round (+$4,763).
+- **Sensitivity.** Runoff: 10¢ edge $20,762, 20¢ $20,829; 300 s delay $16,554 (5¢), $16,599 (20¢). First
+  round: 10¢ / 300 s, 10% → $10,925. Hungary turns negative at 20¢ (eligible P&L −$14,923; all-of-each-trade
+  bankroll $325): the high-edge trades there are the model's overconfident tail calls ("Tisza ≥ 130 seats").
+  Israel has no eligible depth at 20¢ and $8,717 at 10¢.
+- **Reconciliation with the integrator's quick check** (runoff $21,876 / $20,660 / $16,649 for all / 10% /
+  10¢-300 s-10%): here $21,905 / $20,762 / $16,554. The check used only the cached 2-hour trade windows after
+  each first signal; this audit reads every taker trade of every market from the gate to the end of the night
+  (archive or data API, `results/edge_audit/trades/`), so eligible runoff volume is $3.11M here vs $2.19M.
+  First round (check $24,882 / $16,716 / $11,905; here $21,643 / $14,763 / $10,925): the two cached
+  national-market files overlap (entries at 20:19 and 20:28), so reading both counts 2,328 of their 4,874
+  rows twice; the 4% taker fee of the first-round markets, included here, accounts for a few hundred dollars
+  more (without it: $22,065 / $15,007 / $11,186).
+
+**Signal price** (the earlier headline): each signal of the frozen rule stakes min($1,000, cash left, the real
+taker trades at or better than the signal minute's price from 60 s to 30 min after it; Israel: the recorded
+book 60 s after the signal at the average cost of a $1,000 limit walk) and is held to resolution:
 
 | | evidence | bets (won) | deployed | ending value | return |
 |---|---|---|---|---|---|
@@ -146,9 +186,9 @@ walked 60 s after the signal at the average cost of a $1,000 limit walk; Mexico,
 | Mexico | not-preregistered | 0 | $0 | $10,000 | 0% |
 | **all six** | | 19 (11) | $10,682 | **$59,695 of $60,000** | **−0.5%** |
 
-Most of the money is never deployed: the fills the rule could get at its own prices are small, except in
-Israel and Hungary, which point in opposite directions. Pooled over six elections, $10,000 each ends at
-−0.5%.
+The two models differ because the minute price history lags real trades: at the runoff's signal minute takers
+were already paying 2–4¢ more than the minute price, so "signal price" fills nothing, while many later trades
+were still priced ≥ 5¢ below the model's probability, which "model limit" counts.
 
 ## Method
 
@@ -281,23 +321,35 @@ execution is Brazil `trades_lat60s_30min_slip0c`, Israel `book_lat60s`. Variant 
 hold aggregates only (the 2026 count comes from third-party mirrors, private research use;
 `docs/israel.md`).
 
-`"invest10k"` (br2026r1, br2026r2, br2026r2gov, il2026, hu2026, mx2024; also in `summary.json`):
+`"invest10k"` (br2026r1, br2026r2, br2026r2gov, il2026, hu2026, mx2024) is the **model-limit** headline, with
+the signal-price result nested in it:
 
 ```
-{"evidence", "execution": "<sentence>", "bankroll": 10000, "ending_value", "deployed", "bets", "won",
- "return_pct", "signals", "largest_market", "largest_market_pnl", "largest_market_share" (null if P&L <= 0),
- "bets_path": [{"t", "market", "side", "stake", "won", "payout", "pnl"}],
+{"evidence", "variant": "model_limit_edge5c_delay60s_10pct", "execution": "<sentence>", "bankroll": 10000,
+ "ending_value", "deployed", "bets" (fills), "markets", "won" (fills on the winning side), "return_pct",
+ "eligible_volume", "eligible_pnl", "largest_market", "largest_market_pnl", "largest_market_share" (null if P&L <= 0),
+ "bets_path": [{"t" (first fill), "t_last", "market", "side", "n_fills", "stake", "won", "payout", "pnl"}],   // per market and side
  "value_path": [{"t", "value"}, ..., {"t", "value", "resolved": true}],
- "outcome", "note" (il2026)}
+ "note": "<single event / concentration / upper bound>",
+ "signal_price": {"evidence", "execution", "bankroll", "ending_value", "deployed", "bets", "won", "return_pct", "signals",
+                  "largest_market", "largest_market_pnl", "largest_market_share",
+                  "bets_path": [{"t", "market", "side", "stake", "won", "payout", "pnl"}], "value_path": [...]}}
 ```
 
-`bets_path.t` = fill time (signal + 60 s). `value_path`: every 5 minutes from poll close to the end of the
-night, cash + open positions marked at the market's price of the side held; the last point is the ending
-value after payouts. **Israel is published as totals only**: `bets_path` and `value_path` are null, no
-largest-market fields, and a `note` (one event, provisional outcome); the bet times and value path come from
-the private-research 2026 count and are kept in `results/edge_audit/landing_summary.json` only.
+`"profit_model_limit"` (same elections): `{"markets_scored", "grid": {"edge{5,10,20}c_delay{60,300}s":
+{"eligible_trades", "eligible_volume", "eligible_pnl", "eligible_return", "markets", "largest_market",
+"largest_market_volume_share", "largest_market_pnl_share", "volume_won_share", "bankroll": {"first" | "first_cap"
+| "10pct" | "10pct_cap": {"ending_value", "deployed", "fills", "markets", "return_pct"}}}}}`.
 
-### `site/data/summary.json` (homepage; written by the same run, ~140 kB)
+`value_path`: from poll close to the end of the price data, every 5 minutes (coarser, in multiples of 5 minutes,
+when that would exceed 150 points), cash + open positions marked to market at the last known Polymarket minute
+price of the side held (at cost if the market has no price yet); the
+last point is the ending value after payouts. **Israel is published as totals only**: `bets_path` and
+`value_path` are null in both models, no market names (also none in its `profit_model_limit` grid), and a
+`note` (one event, provisional outcome); the bet times and value path come from the private-research 2026
+count and are kept in `results/edge_audit/landing_summary.json` only.
+
+### `site/data/summary.json` (homepage; written by the same run, ~60 kB)
 
 ```
 {"generated": ISO, "doc": "docs/edge_audit.md",
@@ -310,8 +362,11 @@ the private-research 2026 count and are kept in `results/edge_audit/landing_summ
    "reliability": {"elections", "races", "minutes", "note",
                    "model": [{"bin", "minutes", "races", "mean_p", "freq"}], "market": [...],
                    "by_election": {"<eid>": {"minutes", "races", "model": [...], "market": [...]}}}},
- "invest10k": {"rule", "by_election": {"<eid>": <invest10k>}, "pooled": {"elections", "bankroll", "ending_value",
-               "deployed", "bets", "won", "return_pct"}},
+ "invest10k": {"rule", "headline": "model_limit", "by_election": {"<eid>": <invest10k without "signal_price">},
+               "pooled": {"elections", "bankroll", "ending_value", "deployed", "bets", "won", "return_pct"},
+               "signal_price": {"rule", "by_election": {"<eid>": <signal_price without bets_path / value_path>}, "pooled": {...}},
+               "grid": {"<eid>": {"edge5c_delay60s": {"eligible_volume", "eligible_pnl", "first", "first_cap", "10pct",
+                                                     "10pct_cap"}, ...}}},   // ending values per bankroll mode
  "settle_lead": {"note", "by_election": {"<eid>": [{"race", "market", "gate", "model", "market_settle", "lead_min", "lead_vs"}]}}}
 ```
 
@@ -336,7 +391,9 @@ the private-research 2026 count and are kept in `results/edge_audit/landing_summ
 `brazil2026_all`, `brazil2026_prespecified`, `all_with_market`), `accuracy_pwin_by_race.csv`,
 `accuracy_reliability.csv`, `profit_signals_brazil.csv` (one row per signal × execution variant),
 `profit_signals_israel.csv` (private: contains model P from the 2026 count), `profit_by_size.csv`,
-`reconcile.csv`, `summary.json`, `landing_summary.json` (= `site/data/summary.json`), `il_fees.json`.
+`reconcile.csv`, `summary.json`, `profit_model_limit.csv` (every election × edge × delay × bankroll mode),
+`landing_summary.json` (full, incl. Israel's paths; the site copy drops those), `il_fees.json`, `trades/` (taker
+trades fetched from the Polymarket data API for markets without an archived trades file).
 
     uv run python analysis/edge_audit.py            # writes site blocks too
     uv run python analysis/edge_audit.py --no-site  # tables only
@@ -344,7 +401,9 @@ the private-research 2026 count and are kept in `results/edge_audit/landing_summ
 Run from the repository root; no environment variables are needed. Brazil inputs are read from
 `results/` and `~/brunder-stage` (`BRUNDER_STAGE_ROOT` overrides); the recorded Israel books from
 `$BRUNDER_DATA/raw/snap/israel_2026/polymarket_books` if present, else from `$BRUNDER_IL_DATA` (default
-`~/brunder-data-local`). The script only adds or replaces its own `accuracy`, `profit` and `invest10k` keys
+`~/brunder-data-local`). Taker trades come from an archived `trades/<slug>.parquet` (with `is_taker`) under
+`$BRUNDER_DATA`, `$BRUNDER_IL_DATA` or a stage when one exists, else from the public data API (first run only;
+cached). The script only adds or replaces its own `accuracy`, `profit`, `invest10k` and `profit_model_limit` keys
 and rewrites `site/data/summary.json`, so it can run before or after `analysis/export_brazil.py` /
 `analysis/il_export.py` / `analysis/hu_score.py` / `analysis/mx_score.py`; exporters that rewrite `stats.json`
 drop the audit's keys, so run the audit again after them.
