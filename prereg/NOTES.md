@@ -9,6 +9,13 @@ with a marker. Commit ids in `registry.jsonl`, `holdout_runs.jsonl` and the docs
 `commit_map_2026-10-28.txt` maps each to its rewritten commit. Spec files and their SHA-256 hashes are
 unchanged, so every registration still verifies.
 
+**Look log repair, 2026-10-28.** The seven runoff looks (night_r2_v1 and the six governor replays, one
+each, 2026-10-28 02:29–02:32 UTC) were appended to `holdout_runs.jsonl` but not committed, and the
+history rewrite reset the working tree, discarding those seven lines. They were re-added, marked
+`"reconstructed"`, from each run's own log (`logs/looks/<id>.log`, first line "registered test <id>,
+look #1"; time = the log file's creation time). No look was repeated. Looks are now committed as soon
+as they are made.
+
 | id | registered | already known at registration | what registration guarantees |
 |---|---|---|---|
 | shock_depth_v1, favourite_tilt_v1, late_certainty_v1 | 2026-10-26, before any run on the cross-category universe | election markets of every period (from the earlier exploration) — the **elections** holdout is not clean | parameters fixed before any discovery or holdout run on the other 10 categories |
