@@ -153,7 +153,9 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     cancelAnimationFrame(st.anim);
     st.animating = false;
     let natReady = !ready;
-    ready?.then(() => { natReady = true; }, () => {});
+    // a failed load still ends the fade (the last colours stay), so the transition always finishes
+    // and a resize during it is refitted
+    ready?.then(() => { natReady = true; }, () => { natReady = true; });
     if (document.hidden || reducedMotion() || !st.w) {
       st.view = view; st.fadeMix = fade; st.natMix = nat > st.natMix && !natReady ? st.natMix : nat;
       frame();
