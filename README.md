@@ -22,6 +22,7 @@ live, before outcomes existed).
 
 | finding | evidence |
 |---|---|
+| **How much is underpriced:** the gap between what the count implies and the price predicts the price's next move. Thirty minutes later the market had closed only **40–55% of the gap** (runoff night 0.40 [0.19, 0.67], 12 markets; first round 0.55 [0.31, 0.76], 8 markets); a fully informed market would show 0. | runoff pre-specified; first round in-sample |
 | Early in the count the **raw national tally is predictably skewed** by which states report first; a model of that reporting order, using only pre-election information, removes most of the skew (first-round test at 1.7% counted: error −2.97 → +0.50 points; `analysis/reporting_order_test.py`). On runoff night the market followed the skew: while the raw tally showed Flávio ahead (19:45–20:23, 14–46% counted) it fell from 0.86 to 0.62, and settled above 0.9 only at 47% counted; Lula won 51.79–48.21. | official TSE data (per-section receipt times) |
 | On the first-round night a municipality-level model was sure of the national result **28 minutes before the market** (up to ~3 hours in some state markets); 7 trade signals, 71% won, +16.6% per $. | **in-sample** (development night) |
 | …but only **$2,741** could actually have been bought at those prices within 30 minutes, 98% of it in one market in its first ~4 minutes. On the runoff, **$0** traded at the signal price (the minute price lagged real trades by 2–4¢); accepting 5¢ worse, ~$4,400, almost all in the national market. | first round in-sample; runoff after the frozen looks; from real trades |
@@ -30,9 +31,12 @@ live, before outcomes existed).
 | "Mentions" markets (what will X say) under-price near-certain outcomes: +2.1% per $ after spread and fees, but only $8.3k fillable across 1,851 entries. | **pre-registered**, held-out data |
 | Deep markets reacting too slowly in general: **not supported**. Brazil's lag is a case, not a pattern this sample detects. | pre-registered (null) |
 
-**The short version:** the information gap on count night is real and measurable, but the money
-in it is small and gone within minutes. The cross-market pattern that holds up out of sample is
-over-reaction in thin markets, not under-reaction in deep ones.
+**The short version:** on count night Polymarket prices only about half of what the public count
+already implies within half an hour, but the money in that gap is small and gone within minutes. The
+cross-market pattern that holds up out of sample is over-reaction in thin markets, not under-reaction
+in deep ones.
+
+![How fast the market catches up with the count](docs/figures/underpricing_catchup.png)
 
 ![Runoff night: raw tally, model and market](docs/figures/night_how_it_works.png)
 *Runoff night, 25 Oct 2026 (pre-specified replay). Top: the raw running tally, the model's projected

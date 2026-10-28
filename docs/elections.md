@@ -9,6 +9,29 @@ trusted:
   once; the outcome was already known, so it tests the method, not a trading edge;
 - **forward**: recorded live, before the outcome existed (none yet for a whole election night).
 
+## How much does Polymarket underprice the count?
+
+If the market had fully priced what the public count implied, the gap between the model and the price
+would tell you nothing about where the price goes next. It does. Pooling every market and minute after
+1% of that market's sections were counted, until it settled:
+
+| night | markets | share of the gap the market closed after 5 / 10 / 30 / 60 min | 30-min slope, 95% CI |
+|---|---|---|---|
+| 2026 first round (in-sample) | 8 | 18% / 29% / 55% / 64% | 0.55 [0.31, 0.76] |
+| 2026 runoff night (pre-specified) | 12 | 13% / 22% / 40% / 39% | 0.40 [0.19, 0.67] |
+
+Read the 30-minute column as: half an hour after the count implied something the price didn't show,
+the market had moved about 40–55% of the way there. The rest of the gap closed slowly or only once the
+raw tally itself turned. CIs are a cluster bootstrap over (market, 30-minute block), because one-minute
+windows overlap. The first round is in-sample (the model's settings were chosen on it); the runoff
+night uses settings frozen beforehand.
+
+![Gap predicts the next 30 minutes](figures/underpricing_gap_predicts.png)
+
+![How fast the market catches up](figures/underpricing_catchup.png)
+
+![Runoff night: market vs raw count vs model](figures/underpricing_market_vs_count.png)
+
 ## Scoreboard
 
 "Lead" is how many minutes before the market the model became (and stayed) at least 90% sure of the
