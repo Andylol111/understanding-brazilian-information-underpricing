@@ -34,9 +34,11 @@ live, before outcomes existed).
 in it is small and gone within minutes. The cross-market pattern that holds up out of sample is
 over-reaction in thin markets, not under-reaction in deep ones.
 
-![First-round night: model probability vs Polymarket price](docs/figures/r1_dev_national_replay.png)
-*First round, "Will Lula win the most votes?" (resolved NO). Red: the model from the live count;
-black: Polymarket; dotted: share of sections counted. Brasília time. In-sample.*
+![Runoff night: raw tally, model and market](docs/figures/night_how_it_works.png)
+*Runoff night, 25 Oct 2026 (pre-specified replay). Top: the raw running tally, the model's projected
+final share with its 90% interval, and the final result. Bottom: market price vs the model's
+probability. While the raw tally showed Flávio ahead (shaded), the market fell to 0.62; the model stayed
+above 0.9. Every race: [docs/elections.md](docs/elections.md).*
 
 ## How the election-night tool works
 
@@ -64,6 +66,7 @@ Validation, from weakest to strongest; each step is done or scheduled:
 
 | document | contents |
 |---|---|
+| [docs/elections.md](docs/elections.md) | **election review:** every race the model has been run on, scoreboard and charts |
 | [docs/writeup.md](docs/writeup.md) | **start here:** the whole project as a short article |
 | [docs/research_design.md](docs/research_design.md) | Brazil case study: design, hypotheses, model math |
 | [docs/cross_category.md](docs/cross_category.md) | cross-category method and pre-registered results; forward test |
