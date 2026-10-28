@@ -27,9 +27,15 @@ come, using only information available before the night, removes most of it. On 
 measured against the electoral court's own files, it cut the error of the early count (1.7% of
 sections in) from −2.97 to +0.50 percentage points.
 
-*How the market traded the runoff count, minute by minute, will be added once the electoral court
-publishes the runoff's section-level files. Third-party copies of that night's count exist, but they
-aren't licensed for publication, so they aren't used here.*
+On runoff night that lean was visible in the market. Rebuilt from the per-section receipt times (from
+the electoral court's per-ballot-box files) and lined up with Polymarket minute by minute:
+
+- the market went above 50% for Lula at 19:10 (1.6% counted) and above 70% at 19:23;
+- from 19:45 to 20:23 the raw national tally showed Flávio ahead (14% → 46% counted), and the market
+  fell from 0.86 back to 0.62;
+- it settled above 90% only at 20:24, with 47% of sections counted. Lula won 51.79–48.21.
+
+Through that stretch the model below stayed at or above 0.9 for Lula.
 
 ## A model that reads the count properly
 
