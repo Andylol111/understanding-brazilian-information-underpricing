@@ -1,0 +1,31 @@
+# FROZEN, MODEL-ONLY HISTORICAL REPLAY. Registered before this count's section files were downloaded.
+# Settings copied unchanged from night_r2_v1 (chosen on the 2026 first-round development set). No market:
+# Polymarket price history for this election does not survive. Outcome known; the count path is not.
+# Lula (13) vs Bolsonaro (22); prior: 2018 first round, PT (13, Haddad) vs Bolsonaro (17, PSL)
+# Primary results, reported once by analysis/history_review.py:
+#   (1) lead (minutes) of the model settling >= 0.9 on the eventual winner over the raw running tally
+#       settling on the eventual winner for good;
+#   (2) share of one-minute moments between 1% and 95% counted whose 90% interval contains the final
+#       two-party share (also split at 90% counted).
+id = "hist_2022_r1_v1"
+
+[election]
+cycle = "ele2022"
+race = "share"
+cand_a = "13"
+cand_b = "22"
+
+[prior]
+kind = "open"
+year = 2018
+round = 1
+cand_a = "13"
+cand_b = "17"
+
+[model]
+kind = "municipal"
+tau = 0.015
+
+[replay]
+year = 2022
+round = 1
