@@ -212,8 +212,9 @@ output is compared with the ideal replay (every section visible the moment TSE r
 | limit10 | cache 60 s, limit 10 req/s | 20:00–22:00 (peak) | 7 / 7 | −0.7 to +0.6 min | 47 s / 2.7 min | 852 / 3,411 | 0 |
 
 Return per $ of the 7 signals: +16.3% live vs +17.4% replay in every run. Model probability vs the
-replay at the same instant: median gap 0, p90 ≤ 0.007; the worst single tick differs by up to ~1.0, in
-a market whose deciding municipalities were still in the backlog, which the entry rule absorbed.
+replay at the same instant: median gap 0, p90 ≤ 0.007. Gaps above 0.5 occur in 10 of 80,136 baseline
+ticks, all in the first seconds of the count (20:09 UTC) in Mato Grosso and Minas Gerais, before the
+live engine had read any municipality there (0% counted, below the 1% trade gate).
 
 What this shows: on this night the live system reproduces the replay's signals within a minute, and
 the request budget falls behind on the opening surge (thousands of municipalities waiting at peak)
