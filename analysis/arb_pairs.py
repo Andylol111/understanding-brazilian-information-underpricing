@@ -95,6 +95,18 @@ K_SAYS = {
     "KXSPANISHPM": ("Yes if {x} is the first person formally installed as Prime Minister through government formation "
                     "after the next election, before 22 Aug 2028."),
     "KXVOTESPAIN": "Yes if PP and Vox together get at least 50% of the certified Congress vote.",
+    "KXHUNGARYPARLIPARTY": ("Yes if {x} wins the most seats in the 2026 Hungarian parliamentary election; a seat tie goes "
+                            "to the party entering government, then to vote share."),
+    "KXNEXTHUNGARYPM": ("Yes if {x} is the first person formally installed as Prime Minister through government formation "
+                        "after the 2026 election, before 1 May 2027."),
+    "KXTISZASEATS": lambda x: f"Yes if Tisza wins more than {re.sub(r'[^0-9]', '', x)} seats (at least one more than that number).",
+    "KXCANADAPARTY": "Yes if the {x} wins the most House of Commons seats in the 2025 Canadian election.",
+    "KXCANADAPM": "Yes if the first Prime Minister of the 45th Parliament belongs to the {x}.",
+    "KXQUEBECASSEMBLY": ("Yes if the {x} wins the most National Assembly seats in the 2026 Quebec election; a seat tie "
+                         "goes to the party entering government, then to vote share."),
+    "KXQCPQSEATS": "Yes if the Parti Québécois wins at least 64 of the 125 National Assembly seats in 2026.",
+    "KXQUEBECPREMIER": ("Yes if {x} is the first person to serve as Premier after government formation following the "
+                        "2026 Quebec election, before 1 Jan 2027."),
 }
 SPEC: dict[str, dict] = {
     "br2026r1": {
@@ -261,45 +273,112 @@ SPEC: dict[str, dict] = {
              "pm_event": "spain-general-election-pp-vox-get-50-of-vote", "k_event": "KXVOTESPAIN-26NOV29PPVOX",
              "notes": []},
         ]},
+    "hu2026": {
+        "name": "Hungarian parliamentary election", "date": "2026-04-12",
+        "groups": [
+            {"race_id": "seats", "kind": "explicit", "a": "Tisza", "b": "Fidesz-KDNP", "k_event": "KXHUNGARYPARLIPARTY-26APR12",
+             "pairs": [("will-tisza-respect-and-freedom-party-tisza-win-the-most-seats-in-the-next-hungarian-parliamentary-election",
+                        "KXHUNGARYPARLIPARTY-26APR12-TISZ", True, "a"),
+                       ("will-fideszkdnp-win-the-most-seats-in-the-next-hungarian-parliamentary-election",
+                        "KXHUNGARYPARLIPARTY-26APR12-FIDE", True, "b")], "notes": []},
+            {"race_id": "seats", "kind": "explicit", "a": "Tisza", "b": "Fidesz-KDNP", "k_event": "KXNEXTHUNGARYPM-26MAY01",
+             "pairs": [("will-the-next-prime-minister-of-hungary-be-pter-magyar", "KXNEXTHUNGARYPM-26MAY01-PMAG", True, "a"),
+                       ("will-the-next-prime-minister-of-hungary-be-viktor-orbn", "KXNEXTHUNGARYPM-26MAY01-VORB", True, "b")],
+             "notes": ["Both pay on who becomes Prime Minister, not on seats; Kalshi's deadline is 1 May 2027"]},
+            {"race_id": "tisza130", "kind": "explicit", "a": "130+", "b": "under 130", "k_event": "KXTISZASEATS-26APR12",
+             "pairs": [("will-tisza-win-at-least-130-seats", "KXTISZASEATS-26APR12-A130", True, "a")],
+             "notes": ["Thresholds differ by one seat: Polymarket pays at 130 or more, Kalshi only above 130 (131+); "
+                       "exactly 130 Tisza seats pays Polymarket YES and Kalshi NO"]},
+            {"race_id": "tisza120", "kind": "explicit", "a": "120+", "b": "under 120", "k_event": "KXTISZASEATS-26APR12",
+             "pairs": [("will-tisza-win-at-least-120-seats", "KXTISZASEATS-26APR12-A120", True, "a")],
+             "notes": ["Thresholds differ by one seat: Polymarket pays at 120 or more, Kalshi only above 120 (121+); "
+                       "exactly 120 Tisza seats pays Polymarket YES and Kalshi NO"]},
+        ]},
+    "ca2025": {
+        "name": "Canadian federal election", "date": "2025-04-28",
+        "groups": [
+            {"race_id": "most-lpc", "kind": "explicit", "a": "Liberal", "b": "Another party", "k_event": "KXCANADAPARTY",
+             "pairs": [("will-the-liberal-party-win-the-most-seats-in-the-next-canadian-election", "KXCANADAPARTY-L", True)],
+             "notes": []},
+            {"race_id": "most-cpc", "kind": "explicit", "a": "Conservative", "b": "Another party", "k_event": "KXCANADAPARTY",
+             "pairs": [("will-the-conservative-party-win-the-most-seats-in-the-next-canadian-election", "KXCANADAPARTY-C", True)],
+             "notes": []},
+            {"race_id": "pm-carney", "kind": "explicit", "a": "Carney", "b": "Not Carney", "k_event": "KXCANADAPM-45",
+             "pairs": [("will-mark-carney-be-the-next-canadian-prime-minister", "KXCANADAPM-45-L", True)],
+             "notes": ["Polymarket pays on Mark Carney personally; Kalshi on the party of the 45th Parliament's first Prime "
+                       "Minister (any Liberal) — a different Liberal Prime Minister splits the legs"]},
+            {"race_id": "pm-poilievre", "kind": "explicit", "a": "Poilievre", "b": "Not Poilievre", "k_event": "KXCANADAPM-45",
+             "pairs": [("will-pierre-poilievre-be-the-next-canadian-prime-minister", "KXCANADAPM-45-C", True)],
+             "notes": ["Polymarket pays on Pierre Poilievre personally; Kalshi on any Conservative Prime Minister of the "
+                       "45th Parliament"]},
+        ]},
+    "qc2026": {
+        "name": "Quebec general election", "date": "2026-10-05",
+        "groups": [
+            *({"race_id": f"most-{p}", "kind": "explicit", "a": name, "b": "Another party", "k_event": "KXQUEBECASSEMBLY-26OCT05",
+               "pairs": [(slug, f"KXQUEBECASSEMBLY-26OCT05-{p.upper()}", True)], "notes": []}
+              for p, name, slug in (
+                  ("pq", "Parti Québécois", "will-parti-qubcois-win-the-most-seats-in-the-2026-quebec-general-election"),
+                  ("plq", "Quebec Liberal Party", "will-parti-libral-du-qubec-win-the-most-seats-in-the-2026-quebec-general-election"),
+                  ("caq", "Coalition Avenir Québec", "will-coalition-avenir-qubec-win-the-most-seats-in-the-2026-quebec-general-election"),
+                  ("pcq", "Conservative Party of Quebec", "will-parti-conservateur-du-qubec-win-the-most-seats-in-the-2026-quebec-general-election"))),
+            {"race_id": "pq-majority", "kind": "explicit", "a": "PQ majority", "b": "No PQ majority", "k_event": "KXQCPQSEATS-26OCT05",
+             "pairs": [("will-the-pq-win-a-majority-in-the-2026-quebec-general-election", "KXQCPQSEATS-26OCT05-AL64", True)],
+             "notes": []},
+            {"race_id": "premier-psp", "kind": "explicit", "a": "St-Pierre Plamondon", "b": "Someone else",
+             "k_event": "KXQUEBECPREMIER-27JAN01",
+             "pairs": [("will-paul-st-pierre-plamondon-be-the-next-premier-of-quebec-following-the-2026-quebec-general-election",
+                        "KXQUEBECPREMIER-27JAN01-PSPP", True)], "notes": []},
+        ]},
 }
 
 
 # ---------------------------------------------------------------------------------------------- fetch
 
+def _pm_row(m: dict, event: str, event_title: str) -> dict:
+    toks, outs = json.loads(m["clobTokenIds"]), json.loads(m["outcomes"])
+    fs = m.get("feeSchedule") or {}
+    on = bool(m.get("feesEnabled"))
+    return {"slug": m["slug"], "label": m.get("groupItemTitle") or m["question"], "question": m["question"],
+            "rules": m.get("description") or "", "yes_token": toks[outs.index("Yes")] if "Yes" in outs else toks[0],
+            "condition_id": m["conditionId"], "fee_rate": float(fs.get("rate") or 0) if on else 0.0,
+            "fee_exponent": float(fs.get("exponent") or 1), "closed": bool(m.get("closed")),
+            "end": m.get("endDate"), "event": event, "event_title": event_title}
+
+
 def pm_markets(slug: str) -> list[dict]:
     """Live-or-traded binary markets of a Polymarket event (placeholders without volume dropped)."""
     ev = polymarket.event(slug)
-    out = []
-    for m in ev["markets"]:
-        if not m.get("clobTokenIds") or float(m.get("volume") or 0) == 0:
-            continue
-        toks, outs = json.loads(m["clobTokenIds"]), json.loads(m["outcomes"])
-        fs = m.get("feeSchedule") or {}
-        on = bool(m.get("feesEnabled"))
-        out.append({"slug": m["slug"], "label": m.get("groupItemTitle") or m["question"], "question": m["question"],
-                    "rules": m.get("description") or "", "yes_token": toks[outs.index("Yes")] if "Yes" in outs else toks[0],
-                    "condition_id": m["conditionId"], "fee_rate": float(fs.get("rate") or 0) if on else 0.0,
-                    "fee_exponent": float(fs.get("exponent") or 1), "closed": bool(m.get("closed")),
-                    "end": m.get("endDate"), "event": slug, "event_title": ev.get("title", "")})
-    return out
+    return [_pm_row(m, slug, ev.get("title", "")) for m in ev["markets"]
+            if m.get("clobTokenIds") and float(m.get("volume") or 0) > 0]
+
+
+def pm_market(slug: str) -> dict:
+    """One Polymarket market by its slug (Gamma /markets; closed markets only appear with closed=true)."""
+    with _http.client() as c:
+        res = _http.get_json(c, f"{polymarket.GAMMA}/markets", {"slug": slug}) or \
+            _http.get_json(c, f"{polymarket.GAMMA}/markets", {"slug": slug, "closed": "true"})
+    if not res:
+        raise KeyError(f"no Polymarket market {slug!r}")
+    m = res[0]
+    ev = (m.get("events") or [{}])[0]
+    return _pm_row(m, ev.get("slug", ""), ev.get("title", ""))
 
 
 _series_cache: dict[str, dict] = {}
 
 
 def k_markets(event_ticker: str) -> list[dict]:
-    """Kalshi event markets with rule texts, the event's settlement sources and fee multiplier."""
-    with _http.client() as c:
-        d = kalshi._get(c, f"/events/{event_ticker}", {"with_nested_markets": "true"})
-        ev = d["event"]
-        s = ev["series_ticker"]
-        if s not in _series_cache:
-            _series_cache[s] = kalshi._get(c, f"/series/{s}")["series"]
+    """Kalshi event markets with rule texts (kept in memory only), settlement sources and fee multiplier."""
+    ev = kalshi.event(event_ticker)
+    s = ev["series_ticker"]
+    if s not in _series_cache:
+        _series_cache[s] = kalshi.series(s)
     ser = _series_cache[s]
     mult = ev.get("fee_multiplier_override", ser.get("fee_multiplier", 1))
     sources = [x.get("name") for x in (ev.get("settlement_sources") or ser.get("settlement_sources") or [])]
     out = []
-    for m in ev.get("markets") or d.get("markets") or []:
+    for m in ev["markets"]:
         rules = "\n\n".join(x for x in (m.get("rules_primary"), m.get("rules_secondary")) if x)
         out.append({"ticker": m["ticker"], "label": m.get("yes_sub_title") or m.get("title"), "title": m.get("title", ""),
                     "rules": rules, "early_close": m.get("early_close_condition") or "",
@@ -370,7 +449,7 @@ def _pair(eid: str, race: str, g: dict, p: dict, k: dict, same_side: bool, prop:
         "risk_free": False,
         "resolution_differences": auto_diffs(p, k, same_side) + list(g.get("notes") or []),
         "pm_rules": p["rules"],
-        "kalshi_resolution": K_SAYS[k["series"]].format(x=k["label"]),
+        "kalshi_resolution": (lambda f: f(k["label"]) if callable(f) else f.format(x=k["label"]))(K_SAYS[k["series"]]),
         "kalshi_url": f"https://kalshi.com/markets/{k['series'].lower()}",
         "kalshi_contract_terms": k["contract_terms_url"],
         "_race": {"a": g.get("a") or "", "b": g.get("b") or ""},      # → [races] table, not written per pair
@@ -395,17 +474,21 @@ def build(eid: str) -> list[dict]:
                     elif arb.same_name(p["label"], BR_A):       # Kalshi YES = Flávio wins the state
                         pairs.append(_pair(eid, uf, g, p, ks[0], False, f"{BR_A} wins {state} in the runoff", "a", "b"))
             continue
-        pms = pm_markets(g["pm_event"])
         if g["kind"] in ("single", "explicit"):
-            # single: each side's only market; explicit: g["pairs"] = [(pm slug, kalshi ticker, same_side)]
+            # single: each side's only market; explicit: g["pairs"] = [(pm slug, kalshi ticker, same_side[, pm side])],
+            # PM markets read by slug when the group names no pm_event
+            pms = pm_markets(g["pm_event"]) if g.get("pm_event") else [pm_market(x[0]) for x in g["pairs"]]
             want = g.get("pairs") or ([(pms[0]["slug"], km[0]["ticker"], True)] if len(pms) == len(km) == 1 else [])
             if not want:
                 print(f"  {g['race_id']}: single pair expected, got {len(pms)} PM / {len(km)} Kalshi", file=sys.stderr)
-            for slug, ticker, same in want:
+            for slug, ticker, same, *side in want:
                 p = next(x for x in pms if x["slug"] == slug)
                 k = next(x for x in km if x["ticker"] == ticker)
-                pairs.append(_pair(eid, g["race_id"], g, p, k, same, p["question"], "a", "a" if same else "b"))
+                ps = side[0] if side else "a"
+                ks = ps if same else {"a": "b", "b": "a"}.get(ps, "other")
+                pairs.append(_pair(eid, g["race_id"], g, p, k, same, p["question"], ps, ks))
             continue
+        pms = pm_markets(g["pm_event"])
         matched = arb.match_outcomes([p["label"] for p in pms], [k["label"] for k in km], g.get("aliases"))
         for i, j in matched:
             p, k = pms[i], km[j]

@@ -1,8 +1,12 @@
 // Election dashboard controller. One shared time (S.t, or S.preview while hovering the chart)
-// drives the map frame, the chart cursor, the readout and the race list. Reads only the
-// dashboard contract files; `&live=<base>` re-fetches them every 15 s.
+// drives the map, the chart cursor, the readout, the region picker and the race list. Reads only
+// the dashboard contract files; `&live=<base>` re-fetches them every 15 s.
+//
+// Loading order: meta → timeline/stats (chart, readout, lists paint first) while a Web Worker
+// (dash-worker.js) fetches, parses and projects the geometry and the map frames; the map appears
+// when both arrive. While playing, colours are interpolated between map frames every animation frame.
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-import { C, LIVE, STATIC, param, getJSON, esc, pct, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
+import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
 import { createMap } from "./dash-map.js";
 import { drawTimeline } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
@@ -13,11 +17,78 @@ const $ = (id) => document.getElementById(id);
 const MIN = 60000;
 const WIDE = window.matchMedia("(min-width: 1100px)");
 const S = {
-  mode: "margin", t: 0, preview: null, playing: false, speed: 1, followLatest: false,
-  colourCache: new Map(), shownKey: null, hover: -1, pinned: -1,
-  perf: { firstRenderMs: null, frameDrawMs: [], colourMs: [] },
+  mode: "margin", t: 0, preview: null, playing: false, speed: 1, followLatest: false, userMoved: false,
+  region: null, shownKey: null, hover: -1, pinned: -1,
+  perf: { firstPaintMs: null, firstRenderMs: null, tickMs: [], frameDrawMs: [] },
 };
 window.__dashPerf = S.perf;
+
+/* ---------------------------------------------------------------- map engine: worker, else page */
+
+// dash-engine.js normally runs in a Web Worker and paints an OffscreenCanvas. If the worker cannot
+// start, reports an error, has not said "ready" within ENGINE_TIMEOUT, or has not delivered the
+// geometry and frames within ENGINE_CAP, the same engine runs on the page's main thread instead.
+const ENGINE_TIMEOUT = 3000, ENGINE_CAP = 20000;
+const E = { kind: null, worker: null, seq: 0, pending: new Map(), main: null, failing: null, readyAt: null };
+
+function onEngineEvent(data) {
+  if (data.type === "painted") { if (S.perf.firstRenderMs == null) S.perf.firstRenderMs = Math.round(data.at - performance.timeOrigin); }
+  else if (data.type === "drawStats") S.perf.frameDrawMs.push(...data.ms);
+  else if (data.type === "error") engineFailed(new Error(data.error));
+  else if (data.type === "ready") E.readyAt = performance.now();
+}
+
+function startWorker() {
+  if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined" || !HTMLCanvasElement.prototype.transferControlToOffscreen) return false;
+  try {
+    E.worker = new Worker(new URL("./dash-worker.js", import.meta.url), { type: "module" });
+  } catch (err) {
+    console.error("Map worker could not start:", err);
+    return false;
+  }
+  E.worker.onmessage = ({ data }) => {
+    if (data.id == null) { onEngineEvent(data); return; }
+    const p = E.pending.get(data.id);
+    if (!p) return;
+    E.pending.delete(data.id);
+    if (data.error) p.reject(new Error(data.error)); else p.resolve(data.out);
+  };
+  E.worker.onerror = (ev) => { ev.preventDefault?.(); engineFailed(new Error(ev.message || "the map worker failed to load")); };
+  E.worker.onmessageerror = () => engineFailed(new Error("a message from the map worker could not be read"));
+  E.kind = "worker";
+  return true;
+}
+
+async function startMain() {
+  E.main ??= await import("./dash-engine.js");
+  E.main.setEmitter(onEngineEvent);
+  E.kind = "main";
+}
+
+function work(type, payload) {
+  if (E.kind === "main") return E.main[type](payload).then((o) => o.result);
+  return new Promise((resolve, reject) => {
+    const id = ++E.seq;
+    E.pending.set(id, { resolve, reject });
+    E.worker.postMessage({ id, type, ...payload });
+  });
+}
+const enginePost = (msg, transfer) => (E.kind === "main" ? E.main.control(msg) : E.worker.postMessage(msg, transfer ?? []));
+
+// Switch to the page's own thread and rebuild the map there (the worker may hold the canvas).
+function engineFailed(err) {
+  if (E.kind !== "worker") return E.failing ?? Promise.resolve();
+  E.failing ??= (async () => {
+    console.error(`Map worker failed (${err?.message ?? err}); drawing the map on the page instead.`);
+    S.engineNote = err?.message ?? String(err);
+    E.worker.terminate();
+    for (const p of E.pending.values()) p.reject(err);
+    E.pending.clear();
+    await startMain();
+    await buildMap();
+  })();
+  return E.failing;
+}
 
 /* ---------------------------------------------------------------- data */
 
@@ -27,34 +98,68 @@ const national = () => races().find((r) => !r.region);
 const mainRace = () => national() ?? races()[0];
 const regionName = (id) => S.meta.regions?.find((r) => r.id === id)?.name ?? id?.toUpperCase();
 const raceName = (r) => (r.region && !r.name.includes(regionName(r.region)) ? `${r.name}, ${regionName(r.region)}` : r.name);
-const unitsPath = () => `${EID}/${S.race?.units ?? "units.json"}`;
+const racesIn = (region) => races().filter((r) => r.region === region);
+// The race's office without its region ("tx-sen" -> "sen"), to keep the same office across regions.
+const office = (r) => (r?.region ? r.race_id.split(/[-_]/).filter((p) => p !== r.region).join("-") : r?.race_id);
+const shortRaceName = (r) => {
+  const s = r.name.replace(regionName(r.region), "").replace(/(\s+(in|of|for|the))+\s*$/i, "").replace(/^[\s,:–-]+|[\s,:–-]+$/g, "") || r.name;
+  return s[0].toUpperCase() + s.slice(1);
+};
+// Country code: the elections.json entry, else meta.country, else the geometry file's prefix ("geo/us_…").
+const countryCode = () => (S.entry?.country ?? S.meta.country ?? (S.meta.geometry ?? "").match(/geo\/([a-z]{2})_/)?.[1] ?? "").toUpperCase();
+const countryName = () => {
+  try { return countryCode() ? new Intl.DisplayNames(["en"], { type: "region" }).of(countryCode()) : S.meta.name; } catch { return S.meta.name; }
+};
 
-async function loadAll(first) {
+async function loadMeta() {
   const opt = { optional: true };
-  if (first) {
-    const [elections, meta] = await Promise.all([getJSON("elections.json", opt), getJSON(`${EID}/meta.json`, opt)]);
-    S.elections = elections ?? [];
-    S.entry = S.elections.find((e) => e.id === EID) ?? null;
-    if (!meta) throw new Error(`${EID}/meta.json: not found`);
-    S.meta = meta;
-    S.countTimeline = meta.count_timeline !== false;
-    S.tz = meta.tz ?? "UTC";
-    S.race = raceById(param("race")) ?? mainRace() ?? null;
-  }
-  const path = unitsPath();
-  const [timeline, units, stats, arb] = await Promise.all([
-    getJSON(`${EID}/timeline.json`, opt), getJSON(path, opt), getJSON(`${EID}/stats.json`, opt), getJSON(`${EID}/arb.json`, opt),
-  ]);
+  const [elections, meta] = await Promise.all([getJSON("elections.json", opt), getJSON(`${EID}/meta.json`, opt)]);
+  S.elections = elections ?? [];
+  S.entry = S.elections.find((e) => e.id === EID) ?? null;
+  if (!meta) throw new Error(`${EID}/meta.json: not found`);
+  S.meta = meta;
+  S.countTimeline = meta.count_timeline !== false;
+  S.tz = meta.tz ?? "UTC";
+  const asked = raceById(param("race"));
+  S.race = asked ?? mainRace() ?? null;
+  // Open on a region only when one was asked for; elections without a national race open on the
+  // overview of all regions with races.
+  S.region = asked?.region ?? null;
+}
+
+async function loadSeries() {
+  const opt = { optional: true };
+  const [timeline, stats, arb] = await Promise.all([getJSON(`${EID}/timeline.json`, opt), getJSON(`${EID}/stats.json`, opt), getJSON(`${EID}/arb.json`, opt)]);
   S.rows = new Map(Object.entries(timeline ?? {}).map(([id, rows]) => [id, rows.map((d) => ({ ...d, time: new Date(d.t), tms: Date.parse(d.t) }))]));
   S.stats = stats;
   S.arb = arb;
-  if (path === unitsPath()) setUnits(units);
   S.lastFetch = Date.now();
+}
+
+// Which units files the map shows: the selected race's own file, or units.json. With no national
+// race and per-race files, the overview (no region chosen) merges one race per region, keeping the
+// selected race's office where a region has it.
+function unitsPlan() {
+  if (!S.region && !national() && races().some((r) => r.units)) {
+    const byRegion = d3.group(races().filter((r) => r.region && r.units), (r) => r.region);
+    const pick = [...byRegion.values()].map((list) => list.find((r) => office(r) === office(S.race)) ?? list[0]);
+    return { key: pick.map((r) => r.units).join("|"), urls: pick.map((r) => `${EID}/${r.units}`), races: pick };
+  }
+  const p = S.race?.units ?? "units.json";
+  return { key: p, urls: [`${EID}/${p}`], races: [S.race?.units ? S.race : null] };
+}
+
+async function loadUnits() {
+  const plan = unitsPlan();
+  const out = await work("units", { urls: plan.urls.map((u) => absUrl(u)), live: !!LIVE, countTimeline: S.countTimeline });
+  if (plan.key !== unitsPlan().key) return false; // the selection moved on while loading
+  setUnits(out, plan);
+  return true;
 }
 
 // Row of a race's timeline at time t (last row at or before t). Time arrays are built once per load.
 const tIndex = new WeakMap();
-function rowFast(raceId, t) {
+function rowAt(raceId, t) {
   const rows = S.rows.get(raceId);
   if (!rows?.length) return null;
   let ts = tIndex.get(rows);
@@ -63,30 +168,40 @@ function rowFast(raceId, t) {
   return i >= 0 ? rows[i] : null;
 }
 
-function setUnits(units) {
-  S.units = units?.unit_ids?.length ? units : null;
-  S.colourCache.clear();
+function setUnits(U, plan) {
+  S.units = U?.n ? U : null;
+  S.unitsKey = plan.key;
   S.shownKey = null;
   if (!S.units) return;
-  S.unitIndex = new Map(units.unit_ids.map((id, i) => [id, i]));
+  S.unitIndex = new Map(U.unit_ids.map((id, i) => [id, i]));
+  // Map sides: units.a/b when the values are not one race's candidates (e.g. blocs); a merged
+  // overview: each unit's own file's race; else units.race_id, the planned race, the region's race,
+  // or the main race.
   const byRegion = new Map(races().filter((r) => r.region).map((r) => [r.region, r]));
-  // Map sides: units.a/units.b when the frames are not one race's candidates (e.g. blocs), else
-  // units.race_id, else the race for the unit's region, else the main race.
-  const sides = units.a && units.b ? { race_id: null, name: units.label ?? "Map", a: units.a, b: units.b } : null;
-  const fixed = sides ?? (units.race_id ? raceById(units.race_id) : null);
-  S.unitRace = units.unit_ids.map((_, i) => fixed ?? byRegion.get(units.region?.[i]) ?? mainRace());
-  S.unitLUT = S.unitRace.map(divLUT);
+  const sides = U.a && U.b ? { race_id: null, name: U.label ?? "Map", a: U.a, b: U.b } : null;
+  const fixed = sides ?? (U.race_id ? raceById(U.race_id) : plan.races.length === 1 ? plan.races[0] : null);
+  S.unitRace = U.unit_ids.map((_, j) => (plan.races.length > 1 ? plan.races[U.source[j]] : fixed) ?? byRegion.get(U.region[j]) ?? mainRace());
   S.mapRaces = [...new Set(S.unitRace)];
-  S.frameTimes = (units.frames ?? []).map((f) => Date.parse(f.t));
-  const gaps = S.frameTimes.slice(1).map((t, i) => t - S.frameTimes[i]);
+  S.frameTimes = U.times;
+  const gaps = Array.from(U.times.slice(1), (t, i) => t - U.times[i]);
   S.frameSpacing = gaps.length ? d3.median(gaps) : 5 * MIN;
+  // expected votes per region, for the picker's share counted
+  S.regionUnits = d3.group(d3.range(U.n), (j) => U.region[j]);
   if (S.map) bindUnits();
 }
 
 function bindUnits() {
-  const key = S.meta.unit_key ?? "unit_id";
-  S.featIdx = S.map.features.map((f) => S.unitIndex.get(f.properties[key]) ?? -1);
-  S.map.setUnits(S.featIdx, S.units.V0);
+  S.featIdx = Int32Array.from(S.map.ids, (id) => S.unitIndex.get(id) ?? -1);
+  // colours are built in the worker from each unit's race colours
+  const raceList = [...new Set(S.unitRace)];
+  const at = new Map(raceList.map((r, i) => [r, i]));
+  S.map.setUnits(S.featIdx, S.units.V0, {
+    unitRace: Int16Array.from(S.unitRace, (r) => at.get(r)),
+    raceColors: raceList.map((r) => [r.a.color, r.b.color]),
+    parties: S.meta.parties ?? [],
+    countTimeline: S.countTimeline,
+  });
+  S.shownKey = null;
 }
 
 /* ---------------------------------------------------------------- time */
@@ -98,10 +213,10 @@ function computeDomain() {
     first = Math.min(first, rows[0].tms);
     end = Math.max(end, rows[rows.length - 1].tms);
   }
-  if (S.frameTimes?.length > 1) { first = Math.min(first, S.frameTimes[0]); end = Math.max(end, S.frameTimes[S.frameTimes.length - 1]); }
+  const ft = S.frameTimes;
+  if (ft?.length > 1) { first = Math.min(first, ft[0]); end = Math.max(end, ft[ft.length - 1]); }
   if (!Number.isFinite(first)) { first = Date.parse(S.meta.poll_close_utc ?? `${S.meta.date}T12:00:00Z`); end = first + 60 * MIN; }
-  // Start 15 minutes before the main race reached 1% counted: before that the count barely moves
-  // (in the Brazil runoff 0.2-0.4% sat unchanged from 17:06 to 19:04).
+  // Start 15 minutes before the main race reached 1% counted: before that the count barely moves.
   let start = first;
   S.gateCut = null;
   const gate = S.countTimeline ? S.rows.get(mainRace()?.race_id)?.find((d) => d.counted >= 0.01) : null;
@@ -110,13 +225,17 @@ function computeDomain() {
     const before = S.rows.get(mainRace().race_id).filter((d) => d.tms < start);
     S.gateCut = { gate: gate.t, start, maxBefore: d3.max(before, (d) => d.counted) };
   }
+  const old = S.domain;
   S.domain = [start, Math.max(end, start + MIN)];
   const off = tzOffsetMin(S.tz, start) * MIN;
   S.wall = (d) => new Date(+d + off);
+  return !old || old[0] !== S.domain[0] || old[1] !== S.domain[1];
 }
 
 const clampT = (t) => Math.max(S.domain[0], Math.min(S.domain[1], t));
 
+// Replays open at the first map frame after the main race reached 25% counted; live pages and
+// elections without a count open at the end.
 function defaultTime() {
   if (LIVE || !S.countTimeline) return S.domain[1];
   const hit = S.rows.get(mainRace()?.race_id)?.find((d) => d.counted >= 0.25);
@@ -132,6 +251,7 @@ function frameIndex(t) {
 
 function setTime(t) {
   S.t = clampT(t);
+  S.userMoved = true;
   S.followLatest = S.t >= S.domain[1];
   render();
 }
@@ -151,124 +271,76 @@ function divLUT(race) {
   }
   return lutCache.get(key);
 }
-const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4 };
-const lutIdx = (v) => Math.round((Math.max(-1, Math.min(1, v)) + 1) * 100);
+const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4 }; // same as dash-worker.js
 
-// Multi-party elections: meta.parties + units.winner/margin (top level = final result, or per
-// frame when the exporter has count frames) give a "Winning party" map mode.
-const winnerSource = (k) => (k >= 0 && S.units.frames[k]?.winner ? S.units.frames[k] : S.units);
-const hasWinner = () => !!(S.meta.parties?.length && (S.units?.winner || S.units?.frames?.[0]?.winner));
+// Multi-party elections: meta.parties + units winner/margin give a "Winning party" map mode.
+const hasWinner = () => !!(S.meta.parties?.length && S.units?.winner);
+function winnerAt(k, j) {
+  const w = S.units.winner;
+  if (w.perFrame) return k >= 0 ? [w.perFrame[k * S.units.n + j], w.margin[k * S.units.n + j]] : [null, 0];
+  return [w.top[j], w.margin[j]];
+}
 
 function modes() {
   if (!S.units) return [];
   const w = hasWinner() ? ["winner"] : [];
-  if (!S.units.frames?.length) return [...w, "prior"];
+  if (!S.units.K) return [...w, "prior"];
   return [...w, ...(S.countTimeline ? ["margin", "swing", "counted"] : ["margin", "swing"])];
 }
 const modeLabel = (m) => ({ winner: "Winning party", margin: S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", counted: "Counted", prior: "Comparison election" })[m];
 
-const partyLUTs = new Map();
-const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is at full strength
-function partyLUT(id) {
-  if (!partyLUTs.has(id)) {
-    const color = S.meta.parties?.find((p) => p.id === id)?.color ?? "#8a8a8a";
-    partyLUTs.set(id, d3.range(21).map((i) => d3.interpolateLab(NEUTRAL, color)(0.3 + 0.7 * (i / 20))));
-  }
-  return partyLUTs.get(id);
-}
-
-function coloursFor(mode, k) {
-  const key = `${mode}|${k}`;
-  let out = S.colourCache.get(key);
-  if (out) return out;
-  const t0 = performance.now();
-  const u = S.units, fr = k >= 0 ? u.frames[k] : null, prior = u.prior, idx = S.featIdx, luts = S.unitLUT;
-  const win = mode === "winner" ? winnerSource(k) : null;
-  out = new Array(idx.length);
-  for (let i = 0; i < idx.length; i++) {
-    const j = idx[i];
-    if (j < 0) { out[i] = NONE; continue; }
-    let c = NONE;
-    if (mode === "counted") {
-      const f = fr.f[j];
-      if (f > 0) c = COUNTED_LUT[Math.min(100, Math.round(f / 10))];
-    } else if (mode === "swing") {
-      const a = fr.a[j], p = prior[j];
-      if (a >= 0 && p >= 0) c = luts[j][lutIdx((a - p) / 1000 / SCALE.swing)];
-    } else if (mode === "margin") {
-      const v = S.countTimeline ? fr.proj?.[j] ?? -1 : fr.a[j] >= 0 ? fr.a[j] : fr.proj?.[j] ?? -1;
-      if (v >= 0) c = luts[j][lutIdx((2 * v / 1000 - 1) / SCALE.margin)];
-    } else if (mode === "prior") {
-      const p = prior[j];
-      if (p >= 0) c = luts[j][lutIdx((2 * p / 1000 - 1) / SCALE.prior)];
-    } else if (mode === "winner") {
-      const p = win.winner?.[j];
-      if (p != null) c = partyLUT(p)[Math.round(Math.min(1, (win.margin?.[j] ?? 0) / 1000 / WIN_FULL) * 20)];
-    }
-    out[i] = c;
-  }
-  S.colourCache.set(key, out);
-  S.perf.colourMs.push(performance.now() - t0);
-  return out;
-}
-
-// Fill the colour cache for every frame of the current mode while the page is idle, so playing
-// never computes colours on the critical path.
-function warmColours() {
-  if (!S.units?.frames?.length) return;
-  const mode = S.mode;
-  let k = 0;
-  const idle = window.requestIdleCallback ?? ((f) => setTimeout(() => f({ timeRemaining: () => 8 }), 30));
-  const work = (deadline) => {
-    while (k < S.units.frames.length && deadline.timeRemaining() > 3) { if (S.mode !== mode) return; coloursFor(mode, k++); }
-    if (k < S.units.frames.length) idle(work);
-  };
-  idle(work);
-}
+const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is at full strength (dash-worker.js)
 
 /* ---------------------------------------------------------------- render */
 
 let listTimer = 0, lastList = 0;
 
 function render() {
+  const t0 = performance.now();
   const tt = S.preview ?? S.t;
   const k = frameIndex(tt);
   if (S.map && S.units) {
+    // the worker paints: every animation frame while playing (colours tweened between map
+    // frames), otherwise only when the frame or the mode changes
+    const tween = S.playing && S.preview == null && S.mode !== "winner" && k >= 0 && k + 1 < S.units.K;
     const key = `${S.mode}|${k}`;
-    if (key !== S.shownKey) {
-      S.map.setColours(coloursFor(S.mode, k));
-      S.shownKey = key;
-      if (S.playing) S.perf.frameDrawMs.push(S.map.lastDrawMs);
-      if (S.perf.firstRenderMs == null) S.perf.firstRenderMs = Math.round(performance.now());
-      renderLegend();
+    if (tween || key !== S.shownKey) {
+      S.map.paint(S.mode, tt, tween);
+      S.shownKey = tween ? null : key;
     }
-    $("frame-label").textContent = k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results" : `Map frame ${clock(S.units.frames[k].t, S.tz)}`;
-    placeCard();
+    const lk = `${S.mode}|${S.mode === "winner" ? k : ""}|${S.race?.race_id}`;
+    if (lk !== S.legendKey) { S.legendKey = lk; renderLegend(); }
+    $("frame-label").textContent = k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
+      : tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames`
+        : `Map frame ${clock(S.units.times[k], S.tz)}`;
+    if (S.hover >= 0 || S.pinned >= 0) placeCard();
   }
   S.tl?.setCursor(S.t, S.preview);
-  const label = `${clock(S.t, S.tz)} ${tzName(S.tz, S.t)}`;
-  S.scrub.setTime(S.t, label);
+  S.scrub.setTime(S.t, `${clock(S.t, S.tz)} ${tzName(S.tz, S.t)}`);
+  const frameT = k >= 0 && S.units ? S.units.times[k] : null;
   $("scrub-time").innerHTML = S.preview != null
     ? `<b>${clock(S.preview, S.tz)}</b> preview · scrubber at ${clock(S.t, S.tz)}`
-    : `<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${k >= 0 && S.countTimeline ? ` · map frame ${clock(S.units.frames[k].t, S.tz)}` : ""}`;
+    : `<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
   if (S.race) {
-    renderReadout($("readout"), { race: S.race, row: rowFast(S.race.race_id, tt), t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: k >= 0 ? S.units?.frames[k].t : null });
+    renderReadout($("readout"), { race: S.race, row: rowAt(S.race.race_id, tt), t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT });
   }
-  // race list: at most every 200 ms while playing
+  // race list and region picker: at most every 200 ms while playing
   const now = performance.now();
   clearTimeout(listTimer);
-  if (now - lastList > 200) updateList(tt);
-  else listTimer = setTimeout(() => updateList(S.preview ?? S.t), 200);
+  if (now - lastList > 200) updateLists(tt);
+  else listTimer = setTimeout(() => updateLists(S.preview ?? S.t), 200);
+  if (S.playing) S.perf.tickMs.push(performance.now() - t0);
 }
 
-function updateList(t) {
+function updateLists(t) {
   lastList = performance.now();
-  if (!S.list) return;
-  const vals = new Map(races().map((r) => {
-    const row = rowFast(r.race_id, t);
-    return [r.race_id, { P: row?.P ?? null, m: row?.pm ?? row?.kalshi ?? null }];
-  }));
-  S.list.update(vals);
+  if (S.list) {
+    S.list.update(new Map(races().map((r) => {
+      const row = rowAt(r.race_id, t);
+      return [r.race_id, { P: row?.P ?? null, pm: row?.pm ?? null, k: row?.kalshi ?? null }];
+    })));
+  }
+  updatePicker(t);
 }
 
 function renderLegend() {
@@ -289,47 +361,91 @@ function renderLegend() {
   svg.selectAll("text").data(ticks).join("text").attr("x", (d) => d[0] * w).attr("y", 20)
     .attr("text-anchor", (d) => (d[0] === 0 ? "start" : d[0] === 1 ? "end" : "middle")).attr("class", "legend-text").text((d) => d[1]);
   if (S.mode !== "counted") {
-    const lab = (n) => (S.mode === "swing" ? `towards ${esc(n)}` : `${esc(n)} ahead`);
+    const lab = (nm) => (S.mode === "swing" ? `towards ${esc(nm)}` : `${esc(nm)} ahead`);
     root.append("div").attr("class", "legend-names").html(`<span>${lab(r.a.name)}</span><span>${lab(r.b.name)}</span>`);
   }
 }
 
 function partyLegend(root) {
-  const src = winnerSource(frameIndex(S.preview ?? S.t));
-  const counts = d3.rollup((src.winner ?? []).filter((x) => x != null), (v) => v.length, (d) => d);
+  const k = frameIndex(S.preview ?? S.t);
+  const counts = new Map();
+  for (let j = 0; j < S.units.n; j++) {
+    const [p] = winnerAt(k, j);
+    if (p != null) counts.set(p, (counts.get(p) ?? 0) + 1);
+  }
   const rows = [...counts].sort((a, b) => b[1] - a[1]);
   const party = (id) => S.meta.parties.find((p) => p.id === id) ?? { name: id, color: "#8a8a8a" };
   root.html(`<ul class="party-legend">${rows.map(([id, n]) => `<li><i style="background:${esc(party(id).color)}"></i>${esc(party(id).name)} <b>${n}</b></li>`).join("")}</ul>
     <p class="legend-note">Units won. Paler: narrower win (full colour at a ${WIN_FULL * 100}-point margin).</p>`);
 }
 
-// Projection by country: Statistics Canada's Lambert conformal conic for Canada, Albers with insets
-// for the US, an equal-area conic centred on the extent for large mid-latitude countries, else Mercator.
-function projectionFor(country) {
-  return (fc) => {
-    if (country === "CA") return d3.geoConicConformal().parallels([49, 77]).rotate([96, 0]);
-    if (country === "US") return d3.geoAlbersUsa();
-    if (country === "BR" || country === "MX") {
-      const [[x0, y0], [x1, y1]] = d3.geoBounds(fc);
-      const pad = (y1 - y0) / 6;
-      return d3.geoConicEqualArea().parallels([y0 + pad, y1 - pad]).rotate([-(x0 + x1) / 2, 0]);
-    }
-    return d3.geoMercator();
-  };
-}
-
 /* ---------------------------------------------------------------- map */
 
-async function initMap() {
-  if (!S.meta.geometry) return;
-  const topo = await getJSON(S.meta.geometry, { root: STATIC });
+function startGeo() {
+  if (!S.meta.geometry) return null;
   const key = S.meta.unit_key ?? "unit_id";
-  const first = String(Object.values(topo.objects)[0]?.geometries?.[0]?.properties?.[key] ?? "");
-  const country = (S.entry?.country ?? first.split("-")[0]).toUpperCase();
+  const country = countryCode();
+  S.country = country;
+  return work("geo", { url: absUrl(S.meta.geometry, STATIC), objectName: S.meta.geometry_object, unitKey: key, country });
+}
+
+// Load geometry and frames with the current engine and attach the map once the rest of the page is
+// up. A worker that errors, has not started within ENGINE_TIMEOUT, or has not delivered within
+// ENGINE_CAP hands over to the page (engineFailed calls buildMap again with the main-thread engine).
+async function buildMap() {
+  let geo = null;
+  if (S.meta.geometry) {
+    const kind = E.kind;
+    const timers = [];
+    try {
+      const job = Promise.all([startGeo(), loadUnits()]);
+      if (kind === "worker") {
+        const limit = new Promise((_, reject) => {
+          timers.push(setTimeout(() => { if (!E.readyAt) reject(new Error(`the map worker did not start within ${ENGINE_TIMEOUT / 1000} s`)); }, ENGINE_TIMEOUT));
+          timers.push(setTimeout(() => reject(new Error(`the map worker did not deliver within ${ENGINE_CAP / 1000} s`)), ENGINE_CAP));
+        });
+        [geo] = await Promise.race([job, limit]);
+      } else [geo] = await job;
+    } catch (err) {
+      if (kind === "worker") { await engineFailed(err); return; }
+      S.mapError = err.message;
+      console.error("Map:", err);
+    } finally {
+      timers.forEach(clearTimeout);
+    }
+  }
+  await S.ui;
+  if (geo) {
+    $("map").querySelector(".map-canvas")?.remove(); // a worker that failed may still hold the old one
+    S.map = null;
+    S.mapRegions = null;
+    try {
+      initMap(geo);
+    } catch (err) {
+      if (E.kind === "worker") { await engineFailed(err); return; }
+      S.mapError = err.message;
+      console.error("Map:", err);
+    }
+  }
+  if (computeDomain()) { drawChart(); updateScrubber(); }
+  if (!S.userMoved) S.t = defaultTime();
+  S.followLatest = S.t >= S.domain[1];
+  buildPicker();
+  showMapState();
+  render();
+}
+
+function initMap(geo) {
+  S.shownKey = null;
+  S.legendKey = null;
   S.map = createMap($("map"), {
-    topo, objectName: S.meta.geometry_object, unitKey: key,
-    projection: projectionFor(country), populatedFirst: country === "CA",
-    onHover: (i, ev) => { S.hover = i; S.hoverPos = ev ? pointIn(ev) : null; placeCard(); },
+    geo, post: enginePost, offscreen: E.kind === "worker", populatedFirst: S.country === "CA",
+    onHover: (i, ev) => {
+      S.hover = i;
+      S.hoverPos = ev ? pointIn(ev) : null;
+      placeCard();
+      highlightPickerRow(i >= 0 ? S.map.regionOf(i) : null);
+    },
     onClick: (i, ev) => mapClick(i, ev),
   });
   if (S.units) bindUnits();
@@ -343,8 +459,8 @@ function mapClick(i, ev) {
   S.pinPos = pointIn(ev);
   S.map.pin(S.pinned);
   placeCard();
-  const rr = races().find((r) => r.region && r.region === S.map.regionOf(i));
-  if (rr && rr !== S.race && S.featIdx?.[i] >= 0) selectRace(rr);
+  const reg = S.map.regionOf(i);
+  if (reg !== S.region && S.featIdx?.[i] >= 0 && pickerRegions().some((r) => r.id === reg)) selectRegion(reg);
 }
 
 function setupModes() {
@@ -359,13 +475,15 @@ function setupModes() {
     box.querySelectorAll("button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
     S.shownKey = null;
     render();
-    warmColours();
   }));
 }
 
 function showMapState() {
   const has = !!(S.map && S.units);
   $("map-empty").hidden = has;
+  $("map-empty").textContent = has ? "" : S.mapError ? `The map could not be drawn: ${S.mapError}` : S.map ? "No map for this race." : S.meta.geometry ? "Loading the map…" : "No map for this election.";
+  $("engine-note").hidden = !S.engineNote;
+  $("engine-note").textContent = S.engineNote ? `Map drawn without the background worker (${S.engineNote}); playback may be less smooth.` : "";
   for (const id of ["map-mode", "legend", "frame-label"]) $(id).style.visibility = has ? "" : "hidden";
   if (!has) return;
   setupModes();
@@ -373,43 +491,42 @@ function showMapState() {
 }
 
 function focusMap(animate = true) {
-  const reg = S.race?.region && S.units?.region?.includes(S.race.region) ? S.race.region : null;
+  const reg = S.region && S.units?.region?.includes(S.region) ? S.region : null;
   S.map?.focus(reg, animate);
-  $("national").hidden = !reg;
-  $("national").textContent = national() ? "Back to national race" : "Whole map";
   const ext = $("extent");
   ext.hidden = !S.map?.hasPopulatedView || !!reg;
   ext.textContent = S.map?.extent === "populated" ? "Whole map" : "Populated areas";
-  $("reset-race").hidden = !(national() && S.race !== national());
+  renderCrumbs();
+  for (const row of document.querySelectorAll(".rp-row")) row.classList.toggle("sel", row.dataset.region === S.region);
 }
 
 function placeCard() {
   const el = $("place");
   const i = S.pinned >= 0 ? S.pinned : S.hover;
   if (i < 0 || !S.map) { el.hidden = true; return; }
-  const f = S.map.features[i];
   const j = S.featIdx?.[i] ?? -1;
   let body;
-  if (j < 0) body = `<p class="note">Not part of this election's results.</p>`;
+  const U = S.units;
+  if (j < 0 || !U) body = `<p class="note">Not part of this election's results.</p>`;
   else {
-    const u = S.units, r = S.unitRace[j];
+    const r = S.unitRace[j];
     const k = frameIndex(S.preview ?? S.t);
-    const fr = k >= 0 ? u.frames[k] : null;
-    const v = (x) => (x != null && x >= 0 ? x / 1000 : null);
-    const counted = fr ? v(fr.f[j]) : null, a = fr ? v(fr.a[j]) : null, proj = fr ? v(fr.proj?.[j]) : null, prior = v(u.prior?.[j]);
+    const at = (arr) => (k >= 0 && arr[k * U.n + j] >= 0 ? arr[k * U.n + j] / 1000 : null);
+    const counted = k >= 0 ? U.F[k * U.n + j] / 1000 : null, a = at(U.A), proj = at(U.P), prior = U.prior[j] >= 0 ? U.prior[j] / 1000 : null;
     const swing = a != null && prior != null ? a - prior : null;
     const sw = swing == null ? "–" : `${swing >= 0 ? "+" : "−"}${Math.abs(100 * swing).toFixed(1)} pt`;
     const an = esc(r.a.name);
-    const win = S.meta.parties && winnerSource(k).winner;
-    const winRow = win?.[j] != null
-      ? [["Winner", `${esc(S.meta.parties.find((p) => p.id === win[j])?.name ?? win[j])}${winnerSource(k).margin?.[j] != null ? `, by ${(winnerSource(k).margin[j] / 10).toFixed(1)} pt` : ""}`]]
-      : [];
+    let winRow = [];
+    if (hasWinner()) {
+      const [p, m] = winnerAt(k, j);
+      if (p != null) winRow = [["Winner", `${esc(S.meta.parties.find((x) => x.id === p)?.name ?? p)}, by ${(m / 10).toFixed(1)} pt`]];
+    }
     const rows = S.countTimeline
       ? [...winRow, ["Counted", pct(counted, 0)], [`${an}, votes counted`, pct(a)], [`${an}, model projection`, pct(proj)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]]
       : [...winRow, [`${an}, result`, pct(a)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]];
     body = `<table class="kv"><tbody>${rows.map(([k2, x]) => `<tr><td>${k2}</td><td class="n">${x}</td></tr>`).join("")}</tbody></table>`;
   }
-  const name = (j >= 0 && S.units.names?.[j]) || f.properties.name || f.properties[S.meta.unit_key ?? "unit_id"];
+  const name = (j >= 0 && U?.names[j]) || S.map.names[i] || S.map.ids[i];
   const reg = S.map.regionOf(i);
   el.innerHTML = `<p class="pc-name"><b>${esc(name)}</b>${reg && !String(name).includes(`, ${reg.toUpperCase()}`) ? `, ${esc(regionName(reg))}` : ""}</p>${body}
     <p class="pc-hint">${S.pinned >= 0 ? "Pinned. Click it again to release." : "Click to pin."}</p>`;
@@ -425,29 +542,135 @@ function placeCard() {
   el.style.top = `${Math.max(8, y)}px`;
 }
 
+/* ---------------------------------------------------------------- regions: breadcrumb and picker */
+
+// Regions shown in the picker: those with their own races or units, and with shapes on the map.
+function pickerRegions() {
+  const withRaces = new Set(races().filter((r) => r.region).map((r) => r.region));
+  S.mapRegions ??= S.map ? new Set(S.map.ids.map((id) => id.split("-")[1])) : null;
+  const list = (S.meta.regions ?? []).filter((r) => (withRaces.has(r.id) || S.units?.region?.includes(r.id)) && (!S.mapRegions || S.mapRegions.has(r.id)));
+  return list.length >= 2 ? list : [];
+}
+
+function renderCrumbs() {
+  const el = $("crumbs");
+  const top = countryName();
+  if (!S.region) {
+    const n = pickerRegions().filter((r) => racesIn(r.id).length).length;
+    el.innerHTML = `<b>${esc(top)}</b>${!national() && n ? ` <span class="crumb-note">· ${n} ${n === 1 ? "region" : "regions"} with races; pick one</span>` : ""}`;
+    return;
+  }
+  el.innerHTML = `<button type="button" class="crumb-link" id="crumb-top">${esc(top)}</button> <span aria-hidden="true">›</span> <b>${esc(regionName(S.region))}</b>
+    <button type="button" class="crumb-back" id="crumb-back" title="Esc">Back to ${national() ? "national" : "all regions"}</button>`;
+  $("crumb-top").addEventListener("click", backToNational);
+  $("crumb-back").addEventListener("click", backToNational);
+}
+
+function buildPicker() {
+  const el = $("regions");
+  const list = pickerRegions();
+  el.hidden = !list.length;
+  if (!list.length) return;
+  el.innerHTML = `<p class="rp-head"><span>Region</span><span>${S.countTimeline ? "Counted" : ""}</span><span title="Model probability (orange dot), Polymarket price (black line) and Kalshi price (green line) for the region's race, 0 to 1">Chance</span></p>
+    <div class="rp-list" role="listbox" aria-label="Regions">${list.map((r) => {
+      const rs = racesIn(r.id);
+      const chips = rs.length > 1 ? `<span class="rp-races">${rs.map((x) => `<button type="button" class="rp-chip" data-race="${esc(x.race_id)}">${esc(shortRaceName(x))}</button>`).join("")}</span>` : "";
+      return `<div class="rp-row" role="option" tabindex="0" data-region="${esc(r.id)}" aria-selected="${r.id === S.region}">
+        <span class="rp-name">${esc(r.name)}</span><span class="rp-counted"></span><span class="rp-ind" aria-hidden="true"><i class="rp-m"></i><i class="rp-k"></i><i class="rp-x"></i></span>${chips}</div>`;
+    }).join("")}</div>`;
+  el.querySelectorAll(".rp-row").forEach((row) => {
+    const reg = row.dataset.region;
+    row.addEventListener("click", (e) => { if (!e.target.closest(".rp-chip")) selectRegion(reg); });
+    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectRegion(reg); } });
+    row.addEventListener("mouseenter", () => S.map?.highlightRegion(reg));
+    row.addEventListener("mouseleave", () => S.map?.highlightRegion(null));
+  });
+  el.querySelectorAll(".rp-chip").forEach((b) => b.addEventListener("click", () => selectRace(raceById(b.dataset.race))));
+}
+
+function highlightPickerRow(reg) {
+  if (reg === S.pickerHover) return;
+  S.pickerHover = reg;
+  for (const row of document.querySelectorAll(".rp-row")) row.classList.toggle("hl", row.dataset.region === reg);
+}
+
+function regionRace(reg) {
+  const rs = racesIn(reg);
+  return rs.find((r) => office(r) === office(S.race)) ?? rs[0] ?? null;
+}
+
+function updatePicker(t) {
+  const rows = document.querySelectorAll(".rp-row");
+  if (!rows.length) return;
+  const U = S.units, k = U ? frameIndex(t) : -1;
+  for (const row of rows) {
+    const reg = row.dataset.region;
+    // share counted: expected-vote weighted over the region's units at the map frame
+    let c = null;
+    if (U && k >= 0 && S.countTimeline) {
+      let w = 0, f = 0, m = 0, cnt = 0;
+      for (const j of S.regionUnits.get(reg) ?? []) { const v = U.V0[j] || 0; w += v; f += v * U.F[k * U.n + j]; m += U.F[k * U.n + j]; cnt++; }
+      c = w > 0 ? f / w / 1000 : cnt ? m / cnt / 1000 : null;
+    }
+    const race = regionRace(reg), r = race ? rowAt(race.race_id, t) : null;
+    if (S.countTimeline && r?.counted != null) c = r.counted; // the region's own race, when it has one
+    row.children[1].textContent = c == null ? "" : pct(c, 0);
+    const ind = row.children[2];
+    const m = r?.P ?? null, pm = r?.pm ?? null, kx = r?.kalshi ?? null;
+    [m, pm, kx].forEach((v, i) => {
+      const mark = ind.children[i];
+      mark.hidden = v == null;
+      if (v != null) mark.style.left = `${v * 100}%`;
+    });
+    ind.title = race ? `${race.name}: model ${num(m)}, Polymarket ${num(pm)}${kx != null ? `, Kalshi ${num(kx)}` : ""}` : "No race for this region";
+    ind.style.visibility = race ? "" : "hidden";
+    row.querySelectorAll(".rp-chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.race === S.race?.race_id)));
+  }
+}
+
+async function selectRegion(reg) {
+  const race = regionRace(reg);
+  if (race) return selectRace(race);
+  S.region = reg;
+  await reloadUnitsIfNeeded();
+  focusMap();
+  render();
+}
+
+async function backToNational() {
+  if (!S.region) return;
+  if (national()) return selectRace(national());
+  S.region = null;
+  await reloadUnitsIfNeeded();
+  focusMap();
+  render();
+}
+
+async function reloadUnitsIfNeeded() {
+  if (unitsPlan().key === S.unitsKey) return;
+  if (await loadUnits()) { if (S.map) bindUnits(); showMapState(); }
+}
+
 /* ---------------------------------------------------------------- race, chart, scrubber */
 
 async function selectRace(r) {
   if (!r) return;
-  if (r === S.race) { focusMap(); return; }
-  const before = unitsPath();
+  const sameRace = r === S.race;
   S.race = r;
-  $("race").value = r.race_id;
-  const url = new URL(location.href);
-  url.searchParams.set("race", r.race_id);
-  history.replaceState(null, "", url);
-  S.list?.select(r.race_id);
-  drawChart();
-  updateScrubber();
-  renderStatsTab();
-  if (unitsPath() !== before) {
-    const path = unitsPath();
-    const units = await getJSON(path, { optional: true });
-    if (path !== unitsPath()) return;
-    setUnits(units);
-    showMapState();
-    warmColours();
-  } else focusMap();
+  S.region = r.region ?? null;
+  if (!sameRace) {
+    $("race").value = r.race_id;
+    const url = new URL(location.href);
+    url.searchParams.set("race", r.race_id);
+    history.replaceState(null, "", url);
+    S.list?.select(r.race_id);
+    drawChart();
+    updateScrubber();
+    renderStatsTab();
+    S.legendKey = null;
+  }
+  await reloadUnitsIfNeeded();
+  focusMap();
   render();
 }
 
@@ -493,6 +716,7 @@ function updateScrubber() {
       gate && !modelAtGate && ev(gate, "1% counted", C.muted),
       modelAtGate ? ev(gate, "model 90% sure from 1% counted", C.model) : ev(gatedModel, "model 90% sure", C.model),
       ev(settle.polymarket, "Polymarket 90% sure", C.market),
+      ev(settle.kalshi, "Kalshi 90% sure", C.kalshi),
       ev(settle.raw, "raw count settles", C.raw),
     ].filter(Boolean),
   });
@@ -507,6 +731,8 @@ function play() {
   if (S.playing) return;
   if (S.t >= S.domain[1]) S.t = S.domain[0];
   S.playing = true;
+  S.userMoved = true;
+  S.perf.tickMs = [];
   S.perf.frameDrawMs = [];
   $("play").textContent = "Pause";
   $("play").setAttribute("aria-pressed", "true");
@@ -515,7 +741,7 @@ function play() {
     if (!S.playing) return;
     const dt = Math.min(100, now - last);
     last = now;
-    S.t = Math.min(S.domain[1], S.t + (dt * S.speed * S.frameSpacing) / 1000);
+    S.t = Math.min(S.domain[1], S.t + (dt * S.speed * (S.frameSpacing ?? 5 * MIN)) / 1000);
     S.followLatest = S.t >= S.domain[1];
     render();
     if (S.t >= S.domain[1]) { pause(); return; }
@@ -525,10 +751,12 @@ function play() {
 }
 
 function pause() {
+  if (!S.playing) return;
   S.playing = false;
   cancelAnimationFrame(S.raf);
   $("play").textContent = "Play";
   $("play").setAttribute("aria-pressed", "false");
+  render(); // back to the frame at or before the scrubber time
 }
 
 function stepFrame(dir) {
@@ -544,9 +772,14 @@ function stepFrame(dir) {
 
 document.addEventListener("keydown", (e) => {
   const tag = e.target.tagName;
+  if (e.key === "Escape") {
+    if (S.pinned >= 0) { S.pinned = -1; S.map?.pin(-1); placeCard(); }
+    else backToNational();
+    return;
+  }
   if (tag === "SELECT" || tag === "TEXTAREA" || (tag === "INPUT" && e.target.type !== "range") || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === " ") {
-    if (tag === "BUTTON" && e.target.id !== "play") return; // let buttons handle their own Space
+    if ((tag === "BUTTON" && e.target.id !== "play") || e.target.classList?.contains("rp-row")) return; // their own Space
     e.preventDefault();
     if (e.target.id === "play") return; // the button's click handler toggles
     S.playing ? pause() : play();
@@ -564,11 +797,8 @@ function renderTopbar() {
   document.title = `${m.name}: election night`;
   $("title").textContent = m.name;
   $("date").textContent = fmtDate(m.date);
-  const ev = e?.evidence;
-  const long = EVIDENCE[ev]?.long;
-  $("evidence").innerHTML = ev
-    ? `<span class="tip" tabindex="0" data-tip="${esc(long ? long[0].toUpperCase() + long.slice(1) + "." : ev)}">${evidenceLabel(ev) || `<span class="label mo">${esc(ev)}</span>`}</span>${e?.status && e.status !== "replay" ? ` <span class="status ${esc(e.status)}">${esc(STATUS[e.status] ?? e.status)}</span>` : ""}`
-    : "";
+  // the evidence label lives in the Statistics and Method & sources tabs; the bar only says live/scheduled
+  $("evidence").innerHTML = e?.status && e.status !== "replay" ? `<span class="status ${esc(e.status)}">${esc(STATUS[e.status] ?? e.status)}</span>` : "";
   const names = new Intl.DisplayNames(["en"], { type: "region" });
   const groups = d3.groups(S.elections, (x) => x.country ?? "");
   groups.sort((a, b) => (names.of(a[0] || "ZZ") ?? a[0]).localeCompare(names.of(b[0] || "ZZ") ?? b[0]));
@@ -580,7 +810,9 @@ function renderTopbar() {
     const u = new URL("election.html", location.href);
     u.searchParams.set("id", sel.value);
     if (S.race) u.searchParams.set("race", S.race.race_id);
-    if (LIVE) u.searchParams.set("live", LIVE);
+    // the live server carries only the elections being counted; the rest come from the static site
+    const target = S.elections.find((x) => x.id === sel.value);
+    if (LIVE && (target?.status === "live" || target?.status === "scheduled")) u.searchParams.set("live", LIVE);
     location.href = u.toString();
   });
   if (LIVE) $("home").href = `./?live=${encodeURIComponent(LIVE)}`;
@@ -623,15 +855,15 @@ function geometryCredit() {
   return "";
 }
 
+// Race picker: national races first, then one group per region (region first, then its races).
 function initRaceSelect() {
   const sel = $("race");
-  const nat = races().filter((r) => !r.region), reg = races().filter((r) => r.region);
-  const opt = (r) => `<option value="${esc(r.race_id)}">${esc(raceName(r))}</option>`;
-  sel.innerHTML = nat.map(opt).join("") + (reg.length ? `<optgroup label="By region">${reg.map(opt).join("")}</optgroup>` : "");
+  const nat = races().filter((r) => !r.region);
+  const byRegion = d3.groups(races().filter((r) => r.region), (r) => r.region);
+  sel.innerHTML = nat.map((r) => `<option value="${esc(r.race_id)}">${esc(r.name)}</option>`).join("")
+    + byRegion.map(([reg, list]) => `<optgroup label="${esc(regionName(reg))}">${list.map((r) => `<option value="${esc(r.race_id)}">${esc(raceName(r))}</option>`).join("")}</optgroup>`).join("");
   sel.value = S.race?.race_id ?? "";
   sel.addEventListener("change", () => selectRace(raceById(sel.value)));
-  $("reset-race").addEventListener("click", () => selectRace(national()));
-  $("national").addEventListener("click", () => (national() ? selectRace(national()) : (S.map?.focus(null), ($("national").hidden = true))));
   $("extent").addEventListener("click", () => {
     if (!S.map) return;
     S.map.setExtent(S.map.extent === "populated" ? "all" : "populated");
@@ -641,11 +873,12 @@ function initRaceSelect() {
 
 /* ---------------------------------------------------------------- live */
 
+// One live refresh; false when a file could not be fetched (the last good data stays on screen).
 async function refresh() {
   try {
-    await loadAll(false);
+    await Promise.all([loadSeries(), loadUnits()]);
   } catch {
-    return; // keep the last good data; the next tick retries
+    return false;
   }
   const follow = S.followLatest;
   computeDomain();
@@ -657,22 +890,50 @@ async function refresh() {
   renderStatsTab();
   buildRaceList();
   render();
+  return true;
 }
 
 function buildRaceList() {
-  S.list = createRaceList($("pane-races"), { races: races(), raceName, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace });
+  const hasKalshi = [...(S.rows?.values() ?? [])].some((rows) => rows.some((d) => d.kalshi != null));
+  S.list = createRaceList($("pane-races"), { races: races(), raceName, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi });
   S.list.select(S.race.race_id);
 }
 
-function liveTicker() {
+// Live polling: every 15 s while the tab is visible. After a failed refresh the wait doubles up to
+// 2 min (15 → 30 → 60 → 120 s) and resets on the next success. A hidden tab does not poll; when it
+// is shown again the next refresh runs as soon as its wait has passed (at once after a long absence).
+// Requests revalidate (If-None-Match), so an unchanged file costs a 304.
+const POLL_MS = [15000, 30000, 60000, 120000];
+function startLive() {
   const el = $("live");
   el.hidden = false;
-  const tick = () => {
-    const s = Math.round((Date.now() - S.lastFetch) / 1000);
-    el.innerHTML = `<span class="dot" aria-hidden="true"></span>Live · updated ${s} s ago`;
+  let fails = 0, timer = 0, busy = false, lastTry = Date.now(), lastOk = S.lastFetch ?? Date.now();
+  const wait = () => POLL_MS[Math.min(fails, POLL_MS.length - 1)];
+  const show = () => {
+    const s = Math.max(0, Math.round((Date.now() - lastOk) / 1000));
+    const ago = s < 120 ? `${s} s` : `${Math.round(s / 60)} min`;
+    el.innerHTML = fails ? `Reconnecting… · updated ${ago} ago` : `<span class="dot" aria-hidden="true"></span>Live · updated ${ago} ago`;
   };
-  tick();
-  setInterval(tick, 1000);
+  const schedule = () => {
+    clearTimeout(timer);
+    timer = document.hidden ? 0 : setTimeout(poll, Math.max(0, lastTry + wait() - Date.now()));
+  };
+  async function poll() {
+    timer = 0;
+    if (busy || document.hidden) return;
+    busy = true;
+    lastTry = Date.now();
+    const ok = await refresh();
+    busy = false;
+    if (ok) lastOk = Date.now();
+    fails = ok ? 0 : fails + 1;
+    show();
+    schedule();
+  }
+  document.addEventListener("visibilitychange", () => { if (!busy) schedule(); });
+  show();
+  setInterval(show, 1000);
+  schedule();
 }
 
 /* ---------------------------------------------------------------- main */
@@ -718,7 +979,7 @@ async function main() {
     return;
   }
   try {
-    await loadAll(true);
+    await loadMeta();
   } catch (err) {
     if (S.entry?.status === "scheduled") { renderPlaceholder(); return; }
     $("title").textContent = "Election not found";
@@ -733,6 +994,15 @@ async function main() {
   }
   document.body.classList.toggle("no-count", !S.countTimeline);
   renderTopbar();
+  // the map engine starts on the big files while the page draws everything else
+  S.ui = new Promise((resolve) => { S.uiReady = resolve; });
+  // Headless browsers (screenshot tools, crawlers) get the page engine: they judge the page finished
+  // from the page's own activity and do not wait for a worker's parsing, so a worker-drawn map can be
+  // missing from their capture. ?engine=worker or ?engine=page overrides.
+  const engine = param("engine") ?? (/HeadlessChrome/.test(navigator.userAgent) ? "page" : "worker");
+  if (engine === "page" || !startWorker()) await startMain();
+  S.mapDone = buildMap();
+  await loadSeries();
   computeDomain();
   S.t = defaultTime();
   S.followLatest = S.t >= S.domain[1];
@@ -744,10 +1014,9 @@ async function main() {
   renderStatsTab();
   drawChart();
   updateScrubber();
-  await initMap();
-  showMapState();
+  renderCrumbs();
   render();
-  warmColours();
+  S.perf.firstPaintMs = Math.round(performance.now());
 
   $("play").addEventListener("click", () => (S.playing ? pause() : play()));
   document.querySelectorAll("#speed button").forEach((b) => b.addEventListener("click", () => {
@@ -762,7 +1031,10 @@ async function main() {
     clearTimeout(rz);
     rz = setTimeout(() => { drawChart(); placeCard(); }, 120);
   }).observe($("timeline"));
-  if (LIVE) { liveTicker(); setInterval(refresh, 15000); }
+
+  S.uiReady(); // the map (loading in parallel since the top bar) can now attach
+  await S.mapDone;
+  if (LIVE) startLive();
 }
 
 main();

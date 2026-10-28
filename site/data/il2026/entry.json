@@ -5,7 +5,7 @@
  "country": "IL",
  "status": "replay",
  "unit_level": "locality",
- "n_units": 1214,
+ "n_units": 1186,
  "evidence": "not-preregistered",
  "summary": "On the 6 contested Polymarket markets the count model settled a median 39 minutes before the market (5 of 6 first), but trailed by a median 28 minutes when made to wait for 1% counted; prices only, as the 2026 count over time cannot be published."
 }

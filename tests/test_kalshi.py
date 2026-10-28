@@ -57,9 +57,32 @@ def test_trades_follow_the_cursor_and_dedupe(monkeypatch):
         return pages[len(seen) - 1]
 
     monkeypatch.setattr(kalshi, "_get", fake_get)
-    df = kalshi.trades("KXBRPRES-26-LULA")
+    monkeypatch.setattr(kalshi, "_cutoff", {"trades_created_ts": pd.Timestamp("2026-08-29T00:00Z")})
+    df = kalshi.trades("KXBRPRES-26-LULA", start=pd.Timestamp("2026-10-25T00:00Z"))
     assert seen == [None, "next"]
     assert list(df["trade_id"]) == ["a", "b"] and list(df["count"]) == [5.0, 10.0]
+
+
+def test_trades_route_old_fills_to_the_historical_tier(monkeypatch):
+    paths = []
+
+    def fake_get(c, path, params=None):
+        paths.append((path, params.get("min_ts"), params.get("max_ts")))
+        return {"trades": [], "cursor": ""}
+
+    monkeypatch.setattr(kalshi, "_get", fake_get)
+    cut = pd.Timestamp("2026-08-29T00:00Z")
+    monkeypatch.setattr(kalshi, "_cutoff", {"trades_created_ts": cut})
+    kalshi.trades("T", pd.Timestamp("2026-08-01T00:00Z"), pd.Timestamp("2026-09-01T00:00Z"))
+    assert [p for p, *_ in paths] == ["/historical/trades", "/markets/trades"]
+    assert paths[0][2] == paths[1][1] == int(cut.timestamp())
+    paths.clear()
+    kalshi.trades("T", pd.Timestamp("2026-04-01T00:00Z"), pd.Timestamp("2026-04-02T00:00Z"))
+    assert [p for p, *_ in paths] == ["/historical/trades"]
+
+
+def test_historical_candles_use_the_short_field_names():
+    assert kalshi._close({"close": "0.8500"}) == 0.85 and kalshi._close({"close_dollars": "0.4900"}) == 0.49
 
 
 def test_markets_parses_an_event():
@@ -100,3 +123,22 @@ def test_pacing_spaces_requests(monkeypatch):
     kalshi._pace()
     kalshi._pace()
     assert slept == [pytest.approx(kalshi.MIN_INTERVAL)]
+
+
+def test_prob_from_book_is_the_mid_when_tight_else_last():
+    tight = {"orderbook_fp": {"yes_dollars": [["0.6200", "10"]], "no_dollars": [["0.3600", "10"]]}}
+    assert kalshi.prob_from_book(tight) == pytest.approx(0.63)                  # bid 0.62, ask 0.64
+    wide = {"orderbook_fp": {"yes_dollars": [["0.4000", "10"]], "no_dollars": [["0.4000", "10"]]}}
+    assert kalshi.prob_from_book(wide, last=0.5) == 0.5                          # 20¢ spread → last trade
+    assert kalshi.prob_from_book({"orderbook_fp": {}}) is None
+
+
+def test_prob_from_candles_uses_the_latest_closed_candle():
+    t0 = pd.Timestamp("2026-10-25T21:00Z")
+    c = pd.DataFrame({"time": [t0, t0 + pd.Timedelta("2min")], "yes_bid": [0.40, 0.10], "yes_ask": [0.42, 0.90],
+                      "price": [0.41, 0.55], "volume": [1.0, 1.0], "open_interest": [1.0, 1.0]})
+    at = pd.date_range(t0 - pd.Timedelta("1min"), t0 + pd.Timedelta("3min"), freq="min")
+    p = kalshi.prob_from_candles(c, at)
+    assert pd.isna(p.iloc[0])                                                    # before the first candle
+    assert p.iloc[1] == pytest.approx(0.41) and p.iloc[2] == pytest.approx(0.41)  # mid, carried forward
+    assert p.iloc[3] == pytest.approx(0.55) and p.iloc[4] == pytest.approx(0.55)  # 80¢ spread → last trade

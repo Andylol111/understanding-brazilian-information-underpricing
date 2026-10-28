@@ -95,18 +95,43 @@ def events(series_ticker: str, status: str | None = None, nested: bool = True) -
         return _paged(c, "/events", "events", p, 200)
 
 
+def cutoff() -> dict[str, pd.Timestamp]:
+    """Historical-tier cutoffs (GET /historical/cutoff): markets settled before `market_settled_ts` and trades
+    before `trades_created_ts` are only served by /historical/*. The cutoff moves forward over time."""
+    global _cutoff
+    if _cutoff is None:
+        with _http.client() as c:
+            _cutoff = {k: pd.Timestamp(v) for k, v in _get(c, "/historical/cutoff").items()}
+    return _cutoff
+
+
+_cutoff: dict | None = None
+
+
 def event(event_ticker: str) -> dict:
-    """Event with its markets (`markets` key), as one dict."""
+    """Event with its markets (`markets` key), as one dict. Events whose markets settled before the
+    historical cutoff come back without nested markets; those are read from /historical/markets."""
     with _http.client() as c:
         d = _get(c, f"/events/{event_ticker}", {"with_nested_markets": "true"})
-    ev = d["event"]
-    ev.setdefault("markets", d.get("markets") or [])
+        ev = d["event"]
+        ev["markets"] = ev.get("markets") or d.get("markets") or \
+            _paged(c, "/historical/markets", "markets", {"event_ticker": event_ticker}, 200)
     return ev
 
 
+def _is_404(e: Exception) -> bool:
+    return isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404
+
+
 def market(ticker: str) -> dict:
+    """Market detail, from the live tier or (settled before the cutoff) the historical tier."""
     with _http.client() as c:
-        return _get(c, f"/markets/{ticker}")["market"]
+        try:
+            return _get(c, f"/markets/{ticker}")["market"]
+        except httpx.HTTPStatusError as e:
+            if not _is_404(e):
+                raise
+            return _get(c, f"/historical/markets/{ticker}")["market"]
 
 
 def markets(ev: dict) -> pd.DataFrame:
@@ -156,19 +181,54 @@ def orderbooks_raw(c: httpx.Client, tickers: list[str], chunk: int = 50) -> dict
     return out
 
 
+MAX_SPREAD = 0.10       # wider quotes say little: fall back to the last trade
+
+
+def prob_from_book(ob: dict, last: float | None = None) -> float | None:
+    """Market-implied P(YES) from one order book: bid/ask midpoint when both sides are quoted and the spread
+    is at most MAX_SPREAD, else `last` (e.g. the latest trade), else None."""
+    b = parse_book(ob)
+    if b["yes_bids"] and b["yes_asks"]:
+        bid, ask = b["yes_bids"][0][0], b["yes_asks"][0][0]
+        if ask - bid <= MAX_SPREAD + 1e-9:
+            return (bid + ask) / 2
+    return last
+
+
+def prob_from_candles(candles: pd.DataFrame, at: pd.DatetimeIndex) -> pd.Series:
+    """P(YES) as of each time in `at` from 1-min candles (`candlesticks` output): the latest candle that
+    closed at or before it; its bid/ask midpoint if both sides are quoted and the spread is at most
+    MAX_SPREAD, else its last trade price (carried forward)."""
+    c = candles.sort_values("time").set_index("time")
+    bid, ask = c["yes_bid"].where(c["yes_bid"] > 0), c["yes_ask"].where(c["yes_ask"] < 1)
+    mid = ((bid + ask) / 2).where((ask - bid) <= MAX_SPREAD + 1e-9)
+    p = mid.fillna(c["price"].ffill())
+    return p.reindex(at.union(p.index)).ffill().reindex(at)
+
+
 # ---------------------------------------------------------------------------------------------- history
 
 def trades(ticker: str, start: pd.Timestamp | None = None, end: pd.Timestamp | None = None) -> pd.DataFrame:
     """Every fill (one row per trade, taker side given), oldest first. Columns: time, price (YES dollars),
-    count (contracts), taker_side ('yes'|'no'), trade_id. Trades before the API's historical cutoff
-    (GET /historical/cutoff) are only on /historical/trades and are not fetched here."""
-    p = {"ticker": ticker}
-    if start is not None:
-        p["min_ts"] = int(pd.Timestamp(start).timestamp())
-    if end is not None:
-        p["max_ts"] = int(pd.Timestamp(end).timestamp())
+    count (contracts), taker_side ('yes'|'no'), trade_id. Fills before the trades cutoff come from
+    /historical/trades, later ones from /markets/trades."""
+    cut = cutoff()["trades_created_ts"]
+    lo = pd.Timestamp(start) if start is not None else None
+    hi = pd.Timestamp(end) if end is not None else None
+    parts = []
+    if lo is None or lo < cut:
+        parts.append(("/historical/trades", lo, cut if hi is None or hi > cut else hi))
+    if hi is None or hi > cut:
+        parts.append(("/markets/trades", cut if lo is None or lo < cut else lo, hi))
+    rows = []
     with _http.client() as c:
-        rows = _paged(c, "/markets/trades", "trades", p, 1000)
+        for path, a, b in parts:
+            p = {"ticker": ticker}
+            if a is not None:
+                p["min_ts"] = int(a.timestamp())
+            if b is not None:
+                p["max_ts"] = int(b.timestamp())
+            rows += _paged(c, path, "trades", p, 1000)
     df = pd.DataFrame([{"time": pd.Timestamp(t["created_time"]), "price": num(t.get("yes_price_dollars")),
                         "count": num(t.get("count_fp")), "taker_side": t.get("taker_side"),
                         "trade_id": t.get("trade_id")} for t in rows])
@@ -177,25 +237,38 @@ def trades(ticker: str, start: pd.Timestamp | None = None, end: pd.Timestamp | N
     return df.drop_duplicates("trade_id").sort_values("time").reset_index(drop=True)
 
 
+def _close(x: dict | None):
+    """A candle field's close: live tier `close_dollars`, historical tier `close`."""
+    x = x or {}
+    return num(x.get("close_dollars", x.get("close")))
+
+
 def candlesticks(series_ticker: str, ticker: str, start: pd.Timestamp, end: pd.Timestamp,
                  period_min: int = 1) -> pd.DataFrame:
     """OHLC candles (period 1, 60 or 1440 min), one row per period that had a quote or trade.
-    `time` is the period END. yes_bid/yes_ask are the period-close best quotes; price is the last trade."""
+    `time` is the period END. yes_bid/yes_ask are the period-close best quotes; price is the last trade.
+    Markets settled before the historical cutoff are served by /historical/markets/{ticker}/candlesticks."""
     out = []
     step = CANDLE_CHUNK * period_min
+    path = f"/series/{series_ticker}/markets/{ticker}/candlesticks"
     with _http.client() as c:
         t = pd.Timestamp(start)
         while t < end:
             u = min(t + step, pd.Timestamp(end))
-            d = _get(c, f"/series/{series_ticker}/markets/{ticker}/candlesticks",
-                     {"start_ts": int(t.timestamp()), "end_ts": int(u.timestamp()), "period_interval": period_min})
+            p = {"start_ts": int(t.timestamp()), "end_ts": int(u.timestamp()), "period_interval": period_min}
+            try:
+                d = _get(c, path, p)
+            except httpx.HTTPStatusError as e:
+                if not _is_404(e) or path.startswith("/historical"):
+                    raise
+                path = f"/historical/markets/{ticker}/candlesticks"
+                d = _get(c, path, p)
             out += d.get("candlesticks") or []
             t = u
     rows = [{"time": pd.Timestamp(k["end_period_ts"], unit="s", tz="UTC"),
-             "yes_bid": num((k.get("yes_bid") or {}).get("close_dollars")),
-             "yes_ask": num((k.get("yes_ask") or {}).get("close_dollars")),
-             "price": num((k.get("price") or {}).get("close_dollars")),
-             "volume": num(k.get("volume_fp")), "open_interest": num(k.get("open_interest_fp"))} for k in out]
+             "yes_bid": _close(k.get("yes_bid")), "yes_ask": _close(k.get("yes_ask")), "price": _close(k.get("price")),
+             "volume": num(k.get("volume_fp", k.get("volume"))),
+             "open_interest": num(k.get("open_interest_fp", k.get("open_interest")))} for k in out]
     df = pd.DataFrame(rows, columns=["time", "yes_bid", "yes_ask", "price", "volume", "open_interest"])
     return df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
 

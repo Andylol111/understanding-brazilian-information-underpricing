@@ -127,6 +127,29 @@ provisional. Every interval treats a market as the unit; with 3–15 units they 
 cannot show downside when every sampled bet won (Israel), which is why the exact fair-price p-value is
 reported beside it.
 
+### $10,000 in each election
+
+One rule for every election, fixed before looking at its result: **$10,000 at poll close; each signal of
+the election's frozen trading rule, in time order, stakes min($1,000, cash left, what real execution could
+fill) and is held to resolution; ending value = cash + payouts, net of fees and the half-spread.** Payouts
+arrive at resolution, so nothing is reinvested during the night. Execution: Brazil and Hungary, real taker
+trades at or better than the signal price from 60 s to 30 min after the signal; Israel, the recorded book
+walked 60 s after the signal at the average cost of a $1,000 limit walk; Mexico, no signal fired.
+
+| | evidence | bets (won) | deployed | ending value | return |
+|---|---|---|---|---|---|
+| Brazil first round | in-sample | 3 (2) | $1,058 | **$11,282** | +12.8% (99% of the gain from the national market) |
+| Brazil runoff | pre-specified | 0 of 12 signals fillable | $0 | $10,000 | 0% |
+| Brazil governors | pre-specified | 0 of 3 signals fillable | $0 | $10,000 | 0% |
+| Israel | not-preregistered | 3 (3), one event | $3,000 | $10,425 | +4.25% (provisional outcome) |
+| Hungary | not-preregistered | 13 (6) of 23 signals | $6,624 | $7,989 | −20.1% |
+| Mexico | not-preregistered | 0 | $0 | $10,000 | 0% |
+| **all six** | | 19 (11) | $10,682 | **$59,695 of $60,000** | **−0.5%** |
+
+Most of the money is never deployed: the fills the rule could get at its own prices are small, except in
+Israel and Hungary, which point in opposite directions. Pooled over six elections, $10,000 each ends at
+−0.5%.
+
 ## Method
 
 Inputs are cached outputs only; no registered replay is rerun (`analysis/night_replay.py`,
@@ -258,13 +281,62 @@ execution is Brazil `trades_lat60s_30min_slip0c`, Israel `book_lat60s`. Variant 
 hold aggregates only (the 2026 count comes from third-party mirrors, private research use;
 `docs/israel.md`).
 
+`"invest10k"` (br2026r1, br2026r2, br2026r2gov, il2026, hu2026, mx2024; also in `summary.json`):
+
+```
+{"evidence", "execution": "<sentence>", "bankroll": 10000, "ending_value", "deployed", "bets", "won",
+ "return_pct", "signals", "largest_market", "largest_market_pnl", "largest_market_share" (null if P&L <= 0),
+ "bets_path": [{"t", "market", "side", "stake", "won", "payout", "pnl"}],
+ "value_path": [{"t", "value"}, ..., {"t", "value", "resolved": true}],
+ "outcome", "note" (il2026)}
+```
+
+`bets_path.t` = fill time (signal + 60 s). `value_path`: every 5 minutes from poll close to the end of the
+night, cash + open positions marked at the market's price of the side held; the last point is the ending
+value after payouts. **Israel is published as totals only**: `bets_path` and `value_path` are null, no
+largest-market fields, and a `note` (one event, provisional outcome); the bet times and value path come from
+the private-research 2026 count and are kept in `results/edge_audit/landing_summary.json` only.
+
+### `site/data/summary.json` (homepage; written by the same run, ~140 kB)
+
+```
+{"generated": ISO, "doc": "docs/edge_audit.md",
+ "elections": [{"id", "name", "evidence"}],
+ "projection_error": {"thresholds": ["1%","2%","5%","10%","25%","50%","75%","90%"],
+   "by_election": {"<eid>": {"main_race", "main": {"1%": {"model", "raw"} | null, ...} | null, "races",
+                             "mae": {"1%": {"model", "raw", "races"}, ...}, "note" (il2026)}},
+   "pooled": {"main": {"1%": {"model", "raw", "elections"}, ...}, "all_races": {"1%": {"model", "raw", "races", "note"}, ...}}},
+ "calibration": {"by_election": {"<eid>": {"coverage90", "minutes", "races", "basis"}},   // il2026: "releases", "list_releases"
+   "reliability": {"elections", "races", "minutes", "note",
+                   "model": [{"bin", "minutes", "races", "mean_p", "freq"}], "market": [...],
+                   "by_election": {"<eid>": {"minutes", "races", "model": [...], "market": [...]}}}},
+ "invest10k": {"rule", "by_election": {"<eid>": <invest10k>}, "pooled": {"elections", "bankroll", "ending_value",
+               "deployed", "bets", "won", "return_pct"}},
+ "settle_lead": {"note", "by_election": {"<eid>": [{"race", "market", "gate", "model", "market_settle", "lead_min", "lead_vs"}]}}}
+```
+
+- Projection error: absolute points, model projection and raw count minus the final share, at the first
+  minute (release, for Israel) with at least each share counted. Main races: `br` (Brazil, national two-way
+  share), `list` (Hungary, Tisza's national list share as scored by `hu_score.py`), `mx`, `likud` (Israel list share); the
+  governors have no single main race (`main` null, `mae` over the six). `pooled.main` averages the main races
+  over elections; `pooled.all_races` averages every Brazil, Hungary and Mexico race.
+- Calibration: minutes with 1–95% counted whose 90% interval contained the final share, pooled over the
+  election's races (Israel: list × release pairs). Reliability: model P (and market price) in ten bins against
+  the observed frequency, over the P(win) window (1% counted until both settled), for resolved outcomes only
+  (Brazil 2026, Brazil 2022, Hungary; Israel excluded as provisional). Hungary has 50,141 of the 53,260
+  pooled minutes, so the pooled table mostly describes Hungary; use `by_election` for the others.
+- Settle lead: from `stats.json` `settle_gated` (model counted only from ≥ 1% counted; Brazil 2022 against the
+  raw count, no prices); Israel: the aggregate gated lead for "Likud most seats" (no times; private count).
+- Pooled projection error over main races (7 elections): 1% counted 2.72 vs raw 4.84 points; 10% 0.63 vs
+  3.51; 50% 0.46 vs 1.87.
+
 ## Outputs (`results/edge_audit/`, not published)
 
 `accuracy_share_error.csv`, `accuracy_coverage.csv`, `accuracy_pwin.csv` (pools: each election,
 `brazil2026_all`, `brazil2026_prespecified`, `all_with_market`), `accuracy_pwin_by_race.csv`,
 `accuracy_reliability.csv`, `profit_signals_brazil.csv` (one row per signal × execution variant),
 `profit_signals_israel.csv` (private: contains model P from the 2026 count), `profit_by_size.csv`,
-`reconcile.csv`, `summary.json`, `il_fees.json`.
+`reconcile.csv`, `summary.json`, `landing_summary.json` (= `site/data/summary.json`), `il_fees.json`.
 
     uv run python analysis/edge_audit.py            # writes site blocks too
     uv run python analysis/edge_audit.py --no-site  # tables only
@@ -272,6 +344,7 @@ hold aggregates only (the 2026 count comes from third-party mirrors, private res
 Run from the repository root; no environment variables are needed. Brazil inputs are read from
 `results/` and `~/brunder-stage` (`BRUNDER_STAGE_ROOT` overrides); the recorded Israel books from
 `$BRUNDER_DATA/raw/snap/israel_2026/polymarket_books` if present, else from `$BRUNDER_IL_DATA` (default
-`~/brunder-data-local`). The script only adds or replaces its own `accuracy` and `profit` keys, so it can
-run before or after `analysis/export_brazil.py` / `analysis/il_export.py`; those exporters rewrite
-`stats.json` without the two blocks, so run the audit again after them.
+`~/brunder-data-local`). The script only adds or replaces its own `accuracy`, `profit` and `invest10k` keys
+and rewrites `site/data/summary.json`, so it can run before or after `analysis/export_brazil.py` /
+`analysis/il_export.py` / `analysis/hu_score.py` / `analysis/mx_score.py`; exporters that rewrite `stats.json`
+drop the audit's keys, so run the audit again after them.

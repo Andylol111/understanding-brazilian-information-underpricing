@@ -21,18 +21,20 @@
   <p class="dash-note" id="dash-note" hidden></p>
 
   <section class="panel p-map" id="map-panel" aria-label="Map">
-    <div class="map-box" id="map">
-      <div class="map-ui map-modes toggle" id="map-mode" role="group" aria-label="Map colour">
-        <button type="button" data-mode="margin" aria-pressed="true">Projected margin</button>
-        <button type="button" data-mode="swing" aria-pressed="false">Swing from prior</button>
-        <button type="button" data-mode="counted" aria-pressed="false">Counted</button>
+    <div class="map-head">
+      <nav class="crumbs" id="crumbs" aria-label="Map level"></nav>
+      <span class="engine-note note" id="engine-note" hidden></span>
+    </div>
+    <div class="map-body">
+      <div class="map-box" id="map">
+        <div class="map-ui map-modes toggle" id="map-mode" role="group" aria-label="Map colour"></div>
+        <button type="button" class="map-ui map-national" id="extent" hidden>Whole map</button>
+        <div class="map-ui map-legend" id="legend"></div>
+        <div class="map-ui map-frame" id="frame-label"></div>
+        <div class="place-card" id="place" hidden></div>
+        <p class="map-empty note" id="map-empty">Loading the map…</p>
       </div>
-      <button type="button" class="map-ui map-national" id="national" hidden>Whole country</button>
-      <button type="button" class="map-ui map-national" id="extent" hidden>Whole country</button>
-      <div class="map-ui map-legend" id="legend"></div>
-      <div class="map-ui map-frame" id="frame-label"></div>
-      <div class="place-card" id="place" hidden></div>
-      <p class="map-empty note" id="map-empty" hidden>No map for this race.</p>
+      <aside class="region-picker" id="regions" aria-label="Regions" hidden></aside>
     </div>
   </section>
 
@@ -54,7 +56,6 @@
   <section class="panel p-timeline" aria-label="Race timeline">
     <div class="tl-head">
       <label class="select"><span>Race</span> <select id="race"></select></label>
-      <button type="button" class="btn-link" id="reset-race" hidden>Back to the national race</button>
     </div>
     <div id="timeline" class="timeline"></div>
     <p class="note" id="tl-note"></p>

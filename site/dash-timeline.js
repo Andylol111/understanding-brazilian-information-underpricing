@@ -76,12 +76,12 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, count
   for (const v of [0.1, 0.9]) g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP(v)).attr("y2", yP(v)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
   const step = (k) => d3.line().defined((d) => d[k] != null).x(X).y((d) => yP(d[k])).curve(d3.curveStepAfter);
   g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 2).attr("d", step("P"));
+  g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.kalshi).attr("stroke-width", 1.5).attr("d", step("kalshi"));
   g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.6).attr("d", step("pm"));
-  g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.4).attr("stroke-dasharray", "5,3").attr("d", step("kalshi"));
   endLabels(svg, width - m.r + 5, [
     [lastOf("P"), (d) => yP(d.P), "model", C.model],
     [lastOf("pm"), (d) => yP(d.pm), "Polymarket", C.market],
-    [lastOf("kalshi"), (d) => yP(d.kalshi), "Kalshi", C.market],
+    [lastOf("kalshi"), (d) => yP(d.kalshi), "Kalshi", C.kalshi],
   ]);
   const gate = countPanel ? vis.find((d) => d.counted >= 0.01) : null;
   if (gate) {

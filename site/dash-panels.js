@@ -13,7 +13,7 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} <b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)} · figures for ${a}</span></p>`;
   if (!row) { el.innerHTML = `${head}<p class="note">No data for this race at this time.</p>`; return; }
   const band = row.sd != null && row.share != null ? `<small>± ${(164.5 * row.sd).toFixed(1)} pt (90%)</small>` : "";
-  const market = row.pm ?? row.kalshi;
+  const market = row.pm ?? row.kalshi; // the gap is measured against Polymarket where it lists the race
   const marketName = row.pm != null ? "Polymarket" : "Kalshi";
   const figs = [];
   if (countTimeline) {
@@ -24,12 +24,13 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   const pParts = [];
   if (row.P != null) pParts.push(`<span class="m">${num(row.P)}</span><small>model</small>`);
   if (row.pm != null) pParts.push(`<span class="k">${num(row.pm)}</span><small>Polymarket</small>`);
-  if (row.kalshi != null) pParts.push(`<span class="k">${num(row.kalshi)}</span><small>Kalshi</small>`);
+  if (row.kalshi != null) pParts.push(`<span class="kx">${num(row.kalshi)}</span><small>Kalshi</small>`);
   figs.push(`<div class="ro-p"><dt>Chance of winning</dt><dd>${pParts.join(" ") || "–"}</dd></div>`);
   let gap = "";
   if (row.P != null && market != null) {
     const g = row.P - market;
-    gap = `Model ${num(row.P)}, ${marketName} ${num(market)}: gap <b>${num(Math.abs(g))}</b>${Math.abs(g) >= 0.005 ? `, model ${g > 0 ? "higher" : "lower"}` : ""}.`;
+    const both = row.pm != null && row.kalshi != null ? `, Kalshi ${num(row.kalshi)}` : "";
+    gap = `Model ${num(row.P)}, ${marketName} ${num(market)}${both}: gap to ${marketName} <b>${num(Math.abs(g))}</b>${Math.abs(g) >= 0.005 ? `, model ${g > 0 ? "higher" : "lower"}` : ""}.`;
   } else if (row.P != null) gap = "No market price at this time.";
   const frame = frameT != null && countTimeline ? ` <span class="ro-frame">Map: ${clock(frameT, tz)} frame.</span>` : "";
   el.innerHTML = `${head}<dl class="ro-figs">${figs.join("")}</dl>${gap || frame ? `<p class="ro-gap">${gap}${frame}</p>` : ""}`;
@@ -41,20 +42,21 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
 // the race's 1% gate (see gatedSettle in common.js); null when not computable.
 const SORT = { key: "order", dir: 1 }; // kept across rebuilds (live refresh)
 
-export function createRaceList(el, { races, raceName, leadOf, onSelect }) {
+// hasKalshi: show a Kalshi column (some race in the election has Kalshi prices).
+export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalshi = false }) {
   const st = { values: new Map() };
   const lead = (r) => leadOf(r);
   const cols = [
-    ["name", "Race", false], ["P", "Model", true], ["m", "Market", true], ["gap", "Gap", true], ["lead", "Lead from 1% counted (min)", true],
+    ["name", "Race", false], ["P", "Model", true], ["pm", "Polymarket", true], ...(hasKalshi ? [["k", "Kalshi", true]] : []), ["gap", "Gap", true], ["lead", "Lead from 1% counted (min)", true],
   ];
   el.innerHTML = `<table class="races"><thead><tr>${cols.map(([k, label, n]) => `<th class="${n ? "n" : ""}" aria-sort="${SORT.key === k ? (SORT.dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${label}</button></th>`).join("")}</tr></thead><tbody></tbody></table>
-    <p class="note">Model: the model's probability that the first-named candidate wins, at the scrubber time. Market: Polymarket price for the same outcome. Gap: model minus market. Lead: minutes by which the model reached 90% on the winner before Polymarket did, both counted from the moment the race reached 1% counted (negative: after).</p>`;
+    <p class="note">Model: the model's probability that the first-named candidate wins, at the scrubber time. Polymarket${hasKalshi ? " and Kalshi: each venue's price" : ": the price"} for the same outcome (–: not listed there). Gap: model minus the Polymarket price (or Kalshi's, where only Kalshi lists the race). Lead: minutes by which the model reached 90% on the winner before Polymarket did, both counted from the moment the race reached 1% counted (negative: after).</p>`;
   const tbody = el.querySelector("tbody");
   const rows = races.map((r, order) => {
     const tr = document.createElement("tr");
     tr.tabIndex = 0;
     tr.dataset.race = r.race_id;
-    tr.innerHTML = `<td>${esc(raceName(r))}</td><td class="n m"></td><td class="n"></td><td class="n"><span class="gapbar"><i></i></span></td><td class="n">${lead(r) == null ? "–" : signed(lead(r), 0)}</td>`;
+    tr.innerHTML = `<td>${esc(raceName(r))}</td><td class="n m"></td><td class="n"></td>${hasKalshi ? `<td class="n kx"></td>` : ""}<td class="n"><span class="gapbar"><i></i></span></td><td class="n">${lead(r) == null ? "–" : signed(lead(r), 0)}</td>`;
     tr.addEventListener("click", () => onSelect(r));
     tr.addEventListener("keydown", (e) => { if (e.key === "Enter") onSelect(r); });
     return { r, tr, order, cells: tr.children };
@@ -70,7 +72,8 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect }) {
   }));
   function val(x) {
     const v = st.values.get(x.r.race_id) ?? {};
-    return { order: x.order, name: x.r.name, P: v.P, m: v.m, gap: v.P != null && v.m != null ? Math.abs(v.P - v.m) : null, lead: lead(x.r) }[SORT.key];
+    const m = v.pm ?? v.k;
+    return { order: x.order, name: x.r.name, P: v.P, pm: v.pm, k: v.k, gap: v.P != null && m != null ? Math.abs(v.P - m) : null, lead: lead(x.r) }[SORT.key];
   }
   function sort() {
     const sorted = [...rows].sort((a, b) => {
@@ -87,18 +90,22 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect }) {
       st.values = valuesByRace;
       for (const x of rows) {
         const v = valuesByRace.get(x.r.race_id) ?? {};
-        x.cells[1].textContent = num(v.P);
-        x.cells[2].textContent = num(v.m);
-        const bar = x.cells[3].firstChild.firstChild;
-        if (v.P != null && v.m != null) {
-          const g = v.P - v.m;
+        const c = x.cells;
+        c[1].textContent = num(v.P);
+        c[2].textContent = num(v.pm);
+        if (hasKalshi) c[3].textContent = num(v.k);
+        const gapCell = c[hasKalshi ? 4 : 3];
+        const bar = gapCell.firstChild.firstChild;
+        const m = v.pm ?? v.k;
+        if (v.P != null && m != null) {
+          const g = v.P - m;
           bar.style.width = `${Math.min(50, Math.abs(g) * 50)}%`;
           bar.style.left = g >= 0 ? "50%" : `${50 - Math.min(50, Math.abs(g) * 50)}%`;
           bar.style.background = g >= 0 ? C.model : C.market;
-          x.cells[3].title = `gap ${signed(g, 2)}`;
+          gapCell.title = `gap ${signed(g, 2)}`;
         } else bar.style.width = "0";
       }
-      if (SORT.key !== "order") sort();
+      if (!["order", "name", "lead"].includes(SORT.key)) sort();
     },
     select(raceId) {
       for (const x of rows) x.tr.classList.toggle("sel", x.r.race_id === raceId);
@@ -124,7 +131,7 @@ export function renderStats(el, { stats, race, races, raceName, tz, arb, settleO
       ? `${pct(cal.coverage90_1_95, 0)} of minutes from 1% to 95% counted; mean error ${signed(cal.mean_z, 2)} sd`
       : na(`calibration.${id}`)),
     line("Settled at 90% on the winner", "settle", stats.settle == null ? na("settle") : set
-      ? `model ${t(set.model)} · Polymarket ${set.polymarket ? t(set.polymarket) : "–"} · raw count ${t(set.raw)}${leadMinutes(settleOf(id)) != null ? ` · from 1% counted, the model was ${Math.abs(leadMinutes(settleOf(id)))} min ${leadMinutes(settleOf(id)) >= 0 ? "earlier" : "later"}` : ""}`
+      ? `model ${t(set.model)} · Polymarket ${set.polymarket ? t(set.polymarket) : "–"}${set.kalshi !== undefined ? ` · Kalshi ${set.kalshi ? t(set.kalshi) : "–"}` : ""} · raw count ${t(set.raw)}${leadMinutes(settleOf(id)) != null ? ` · from 1% counted, the model was ${Math.abs(leadMinutes(settleOf(id)))} min ${leadMinutes(settleOf(id)) >= 0 ? "earlier" : "later"} than Polymarket` : ""}`
       : na(`settle.${id}`)),
     line("Early error, model / raw count (points)", "early_error", stats.early_error == null ? na("early_error") : ee
       ? ["1%", "5%", "10%", "25%"].map((c) => `${c}: <span class="m">${signed(ee[c]?.model)}</span> / <span class="r">${signed(ee[c]?.raw)}</span>`).join(" · ")
@@ -141,7 +148,7 @@ export function renderStats(el, { stats, race, races, raceName, tz, arb, settleO
     line("Catch-up in 30 min", "catchup", plat("catchup", (x) => `${num(x.slope30)} of the gap (95%: ${num(x.lo)} to ${num(x.hi)}), ${x.markets} markets, ${x.n?.toLocaleString("en-US")} market-minutes`)),
     line("Fillable at the signal price / +2¢ / +5¢", "capacity", plat("capacity", (x) => `${usd(x.signal)} / ${usd(x.slip2c)} / ${usd(x.slip5c)}`)),
     line("Polymarket–Kalshi arbitrage", "arbitrage", a == null ? na("arbitrage")
-      : `${a.pairs} pairs; ${a.minutes_with_net_arb} minutes with a net edge; largest ${a.max_net_edge != null ? `${(100 * a.max_net_edge).toFixed(1)}¢` : "–"} per $1; ${usd(a.fillable_usd)} fillable`),
+      : `${a.pairs} pairs; ${a.minutes_with_net_arb} minutes with a net edge; largest ${a.max_net_edge != null ? `${(100 * a.max_net_edge).toFixed(1)}¢` : "–"} per $1; ${usd(a.fillable_usd)} fillable on both venues in the same minute${a.fillable_net_usd != null ? `, ${usd(a.fillable_net_usd)} net after fees` : ""}${a.fillable_usd_1s != null ? `; ${usd(a.fillable_usd_1s)} within the same second` : ""}${a.note ? `<br><small>${esc(a.note)}</small>` : ""}`),
   ];
 
   const others = races.filter((r) => r.race_id !== id && (stats.calibration?.[r.race_id] || stats.settle?.[r.race_id]));
@@ -160,7 +167,7 @@ export function renderStats(el, { stats, race, races, raceName, tz, arb, settleO
     ${auditHTML(stats, race, raceName)}
     <h3 class="tab-h">${esc(raceName(race))}</h3><dl class="st">${raceRows.join("")}</dl>
     <h3 class="tab-h">All markets in this election</h3><dl class="st">${allRows.join("")}</dl>
-    ${arb?.length ? arbHTML(arb, raceName, races) : ""}
+    ${arb?.length ? arbHTML(arb, race, raceName, races, tz) : ""}
     ${extraHTML}
     ${othersTable}
     <p class="note">The same measures are computed for every election; the <a href="./#measures">overview page</a> defines them.</p>`;
@@ -266,14 +273,47 @@ function flat(v, depth = 0) {
   return Object.entries(v).map(([k, x]) => `${esc(k.replace(/_/g, " "))}: ${flat(x, depth + 1)}`).join(depth ? ", " : "<br>");
 }
 
-function arbHTML(arb, raceName, races) {
+// One small chart per Polymarket–Kalshi pair of the selected race (net edge per $1 over time: above
+// zero, buying both sides cost less than the $1 payout after fees), and a table for the other races.
+function arbHTML(arb, race, raceName, races, tz) {
   const byId = new Map(races.map((r) => [r.race_id, r]));
-  return `<h3 class="tab-h">Polymarket–Kalshi pairs</h3><ul class="arb">${arb.map((p) => {
+  const name = (p) => esc(byId.has(p.race_id) ? raceName(byId.get(p.race_id)) : p.race_id);
+  const sum = (p) => {
     const rows = p.rows.filter((d) => d.net_edge != null);
-    const pos = rows.filter((d) => d.net_edge > 0).length;
-    const best = d3.max(rows, (d) => d.net_edge);
-    return `<li>${esc(byId.has(p.race_id) ? raceName(byId.get(p.race_id)) : p.race_id)}: ${pos} of ${rows.length} minutes with net edge above zero; largest ${best != null ? `${(100 * best).toFixed(1)}¢` : "–"} per $1.</li>`;
-  }).join("")}</ul>`;
+    return { rows, pos: rows.filter((d) => d.net_edge > 0).length, best: d3.max(rows, (d) => d.net_edge), fill: p.fillable?.["1min"] };
+  };
+  const mine = arb.filter((p) => p.race_id === race.race_id);
+  const others = arb.filter((p) => p.race_id !== race.race_id);
+  const charts = mine.map((p) => {
+    const s = sum(p);
+    return `<figure class="arb-pair"><figcaption><b>${name(p)}</b>: Polymarket <code>${esc(p.pm_market)}</code> against Kalshi <code>${esc(p.kalshi_ticker)}</code>${p.same_side === false ? " (opposite sides)" : ""}. ${s.pos} of ${s.rows.length} minutes with a net edge above zero; largest ${s.best != null ? `${(100 * s.best).toFixed(1)}¢` : "–"} per $1${s.fill ? `; ${usd(s.fill.usd)} fillable on both venues in the same minute, ${usd(s.fill.net_usd)} net` : ""}.${p.pm_quotes ? ` Polymarket asks: ${esc(p.pm_quotes)}.` : ""}</figcaption>${arbChart(s.rows, tz)}</figure>`;
+  }).join("");
+  const table = others.length ? `<details class="st-others"${mine.length ? "" : " open"}><summary>${mine.length ? "Other pairs" : "Pairs in this election"} (${others.length})</summary>
+    <table class="compact"><thead><tr><th>Race</th><th class="n">Minutes above zero</th><th class="n">Largest (¢ per $1)</th><th class="n">Fillable, same minute</th></tr></thead><tbody>${others.map((p) => {
+      const s = sum(p);
+      return `<tr><td>${name(p)}</td><td class="n">${s.pos} of ${s.rows.length}</td><td class="n">${s.best != null ? (100 * s.best).toFixed(1) : "–"}</td><td class="n">${s.fill ? usd(s.fill.usd) : "–"}</td></tr>`;
+    }).join("")}</tbody></table></details>` : "";
+  return `<h3 class="tab-h">Buying both sides across Polymarket and Kalshi</h3>
+    <p class="note">Net edge: $1 minus the cost of buying "yes" on one venue and "no" on the other, after both venues' fees. Above zero the pair paid out more than it cost, unless the two venues settle the question differently, which is why no pair is called risk-free.</p>
+    ${charts}${table}`;
+}
+
+function arbChart(rows, tz) {
+  if (rows.length < 2) return "";
+  const w = 560, h = 120, m = { l: 34, r: 8, t: 6, b: 20 };
+  const time = (d) => new Date(d.t);
+  const x = d3.scaleUtc().domain(d3.extent(rows, time)).range([m.l, w - m.r]);
+  const lo = Math.max(-0.1, Math.min(-0.02, d3.min(rows, (d) => d.net_edge)));
+  const hi = Math.max(0.02, d3.max(rows, (d) => d.net_edge));
+  const y = d3.scaleLinear().domain([lo, hi]).range([h - m.b, m.t]).clamp(true);
+  const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("class", "arb-chart").attr("role", "img").attr("aria-label", "Net edge per dollar over time");
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(5).tickSize(3).tickFormat((d) => clock(d, tz)));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(3).tickFormat((v) => `${Math.round(100 * v)}¢`));
+  svg.append("path").datum(rows).attr("fill", C.kalshi).attr("fill-opacity", 0.25)
+    .attr("d", d3.area().x((d) => x(time(d))).y0(y(0)).y1((d) => y(Math.max(0, d.net_edge))).curve(d3.curveStepAfter));
+  svg.append("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y(0)).attr("y2", y(0)).attr("stroke", "#9a968c");
+  svg.append("path").datum(rows).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1).attr("d", d3.line().x((d) => x(time(d))).y((d) => y(d.net_edge)).curve(d3.curveStepAfter));
+  return svg.node().outerHTML;
 }
 
 /* ---------------------------------------------------------------- method tab */
@@ -289,6 +329,7 @@ export function renderMethod(el, { meta, entry, geometryCredit }) {
     <p>This election: ${entry?.evidence ? evidenceLabel(entry.evidence) : "–"}</p>
     <ul class="evs">${evs}</ul>
     <h3 class="tab-h">Sources</h3>
-    <ul>${src}${geometryCredit ? `<li>${geometryCredit}</li>` : ""}<li>Kalshi data is not shown: Kalshi's data terms do not allow republishing it.</li></ul>
+    ${(meta.sources ?? []).some((s) => /^Kalshi/.test(s.name)) ? `<p>Market prices: Polymarket and, where Kalshi lists the same race, Kalshi. Kalshi data: Kalshi Inc.</p>` : ""}
+    <ul>${src}${geometryCredit ? `<li>${geometryCredit}</li>` : ""}</ul>
     <p class="note"><a href="./">All elections and definitions</a> · <a href="brazil-2026.html">Brazil 2026 write-up</a> · Code under MIT licence.</p>`;
 }

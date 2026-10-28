@@ -420,3 +420,73 @@ def test_minute_failing_every_pass_is_skipped_not_retried_forever(tmp_path, monk
         ex.update()
     ts = [r["t"] for r in ex.timeline["ca-gov"]]
     assert ts[0] == "2026-11-04T04:10:00Z" and len(ts) == len(set(ts)) == 1
+
+
+PAIRS = '''election = "us2026"
+[[pair]]
+id = "ca-gov:b"
+race_id = "ca-gov"
+proposition = "Hilton wins"
+pm_market = "will-steve-hilton-win-the-california-governor-election-in-2026"
+kalshi_ticker = "KXTEST-HIL"
+same_side = true
+kalshi_yes_is = "b"
+[[pair]]
+id = "ca-gov:a"
+race_id = "ca-gov"
+proposition = "Becerra wins"
+pm_market = "will-xavier-becerra-win-the-california-governor-election-in-2026"
+kalshi_ticker = "KXTEST-BEC"
+same_side = true
+kalshi_yes_is = "a"
+kalshi_resolution = "Yes if Becerra is elected (our words)."
+'''
+
+
+def _kbook(bid: float, no_bid: float) -> dict:
+    return {"yes_dollars": [[f"{bid:.4f}", "100.00"]], "no_dollars": [[f"{no_bid:.4f}", "100.00"]]}
+
+
+def test_kalshi_column_from_books_with_isolation(tmp_path):
+    paths = [ROOT / "configs" / "us2026_ca_gov_v1.toml"]
+    cfgs = [us.load_config(p) for p in paths]
+    priors, by_state = _synth_priors(cfgs)
+    pairs = tmp_path / "pairs.toml"
+    pairs.write_text(PAIRS)
+    snap = tmp_path / "snap"
+    (snap / us.FEEDS["ca"]["results"]).mkdir(parents=True)
+    (snap / "kalshi_books").mkdir()
+    for t, scale in TIMES:
+        (snap / us.FEEDS["ca"]["results"] / f"{t}.000000Z.json").write_bytes(_ca_snapshot(scale, 0.0, by_state["ca"]))
+    # 04:05 a book (mid 0.95); 04:12 a well-formed file that is not a book map; 04:15 a book whose spread > 10c
+    (snap / "kalshi_books" / "20261104T040500.000000Z.json").write_text(json.dumps({"KXTEST-BEC": _kbook(.94, .04)}))
+    (snap / "kalshi_books" / "20261104T041200.000000Z.json").write_text("[1, 2]")
+    (snap / "kalshi_books" / "20261104T041500.000000Z.json").write_text(json.dumps({"KXTEST-BEC": _kbook(.60, .20)}))
+    ex = us.Exporter(paths, snap, priors=priors, pairs_path=pairs)
+    ex.update()
+    d = ex.write(tmp_path / "site")
+    k = {r["t"][11:16]: r["kalshi"] for r in json.loads((d / "timeline.json").read_text())["ca-gov"]}
+    assert k["04:04"] is None and k["04:05"] == pytest.approx(0.95) and k["04:11"] == pytest.approx(0.95)
+    assert k["04:12"] == pytest.approx(0.95) and "kalshi" in ex.errors      # bad file: last book kept, logged
+    assert k["04:15"] is None and k["04:20"] is None                        # spread 0.20 > 10c: no price
+    assert len(k) == 21                                                     # the race never stopped
+    race = json.loads((d / "meta.json").read_text())["races"][0]
+    km = [m for m in race["markets"] if m["platform"] == "kalshi"]
+    assert km == [{"platform": "kalshi", "id": "KXTEST-BEC", "question": "Yes if Becerra is elected (our words).",
+                   "yes_is": "a"}]
+
+
+def test_no_kalshi_pairs_or_books_gives_null_column(tmp_path):
+    paths = [ROOT / "configs" / "us2026_ca_gov_v1.toml"]
+    cfgs = [us.load_config(p) for p in paths]
+    priors, by_state = _synth_priors(cfgs)
+    snap = tmp_path / "snap"
+    (snap / us.FEEDS["ca"]["results"]).mkdir(parents=True)
+    for t, scale in TIMES:
+        (snap / us.FEEDS["ca"]["results"] / f"{t}.000000Z.json").write_bytes(_ca_snapshot(scale, 0.0, by_state["ca"]))
+    ex = us.Exporter(paths, snap, priors=priors, pairs_path=tmp_path / "missing.toml")
+    ex.update()
+    d = ex.write(tmp_path / "site")
+    rows = json.loads((d / "timeline.json").read_text())["ca-gov"]
+    assert len(rows) == 21 and all(r["kalshi"] is None for r in rows)
+    assert all(m["platform"] != "kalshi" for m in json.loads((d / "meta.json").read_text())["races"][0]["markets"])

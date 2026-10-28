@@ -1,10 +1,230 @@
+// Homepage: the evidence across elections (from site/data/summary.json, written by
+// analysis/edge_audit.py) and the list of elections (elections.json, each election's files).
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-import { C, LIVE, getJSON, esc, pct, fmtDate, evidenceLabel, EVIDENCE, STATUS, plural, gatedSettle, leadMinutes } from "./common.js";
+import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes } from "./common.js";
 
+const $ = (id) => document.getElementById(id);
 const tbody = document.querySelector("#overview tbody");
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 const countryName = (c) => { try { return c ? regionNames.of(c) : "Other"; } catch { return c; } };
-const href = (id) => `election.html?id=${encodeURIComponent(id)}${LIVE ? `&live=${encodeURIComponent(LIVE)}` : ""}`;
+// With ?live=, the live server carries only the elections being counted (status live or scheduled);
+// every other election's files and dashboard come from the static site.
+let liveIds = new Set();
+const onLive = (id) => LIVE && liveIds.has(id);
+const href = (id) => `election.html?id=${encodeURIComponent(id)}${onLive(id) ? `&live=${encodeURIComponent(LIVE)}` : ""}`;
+const rootOf = (id) => (onLive(id) ? LIVE : STATIC);
+const money = (x) => `$${Math.round(x).toLocaleString("en-US")}`;
+const signedPct = (x, d = 1) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}%`;
+const pts = (x) => (x == null ? "–" : x.toFixed(1));
+let names = new Map(); // election id -> name
+let years = new Map(); // election id -> year of the vote
+
+/* ---------------------------------------------------------------- evidence (summary.json) */
+
+function drawAll(S) {
+  drawError(S);
+  drawCalibration(S);
+  drawMoney(S);
+  drawVenues(S);
+}
+
+// 4. Polymarket against Kalshi (summary.kalshi, written by analysis/kalshi_export.py; absent: hidden)
+function drawVenues(S) {
+  const rows = (S.kalshi?.elections ?? []).filter((e) => e.pairs || e.settle?.compared);
+  if (!rows.length) return;
+  $("ev-venues").hidden = false;
+  const tot = (k) => d3.sum(rows, (e) => e.settle?.[k] ?? 0);
+  const compared = tot("compared");
+  const usdOf = (x) => (x == null ? "–" : `$${Math.round(x).toLocaleString("en-US")}`);
+  const els = `${rows.length} ${plural("election", rows.length)}`;
+  $("ev-venues-lead").textContent = compared
+    ? `In ${compared} races listed on both venues across ${els}, Kalshi settled on the winner first in ${tot("kalshi_first")}, Polymarket in ${tot("polymarket_first")}, and both in the same minute in ${tot("same_minute")}.`
+    : `Kalshi lists races in ${els} covered here.`;
+  const med = (m) => (m == null ? "–" : m === 0 ? "same minute" : `Kalshi ${Math.abs(Math.round(m))} min ${m < 0 ? "earlier" : "later"}`);
+  const label = (id) => {
+    const n = names.get(id) ?? id, y = years.get(id);
+    return y && !n.includes(y) ? `${n}, ${y}` : n;
+  };
+  $("venues").innerHTML = `<thead><tr><th>Election</th><th class="n">Races on both</th><th class="n">Settled first: Kalshi / Polymarket / same</th><th class="n">Median difference</th><th class="n">Minutes buying both sides paid</th><th class="n">Largest (¢ per $1)</th><th class="n">Fillable in the same minute (net)</th></tr></thead>
+    <tbody>${rows.map((e) => {
+      const s = e.settle ?? {}, a = e.arbitrage ?? {};
+      return `<tr><td><a href="election.html?id=${encodeURIComponent(e.id)}">${esc(label(e.id))}</a></td><td class="n">${e.races ?? "–"}</td>
+        <td class="n">${s.compared ? `${s.kalshi_first ?? 0} / ${s.polymarket_first ?? 0} / ${s.same_minute ?? 0}` : "–"}</td><td class="n">${med(s.median_kalshi_minus_pm_min)}</td>
+        <td class="n">${a.minutes_with_net_arb ?? "–"}</td><td class="n">${a.max_net_edge != null ? (100 * a.max_net_edge).toFixed(1) : "–"}</td>
+        <td class="n">${a.fillable_usd != null ? `${usdOf(a.fillable_usd)} (${usdOf(a.fillable_net_usd)})` : "–"}</td></tr>`;
+    }).join("")}</tbody>`;
+}
+
+// 1. distance from the final share by share counted: each election's main race, thin; the
+// average over elections, thick
+function drawError(S) {
+  const pe = S.projection_error;
+  if (!pe) return;
+  $("ev-error").hidden = false;
+  const th = pe.thresholds;
+  const pool = pe.pooled?.main ?? {};
+  const at = (c) => pool[c] ? `${pts(pool[c].model)} points from the final share, the raw count ${pts(pool[c].raw)}` : "";
+  $("ev-error-lead").textContent = pool["5%"] && pool["25%"]
+    ? `With 5% of the vote counted the projection was on average ${at("5%")}. At 25% counted: ${pts(pool["25%"].model)} against ${pts(pool["25%"].raw)}. Average over the main race of ${pool["5%"].elections} elections.`
+    : "";
+  const series = [];
+  for (const [id, e] of Object.entries(pe.by_election)) {
+    if (!e?.main) continue;
+    for (const k of ["model", "raw"]) {
+      series.push({ id, k, thin: true, pts: th.map((c) => [c, e.main[c]?.[k] == null ? null : Math.abs(e.main[c][k])]) });
+    }
+  }
+  for (const k of ["model", "raw"]) series.push({ id: "pooled", k, thin: false, pts: th.map((c) => [c, pool[c]?.[k] ?? null]) });
+  const root = $("chart-error");
+  const draw = () => {
+    const w = Math.max(300, root.clientWidth), h = Math.min(360, Math.max(240, w * 0.45));
+    const m = { l: 40, r: 120, t: 24, b: 34 };
+    const x = d3.scalePoint().domain(th).range([m.l, w - m.r]);
+    const ymax = Math.min(10, d3.max(series, (s) => d3.max(s.pts, (p) => p[1])) ?? 5);
+    const y = d3.scaleLinear().domain([0, ymax]).nice().range([h - m.b, m.t]);
+    const svg = d3.select(root).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img")
+      .attr("aria-label", "Distance from the final share by share counted, model projection and raw count");
+    svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(0).tickPadding(6)).call((g) => g.select(".domain").remove());
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickSize(0).tickPadding(8)).call((g) => g.select(".domain").remove());
+    svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", h - 4).text("share of the vote counted");
+    svg.append("text").attr("class", "panel-label").attr("x", m.l - 34).attr("y", 10).text("points from the final share");
+    const line = d3.line().defined((p) => p[1] != null).x((p) => x(p[0])).y((p) => y(Math.min(ymax, p[1])));
+    const g = svg.append("g");
+    for (const s of series.filter((x) => x.thin)) {
+      g.append("path").datum(s.pts).attr("class", "ev-thin").attr("fill", "none").attr("stroke", s.k === "model" ? C.model : C.raw).attr("stroke-width", 1.2).attr("d", line)
+        .append("title").text(`${names.get(s.id) ?? s.id}: ${s.k === "model" ? "model projection" : "raw count"}`);
+    }
+    for (const s of series.filter((x) => !x.thin)) {
+      g.append("path").datum(s.pts).attr("fill", "none").attr("stroke", s.k === "model" ? C.model : C.raw).attr("stroke-width", 3).attr("d", line);
+      const last = [...s.pts].reverse().find((p) => p[1] != null);
+      if (last) svg.append("text").attr("class", "end-label").attr("x", x(last[0]) + 8).attr("y", y(last[1]) + (s.k === "model" ? 12 : -4)).attr("fill", s.k === "model" ? C.model : C.raw)
+        .text(s.k === "model" ? "projection, average" : "raw count, average");
+    }
+  };
+  draw();
+  new ResizeObserver(() => draw()).observe(root);
+}
+
+// 2. share of the count with the final result inside the 90% band, per election; pooled reliability
+function drawCalibration(S) {
+  const cal = S.calibration;
+  if (!cal) return;
+  $("ev-cal").hidden = false;
+  const rows = S.elections.filter((e) => cal.by_election[e.id]?.coverage90 != null).map((e) => ({ ...e, ...cal.by_election[e.id] }));
+  const lo = d3.least(rows, (r) => r.coverage90);
+  const rel = cal.reliability;
+  const byMin = rel?.by_election ? Object.entries(rel.by_election).sort((a, b) => (b[1].minutes ?? 0) - (a[1].minutes ?? 0)) : [];
+  const dom = byMin[0] && rel.minutes ? `${names.get(byMin[0][0]) ?? byMin[0][0]} accounts for ${byMin[0][1].minutes.toLocaleString("en-US")} of the ${rel.minutes.toLocaleString("en-US")} minutes in the probability plot, so it mostly shows that election.` : "";
+  $("ev-cal-lead").textContent = `A 90% band of the right width contains the final result in about 90% of the minutes. Across ${rows.length} elections the share ran from ${pct(lo.coverage90, 0)} (${lo.name}) to ${pct(d3.max(rows, (r) => r.coverage90), 0)}. ${dom}`;
+
+  const covRoot = $("chart-coverage");
+  const drawCov = () => {
+    // each election: its name on one line, its share as a dot on the track below
+    const w = Math.max(260, covRoot.clientWidth), rh = 36, m = { l: 4, r: 44, t: 22, b: 26 };
+    const h = m.t + rows.length * rh + m.b;
+    const x = d3.scaleLinear().domain([Math.min(0.6, d3.min(rows, (r) => r.coverage90)), 1]).range([m.l, w - m.r]);
+    const svg = d3.select(covRoot).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img").attr("aria-label", "Share of the count inside the 90% band, per election");
+    svg.append("line").attr("x1", x(0.9)).attr("x2", x(0.9)).attr("y1", m.t - 6).attr("y2", h - m.b).attr("stroke", "#9a968c").attr("stroke-dasharray", "3,3");
+    svg.append("text").attr("class", "legend-text").attr("x", x(0.9)).attr("y", m.t - 9).attr("text-anchor", "middle").text("90%");
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(4).tickFormat(d3.format(".0%")).tickSize(0).tickPadding(6)).call((g) => g.select(".domain").remove());
+    const g = svg.selectAll("g.row").data(rows).join("g").attr("class", "row").attr("transform", (d, i) => `translate(0,${m.t + i * rh})`);
+    g.append("text").attr("class", "row-name").attr("x", m.l).attr("y", 11).text((d) => d.name);
+    g.append("line").attr("x1", x.range()[0]).attr("x2", (d) => x(d.coverage90)).attr("y1", 24).attr("y2", 24).attr("stroke", "#d8d5cd");
+    g.append("circle").attr("cx", (d) => x(d.coverage90)).attr("cy", 24).attr("r", 4.5).attr("fill", C.model).append("title").text((d) => `${d.name}: ${pct(d.coverage90, 1)} (${d.basis})`);
+    g.append("text").attr("class", "legend-text").attr("x", (d) => x(d.coverage90) + 8).attr("y", 24).attr("dy", "0.35em").text((d) => pct(d.coverage90, 0));
+  };
+  drawCov();
+  new ResizeObserver(() => drawCov()).observe(covRoot);
+
+  const relRoot = $("chart-reliability");
+  if (!rel?.model?.length) { relRoot.hidden = true; return; }
+  const drawRel = () => {
+    const w = Math.min(360, Math.max(240, relRoot.clientWidth)), h = w, m = { l: 36, r: 10, t: 10, b: 34 };
+    const x = d3.scaleLinear().domain([0, 1]).range([m.l, w - m.r]);
+    const y = d3.scaleLinear().domain([0, 1]).range([h - m.b, m.t]);
+    const r = d3.scaleSqrt().domain([0, d3.max([...rel.model, ...(rel.market ?? [])], (d) => d.minutes) || 1]).range([1.5, 9]);
+    const svg = d3.select(relRoot).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img").attr("aria-label", "Probability given against how often it happened, model and market");
+    svg.append("line").attr("x1", x(0)).attr("y1", y(0)).attr("x2", x(1)).attr("y2", y(1)).attr("stroke", "#9a968c").attr("stroke-dasharray", "3,3");
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(4).tickSize(3));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(3));
+    svg.append("text").attr("class", "legend-text").attr("x", (m.l + w - m.r) / 2).attr("y", h - 2).attr("text-anchor", "middle").text("probability given");
+    for (const [list, color] of [[rel.market, C.market], [rel.model, C.model]]) {
+      const pts2 = (list ?? []).filter((d) => d.minutes > 0 && d.mean_p != null && d.freq != null);
+      svg.append("path").datum(pts2).attr("fill", "none").attr("stroke", color).attr("opacity", 0.6).attr("d", d3.line().x((d) => x(d.mean_p)).y((d) => y(d.freq)));
+      svg.append("g").selectAll("circle").data(pts2).join("circle").attr("cx", (d) => x(d.mean_p)).attr("cy", (d) => y(d.freq)).attr("r", (d) => r(d.minutes)).attr("fill", color).attr("fill-opacity", 0.85)
+        .append("title").text((d) => `${d.bin}: given ${d.mean_p.toFixed(2)}, happened ${pct(d.freq, 0)} (${d.minutes.toLocaleString("en-US")} minutes, ${d.races} races)`);
+    }
+  };
+  drawRel();
+  relRoot.insertAdjacentHTML("beforeend", `<figcaption>How often the outcome happened (up) against the probability given (across), in ten bins of minutes: <span class="m">model</span>, <span class="k">market price</span>. On the dashed line the probabilities were right on average; dot size is the number of minutes.</figcaption>`);
+  new ResizeObserver(() => { const cap = relRoot.querySelector("figcaption"); drawRel(); relRoot.append(cap); }).observe(relRoot);
+}
+
+// 3. $10,000 per election under the frozen trading rule
+function drawMoney(S) {
+  const inv = S.invest10k;
+  if (!inv) return;
+  $("ev-money").hidden = false;
+  const p = inv.pooled;
+  const signals = d3.sum(Object.values(inv.by_election), (b) => b.signals ?? 0);
+  $("ev-money-lead").textContent = p
+    ? `Across ${p.elections} elections, ${money(p.bankroll)} became ${money(p.ending_value)} (${signedPct(p.return_pct)}). ${p.bets} of ${signals} signals could be filled at the signal's price; ${p.won} of those bets won.`
+    : "";
+  $("ev-money-rule").textContent = inv.rule ?? "";
+  const list = S.elections.filter((e) => inv.by_election[e.id]);
+  const root = $("money");
+  root.innerHTML = list.map((e) => {
+    const b = inv.by_election[e.id];
+    return `<figure class="money-cell" data-id="${esc(e.id)}">
+      <figcaption><a href="${href(e.id)}">${esc(e.name)}</a></figcaption>
+      <p class="money-end"><b>${money(b.ending_value)}</b> <span class="${b.return_pct > 0 ? "up" : b.return_pct < 0 ? "down" : ""}">${signedPct(b.return_pct)}</span></p>
+      <div class="money-chart"></div>
+      <p class="money-note">${esc(moneySentence(b))}</p>
+    </figure>`;
+  }).join("");
+  const drawCharts = () => {
+    for (const cell of root.querySelectorAll(".money-cell")) {
+      const b = inv.by_election[cell.dataset.id];
+      const box = cell.querySelector(".money-chart");
+      box.innerHTML = "";
+      const path = (b.value_path ?? []).map((d) => ({ t: Date.parse(d.t), v: d.value }));
+      if (path.length < 2) { box.classList.add("empty"); continue; }
+      const w = Math.max(160, box.clientWidth), h = 64;
+      const x = d3.scaleUtc().domain(d3.extent(path, (d) => d.t)).range([2, w - 2]);
+      const ext = d3.extent([...path.map((d) => d.v), b.bankroll]);
+      const pad = Math.max(50, (ext[1] - ext[0]) * 0.1);
+      const y = d3.scaleLinear().domain([ext[0] - pad, ext[1] + pad]).range([h - 4, 4]);
+      const svg = d3.select(box).append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("aria-hidden", "true");
+      svg.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(b.bankroll)).attr("y2", y(b.bankroll)).attr("stroke", "#c9c6bd").attr("stroke-dasharray", "2,3");
+      svg.append("path").datum(path).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.5).attr("d", d3.line().x((d) => x(d.t)).y((d) => y(d.v)).curve(d3.curveStepAfter));
+      for (const bet of b.bets_path ?? []) {
+        const t = Date.parse(bet.t);
+        svg.append("circle").attr("cx", x(t)).attr("cy", y(d3.least(path, (d) => Math.abs(d.t - t))?.v ?? b.bankroll)).attr("r", 2.5).attr("fill", bet.won ? C.model : C.raw)
+          .append("title").text(`${bet.side} ${bet.market}: $${Math.round(bet.stake)} staked, ${bet.won ? "won" : "lost"} (${bet.pnl >= 0 ? "+" : "−"}$${Math.abs(Math.round(bet.pnl))})`);
+      }
+    }
+  };
+  drawCharts();
+  new ResizeObserver(() => drawCharts()).observe(root);
+}
+
+function moneySentence(b) {
+  const parts = [];
+  if (!b.signals) parts.push("No signal fired.");
+  else if (!b.bets) parts.push(`${b.signals} signals; none could be filled at the signal's price.`);
+  else {
+    parts.push(`${b.signals ?? b.bets} signals, ${b.bets} bets filled, ${b.won} won.`);
+    if (b.largest_market_share != null && b.largest_market_share >= 0.5) parts.push(`${pct(b.largest_market_share, 0)} of the profit came from one market.`);
+    else if (b.return_pct < 0 && b.largest_market_pnl != null && b.largest_market_pnl < 0) parts.push(`The largest single loss was ${money(-b.largest_market_pnl)} in one market.`);
+  }
+  if (b.outcome && /provisional|not yet/i.test(b.outcome)) parts.push("Markets not yet resolved.");
+  if (b.note) parts.push(b.note[0].toUpperCase() + b.note.slice(1) + (b.note.endsWith(".") ? "" : "."));
+  return parts.join(" ");
+}
+
+/* ---------------------------------------------------------------- elections list */
+
 const lazy = new IntersectionObserver((entries) => {
   for (const e of entries) {
     if (!e.isIntersecting) continue;
@@ -14,46 +234,39 @@ const lazy = new IntersectionObserver((entries) => {
 }, { rootMargin: "200px" });
 
 function render(elections) {
+  names = new Map([...names, ...elections.map((e) => [e.id, e.name])]);
   // countries ordered by their most recent election; elections newest first
   const groups = d3.groups(elections, (e) => e.country ?? "");
   const latest = (list) => d3.max(list, (e) => e.date);
+  years = new Map(elections.map((e) => [e.id, e.date?.slice(0, 4)]));
   groups.sort((a, b) => latest(b[1]).localeCompare(latest(a[1])));
-  tbody.innerHTML = groups.map(([c, list]) => `<tr class="country"><td colspan="8">${esc(countryName(c))}</td></tr>${
-    [...list].sort((a, b) => b.date.localeCompare(a.date)).map((e) => {
-      const ev = EVIDENCE[e.evidence];
-      return `<tr data-id="${esc(e.id)}">
+  tbody.innerHTML = groups.map(([c, list]) => `<tr class="country"><td colspan="7">${esc(countryName(c))}</td></tr>${
+    [...list].sort((a, b) => b.date.localeCompare(a.date)).map((e) => `<tr data-id="${esc(e.id)}">
         <td class="e-name"><a href="${href(e.id)}">${esc(e.name)}</a><span class="e-sum">${esc(e.summary ?? "")}</span></td>
         <td>${esc(fmtDate(e.date))}</td>
         <td><span class="status ${esc(e.status)}">${esc(STATUS[e.status] ?? e.status)}</span></td>
-        <td>${ev ? `<span class="tip" tabindex="0" data-tip="${esc(ev.long[0].toUpperCase() + ev.long.slice(1))}.">${evidenceLabel(e.evidence)}</span>` : esc(e.evidence ?? "")}</td>
         <td class="n">${e.n_units != null ? `${e.n_units.toLocaleString("en-US")} ` : ""}<span class="note">${esc(plural(e.unit_level, e.n_units))}</span></td>
         ${e.status === "scheduled"
           ? `<td class="sched" colspan="3">Runs live on election night</td>`
           : `<td class="n lead">–</td><td class="n cal">–</td><td class="sp" data-id="${esc(e.id)}"><svg class="spark" width="150" height="34" aria-hidden="true"></svg></td>`}
-      </tr>`;
-    }).join("")}`).join("");
+      </tr>`).join("")}`).join("");
   tbody.querySelectorAll("tr[data-id]").forEach((tr) => {
-    tr.addEventListener("click", (ev) => { if (!ev.target.closest("a, .tip")) location.href = href(tr.dataset.id); });
+    tr.addEventListener("click", (ev) => { if (!ev.target.closest("a")) location.href = href(tr.dataset.id); });
     const sp = tr.querySelector(".sp");
     if (sp) lazy.observe(sp);
   });
 }
 
-const metaCache = new Map();
-const meta = (id) => {
-  if (!metaCache.has(id)) metaCache.set(id, getJSON(`${id}/meta.json`, { optional: true }));
-  return metaCache.get(id);
-};
 const mainRace = (m) => m?.races?.find((r) => !r.region) ?? m?.races?.[0];
 
 // Lead, calibration and the sparkline are filled in when the row scrolls into view.
 async function spark(td) {
   const id = td.dataset.id;
   const tr = td.closest("tr");
-  const m = await meta(id);
+  const m = await getJSON(`${id}/meta.json`, { optional: true, root: rootOf(id) });
   const race = mainRace(m);
   if (!race) return;
-  const [stats, timeline] = await Promise.all([getJSON(`${id}/stats.json`, { optional: true }), getJSON(`${id}/timeline.json`, { optional: true })]);
+  const [stats, timeline] = await Promise.all([getJSON(`${id}/stats.json`, { optional: true, root: rootOf(id) }), getJSON(`${id}/timeline.json`, { optional: true, root: rootOf(id) })]);
   const rows = (timeline?.[race.race_id] ?? []).map((d) => ({ ...d, tms: Date.parse(d.t) }));
   const gate = m.count_timeline === false ? null : rows.find((d) => d.counted >= 0.01);
   const lead = leadMinutes(gatedSettle(stats, race.race_id, gate?.t));
@@ -68,6 +281,7 @@ async function spark(td) {
   const svg = d3.select(td).select("svg").attr("viewBox", `0 0 ${w} ${h}`);
   svg.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(0.5)).attr("y2", y(0.5)).attr("stroke", "#e4e2dc");
   const line = (k) => d3.line().defined((d) => d[k] != null).x((d) => x(d.tms)).y((d) => y(d[k])).curve(d3.curveStepAfter);
+  svg.append("path").datum(vis).attr("fill", "none").attr("stroke", C.kalshi).attr("stroke-width", 1.1).attr("d", line("kalshi"));
   svg.append("path").datum(vis).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.2).attr("d", line("pm"));
   svg.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 1.5).attr("d", line("P"));
   td.title = `${race.name}: probability ${race.a.name} wins`;
@@ -75,14 +289,24 @@ async function spark(td) {
 
 async function load() {
   try {
-    render(await getJSON("elections.json"));
+    const [elections, summary] = await Promise.all([getJSON("elections.json"), getJSON("summary.json", { optional: true })]);
+    liveIds = new Set(elections.filter((e) => e.status === "live" || e.status === "scheduled").map((e) => e.id));
+    render(elections);
+    if (summary && !load.drawn) {
+      load.drawn = true;
+      // chart labels carry the year: two elections can share a name (Brazil's 2022 and 2026 runoffs)
+      const year = new Map(elections.map((e) => [e.id, e.date?.slice(0, 4)]));
+      summary.elections = (summary.elections ?? []).map((e) => ({ ...e, name: year.get(e.id) ? `${e.name}, ${year.get(e.id)}` : e.name }));
+      names = new Map([...names, ...summary.elections.map((e) => [e.id, e.name])]);
+      drawAll(summary);
+    }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="8" class="note">Could not load the list of elections (${esc(err.message)}).</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="note">Could not load the list of elections (${esc(err.message)}).</td></tr>`;
   }
 }
 
 if (LIVE) {
-  const note = document.getElementById("live-note");
+  const note = $("live-note");
   note.hidden = false;
   note.textContent = `Live data from ${LIVE}, refreshed every 15 seconds.`;
   setInterval(load, 15000);

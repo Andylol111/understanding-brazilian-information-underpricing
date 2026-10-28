@@ -169,3 +169,14 @@ def test_pairs_files_are_consistent(path):
         assert (p.pm_yes_is == p.kalshi_yes_is) == p.same_side or "other" in (p.pm_yes_is, p.kalshi_yes_is)
         assert p.risk_free is False and p.resolution_differences
         assert np.isfinite(p.pm_fee_rate) and p.kalshi_fee_multiplier >= 0
+
+
+def test_minute_arb_uses_recorded_polymarket_asks_when_given():
+    t0 = pd.Timestamp("2026-10-27T20:00Z")
+    pm = pd.DataFrame({"time": [t0], "price": [0.50]})
+    kc = pd.DataFrame({"time": [t0], "yes_bid": [0.50], "yes_ask": [0.52], "price": [0.51], "volume": [1.0],
+                       "open_interest": [1.0]})
+    asks = pd.DataFrame({"time": [t0], "yes_ask": [0.45], "no_ask": [0.60]})
+    m = arb.minute_arb(_pair(True, k_mult=0), pm, kc, 0.01, t0, t0, pm_asks=asks)
+    # recorded: PM YES 0.45 + Kalshi NO 0.50 = 0.95 (not 0.51 + 0.50 from price ± 0.01)
+    assert m.loc[0, "pm_yes_ask"] == 0.45 and m.loc[0, "cost_a"] == pytest.approx(0.95)

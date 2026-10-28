@@ -44,8 +44,9 @@ import httpx
 import numpy as np
 import pandas as pd
 
-from . import live, nowcast
+from . import kalshi, live, nowcast
 from .paths import PROCESSED, RAW
+from .paths import ROOT as ROOT_DIR
 from .snap import SNAP, _name
 
 TAG = "us_midterms_2026"
@@ -794,8 +795,43 @@ def _pm_market(cfg: dict) -> tuple[str, str] | None:
     return (f"{m['event']}/{m['market']}", m.get("yes_is", "a")) if m.get("market") else None
 
 
-def meta(cfgs: list[dict], priors_ok: dict[str, bool]) -> dict:
+def kalshi_markets(cfgs: list[dict], pairs_path: Path | None = None) -> dict[str, dict]:
+    """Per race the Kalshi market for its timeline line, from configs/pairs/us2026.toml (Kalshi workstream):
+    a market whose YES is side a, preferring the one paired with the race's Polymarket market, first listed wins.
+    {race_id: {ticker, yes_is, question (our paraphrase)}}; {} when the pairs file is absent."""
+    from .arb import load_pairs
+    path = pairs_path or ROOT_DIR / "configs" / "pairs" / f"{EID}.toml"
+    if not path.exists():
+        return {}
+    _, pairs = load_pairs(path)
+    out = {}
+    for c in cfgs:
+        rid, pm = c["election"]["race_id"], c.get("markets", {}).get("polymarket", {}).get("market")
+        cand = [p for p in pairs if p.race_id == rid and p.kalshi_yes_is == "a" and p.kalshi_ticker]
+        cand.sort(key=lambda p: p.pm_market != pm)                    # stable: listed order within each group
+        if cand:
+            p = cand[0]
+            out[rid] = {"ticker": p.kalshi_ticker, "yes_is": "a",
+                        "question": p.kalshi_resolution or f"{c['election']['name']}: {c['election']['a']['name']} "
+                                                           "(Democrat) wins"}
+    return out
+
+
+def kalshi_prices(arc: Archive, f: Path | None) -> dict[str, float]:
+    """P(YES) per ticker (mid if spread ≤ 10c, brunder.kalshi.prob_from_book) from one kalshi_books snapshot."""
+    if f is None:
+        return {}
+    out = {}
+    for ticker, book in json.loads(arc.read(f)).items():
+        p = kalshi.prob_from_book(book)
+        if p is not None and np.isfinite(p):
+            out[ticker] = float(p)
+    return out
+
+
+def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict] | None = None) -> dict:
     races = []
+    kalshi_mk = kalshi_mk or {}
     for c in cfgs:
         E = c["election"]
         mk = []
@@ -803,10 +839,9 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool]) -> dict:
         if pm.get("market"):
             mk.append({"platform": "polymarket", "id": pm["market"], "question": pm.get("question", ""),
                        "yes_is": pm.get("yes_is", "a")})
-        k = c.get("markets", {}).get("kalshi", {})
-        if k.get("ticker"):
-            mk.append({"platform": "kalshi", "id": k["ticker"], "question": k.get("question", ""),
-                       "yes_is": k.get("yes_is", "a")})
+        k = kalshi_mk.get(E["race_id"])
+        if k:
+            mk.append({"platform": "kalshi", "id": k["ticker"], "question": k["question"], "yes_is": k["yes_is"]})
         races.append({"race_id": E["race_id"], "name": E["name"], "region": E["state"],
                       "a": {"id": E["a"]["party"].lower(), "name": E["a"]["name"], "color": E["a"]["color"]},
                       "b": {"id": E["b"]["party"].lower(), "name": E["b"]["name"], "color": E["b"]["color"]},
@@ -818,6 +853,10 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool]) -> dict:
     srcs += [{"name": SOURCE_INFO[s][0], "url": SOURCE_INFO[s][1], "licence": SOURCE_INFO[s][2]} for s in states]
     srcs.append({"name": "US Census Bureau county codes / cartographic boundaries",
                  "url": "https://www.census.gov/geographies/reference-files.html", "licence": "public domain"})
+    if kalshi_mk:
+        srcs.append({"name": "© Kalshi: market prices (order-book midpoints)", "url": "https://kalshi.com",
+                     "licence": "© Kalshi; shown per the project's decision and pending exception request, "
+                                "see docs/kalshi.md"})
     return {
         "id": EID, "name": "US midterm elections", "date": "2026-11-03", "tz": "America/New_York",
         "poll_close_utc": "2026-11-03T23:00:00Z", "geometry": "geo/us_counties.topo.json",
@@ -829,7 +868,8 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool]) -> dict:
             "raw and share are the Democratic share of the Democrat + Republican vote.",
             "Alaska's races are not modelled: under top-four ranked-choice voting several candidates share a party, "
             "so party totals do not answer the candidate-specific markets.",
-            "Kalshi prices are not shown (Kalshi's data terms do not allow public redistribution).",
+            "kalshi = Kalshi P(Democrat): midpoint of the market's order book when the spread is at most 10c, else "
+            "empty; market per race from configs/pairs/us2026.toml. Prices © Kalshi.",
             "Model frozen before polls closed (configs/us2026_*_v1.toml); see docs/us_midterms.md.",
         ],
     }
@@ -842,7 +882,8 @@ class Exporter:
     a race that still fails keeps its cursor (retried next pass, no duplicate rows) while the others publish."""
 
     def __init__(self, cfg_paths: list[Path], snap_root: Path | None = None, priors: pd.DataFrame | None = None,
-                 step: str = "1min", frame_every: str = "5min", max_retries: int = 3):
+                 step: str = "1min", frame_every: str = "5min", max_retries: int = 3,
+                 pairs_path: Path | None = None):
         """max_retries: passes a failing minute is retried before it is skipped (live: the archive may still
         change; replay: use 1, the archive is final)."""
         self.max_retries = max_retries
@@ -861,6 +902,8 @@ class Exporter:
         self._good: dict[str, tuple[tuple, pd.DataFrame]] = {}                 # feed -> last parsed (sig, rows)
         self._failed: dict[str, tuple] = {}                                    # feed -> sig that failed to parse
         self._pm: tuple[Path | None, dict[str, float]] = (None, {})
+        self.kalshi_mk = kalshi_markets(self.cfgs, pairs_path)
+        self._ks: tuple[Path | None, dict[str, float]] = (None, {})
 
     def _rows_for(self, kind: str, t: pd.Timestamp) -> tuple[pd.DataFrame, tuple]:
         files = feed_files(self.arc, kind, t)
@@ -884,7 +927,7 @@ class Exporter:
             return _frame([]), ("unparsed",) + sig
         return good[1], good[0]
 
-    def _tick(self, c: dict, t: pd.Timestamp, prices: dict[str, float]) -> None:
+    def _tick(self, c: dict, t: pd.Timestamp, prices: dict[str, float], kprices: dict[str, float]) -> None:
         rid, pri = c["election"]["race_id"], self.pri[c["election"]["race_id"]]
         rows, sig = self._rows_for(c["election"]["feed"], t)
         memo = self._memo.get(rid)
@@ -895,9 +938,12 @@ class Exporter:
         pm = _pm_market(c)
         p_yes = prices.get(pm[0]) if pm else None
         p_a = None if p_yes is None else (p_yes if pm[1] == "a" else 1 - p_yes)
+        km = self.kalshi_mk.get(rid)
+        k_yes = kprices.get(km["ticker"]) if km else None
+        k_a = None if k_yes is None else (k_yes if km["yes_is"] == "a" else 1 - k_yes)
         row = {"t": _iso(t), "counted": _r(res["counted_frac"]), "raw": _r(res["raw"]),
                "share": _r(res["share_hat"]), "sd": _r(res["share_sd"]), "P": _r(res["p_win"]),
-               "pm": _r(p_a), "kalshi": None}
+               "pm": _r(p_a), "kalshi": _r(k_a)}
         fr = self.frames[rid]
         frame = None
         if units["n"].sum() > 0 and (not fr or t - pd.Timestamp(fr[-1]["t"]) >= self.frame_every):
@@ -934,13 +980,19 @@ class Exporter:
                     self._pm = (books, pm_prices(self.arc, books))
             except Exception as e:                   # market data must not block the model
                 self.errors["polymarket"] = f"{_iso(t)} {type(e).__name__}: {e}"
+            try:
+                kb = self.arc.at("kalshi_books", t)
+                if kb != self._ks[0]:
+                    self._ks = (kb, kalshi_prices(self.arc, kb))
+            except Exception as e:
+                self.errors["kalshi"] = f"{_iso(t)} {type(e).__name__}: {e}"
             for c in active:
                 rid = c["election"]["race_id"]
                 cur = self.cursor[rid]
                 if rid in failed or (cur is not None and t <= cur):
                     continue
                 try:
-                    self._tick(c, t, self._pm[1])
+                    self._tick(c, t, self._pm[1], self._ks[1])
                     self.errors.pop(rid, None)
                     self._retries.pop(rid, None)
                 except Exception as e:
@@ -961,7 +1013,7 @@ class Exporter:
     def write(self, out: Path) -> Path:
         d = Path(out) / EID
         ok = {rid: p is not None and not p.empty for rid, p in self.pri.items()}
-        _write_json(d / "meta.json", meta(self.cfgs, ok))
+        _write_json(d / "meta.json", meta(self.cfgs, ok, self.kalshi_mk))
         _write_json(d / "timeline.json", self.timeline)
         default = None
         for c in self.cfgs:

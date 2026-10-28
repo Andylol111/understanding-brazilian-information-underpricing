@@ -1,0 +1,9 @@
+[Unit]
+Description=Start the Kalshi order-book recorder for the US midterms (2026-11-03, with the official-feed recorder)
+
+[Timer]
+OnCalendar=2026-11-03 18:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,7 +1,8 @@
 // Shared helpers for the landing page and the election page. Pages read only the dashboard
 // contract files (elections.json, <eid>/meta|timeline|units|stats|arb.json).
 
-export const C = { market: "#1b1b1b", model: "#c4501b", raw: "#6a7f99", muted: "#5f6368", rule: "#e4e2dc", none: "#efede7" };
+// market = Polymarket; kalshi = Kalshi, the second market where it lists the same race
+export const C = { market: "#1b1b1b", kalshi: "#2f8a6c", model: "#c4501b", raw: "#6a7f99", muted: "#5f6368", rule: "#e4e2dc", none: "#efede7" };
 
 const params = new URLSearchParams(location.search);
 export const param = (k) => params.get(k);
@@ -13,14 +14,25 @@ export const LIVE = live ? (live.endsWith("/") ? live : `${live}/`) : null;
 export const DATA = LIVE ?? "data/";
 export const STATIC = "data/";
 
-export async function getJSON(path, { root = DATA, optional = false } = {}) {
-  const r = await fetch(new URL(path, new URL(root, location.href)), { cache: LIVE && root === LIVE ? "no-store" : "default" });
-  if (!r.ok) {
-    if (optional) return null;
+// Parsed static files are kept for the page's lifetime (switching races re-reads nothing); live
+// files are revalidated on every read ("no-cache": the browser sends If-None-Match and an unchanged
+// file costs a 304). Optional files are null only when missing (404); any other failure throws, so
+// a live refresh during an outage keeps the last good data instead of blanking it.
+const parsed = new Map();
+export function getJSON(path, { root = DATA, optional = false } = {}) {
+  const url = new URL(path, new URL(root, location.href)).href;
+  const live = LIVE && root === LIVE;
+  if (!live && parsed.has(url)) return parsed.get(url);
+  const p = fetch(url, { cache: live ? "no-cache" : "default" }).then((r) => {
+    if (r.ok) return r.json();
+    if (optional && r.status === 404) return null;
     throw new Error(`${path}: HTTP ${r.status}`);
-  }
-  return r.json();
+  });
+  if (!live) parsed.set(url, p.catch((e) => { parsed.delete(url); throw e; }));
+  return live ? p : parsed.get(url);
 }
+
+export const absUrl = (path, root = DATA) => new URL(path, new URL(root, location.href)).href;
 
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 

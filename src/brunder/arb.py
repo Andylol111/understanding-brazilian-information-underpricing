@@ -266,11 +266,13 @@ def book_arb(pair: Pair, pm_book: dict, k_parsed: dict, size: float | None = Non
 # ---------------------------------------------------------------------------------------------- minute history
 
 def minute_arb(pair: Pair, pm_price: pd.DataFrame, k_candles: pd.DataFrame, pm_half_spread: float = 0.01,
-               start: pd.Timestamp | None = None, end: pd.Timestamp | None = None) -> pd.DataFrame:
-    """Per-minute approximate arbitrage from price history (contract `arb.json` rows).
+               start: pd.Timestamp | None = None, end: pd.Timestamp | None = None,
+               pm_asks: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Per-minute arbitrage from price history (contract `arb.json` rows).
 
-    Polymarket has no historical quotes: its asks are approximated as price ± `pm_half_spread`
-    (pm_yes_ask = p + h, pm_no_ask = 1 − p + h, p = CLOB minute price). Kalshi asks are the candle's
+    Polymarket keeps no quote history: unless recorded book tops are given (`pm_asks`: time, yes_ask,
+    no_ask), its asks are approximated as price ± `pm_half_spread` (pm_yes_ask = p + h,
+    pm_no_ask = 1 − p + h, p = CLOB minute price). Kalshi asks are the candle's
     period-close quotes (yes_ask; no_ask = 1 − yes_bid), forward-filled across quiet minutes.
     Rows are on the minute grid, each holding the latest state known at that minute: the PM point
     stamped t → minute floor(t); the Kalshi candle ending at T (close quotes as of T) → minute T."""
@@ -286,8 +288,13 @@ def minute_arb(pair: Pair, pm_price: pd.DataFrame, k_candles: pd.DataFrame, pm_h
     # Kalshi quotes of 0 bid / 1 ask mean an empty side: no executable price
     df["k_yes_ask"] = kq["yes_ask"].where(kq["yes_ask"] < 1)
     df["k_no_ask"] = (1 - kq["yes_bid"]).where(kq["yes_bid"] > 0)
-    df["pm_yes_ask"] = (df["pm"] + pm_half_spread).where(df["pm"] + pm_half_spread < 1)
-    df["pm_no_ask"] = (1 - df["pm"] + pm_half_spread).where(1 - df["pm"] + pm_half_spread < 1)
+    if pm_asks is not None:          # recorded book tops (time, yes_ask, no_ask): no approximation
+        qa = pm_asks.assign(t=pd.to_datetime(pm_asks["time"], utc=True).dt.floor("min")).groupby("t")[["yes_ask", "no_ask"]].last()
+        qa = qa.reindex(grid.union(qa.index)).ffill().reindex(grid)
+        df["pm_yes_ask"], df["pm_no_ask"] = qa["yes_ask"].where(qa["yes_ask"] < 1), qa["no_ask"].where(qa["no_ask"] < 1)
+    else:
+        df["pm_yes_ask"] = (df["pm"] + pm_half_spread).where(df["pm"] + pm_half_spread < 1)
+        df["pm_no_ask"] = (1 - df["pm"] + pm_half_spread).where(1 - df["pm"] + pm_half_spread < 1)
 
     ask = {("pm", "yes"): df["pm_yes_ask"], ("pm", "no"): df["pm_no_ask"],
            ("k", "yes"): df["k_yes_ask"], ("k", "no"): df["k_no_ask"]}

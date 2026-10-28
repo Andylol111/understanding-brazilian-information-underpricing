@@ -1,0 +1,18 @@
+# Kalshi order books for the US midterm races (configs/pairs/us2026.toml), every 30 s, into the same snap
+# directory as brunder-snap-us (data/raw/snap/us_midterms_2026/kalshi_books). ~0.07 requests/s.
+# Started by brunder-kalshi-us.timer. See docs/kalshi.md for what is stored and published.
+[Unit]
+Description=brunder Kalshi order-book recorder: US midterms 2026-11-03
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder kalshi record us_midterms_2026 --pairs configs/pairs/us2026.toml --interval 30 --until 2026-11-20T00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=10
+CPUQuota=15%
+MemoryMax=512M

@@ -20,8 +20,8 @@ state as the region. Everything below was fixed before the first polls closed
 Candidates (a = Democrat, b = Republican): Becerra–Hilton, Talarico–Paxton, Hinojosa–Abbott, Brown–Husted,
 Acton–Ramaswamy, Ossoff–Collins, Bottoms–Jackson. The Republican-side Polymarket markets exist too (e.g.
 `will-the-republicans-win-the-texas-senate-race-in-2026`); the configs use the Democratic side only. Kalshi tickers
-are matched in `configs/pairs/us2026.toml` (Kalshi workstream); Kalshi prices are not published (licence,
-`docs/kalshi.md`).
+are matched in `configs/pairs/us2026.toml` (Kalshi workstream); Kalshi prices are shown credited "© Kalshi" under the
+project's decision (`docs/kalshi.md`).
 
 Not covered: Kansas, Michigan, Iowa (their results sites block or disallow automated access; not circumvented),
 Maine (no official night feed) — see `deploy/brunder-snap-us.service`.
@@ -173,7 +173,15 @@ atomically; `export` does the same pass once (optionally `--until`). Output unde
 `timeline.json` (keyed by race_id), `units/<race_id>.json` (one contract units object per race, frames every 5
 minutes thinned to ≤ 60) and `units.json` (the first race). `counted` = model share of the expected two-party vote;
 `pm` = Polymarket mid of the configured market (last trade if the spread exceeds 10c), as P(Democrat);
-`kalshi` = null.
+`kalshi` = Kalshi P(Democrat): the midpoint of the market's order book when the spread is at most 10c
+(`brunder.kalshi.prob_from_book`), else null, from the latest `kalshi_books` snapshot at or before the minute
+(written into the same archive by `brunder kalshi record us_midterms_2026 --pairs configs/pairs/us2026.toml`). The
+market per race is the side-a ticker in `configs/pairs/us2026.toml`, preferring the one paired with the race's
+Polymarket market (ca-gov `KXGOVCA-26-XBEC`; tx-sen `SENATETX-26-D`, tx-gov `GOVPARTYTX-26-D`, oh-sen
+`SENATEOHS-26-D`, oh-gov `GOVPARTYOH-26-D`, ga-sen `SENATEGA-26-D`, ga-gov `GOVPARTYGA-26-D`); meta lists it with
+our own paraphrase of its resolution. The party markets pay on who is sworn in, Polymarket's on the election
+result. No pairs file or no books means a null column; a bad books file keeps the last valid book and never stops a
+race. Market prices are display only: they are not inputs to the model.
 
 Failure isolation on the night: the reader ignores the recorder's `.tmp/` directory; a snapshot that does not
 decompress or is not a complete JSON/XML/text document is never cached and the previous valid snapshot of that
