@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -109,3 +110,20 @@ def test_v2_only_adds_rank_markets_to_v1():
     assert v2["markets"][:len(v1["markets"])] == v1["markets"]
     assert len(v2["markets"]) == len(v1["markets"]) + 12
     assert {(m["kind"], m["rank"]) for m in v2["markets"][len(v1["markets"]):]} == {("rank", 2), ("rank", 3)}
+
+
+def test_live_writes_precount_contract_immediately_without_returns(tmp_path, monkeypatch):
+    parties = nz.parse_parties((F / "nz2026_parties.xml").read_bytes())
+    candidates = nz.parse_candidates((F / "nz2026_candidates_e01.xml").read_bytes())
+    electorates = pd.DataFrame(
+        [{"e_no": 1, "name": "Auckland Central", "region": "gen", "unit_id": "nz-gen-01"}]).set_index("e_no")
+    monkeypatch.setattr(nz, "_fetch_references", lambda: (parties, electorates, candidates))
+    exporter = nz.Exporter(Path(__file__).parents[1] / "configs" / "nz2026_v2.toml", tmp_path / "snap")
+    dest = exporter.write(tmp_path / "site")
+    assert {p.name for p in dest.iterdir()} == {
+        "meta.json", "timeline_precount.json", "timeline.json", "timeline_tail.json",
+        "units.json", "stats.json", "arb.json", "entry.json"}
+    meta = json.loads((dest / "meta.json").read_text())
+    timeline = json.loads((dest / "timeline.json").read_text())
+    assert meta["phase"] == "pre-count" and len(meta["races"]) == 46
+    assert len(timeline) == 46 and all(len(rows) == 1 for rows in timeline.values())

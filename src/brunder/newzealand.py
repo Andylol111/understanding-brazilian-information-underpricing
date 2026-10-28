@@ -694,7 +694,9 @@ class Exporter:
         self.cfg = load_config(config); self.arc = Archive(snap_root or SNAP_ROOT); self.phase = phase
         self.timeline = {m["rid"]: [] for m in self.cfg["markets"]}; self.frames = []
         self.cursor = pd.Timestamp(POLL_CLOSE) - pd.Timedelta(minutes=1)
-        self.refs = None; self.info = self.tokens = None; self._sig = None; self._result = None
+        # Live export must not wait on synchronous market metadata. Config slugs and archived book keys suffice;
+        # preelection() performs the richer Gamma lookup when building the committed static files.
+        self.refs = None; self.info, self.tokens = {}, {}; self._sig = None; self._result = None
 
     def _blob(self, url: str, t: pd.Timestamp) -> tuple[bytes | None, Path | None]:
         p = self.arc.at(_key(url), t)
@@ -744,18 +746,36 @@ class Exporter:
             self.cursor = t
 
     def write(self, out: Path | str):
-        d = Path(out) / EID; refs = self._references(self.cursor); units, _, _ = self._model(self.cursor)
+        d = Path(out) / EID
+        now = pd.Timestamp.now(tz="UTC").floor("s")
+        phase = ("pre-count" if now < pd.Timestamp(POLL_CLOSE) else "live") if self.phase == "live" else self.phase
+        refs = self._references(self.cursor)
+        units, _, probs = self._model(self.cursor)
         pre = {}
-        try: pre = json.loads((d / "timeline_precount.json").read_text())
-        except Exception: pass
+        try:
+            pre = json.loads((d / "timeline_precount.json").read_text())
+        except Exception:
+            pass
+        if phase == "pre-count" and not pre:
+            pp = _book_prices(self.arc, self.arc.at("polymarket_books", now))
+            kp = _kalshi_prices(self.arc, self.arc.at("kalshi_books", now))
+            pre = {m["rid"]: [{"t": _iso(now), "counted": None, "raw": None, "share": None, "sd": None,
+                               "P": _r(probs[m["rid"]]), "pm": _r(pp.get(f"{m['event']}/{m['id']}")),
+                               "kalshi": _r(kp.get(m.get("kalshi")))}] for m in self.cfg["markets"]}
+            _write_json(d / "timeline_precount.json", pre)
         merged = {}
         for k, rows in self.timeline.items():
             first = rows[0]["t"] if rows else None
             merged[k] = [r for r in pre.get(k, []) if first is None or r["t"] < first] + rows
-        _write_json(d / "meta.json", meta(self.cfg, refs, self.info, self.tokens, self.phase))
+        _write_json(d / "meta.json", meta(self.cfg, refs, self.info, self.tokens, phase, probs))
         _write_json(d / "timeline.json", merged); _write_json(d / "timeline_tail.json", _tail(merged))
-        _write_json(d / "units.json", units_object(units, self.frames, _iso(self.cursor)))
-        if not (d / "stats.json").exists(): _write_json(d / "stats.json", _empty_stats("computed after the count"))
+        _write_json(d / "units.json", units_object(units, self.frames, _iso(now if phase == "pre-count" else self.cursor)))
+        if not (d / "stats.json").exists(): _write_json(d / "stats.json", _empty_stats("count has not started" if phase == "pre-count" else "computed after the count"))
+        if not (d / "arb.json").exists(): _write_json(d / "arb.json", [])
+        if not (d / "entry.json").exists():
+            _write_json(d / "entry.json", {"id": EID, "name": "New Zealand general election", "date": "2026-11-07",
+                "country": "NZ", "status": "scheduled", "unit_level": "electorate", "n_units": 71,
+                "evidence": "forward", "summary": "A frozen electorate nowcast follows the official count live."})
         return d
 
 
@@ -767,24 +787,31 @@ async def run_live(config, out=ROOT_DIR / "site" / "data", snap_root=None, inter
     e = Exporter(config, snap_root, "live")
     while stop_at is None or datetime.now(timezone.utc) < stop_at:
         t = datetime.now(timezone.utc)
-        try: e.update(); e.write(out)
-        except Exception as x: print(f"nz live: {type(x).__name__}: {x}", flush=True)
+        try:
+            e.update()
+            d = e.write(out)
+            print(f"nz live wrote {d} ({'pre-count' if t < pd.Timestamp(POLL_CLOSE).to_pydatetime() else 'live'})", flush=True)
+        except Exception as x:
+            print(f"nz live: {type(x).__name__}: {x}", flush=True)
         await asyncio.sleep(max(0, interval - (datetime.now(timezone.utc) - t).total_seconds()))
 
 
-async def record_feed(interval: float = 120.0, until: datetime | None = None, request_delay: float = .5) -> None:
+async def record_feed(interval: float = 120.0, until: datetime | None = None, request_delay: float = .5,
+                      root: Path | str = SNAP_ROOT) -> None:
     """Record the official feed without request bursts: electorate files are fetched sequentially.
 
     At 120 s this is about 0.6 requests/s. Reference files are refreshed once per hour; election.xml and
     the 71 aggregate electorate files are refreshed every cycle. Bytes are written only on change.
     """
-    out = SNAP_ROOT
+    out = Path(root)
     out.mkdir(parents=True, exist_ok=True)
     index, last = out / "index.jsonl", {}
     references = [f"{BASE}/{x}.xml" for x in ("electorates", "parties", "candidates", "statistics")]
     dynamic = [f"{BASE}/election.xml"] + [f"{BASE}/e{i:02d}/e{i:02d}.xml" for i in range(1, 72)]
     headers = {"User-Agent": "brunder-research/0.1 "
                             "(+https://github.com/Andylol111/understanding-brazilian-information-underpricing)"}
+    print(f"nz feed {out.name}: {len(references) + len(dynamic)} urls, sequential {request_delay:.1f}s delay, "
+          f"every {interval:.0f}s until {until}", flush=True)
 
     def save(url: str, body: bytes, t: datetime) -> None:
         key, h = _key(url), hashlib.sha256(body).hexdigest()
@@ -822,14 +849,24 @@ async def record_feed(interval: float = 120.0, until: datetime | None = None, re
             await asyncio.sleep(max(0, interval - (datetime.now(timezone.utc) - started).total_seconds()))
 
 
-async def record(config, interval=120.0, until=None):
+async def record(config, interval=120.0, until=None, snap_root: Path | str | None = None):
     cfg = load_config(config)
     events = sorted({m["event"] for m in cfg["markets"]})
     tickers = sorted({m["kalshi"] for m in cfg["markets"] if m.get("kalshi")})
-    jobs = [record_feed(interval, until), snap.run(TAG, [], events, interval, until)]
+    root = Path(snap_root or SNAP_ROOT)
+    jobs = [record_feed(interval, until, root=root),
+            snap.run(root.name, [], events, interval, until, out_root=root.parent)]
     if tickers:
-        jobs.append(kalshi.record(TAG, tickers, interval, until))
-    await asyncio.gather(*jobs)
+        jobs.append(kalshi.record(root.name, tickers, interval, until, out_root=root.parent))
+    group = asyncio.gather(*jobs)
+    if until is None:
+        await group
+        return
+    remaining = max(0.0, (until - datetime.now(timezone.utc)).total_seconds())
+    try:
+        await asyncio.wait_for(group, timeout=remaining)
+    except asyncio.TimeoutError:
+        pass
 
 
 def ingest(source: Path | str, year: int) -> Path:
@@ -862,7 +899,7 @@ def ingest(source: Path | str, year: int) -> Path:
 def cli(a) -> None:
     stop = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
     if a.step == "ingest": ingest(a.source, a.year)
-    elif a.step == "record": asyncio.run(record(a.config, a.interval, stop))
+    elif a.step == "record": asyncio.run(record(a.config, a.interval, stop, a.snap))
     elif a.step == "preelection": print(preelection(a.config, a.out, a.days, force=a.force))
     elif a.step == "export": print(export(a.config, a.out, a.snap, a.until))
     elif a.step == "live": asyncio.run(run_live(a.config, a.out, a.snap, a.interval, stop))
