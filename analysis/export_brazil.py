@@ -1,10 +1,11 @@
-"""Export the Brazil elections into the multi-election dashboard contract (site/data/<eid>/ + elections.json).
+"""Export the Brazil elections into the multi-election dashboard contract (site/data/<eid>/; the elections.json
+entries go to results/export_brazil/elections_entries.json for the integrator to merge).
 
     uv run python analysis/export_brazil.py            # all five Brazil elections
     uv run python analysis/export_brazil.py br2026r2   # one
 
 Everything that was already computed comes from cached outputs (results/night/<id>/{ticks,tally}.parquet,
-final.json, evaluation.csv, capacity.csv; results/history/<id>/{summary.json,ticks.parquet}). What the cache
+final.json, evaluation.csv, capacity[_favoured_only_true].csv; results/history/<id>/{summary.json,ticks.parquet}). What the cache
 lacks is recomputed directly from the section receipts and the frozen model functions, never by rerunning
 night_replay.py / history_review.py (a rerun of a registered config would count as a look):
   - map frames: per-municipality partials (night.replay_partials_mun) and the model's per-municipality
@@ -271,13 +272,20 @@ def raw_settle(rows: pd.DataFrame, final: float):
 
 
 def capacity(cids: list[str]) -> tuple[dict | None, str | None]:
-    have = [RES / "night" / c / "capacity.csv" for c in cids if (RES / "night" / c / "capacity.csv").exists()]
+    """Fillable size of the gated signals under the frozen favoured-side rule: capacity_favoured_only_true.csv
+    where a config was also run without that rule (its capacity.csv then holds the unfiltered run), else
+    capacity.csv (configs with favoured_only = true)."""
+    have = []
+    for c in cids:
+        fav, plain = RES / "night" / c / "capacity_favoured_only_true.csv", RES / "night" / c / "capacity.csv"
+        if fav.exists() or plain.exists():
+            have.append(fav if fav.exists() else plain)
     if not have:
         return None, "no gated signal fired (no capacity.csv)"
     d = pd.concat(pd.read_csv(p) for p in have)
     slip = "fill_30m_slip2c" in d
-    return {"signal": _r(d["fill_30m"].sum(), 0), "slip2c": _r(d["fill_30m_slip2c"].sum(), 0) if slip else None,
-            "slip5c": _r(d["fill_30m_slip5c"].sum(), 0) if slip else None}, \
+    return {"signal": _r(d["fill_30m"].sum(), 2), "slip2c": _r(d["fill_30m_slip2c"].sum(), 2) if slip else None,
+            "slip5c": _r(d["fill_30m_slip5c"].sum(), 2) if slip else None}, \
         (None if slip else "slippage fills not computed for this config's capacity run")
 
 
@@ -440,6 +448,19 @@ def export(eid: str, names: pd.Series) -> dict:
         stats["evidence"] = {k: ev for k in ("calibration", "settle", "catchup", "early_error", "capacity")}
         stats["evidence"]["arbitrage"] = ev
         notes.append("pm = Polymarket last traded price of the YES (= candidate a) side, carried forward minute by minute.")
+    # gated settle: the model may only act from the race's 1% trade gate, so its settle counts from there
+    stats["settle_gated"] = {}
+    for r in races:
+        g = _gate_read(r, stats["settle"][r["race_id"]], timeline[r["race_id"]])
+        other, vs = (g["pm"], "polymarket") if g["pm"] is not None else (g["raw"], "raw")
+        stats["settle_gated"][r["race_id"]] = {
+            "gate": _iso(g["gate"]), "model": _iso(g["model"]), "polymarket": _iso(g["pm"]), "kalshi": None,
+            "raw": _iso(g["raw"]), "lead": _mins(g["model"], other) if g["model"] is not None and other is not None else None,
+            "lead_vs": vs}
+    stats["evidence"]["settle_gated"] = ev
+    notes.append("stats.settle_gated: model = max(registered model settle, gate), gate = first minute with >= 1% counted "
+                 "in that race; lead = minutes from the model's gated settle to lead_vs settling (positive: model first).")
+    _new(eid, "settle_gated (model settle counted from the 1% gate, and its lead)")
     sources = [SRC_BWEB, E["prior_src"]] + ([SRC_PM] if kind != "hist" else [])
     meta = {"id": eid, "name": E["name"], "date": E["date"], "tz": BRT,
             "poll_close_utc": _iso(pd.Timestamp(f"{E['date']} 17:00", tz=BRT)),
@@ -453,7 +474,8 @@ def export(eid: str, names: pd.Series) -> dict:
     for name, obj in (("meta", meta), ("timeline", timeline), ("units", units), ("stats", stats)):
         (d / f"{name}.json").write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")))
     return {"id": eid, "name": E["name"], "date": E["date"], "country": "BR", "status": "replay",
-            "unit_level": "municipality", "evidence": ev, "summary": summary(eid, races, stats, timeline)}
+            "unit_level": "municipality", "n_units": len(units["unit_ids"]), "evidence": ev,
+            "summary": summary(eid, races, stats, timeline)}
 
 
 def _brt(x) -> str:
@@ -581,11 +603,11 @@ def main(eids: list[str]) -> None:
     for eid in eids:
         print(eid)
         entries.append(export(eid, names))
-    p = OUT / "elections.json"
-    have = json.loads(p.read_text()) if p.exists() else []
-    new = {e["id"]: e for e in entries}
-    merged = [new.pop(e["id"], e) for e in have] + list(new.values())   # re-exported ids keep their position
-    p.write_text(json.dumps(merged, ensure_ascii=False, indent=1))
+    # elections.json is merged by the integrator: write this exporter's entries next to the cache instead
+    CACHE.mkdir(parents=True, exist_ok=True)
+    p = CACHE / "elections_entries.json"
+    p.write_text(json.dumps(entries, ensure_ascii=False, indent=1))
+    print(f"elections.json entries for the integrator: {p}")
     validate(eids)
     print("\nnewly computed (not previously reported):")
     for eid, w in NEWLY_COMPUTED.items():

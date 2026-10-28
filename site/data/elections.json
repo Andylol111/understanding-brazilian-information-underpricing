@@ -6,6 +6,7 @@
   "country": "US",
   "status": "scheduled",
   "unit_level": "county",
+  "n_units": 559,
   "evidence": "forward",
   "summary": "County-level model frozen before polls close; it will run live on election night against Polymarket prices, and the replay will be posted here afterwards."
  },
@@ -16,6 +17,7 @@
   "country": "BR",
   "status": "replay",
   "unit_level": "municipality",
+  "n_units": 5716,
   "evidence": "pre-specified",
   "summary": "From 1% counted (19:04), the model was already 90% sure of Lula's win, about 80 minutes before Polymarket (20:24); the raw tally showed Flávio Bolsonaro ahead from 19:45 to 20:23."
  },
@@ -26,6 +28,7 @@
   "country": "BR",
   "status": "replay",
   "unit_level": "municipality",
+  "n_units": 5708,
   "evidence": "in-sample",
   "summary": "From 1% counted (17:19), the model became 90% sure of Flávio Bolsonaro's first place at 18:02, about 28 minutes before Polymarket (18:30); the raw tally showed Lula ahead from 17:09 to 17:13."
  },
@@ -36,6 +39,7 @@
   "country": "BR",
   "status": "replay",
   "unit_level": "municipality",
+  "n_units": 469,
   "evidence": "pre-specified",
   "summary": "Counting from the moment each race reached 1% counted, the model was 90% sure of the winner a median 3 minutes after Polymarket (lead range -140 to +42 minutes across 6 governor runoffs); in 4 of 6 races Polymarket was already 90% sure before 1% was counted."
  },
@@ -46,6 +50,7 @@
   "country": "BR",
   "status": "replay",
   "unit_level": "municipality",
+  "n_units": 5708,
   "evidence": "model-only",
   "summary": "From 1% counted (17:38), the model was already 90% sure of Lula's first place, 142 minutes before the raw tally settled on Lula (20:00); the raw tally showed Jair Bolsonaro ahead from 17:14 to 19:59. Model only: no market prices survive."
  },
@@ -56,7 +61,19 @@
   "country": "BR",
   "status": "replay",
   "unit_level": "municipality",
+  "n_units": 5708,
   "evidence": "model-only",
   "summary": "From 1% counted (17:14), the model became 90% sure of Lula's win at 18:41, 3 minutes before the raw tally settled on Lula (18:44); the raw tally showed Jair Bolsonaro ahead from 17:07 to 18:43. Model only: no market prices survive."
+ },
+ {
+  "id": "il2026",
+  "name": "Israel, 26th Knesset election",
+  "date": "2026-10-27",
+  "country": "IL",
+  "status": "replay",
+  "unit_level": "locality",
+  "n_units": 1214,
+  "evidence": "not-preregistered",
+  "summary": "On the 6 contested Polymarket markets the count model settled a median 39 minutes before the market (5 of 6 first), but trailed by a median 28 minutes when made to wait for 1% counted; prices only, as the 2026 count over time cannot be published."
  }
 ]
