@@ -23,6 +23,9 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder snap us_midterms_2026 
   --url https://liveresults.ohiosos.gov/Api/v1/Contest/GetElectionSummaryCsv \
   --url https://www.elections.alaska.gov/enr26/results/statewide.js \
   --ga-enr https://results.sos.ga.gov/results/public/api/jurisdictions/Georgia \
+  --ga-enr https://app.enhancedvoting.com/results/public/api/jurisdictions/Arizona \
+  --clarity 'https://www.enr-scvotes.org/SC|https://scvotes.gov/elections-statistics/election-results/|^ *2026 (Statewide )?General Election *$$' \
+  --vt-static https://static.electionresults.vermont.gov/elections/68d61e96-1d28-4210-8c1d-8e90512ae105.json \
   --date 2026-11-03 \
   --pm-event alabama-governor-winner-2026 --pm-event alabama-senate-election-winner-154 \
   --pm-event alaska-governor-election-winner --pm-event alaska-senate-election-winner \
