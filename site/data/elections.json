@@ -75,5 +75,27 @@
   "n_units": 1214,
   "evidence": "not-preregistered",
   "summary": "On the 6 contested Polymarket markets the count model settled a median 39 minutes before the market (5 of 6 first), but trailed by a median 28 minutes when made to wait for 1% counted; prices only, as the 2026 count over time cannot be published."
+ },
+ {
+  "id": "ca2025",
+  "name": "Canada federal election",
+  "date": "2025-04-28",
+  "country": "CA",
+  "status": "replay",
+  "unit_level": "electoral district",
+  "n_units": 343,
+  "evidence": "market-only",
+  "summary": "Market prices and official final results only; Elections Canada publishes no count over time. Polymarket was 90% sure the Liberals would win the most seats at 22:00 ET, when the last polls closed."
+ },
+ {
+  "id": "qc2026",
+  "name": "Quebec general election",
+  "date": "2026-10-05",
+  "country": "CA",
+  "status": "replay",
+  "unit_level": "circonscription",
+  "n_units": 127,
+  "evidence": "market-only",
+  "summary": "Market prices and official final results only. The 'most seats' and premier markets were above 0.9 before polls closed; 'PQ wins a majority' settled on no at 21:30 ET, when the official file showed the PQ leading in 60 seats, short of the 64 needed."
  }
 ]

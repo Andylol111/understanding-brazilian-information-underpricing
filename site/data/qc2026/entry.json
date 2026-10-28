@@ -1,0 +1,11 @@
+{
+ "id": "qc2026",
+ "name": "Quebec general election",
+ "date": "2026-10-05",
+ "country": "CA",
+ "status": "replay",
+ "unit_level": "circonscription",
+ "n_units": 127,
+ "evidence": "market-only",
+ "summary": "Prices only (no official count over time survives): the PQ 'most seats' and premier markets were already above 0.9 before polls closed; 'PQ wins a majority' settled 'no' at 01:30 UTC, when Élections Québec's file (stamped 01:31 UTC) showed the PQ leading in 60 of 127."
+}

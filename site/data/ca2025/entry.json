@@ -6,6 +6,6 @@
  "status": "replay",
  "unit_level": "electoral district",
  "n_units": 343,
- "evidence": "not-preregistered",
- "summary": "Prices only (no official count over time exists): Polymarket's 'Liberals win the most seats' market settled at 2025-04-29T02:00:00Z; Elections Canada's own page showed the Liberals leading from its 23:27 UTC update in every archived capture."
+ "evidence": "market-only",
+ "summary": "Prices only (no official count over time exists): Polymarket's 'Liberals win the most seats' market settled at 2025-04-29T02:00:00Z; the first archived Elections Canada page after polls closed is stamped 04:43 UTC and showed the Liberals leading."
 }
