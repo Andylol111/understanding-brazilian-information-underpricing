@@ -3,8 +3,8 @@ runoffs only. No 2026 runoff data exists when this runs; the 2026 first round is
 
 Data: CIK open-data archives (export.zip) of the 2016 and 2021 presidential elections, read from the Internet
 Archive's captures (results.cik.bg itself answers scripted requests with a Cloudflare challenge):
-  2016 https://web.archive.org/web/20260420104211/https://results.cik.bg/pvrnr2016/tur2/export.zip
-       (one archive with both rounds, folders 06.11.2016 and 13.11.2016)
+  2016 https://web.archive.org/web/20260420105116/https://results.cik.bg/pvrnr2016/tur1/export.zip
+       (one archive with both rounds, folders 06.11.2016/ and 13.11.2016/; tur2/export.zip is the same file)
   2021 https://web.archive.org/web/20260420220400/https://results.cik.bg/pvrns2021/tur1/export.zip
        https://web.archive.org/web/20260420220447/https://results.cik.bg/pvrns2021/tur2/export.zip
 Put them in $BRUNDER_DATA/raw/bulgaria/wayback/ under the names in YEARS below.

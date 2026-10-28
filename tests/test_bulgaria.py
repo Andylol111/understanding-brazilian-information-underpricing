@@ -187,6 +187,29 @@ def test_latest_uses_only_pages_up_to_t():
     assert (cur["processed"] == 0.1).all() and len(cur) == 33
 
 
+def test_settle_time():
+    idx = pd.date_range("2026-11-01T18:00Z", periods=5, freq="15min")
+    s = pd.Series([0.6, 0.95, 0.8, 0.92, 0.99], index=idx)
+    assert bg.settle_time(s, True, 0.9) == idx[3]           # the dip at 18:30 resets it
+    assert bg.settle_time(1 - s, False, 0.9) == idx[3]
+    assert bg.settle_time(pd.Series([0.95, 0.97], index=idx[:2]), True, 0.9) == idx[0]
+    assert bg.settle_time(s, False, 0.9) is None
+
+
+def test_night_stats_keys():
+    cfg = bg.load_config(CONFIG)
+    r1 = synthetic_r1()
+    prior = bg.prior_from_frame(r1, cfg["prior"]["transfer"])
+    final = r1.assign(a=(r1["a"] * 1.4).round(), b=r1["b"] * 1.1)[["scope", "a", "b"]]
+    night = night_from(final, [0.02, 0.06, 0.2, 0.6, 1.0])
+    tl = bg.replay(cfg, prior, night).assign(pm=np.nan, kalshi=np.nan)
+    st = bg.night_stats(tl, bg.outcome(night), cfg)
+    assert set(st) == {"calibration", "settle", "early_error", "evidence"}
+    assert st["settle"]["pm"] is None and st["settle"]["kalshi"] is None
+    assert st["settle"]["model"] is not None and st["calibration"]["stamps"] == 4     # 2, 6, 20, 60% counted
+    assert set(st["early_error"]) == {"1%", "5%", "10%", "25%"}
+
+
 # ------------------------------------------------------------------ frozen config
 
 def test_config():
