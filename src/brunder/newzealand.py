@@ -43,8 +43,12 @@ RAW_NZ = RAW / "newzealand"
 SNAP_ROOT = RAW / "snap" / TAG
 PARTY_KEYS = ("ACT", "AJP", "ALCP", "APN", "FPT", "GP", "LAB", "NAT", "NC", "NLY", "NZF",
               "OFP", "OPP", "TPMAO", "TTTP", "VNZ", "WRP")
-COLORS = {"NAT": "#00529f", "LAB": "#d82a20", "GP": "#098137", "ACT": "#f6c343",
-          "NZF": "#111111", "TPMAO": "#b2001d", "OPP": "#28a9a1"}
+COLORS = {"NAT": "#00529f", "LAB": "#d82a20", "GP": "#098137", "ACT": "#fde401",
+          "NZF": "#000000", "TPMAO": "#b2001a", "OPP": "#28a9a1", "IND": "#8a8a8a",
+          "OTH": "#8a8a8a"}
+PARTY_NAMES = {"NAT": "National", "LAB": "Labour", "GP": "Green", "ACT": "ACT",
+               "NZF": "New Zealand First", "TPMAO": "Te Pāti Māori", "OPP": "The Opportunities Party",
+               "IND": "Independent", "OTH": "Other"}
 
 # 2025 boundaries changed these names. This is deliberately only a name crosswalk, not an assertion that
 # the polygons are identical; unmatched/reconfigured seats retain the named predecessor's 2023 composition.
@@ -154,7 +158,8 @@ def read_winners(path: Path | str) -> pd.DataFrame:
     """Official ``winning-electorate-candidates.csv``."""
     d = pd.read_csv(path, skiprows=1, encoding="utf-8-sig")
     return d.rename(columns={"Electoral District": "electorate", "Electorate Candidate": "candidate",
-                             "Party": "winner_party", "Valid Votes": "winner_votes", "Majority": "majority"})
+        "Party": "winner_party", "Valid Votes": "winner_votes", "Majority": "majority",
+        "Percentage of Elected Candidate Votes cast in Electorate": "winner_pct"})
 
 
 def read_voting_place_party_votes(path: Path | str) -> pd.DataFrame:
@@ -297,11 +302,14 @@ def prior_units(electorates: pd.DataFrame, prior: pd.DataFrame | None = None) ->
         if old in p.index:
             r = p.loc[old]
             shares = r[list(PARTY_KEYS)].to_numpy(float) / max(float(r["valid"]), 1)
-            valid, winner = float(r["valid"]), str(r["winner"])
+            valid = float(r["valid"])
+            winner = "" if pd.isna(r["winner"]) else str(r["winner"])
+            winner_margin = float(r.get("winner_margin", 0))
         else:
-            shares, valid, winner = nat.to_numpy(float), float(p["valid"].median()), ""
+            shares, valid, winner, winner_margin = nat.to_numpy(float), float(p["valid"].median()), "", 0.0
         row = {"e_no": e_no, "unit_id": e["unit_id"], "name": e["name"], "region": e["region"],
-               "V": valid, "winner": winner}
+               "layer": "general" if e["region"] == "gen" else "maori",
+               "V": valid, "winner": winner, "winner_margin": winner_margin}
         row.update({k: v for k, v in zip(PARTY_KEYS, shares)})
         rows.append(row)
     return pd.DataFrame(rows).set_index("e_no")
@@ -401,9 +409,22 @@ def project(units: pd.DataFrame, count: pd.DataFrame, st: Settings) -> Projectio
     cand_share = np.divide(cand, cand_tot[:, None], out=np.zeros_like(cand), where=cand_tot[:, None] > 0)
     places_total = C["places_total"].to_numpy(float)
     counted_frac = (C["places"].sum() / places_total.sum()) if places_total.sum() else 0.0
-    out = U[["unit_id", "name", "region", "V", "winner"]].copy()
+    display = np.column_stack([final_u, np.zeros(len(final_u))])
+    for i, (_, u) in enumerate(U.iterrows()):
+        if cand_share[i].sum() > 0:
+            blend = min(1.0, f[i] / max(st.lock_fraction, 1e-9))
+            display[i] = (1 - blend) * display[i] + blend * cand_share[i]
+        elif u["winner"] in parties:
+            display[i, parties.index(u["winner"])] *= 1 + (st.incumbent_bonus - 1) * (1 - f[i])
+    display /= np.maximum(display.sum(1, keepdims=True), 1e-12)
+    order = np.argsort(-display, axis=1)
+    display_keys = [*parties, "IND"]
+    projected_winner = [display_keys[j] for j in order[:, 0]]
+    projected_margin = display[np.arange(len(display)), order[:, 0]] - display[np.arange(len(display)), order[:, 1]]
+    out = U[["unit_id", "name", "region", "layer", "V", "winner", "winner_margin"]].copy()
     out["f"], out["valid"], out["proj_nat"] = f, valid, final_u[:, parties.index("NAT")]
     out["raw_nat"] = np.divide(cv[:, parties.index("NAT")], valid, out=np.full(len(U), np.nan), where=valid > 0)
+    out["projected_winner"], out["projected_margin"] = projected_winner, projected_margin
     return Projection(parties, observed, mean, out, final_u, cand_share, float(counted_frac), float(mean.sum()))
 
 
@@ -527,7 +548,7 @@ def _r(x, n=4):
 def _write_json(path: Path, obj) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")))
+    tmp.write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":"), allow_nan=False))
     os.replace(tmp, path)
 
 
@@ -603,12 +624,16 @@ def meta(cfg: dict, refs, info: dict, tokens: dict, phase: str, probs: dict | No
     races = [_race(m, info, tokens.get(m["id"])) for m in cfg["markets"]]
     if phase == "pre-count":
         for r in races: r["precount"] = {"P": _r((probs or {}).get(r["race_id"]))}
+    party_ids = [*PARTY_KEYS, "IND"]
+    parties = [{"id": p, "name": PARTY_NAMES.get(p, PRIOR_PARTIES.get(p, p)),
+                "color": COLORS.get(p, "#8a8a8a")} for p in party_ids]
     return {"id": EID, "name": "New Zealand general election", "date": "2026-11-07", "country": "NZ",
             "tz": "Pacific/Auckland", "phase": phase, "poll_close_utc": POLL_CLOSE,
             "geometry": "geo/nz_electorates.topo.json", "geometry_object": "electorates",
-            "unit_key": "unit_id", "count_timeline": True,
-            "regions": [{"id": "gen", "name": "General electorates"}, {"id": "maori", "name": "Māori electorates"}],
-            "races": races,
+            "unit_key": "unit_id", "count_timeline": True, "regions": [],
+            "layers": [{"id": "general", "name": "General electorates", "default": True},
+                       {"id": "maori", "name": "Māori electorates"}],
+            "parties": parties, "races": races,
             "sources": [
                 {"name": "Electoral Commission XML media feed", "url": f"{BASE}/",
                  "licence": "Crown copyright; reproduction permitted with acknowledgement (results-site terms)"},
@@ -616,6 +641,8 @@ def meta(cfg: dict, refs, info: dict, tokens: dict, phase: str, probs: dict | No
                  "licence": "Crown copyright; reproduction permitted with acknowledgement"},
                 {"name": "Stats NZ General and Māori Electorates 2025", "url": "https://datafinder.stats.govt.nz/layer/122741-general-electorates-2025/",
                  "licence": "Creative Commons Attribution 4.0 International"},
+                {"name": "Stats NZ Urban Rural 2026 land classes", "url": "https://datafinder.stats.govt.nz/layer/123505-urban-rural-2026/",
+                 "licence": "Creative Commons Attribution 4.0 International; land classes used to clip the coast"},
                 {"name": "Polymarket CLOB", "url": "https://polymarket.com", "licence": "public market data"},
                 {"name": "© Kalshi order books", "url": "https://kalshi.com", "licence": "© Kalshi; see docs/kalshi.md"}],
             "notes": [
@@ -623,6 +650,7 @@ def meta(cfg: dict, refs, info: dict, tokens: dict, phase: str, probs: dict | No
                 "The prior is the official 2023 result mapped by electorate name onto the 2025 boundaries; ten renamed or reconfigured electorates use the named predecessor in docs/newzealand.md.",
                 "P is the frozen model probability of each binary market outcome. Discrete seat outcomes have raw/share/sd empty.",
                 "Preliminary election-night results exclude special votes; the official result is due 27 November 2026.",
+                "The map is clipped to the Stats NZ land boundary; Chatham Islands are excluded from the main-islands view.",
                 f"Model frozen before polls close ({Path(cfg['_path']).name}); evidence is forward."],
             "n_units": len(elect)}
 
@@ -634,8 +662,11 @@ def units_object(units: pd.DataFrame, frames: list[dict], t: str) -> dict:
         frames = [{"t": t, "f": [0] * len(units), "a": [-1] * len(units),
                    "proj": np.rint(1000 * prior).astype(int).tolist()}]
     return {"unit_ids": units["unit_id"].tolist(), "region": units["region"].tolist(),
-            "names": units["name"].tolist(), "prior": np.rint(1000 * prior).astype(int).tolist(),
+            "layer": units["layer"].tolist(), "names": units["name"].tolist(),
+            "prior": np.rint(1000 * prior).astype(int).tolist(),
             "V0": np.rint(units["V"]).astype(int).tolist(),
+            "winner": [None if pd.isna(x) or not x else str(x) for x in units["winner"]],
+            "margin": np.rint(1000 * units["winner_margin"].fillna(0)).astype(int).tolist(),
             "a": {"name": "National", "color": COLORS["NAT"]},
             "b": {"name": "Labour", "color": COLORS["LAB"]}, "frames": frames}
 
@@ -741,7 +772,9 @@ class Exporter:
                 u = p.unit
                 self.frames.append({"t": _iso(t), "f": np.rint(1000 * u["f"]).astype(int).tolist(),
                     "a": np.rint(1000 * u["raw_nat"].fillna(-.001)).astype(int).tolist(),
-                    "proj": np.rint(1000 * u["proj_nat"]).astype(int).tolist()})
+                    "proj": np.rint(1000 * u["proj_nat"]).astype(int).tolist(),
+                    "winner": u["projected_winner"].tolist(),
+                    "margin": np.rint(1000 * u["projected_margin"]).astype(int).tolist()})
                 if len(self.frames) > 120: self.frames[:] = self.frames[::-2][::-1]
             self.cursor = t
 
@@ -793,7 +826,10 @@ async def run_live(config, out=ROOT_DIR / "site" / "data", snap_root=None, inter
             print(f"nz live wrote {d} ({'pre-count' if t < pd.Timestamp(POLL_CLOSE).to_pydatetime() else 'live'})", flush=True)
         except Exception as x:
             print(f"nz live: {type(x).__name__}: {x}", flush=True)
-        await asyncio.sleep(max(0, interval - (datetime.now(timezone.utc) - t).total_seconds()))
+        delay = max(0.0, interval - (datetime.now(timezone.utc) - t).total_seconds())
+        if stop_at is not None:
+            delay = min(delay, max(0.0, (stop_at - datetime.now(timezone.utc)).total_seconds()))
+        await asyncio.sleep(delay)
 
 
 async def record_feed(interval: float = 120.0, until: datetime | None = None, request_delay: float = .5,

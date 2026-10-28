@@ -110,14 +110,17 @@ The 2025 Representation Commission boundaries used for the 2026 election are off
 
 - General Electorates 2025 (64): `https://datafinder.stats.govt.nz/layer/122741-general-electorates-2025/`;
 - Māori Electorates 2025 (7): `https://datafinder.stats.govt.nz/layer/122742-maori-electorates-2025/`;
-- Stats NZ public ArcGIS services used by the builder:
-  `https://services2.arcgis.com/vKb0s8tBIA3bdocZ/ArcGIS/rest/services/General_Electorates_2025/FeatureServer/0`
-  and `.../M%C4%81ori_Electorates_2025/FeatureServer/0`.
+- Urban Rural 2025 Clipped: `https://datafinder.stats.govt.nz/layer/120964-urban-rural-2025-clipped/`;
+- Stats NZ public ArcGIS electorate services and the current Urban Rural land classes are used by the
+  reproducible builder.
 
-`uv run python analysis/nz_geo.py` downloads WGS84 GeoJSON to `~/.cache/brunder-geo`, adds feed-identical IDs
-`nz-gen-01` … `nz-gen-64` and `nz-maori-65` … `nz-maori-71`, and produces the simplified 71-feature
-`site/data/geo/nz_electorates.topo.json`. Credit: **Stats NZ, General Electorates 2025 and Māori Electorates 2025,
-CC BY 4.0**.
+The legal electorate polygons extend offshore to the 12-nautical-mile limit.
+`uv run python analysis/nz_geo.py` intersects them with Stats NZ's official land classes, excludes the remote Chatham Islands
+from this main-islands view, adds feed-identical IDs `nz-gen-01` … `nz-gen-64` and
+`nz-maori-65` … `nz-maori-71`, and writes a simplified topology with shared borders to
+`site/data/geo/nz_electorates.topo.json`. General and Māori electorates overlap by design, so the dashboard
+offers separate `general` and `maori` layers and defaults to the general layer. Credit: **Stats NZ, General
+Electorates 2025, Māori Electorates 2025 and Urban Rural land classes, CC BY 4.0**.
 
 ## Seat law and exact 2023 reproduction
 

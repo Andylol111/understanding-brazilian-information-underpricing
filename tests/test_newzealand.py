@@ -54,7 +54,8 @@ def test_official_2026_test_xml_parsers():
 
 def test_projection_finishes_at_the_count_and_outcomes():
     units = pd.DataFrame({"unit_id": ["nz-gen-01", "nz-gen-02"], "name": ["A", "B"],
-        "region": ["gen", "gen"], "V": [100, 100], "winner": ["NAT", "LAB"],
+        "region": ["gen", "gen"], "layer": ["general", "general"], "V": [100, 100],
+        "winner": ["NAT", "LAB"], "winner_margin": [.2, .2],
         **{p: ([.6, .4] if p == "NAT" else [.4, .6] if p == "LAB" else [0, 0]) for p in nz.PARTY_KEYS}},
         index=[1, 2])
     c = nz.empty_counts(units)
@@ -125,5 +126,11 @@ def test_live_writes_precount_contract_immediately_without_returns(tmp_path, mon
         "units.json", "stats.json", "arb.json", "entry.json"}
     meta = json.loads((dest / "meta.json").read_text())
     timeline = json.loads((dest / "timeline.json").read_text())
+    units = json.loads((dest / "units.json").read_text())
     assert meta["phase"] == "pre-count" and len(meta["races"]) == 46
+    assert meta["regions"] == [] and meta["layers"][0] == {
+        "id": "general", "name": "General electorates", "default": True}
+    colors = {p["id"]: p["color"] for p in meta["parties"]}
+    assert colors["NAT"] == "#00529f" and colors["ACT"] == "#fde401" and colors["TPMAO"] == "#b2001a"
+    assert units["layer"] == ["general"] and units["winner"] == ["GP"] and units["margin"][0] > 0
     assert len(timeline) == 46 and all(len(rows) == 1 for rows in timeline.values())

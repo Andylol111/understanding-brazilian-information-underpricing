@@ -48,6 +48,10 @@ def public_prior() -> Path:
     out.loc[out["electorate"].map(winners["winner_party"]) == "National Party", "winner"] = "NAT"
     out.loc[out["electorate"].map(winners["winner_party"]) == "Labour Party", "winner"] = "LAB"
     out.loc[out["electorate"].map(winners["winner_party"]) == "ACT New Zealand", "winner"] = "ACT"
+    wp = pd.to_numeric(winners["winner_pct"].astype(str).str.rstrip("%"), errors="coerce") / 100
+    out["winner_margin"] = (
+        pd.to_numeric(winners["majority"], errors="coerce") * wp /
+        pd.to_numeric(winners["winner_votes"], errors="coerce")).reindex(out["electorate"]).to_numpy()
     dest = ROOT / "data_public" / "nz2023_electorates.csv"
     dest.parent.mkdir(parents=True, exist_ok=True)
     body = ("# Derived from New Zealand Electoral Commission official 2023 results; Crown copyright.\n"
