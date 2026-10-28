@@ -46,24 +46,62 @@ def _ga_item_ids(data: dict) -> list[str]:
             ids.append(item["id"])
     return ids
 
-async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str], date: str | None) -> list[tuple[str, str]]:
+_CLARITY_EID: dict[str, str] = {}           # clarity spec -> election id, once found
+
+
+async def _clarity_eid(web: httpx.AsyncClient, spec: str, m: int, d: int, y: int) -> str | None:
+    """Election id for a clarity spec "BASE" or "BASE|LISTING_URL|TEXT_REGEX": the election dated m/d/y in
+    BASE/elections.json, else the first link to BASE/<eid> on the listing page whose text matches the regex
+    (SC's elections.json is empty; scvotes.gov links each election, e.g. "2026 General Election")."""
+    if spec in _CLARITY_EID:
+        return _CLARITY_EID[spec]
+    base, _, rest = spec.partition("|")
+    page, _, pattern = rest.partition("|")
+    eid = None
+    try:
+        r = await web.get(f"{base}/elections.json")
+        eids = [e["EID"] for e in r.json() if e.get("Date", "").startswith(f"{m}/{d}/{y} ")]
+        eid = str(eids[0]) if eids else None
+    except Exception:
+        eid = None
+    if eid is None and page:
+        html = (await web.get(page)).text
+        host = re.escape(base.split("://", 1)[-1])
+        for mm in re.finditer(rf'href="(?:https?://)?{host}/(\d+)[^"]*"[^>]*>(.*?)</a>', html, re.S | re.I):
+            if re.search(pattern, re.sub(r"<[^>]+>", "", mm.group(2)), re.I):
+                eid = mm.group(1)
+                break
+    if eid is not None:
+        _CLARITY_EID[spec] = eid
+    return eid
+
+
+async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str], date: str | None,
+                   vt_static: list[str] = ()) -> list[tuple[str, str]]:
     """Day-of URLs whose election id / version is only known once published. Returns (key, url) pairs.
-      clarity: Clarity/Scytl ENR base, e.g. https://electionresults.iowa.gov/IA. The election is the one
-               dated `date` in elections.json; data lives under a version that changes on every upload.
+      clarity: Clarity/Scytl ENR base, e.g. https://electionresults.iowa.gov/IA, optionally "BASE|LISTING_URL|REGEX"
+               (see _clarity_eid). Data lives under a version that changes on every upload; records ALL.json
+               (key clarity_<base>), en/summary.json (…_summary) and status.json (…_status).
       ga_enr:  Enhanced Voting jurisdiction URL, e.g. …/public/api/jurisdictions/Georgia; the election is
                the one with electionDate == `date`; records its per-county `localities`, the statewide
-               `data` file, and the per-county breakdown (`data/ballot-item/<id>`) of Governor and US Senate."""
+               `data` file, and the per-county breakdown (`data/ballot-item/<id>`) of Governor and US Senate.
+      vt_static: Vermont results file static.electionresults.vermont.gov/elections/<guid>.json; records it
+               (vt_static_main) and the statewide-offices file it points to, renamed on every update
+               (vt_static_statewide)."""
     out = []
     if not date:
         return out
     y, m, d = (int(x) for x in date.split("-"))
-    for base in clarity:
+    for spec in clarity:
+        base = spec.partition("|")[0]
         try:
-            r = await web.get(f"{base}/elections.json")
-            eids = [e["EID"] for e in r.json() if e.get("Date", "").startswith(f"{m}/{d}/{y} ")]
-            if eids:
-                ver = (await web.get(f"{base}/{eids[0]}/current_ver.txt")).text.strip()
-                out.append((f"clarity_{_name(base)}", f"{base}/{eids[0]}/{ver}/json/ALL.json"))
+            eid = await _clarity_eid(web, spec, m, d, y)
+            if eid:
+                ver = (await web.get(f"{base}/{eid}/current_ver.txt")).text.strip()
+                key = f"clarity_{_name(base)}"
+                out.append((key, f"{base}/{eid}/{ver}/json/ALL.json"))
+                out.append((f"{key}_summary", f"{base}/{eid}/{ver}/json/en/summary.json"))
+                out.append((f"{key}_status", f"{base}/{eid}/{ver}/json/status.json"))
         except Exception as e:                       # one source failing must not stop the others
             print(f"resolver {base}: {type(e).__name__}: {e}", flush=True)
     for url in ga_enr:
@@ -81,14 +119,21 @@ async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str]
                 out += [(f"ga_enr_{name}_item_{i}", f"{base}/data/ballot-item/{i}") for i in _GA_ITEMS[base]]
         except Exception as e:
             print(f"resolver {url}: {type(e).__name__}: {e}", flush=True)
+    for url in vt_static:
+        try:
+            main = (await web.get(url)).json()
+            root = url.split("/elections/")[0]
+            out.append(("vt_static_main", url))
+            path = (main.get("stateWide") or {}).get("path")
+            if path:
+                out.append(("vt_static_statewide", f"{root}/{path.replace(chr(92), '/')}"))
+        except Exception as e:
+            print(f"resolver {url}: {type(e).__name__}: {e}", flush=True)
     return out
 
 
-async def run(tag: str, urls: list[str], pm_events: list[str], interval: float = 30.0,
-              until: datetime | None = None, clarity: list[str] = (), ga_enr: list[str] = (),
-              date: str | None = None) -> None:
-    out = SNAP / tag
-    out.mkdir(parents=True, exist_ok=True)
+def _pm_tokens(pm_events: list[str]) -> dict[str, str]:
+    """Resolve event slugs off the asyncio loop; Gamma is synchronous and may be slow."""
     tokens = {}
     for ev in pm_events:
         for m in polymarket.event(ev)["markets"]:
@@ -97,6 +142,15 @@ async def run(tag: str, urls: list[str], pm_events: list[str], interval: float =
             ids = json.loads(m["clobTokenIds"]) if isinstance(m.get("clobTokenIds"), str) else m.get("clobTokenIds") or []
             if ids:
                 tokens[ids[0]] = f"{ev}/{m['slug']}"
+    return tokens
+
+
+async def run(tag: str, urls: list[str], pm_events: list[str], interval: float = 30.0,
+              until: datetime | None = None, clarity: list[str] = (), ga_enr: list[str] = (),
+              date: str | None = None, out_root: Path | None = None, vt_static: list[str] = ()) -> None:
+    out = (out_root or SNAP) / tag
+    out.mkdir(parents=True, exist_ok=True)
+    tokens = await asyncio.to_thread(_pm_tokens, pm_events)
     print(f"snap {tag}: {len(urls)} urls, {len(tokens)} markets, every {interval:.0f}s until {until}", flush=True)
     last: dict[str, str] = {}
     index = out / "index.jsonl"
@@ -134,10 +188,13 @@ async def run(tag: str, urls: list[str], pm_events: list[str], interval: float =
             except Exception as e:
                 print(f"{t:%H:%M:%S} url error, continuing: {type(e).__name__}: {e}", flush=True)
             try:
-                for key, u in await _resolve(web, list(clarity), list(ga_enr), date):
-                    r = await web.get(u)
-                    if r.status_code == 200:
-                        save(key, r.content, "json", t)
+                for key, u in await _resolve(web, list(clarity), list(ga_enr), date, list(vt_static)):
+                    try:                                     # one resolved URL failing must not stop the rest
+                        r = await web.get(u)
+                        if r.status_code == 200:
+                            save(key, r.content, "json", t)
+                    except Exception as e:
+                        print(f"{t:%H:%M:%S} {key}: {type(e).__name__}: {e}", flush=True)
             except Exception as e:
                 print(f"{t:%H:%M:%S} resolver error, continuing: {type(e).__name__}: {e}", flush=True)
             try:
