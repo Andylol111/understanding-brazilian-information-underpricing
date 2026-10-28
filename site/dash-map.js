@@ -157,6 +157,10 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
         if (!st.regionIdx.has(r)) st.regionIdx.set(r, []);
         st.regionIdx.get(r).push(i);
       });
+      // regions drawn hatched (no units yet) can still be zoomed to
+      for (const r of colouring?.hatch ?? []) {
+        if (!st.regionIdx.has(r)) st.regionIdx.set(r, Array.from({ length: n }, (_, i) => i).filter((i) => regionOf(i) === r));
+      }
       let pointOrder = null;
       const pts = Array.from({ length: n }, (_, i) => i).filter((i) => isPoint[i]);
       if (pts.length) {

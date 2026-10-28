@@ -202,6 +202,7 @@ export function control(msg) {
       R.unitLUT = Array.from(msg.unitRace, (r) => luts[r]);
       R.featIdx = msg.featIdx;
       R.parties = new Map((msg.parties ?? []).map((p) => [p.id, p.color]));
+      R.hatch = new Set(msg.hatch ?? []);
       R.partyLUTs.clear();
       R.countTimeline = msg.countTimeline;
       if (msg.radius) R.radius = msg.radius;
@@ -280,6 +281,22 @@ function regionOutline(r) {
   return R.regionOutlines.get(r);
 }
 
+// Light diagonal hatch (regions without a baseline), 6 CSS px apart at any zoom.
+function hatchPattern(ctx, px) {
+  if (!R.hatchTile) {
+    const c = new OffscreenCanvas(6, 6), g = c.getContext("2d");
+    g.fillStyle = NEUTRAL;
+    g.fillRect(0, 0, 6, 6);
+    g.strokeStyle = "#c9c6bd";
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, 6); g.lineTo(6, 0); g.moveTo(-1, 1); g.lineTo(1, -1); g.moveTo(5, 7); g.lineTo(7, 5); g.stroke();
+    R.hatchTile = c;
+  }
+  const pat = ctx.createPattern(R.hatchTile, "repeat");
+  pat.setTransform(new DOMMatrix().scaleSelf(px, px));
+  return pat;
+}
+
 function draw() {
   const ctx = R.ctx;
   if (!ctx || !R.w || !R.n) return;
@@ -291,18 +308,25 @@ function draw() {
   const px = 1 / k;
   const cols = colours(), fade = R.fade, paths = R.paths;
   let alpha = 1;
+  const hatch = R.hatch?.size ? hatchPattern(ctx, px) : null;
   for (let i = 0; i < R.n; i++) {
     const p = paths[i];
     if (!p) continue;
     const a = fade && !fade[i] ? 0.3 : 1;
     if (a !== alpha) { ctx.globalAlpha = a; alpha = a; }
-    ctx.fillStyle = cols ? cols[i] : NONE;
+    ctx.fillStyle = hatch && R.hatch.has(R.regionOf[i]) ? hatch : cols ? cols[i] : NONE;
     ctx.fill(p);
   }
   ctx.globalAlpha = 1;
   ctx.strokeStyle = "#fcfbf8";
   ctx.lineWidth = Math.min(0.6, 0.12 * k) * px;
   ctx.stroke(R.unitMesh);
+  if (hatch) {
+    // county lines inside hatched regions, where the paper-coloured mesh would not show
+    ctx.strokeStyle = "#bdb9ae";
+    ctx.lineWidth = 0.6 * px;
+    for (let i = 0; i < R.n; i++) if (paths[i] && R.hatch.has(R.regionOf[i])) ctx.stroke(paths[i]);
+  }
   ctx.strokeStyle = "rgba(27,27,27,0.6)";
   ctx.lineWidth = 0.8 * px;
   ctx.stroke(R.regionMesh);

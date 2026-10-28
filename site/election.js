@@ -183,10 +183,11 @@ function mergeTail(have, tail) {
 }
 
 // Which units files the map shows: the selected race's own file, or units.json. With no national
-// race and per-race files, the overview (no region chosen) merges one race per region, keeping the
+// race and per-race files, the overview (no region chosen, or a race without its own file, e.g.
+// before the count where a state has no county baseline) merges one race per region, keeping the
 // selected race's office where a region has it.
 function unitsPlan() {
-  if (!S.region && !national() && races().some((r) => r.units)) {
+  if ((!S.region || (PRE() && !S.race?.units)) && !national() && races().some((r) => r.units)) {
     const byRegion = d3.group(races().filter((r) => r.region && r.units), (r) => r.region);
     const pick = [...byRegion.values()].map((list) => list.find((r) => office(r) === office(S.race)) ?? list[0]);
     return { key: pick.map((r) => r.units).join("|"), urls: pick.map((r) => `${EID}/${r.units}`), races: pick };
@@ -246,8 +247,17 @@ function bindUnits() {
     raceColors: raceList.map((r) => [r.a.color, r.b.color]),
     parties: S.meta.parties ?? [],
     countTimeline: S.countTimeline,
+    hatch: noBaseline(),
   });
   S.shownKey = null;
+}
+
+// Regions whose races all lack a county file (before the count: no county baseline yet, e.g. Ohio):
+// hatched on the map and named in the map note.
+function noBaseline() {
+  if (!PRE()) return [];
+  const byRegion = d3.group(races().filter((r) => r.region), (r) => r.region);
+  return [...byRegion].filter(([, rs]) => rs.every((r) => !r.units)).map(([reg]) => reg);
 }
 
 /* ---------------------------------------------------------------- time */
@@ -357,7 +367,8 @@ function render() {
     }
     const lk = `${S.mode}|${S.mode === "winner" ? k : ""}|${S.race?.race_id}`;
     if (lk !== S.legendKey) { S.legendKey = lk; renderLegend(); }
-    $("frame-label").textContent = PRE() ? (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}` : "Before any votes: past certified results, not polls")
+    const nb = PRE() ? noBaseline().filter((reg) => !S.region || reg === S.region).map(regionName) : [];
+    $("frame-label").textContent = PRE() ? (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}` : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county baseline yet; prices shown.` : ""}`)
       : k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
         : tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames`
           : `Map frame ${clock(S.units.times[k], S.tz)}`;
@@ -395,6 +406,7 @@ function updateLists(t) {
 function renderLegend() {
   const root = d3.select("#legend").html("");
   if (!S.units) return;
+  if (PRE() && S.region && noBaseline().includes(S.region)) return; // nothing coloured there yet
   if (S.mode === "winner") { partyLegend(root); return; }
   const w = 200, h = 8;
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
@@ -540,7 +552,7 @@ function showMapState() {
 }
 
 function focusMap(animate = true) {
-  const reg = S.region && S.units?.region?.includes(S.region) ? S.region : null;
+  const reg = S.region && (S.units?.region?.includes(S.region) || noBaseline().includes(S.region)) ? S.region : null;
   S.map?.focus(reg, animate);
   const ext = $("extent");
   ext.hidden = !S.map?.hasPopulatedView || !!reg;
@@ -737,7 +749,7 @@ function drawChart() {
   });
   const g = S.gateCut;
   $("tl-note").textContent = PRE()
-    ? "Before the count: prices every 30 minutes over the last 14 days, and Polymarket's current price as the last point. The orange line is the model's chance before any votes."
+    ? "Before the count: prices every 30 minutes over the last 14 days, and Polymarket's current price as the last point. The orange line, where the model has a figure, is its chance before any votes."
     : g
       ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the vote was counted${g.maxBefore != null ? ` (at most ${pct(g.maxBefore)})` : ""}.`
       : "";
