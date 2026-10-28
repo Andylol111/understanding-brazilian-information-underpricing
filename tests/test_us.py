@@ -490,3 +490,21 @@ def test_no_kalshi_pairs_or_books_gives_null_column(tmp_path):
     rows = json.loads((d / "timeline.json").read_text())["ca-gov"]
     assert len(rows) == 21 and all(r["kalshi"] is None for r in rows)
     assert all(m["platform"] != "kalshi" for m in json.loads((d / "meta.json").read_text())["races"][0]["markets"])
+
+
+def test_timeline_tail_is_last_60_minutes_of_full_timeline(tmp_path):
+    paths = [ROOT / "configs" / "us2026_ca_gov_v1.toml", ROOT / "configs" / "us2026_tx_sen_v1.toml"]
+    cfgs = [us.load_config(p) for p in paths]
+    priors, by_state = _synth_priors(cfgs)
+    snap = _two_feed_archive(tmp_path, cfgs, by_state, [("20261104T040000", 0.1), ("20261104T050000", 0.3),
+                                                         ("20261104T053000", 0.5)])
+    ex = us.Exporter(paths, snap, priors=priors, pairs_path=tmp_path / "none.toml")
+    ex.update()
+    d = ex.write(tmp_path / "site")
+    full = json.loads((d / "timeline.json").read_text())
+    tail = json.loads((d / "timeline_tail.json").read_text())
+    assert set(tail) == set(full) | {"tail", "since"} and tail["tail"] is True
+    for rid in full:
+        assert len(full[rid]) == 91
+        assert tail[rid] == full[rid][-60:]                               # 04:31 … 05:30
+    assert tail["since"] == "2026-11-04T04:31:00Z"

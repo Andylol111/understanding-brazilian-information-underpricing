@@ -127,13 +127,49 @@ async function loadMeta() {
   S.region = asked?.region ?? null;
 }
 
+const withTime = (rows) => rows.map((d) => ({ ...d, time: new Date(d.t), tms: Date.parse(d.t) }));
+const timelineRows = (timeline) => new Map(Object.entries(timeline ?? {}).filter(([, rows]) => Array.isArray(rows)).map(([id, rows]) => [id, withTime(rows)]));
+
+// First load (and every live refresh without a tail file): the whole timeline.
 async function loadSeries() {
   const opt = { optional: true };
   const [timeline, stats, arb] = await Promise.all([getJSON(`${EID}/timeline.json`, opt), getJSON(`${EID}/stats.json`, opt), getJSON(`${EID}/arb.json`, opt)]);
-  S.rows = new Map(Object.entries(timeline ?? {}).map(([id, rows]) => [id, rows.map((d) => ({ ...d, time: new Date(d.t), tms: Date.parse(d.t) }))]));
+  S.rows = timelineRows(timeline);
   S.stats = stats;
   S.arb = arb;
   S.lastFetch = Date.now();
+}
+
+// Live refresh: poll timeline_tail.json (each race's last 60 minutes) and merge it by `t`. The whole
+// timeline is fetched again when the tail file is missing (404) or does not reach back to the last
+// row held for some race (a gap longer than the tail window, e.g. after a long disconnect).
+async function loadLiveSeries() {
+  const opt = { optional: true };
+  const [tail, stats, arb] = await Promise.all([getJSON(`${EID}/timeline_tail.json`, opt), getJSON(`${EID}/stats.json`, opt), getJSON(`${EID}/arb.json`, opt)]);
+  const merged = tail ? mergeTail(S.rows ?? new Map(), timelineRows(tail)) : null;
+  // which file the last refresh used (window.__dashPerf.timelineFetch, for checks)
+  S.perf.timelineFetch = merged ? "tail" : tail ? "full: gap longer than the tail" : "full: no tail file";
+  S.rows = merged ?? timelineRows(await getJSON(`${EID}/timeline.json`, opt));
+  S.perf.timelineHeld = Object.fromEntries([...S.rows].map(([id, rows]) => [id, [rows.length, rows[rows.length - 1]?.t ?? null]]));
+  S.stats = stats;
+  S.arb = arb;
+  S.lastFetch = Date.now();
+}
+
+// Rows of `tail` replace held rows with the same t and newer rows are appended; null when some
+// race's tail starts after the last held row (minutes would be missing in between).
+function mergeTail(have, tail) {
+  const out = new Map(have);
+  for (const [id, rows] of tail) {
+    if (!rows.length) continue;
+    const held = have.get(id) ?? [];
+    if (!held.length || rows[0].tms > held[held.length - 1].tms + 60000) return null;
+    const byT = new Map(held.filter((d) => d.tms >= rows[0].tms).map((d) => [d.tms, d]));
+    for (const d of rows) byT.set(d.tms, d);
+    const keep = held.filter((d) => d.tms < rows[0].tms);
+    out.set(id, keep.concat([...byT.values()].sort((a, b) => a.tms - b.tms)));
+  }
+  return out;
 }
 
 // Which units files the map shows: the selected race's own file, or units.json. With no national
@@ -876,7 +912,7 @@ function initRaceSelect() {
 // One live refresh; false when a file could not be fetched (the last good data stays on screen).
 async function refresh() {
   try {
-    await Promise.all([loadSeries(), loadUnits()]);
+    await Promise.all([loadLiveSeries(), loadUnits()]);
   } catch {
     return false;
   }

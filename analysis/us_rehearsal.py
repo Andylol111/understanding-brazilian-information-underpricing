@@ -241,6 +241,13 @@ def check(out: Path, log: str) -> dict:
                              "last": {k: rows[-1][k] for k in ("t", "counted", "raw", "share", "sd", "P", "pm",
                                                                "kalshi")}}
     rep["geo_misses"] = {k: sorted(v) for k, v in rep["geo_misses"].items()}
+    tail = json.loads((d / "timeline_tail.json").read_text(), parse_constant=_no_nan)
+    rep["tail"] = {"since": tail.get("since"), "flag": tail.get("tail"),
+                   "rows": {rid: len(tail.get(rid, [])) for rid in tl},
+                   "matches_full": all(tail.get(rid) == [x for x in rows if pd.Timestamp(x["t"]) >
+                                                         pd.Timestamp(rows[-1]["t"]) - pd.Timedelta("60min")]
+                                       for rid, rows in tl.items() if rows)}
+    rep["sizes_kb"] = {str(f.relative_to(d)): round(f.stat().st_size / 1024, 1) for f in sorted(d.rglob("*.json"))}
     rep["log"] = {"snapshot_skipped": log.count("snapshot skipped"), "feed_parse_failed": log.count("parse failed"),
                   "race_failed": log.count("retry next pass"), "export_error": log.count("export error")}
     return rep

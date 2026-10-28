@@ -171,7 +171,9 @@ uv run python analysis/us_dryrun.py --out /tmp/us2026_dryrun     # synthetic nig
 `live` re-reads the recorder's archive every 30 s, extends the per-minute timeline and rewrites the files
 atomically; `export` does the same pass once (optionally `--until`). Output under `<out>/us2026/`: `meta.json`,
 `timeline.json` (keyed by race_id), `units/<race_id>.json` (one contract units object per race, frames every 5
-minutes thinned to ≤ 60) and `units.json` (the first race). `counted` = model share of the expected two-party vote;
+minutes thinned to ≤ 60), `units.json` (the first race) and `timeline_tail.json` (the same shape as timeline.json
+restricted to each race's last 60 minutes, plus `"tail": true` and `"since"`, the earliest row included: what the
+live page polls; timeline.json stays complete for the first load). `counted` = model share of the expected two-party vote;
 `pm` = Polymarket mid of the configured market (last trade if the spread exceeds 10c), as P(Democrat);
 `kalshi` = Kalshi P(Democrat): the midpoint of the market's order book when the spread is at most 10c
 (`brunder.kalshi.prob_from_book`), else null, from the latest `kalshi_books` snapshot at or before the minute

@@ -1010,11 +1010,29 @@ class Exporter:
                         print(f"race {rid}: failed at {_iso(t)}, retry next pass: {type(e).__name__}: {e}",
                               flush=True)
 
+    def tail(self, minutes: int = 60) -> dict:
+        """timeline.json's shape restricted to each race's last `minutes` minutes (rows with t > its last row's
+        t − minutes), plus "tail": true and "since" (ISO time of the earliest row included, null if none). The live
+        page polls this small file; timeline.json stays complete for the first load."""
+        out: dict = {}
+        for rid, rows in self.timeline.items():
+            if rows:
+                cut = pd.Timestamp(rows[-1]["t"]) - pd.Timedelta(minutes=minutes)
+                i = len(rows)
+                while i and pd.Timestamp(rows[i - 1]["t"]) > cut:
+                    i -= 1
+                out[rid] = rows[i:]
+            else:
+                out[rid] = []
+        firsts = [r[0]["t"] for r in out.values() if r]
+        return {**out, "tail": True, "since": min(firsts) if firsts else None}
+
     def write(self, out: Path) -> Path:
         d = Path(out) / EID
         ok = {rid: p is not None and not p.empty for rid, p in self.pri.items()}
         _write_json(d / "meta.json", meta(self.cfgs, ok, self.kalshi_mk))
         _write_json(d / "timeline.json", self.timeline)
+        _write_json(d / "timeline_tail.json", self.tail())
         default = None
         for c in self.cfgs:
             rid = c["election"]["race_id"]
