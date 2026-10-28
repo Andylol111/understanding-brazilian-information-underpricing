@@ -38,6 +38,17 @@ within 0.05 pt; totals give Lula 51.785% two-party (official 51.79%) and RN gove
 49.23%). Configs, model, τ and trading rules are unchanged. When TSE publishes BU-web, the comparison
 of the two sources will be reported; the looks are not repeated.
 
+## Israel 2026 (`configs/il2026_v1.toml`): not pre-registered
+
+Settings were chosen on the 2021 and 2022 official counts and written to the config at 2026-10-28
+16:53 UTC, before the scoring script first read the 2026 count (attested by the agent's log, not by git).
+The scoring script then got two data-handling fixes after its first run (ballot-box totals taken from the
+polling-station list; prices bounded by the order book after one stale 0.999 trade), and a 1%-gate
+variant was computed after the first result. The config was first committed after scoring, so the Israel
+results are labelled **not pre-registered**: settings chosen on earlier elections, scored on 2026 once
+with post-run data fixes. The only 2026 count available is third-party (private research use), so no
+2026 count data or derived per-minute series is published; see `docs/israel.md`.
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap
