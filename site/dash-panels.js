@@ -1,7 +1,7 @@
 // Right-hand panels of the dashboard: the readout at the current time, and the three tabs
 // (races, statistics, method & sources). Pure rendering from values the controller passes in.
 import * as d3 from "./vendor/d3.js";
-import { C, esc, pct, num, usd, votesShort, modelP, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
+import { C, esc, pct, num, usd, votesShort, modelP, marginText, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
 
 const PLATFORM = { polymarket: "Polymarket", kalshi: "Kalshi" };
 const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}`);
@@ -22,7 +22,22 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   const market = row.pm ?? row.kalshi; // the gap is measured against Polymarket where it lists the race
   const marketName = row.pm != null ? "Polymarket" : "Kalshi";
   const figs = [];
-  if (pre) {
+  // US rows carry margins (Democratic minus Republican, points): the headline is the model's
+  // margin against the polls and the market-implied margin; chances come second
+  const mm = row.margin_v2 ?? row.margin_model ?? null;
+  const margins = mm != null || row.margin_market != null || row.margin_polls != null;
+  const mmSd = row.margin_v2 != null && row.sd_v2 != null ? 200 * row.sd_v2 : row.margin_model_sd;
+  const mkt = row.margin_market ?? row.margin_market_kalshi ?? null, mktP = row.margin_market != null ? row.pm : row.kalshi;
+  const mktName = row.margin_market != null ? "Polymarket" : "Kalshi";
+  if (margins) {
+    if (countTimeline && !pre) {
+      figs.push(`<div><dt>Counted</dt><dd>${pct(row.counted)}</dd></div>`);
+      figs.push(`<div><dt>Raw count</dt><dd class="r">${pct(row.raw)}</dd></div>`);
+    }
+    figs.push(`<div><dt>${row.estimate ? "Estimate" : "Model"} margin${row.margin_v2 != null ? " (with polls)" : ""}</dt><dd class="m">${marginText(mm)}${mm != null && mmSd != null ? `<small>± ${mmSd.toFixed(1)} pt (1 sd)</small>` : ""}</dd></div>`);
+    figs.push(`<div><dt>Polls</dt><dd>${marginText(row.margin_polls)}</dd></div>`);
+    figs.push(`<div><dt>Market-implied margin</dt><dd class="k">${marginText(mkt)}${mkt != null ? `<small>from the ${mktName} price ${num(mktP)}${row.margin_market != null && row.margin_market_kalshi != null && Math.abs(row.margin_market_kalshi - row.margin_market) >= 0.05 ? `; Kalshi ${marginText(row.margin_market_kalshi)}` : ""}</small>` : ""}</dd></div>`);
+  } else if (pre) {
     figs.push(`<div><dt>Model before any votes${which}</dt><dd class="m">${share != null ? `${pct(share)}${band}` : `<small>${esc(pre.note ?? "not available")}</small>`}</dd></div>`);
   } else if (countTimeline) {
     figs.push(`<div><dt>Counted</dt><dd>${pct(row.counted)}</dd></div>`);
@@ -32,19 +47,24 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   const pParts = [];
   // with a poll-informed version (P_v2) it is the headline model; the count-only model is shown beside it
   const P = modelP(row), two = row.P_v2 != null && row.P != null;
-  if (P != null) pParts.push(`<span class="m">${num(P)}</span><small>${two ? "model with polls" : "model"}</small>`);
+  if (P != null) pParts.push(`<span class="m">${num(P)}</span><small>${row.estimate ? "estimate" : two ? "model with polls" : "model"}</small>`);
   if (two) pParts.push(`<span class="m2">${num(row.P)}</span><small>without polls</small>`);
   if (row.pm != null) pParts.push(`<span class="k">${num(row.pm)}</span><small>Polymarket</small>`);
   if (row.kalshi != null) pParts.push(`<span class="kx">${num(row.kalshi)}</span><small>Kalshi</small>`);
-  figs.push(`<div class="ro-p"><dt>Chance of winning</dt><dd>${pParts.map((x) => `<span class="ro-pp">${x}</span>`).join(" ") || "–"}</dd></div>`);
+  figs.push(`<div class="ro-p${margins ? " ro-sec" : ""}"><dt>Chance of winning</dt><dd>${pParts.map((x) => `<span class="ro-pp">${x}</span>`).join(" ") || "–"}</dd></div>`);
   let gap = "";
-  if (P != null && market != null) {
+  if (margins && mm != null && mkt != null) {
+    const g = mkt - mm;
+    gap = `${row.estimate ? "Estimate" : "Model"} ${marginText(mm)}, market-implied ${marginText(mkt)}: ${Math.abs(g) < 0.05 ? "the same margin" : `the market is <b>${Math.abs(g).toFixed(1)} pt</b> more ${g > 0 ? "Democratic" : "Republican"}`}.`;
+  } else if (margins && mm != null) gap = "No market price at this time.";
+  else if (P != null && market != null) {
     const g = P - market;
     const both = row.pm != null && row.kalshi != null ? `, Kalshi ${num(row.kalshi)}` : "";
     gap = `Model ${num(P)}, ${marketName} ${num(market)}${both}: gap to ${marketName} <b>${num(Math.abs(g))}</b>${Math.abs(g) >= 0.005 ? `, model ${g > 0 ? "higher" : "lower"}` : ""}.`;
   } else if (P != null) gap = "No market price at this time.";
   const frame = frameT != null && countTimeline && !pre ? ` <span class="ro-frame">Map: ${clock(frameT, tz)} frame.</span>` : "";
-  const live = pre && row.live && pre.live ? ` <span class="ro-frame">${esc(pre.live)}.</span>` : "";
+  const basis = pre?.basis ? ` <span class="ro-frame">${esc(pre.basis)}.</span>` : "";
+  const live = (pre && row.live && pre.live ? ` <span class="ro-frame">${esc(pre.live)}.</span>` : "") + basis;
   // the model's estimate of the votes still to count and how they lean (rem_total, rem_margin_total)
   let rem = "";
   if (row.rem_total > 0) {
@@ -395,13 +415,14 @@ function arbChart(rows, tz) {
 
 /* ---------------------------------------------------------------- method tab */
 
-export function renderMethod(el, { meta, entry, geometryCredit, twoModels = false }) {
+export function renderMethod(el, { meta, entry, geometryCredit, twoModels = false, margins = false }) {
   const notes = (meta.notes ?? []).map((n) => `<li>${esc(n)}</li>`).join("");
   const src = (meta.sources ?? []).map((s) => `<li><a href="${esc(s.url)}">${esc(s.name)}</a>, ${esc(s.licence)}</li>`).join("");
   const evs = Object.entries(EVIDENCE).map(([k, e]) => `<li>${evidenceLabel(k)} ${esc(e.long[0].toUpperCase() + e.long.slice(1))}.</li>`).join("");
   el.innerHTML = `
     <h3 class="tab-h">How this election was modelled</h3>
     ${twoModels ? `<p>Two versions of the model are shown. The <span class="m">model with polls</span> (the main line and figure) starts from past certified results shifted toward the recent polling average for the race, then updates as votes are counted. The <span class="m">model without polls</span> (thin dashed line) starts from past certified results alone and updates from the count in the same way. Both use only what was known at each minute. As more votes are counted both rely more on the count, so the two come closer; the difference matters most before and early in the count.</p>` : ""}
+    ${margins ? `<p><b>Market-implied margin</b>: the vote margin at which the model's own uncertainty would give the market's price. A price p becomes the margin Φ⁻¹(p) × the model's standard deviation of the margin (Φ⁻¹: the inverse of the normal distribution), so 0.50 is an even race and 0.84 is a lead of one standard deviation.</p>` : ""}
     ${notes ? `<ul>${notes}</ul>` : `<p class="note">No notes.</p>`}
     <h3 class="tab-h">Evidence labels</h3>
     <p>This election: ${entry?.evidence ? evidenceLabel(entry.evidence) : "–"}</p>

@@ -3,7 +3,18 @@
 // share counted, the raw count's share for side a (weighted by votes counted), the model's
 // projection, the comparison election, and who leads where units carry a winner.
 // U: { n, F, A, P, prior, V0 } as built by dash-engine.js units(); values in thousandths, -1 = none.
+import * as d3 from "./vendor/d3.js";
 
+// Leader colouring (as on YAPMS): the side ahead's colour in four bands of margin (points between
+// the two sides): tilt under 1, lean 1-5, likely 5-15, safe 15 or more. Even the lightest band is
+// clearly tinted; an exact tie is grey.
+export const BANDS = ["Tilt", "Lean", "Likely", "Safe"];
+export const TIE = "#bdbab2";
+const STRENGTH = [0.4, 0.6, 0.8, 1];
+export const bandOf = (pt) => { const a = Math.abs(pt); return a < 1 ? 0 : a < 5 ? 1 : a < 15 ? 2 : 3; };
+export const bandColours = (colour, neutral = "#f4f2ec") => STRENGTH.map((s) => d3.interpolateLab(neutral, colour)(s));
+// colour for a margin in points (side a minus side b), from bandColours of each side
+export const bandColour = (pt, aCols, bCols) => (pt === 0 ? TIE : (pt > 0 ? aCols : bCols)[bandOf(pt)]);
 export function unitsByRegion(region) {
   const out = new Map();
   region.forEach((r, j) => {

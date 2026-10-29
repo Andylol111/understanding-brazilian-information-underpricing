@@ -34,7 +34,43 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, count
   const last = rows[rows.length - 1];
   const final = countPanel && last.counted >= 0.999 && last.raw != null ? last.raw : null;
 
-  if (countPanel && placeholder) {
+  // US rows carry margins (Democratic minus Republican, points): the top panel shows the model's
+  // margin and its 90% band, the polls and the market-implied margin (and the raw count's margin
+  // once counting starts)
+  const hasMargins = countPanel && vis.some((d) => d.margin_model != null || d.margin_v2 != null || d.margin_market != null);
+  if (hasMargins) {
+    const mm = (d) => d.margin_v2 ?? d.margin_model ?? null;
+    const msd = (d) => (d.margin_v2 != null && d.sd_v2 != null ? 200 * d.sd_v2 : d.margin_model_sd ?? null);
+    const lo = (d) => (mm(d) != null && msd(d) != null ? mm(d) - 1.645 * msd(d) : null);
+    const hi = (d) => (mm(d) != null && msd(d) != null ? mm(d) + 1.645 * msd(d) : null);
+    const rawM = (d) => (d.raw != null && d.counted > 0 ? (2 * d.raw - 1) * 100 : null);
+    const vals = vis.flatMap((d) => [mm(d), lo(d), hi(d), d.margin_polls, d.margin_market, d.margin_market_kalshi, rawM(d)]).filter((v) => v != null && Number.isFinite(v));
+    const [a, b] = vals.length ? d3.extent([...vals, 0]) : [-10, 10];
+    const yM = d3.scaleLinear().domain([a - 1, b + 1]).nice().range([m.t + h1, m.t]);
+    const [d0, d1] = yM.domain();
+    const cM = (v) => yM(Math.max(d0, Math.min(d1, v)));
+    const fmt = (v) => (v === 0 ? "0" : `${v > 0 ? "D" : "R"}+${Math.abs(v)}`);
+    svg.insert("g", "g").attr("class", "grid").selectAll("line").data(yM.ticks(4)).join("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yM).attr("y2", yM);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yM).ticks(4).tickFormat(fmt).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
+    svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", m.t - 6).text("Margin, Democratic minus Republican (points)");
+    g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yM(0)).attr("y2", yM(0)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
+    const stepM = (f) => d3.line().defined((d) => f(d) != null).x(X).y((d) => cM(f(d))).curve(d3.curveStepAfter);
+    g.append("path").datum(vis.filter((d) => lo(d) != null)).attr("fill", C.model).attr("opacity", 0.14)
+      .attr("d", d3.area().x(X).y0((d) => cM(lo(d))).y1((d) => cM(hi(d))).curve(d3.curveStepAfter));
+    g.append("path").datum(vis).attr("fill", "none").attr("stroke", "#8d8a82").attr("stroke-width", 1.4).attr("stroke-dasharray", "4,3").attr("d", stepM((d) => d.margin_polls ?? null));
+    g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.raw).attr("stroke-width", 2).attr("d", stepM(rawM));
+    g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.kalshi).attr("stroke-width", 1.2).attr("d", stepM((d) => d.margin_market_kalshi ?? null));
+    g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.6).attr("d", stepM((d) => d.margin_market ?? null));
+    g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 2).attr("d", stepM(mm));
+    const lastF = (f) => [...vis].reverse().find((d) => f(d) != null);
+    endLabels(svg, width - m.r + 5, [
+      [lastF(mm), (d) => cM(mm(d)), "model", C.model],
+      [lastF((d) => d.margin_polls ?? null), (d) => cM(d.margin_polls), "polls", "#8d8a82"],
+      [lastF((d) => d.margin_market ?? null), (d) => cM(d.margin_market), "market-implied", C.market],
+      [lastF((d) => d.margin_market_kalshi ?? null), (d) => cM(d.margin_market_kalshi), "Kalshi-implied", C.kalshi],
+      [lastF(rawM), (d) => cM(rawM(d)), "raw count", C.raw],
+    ]);
+  } else if (countPanel && placeholder) {
     g.append("rect").attr("x", m.l).attr("y", m.t).attr("width", width - m.l - m.r).attr("height", h1).attr("fill", "#f1efe9");
     svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", m.t - 6).attr("fill", C.muted).text(`${race.a.name}'s share of the two-candidate vote`);
     const lines = [["raw count", C.raw], ["model projection and 90% band", C.model], ["share of the vote counted", C.muted]];

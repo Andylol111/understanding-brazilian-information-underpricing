@@ -9,12 +9,14 @@
 //    and headless pages throttle or never run), so the first frame appears once data is bound.
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { unitsByRegion, regionAgg, regionWinner } from "./dash-agg.js";
+import { unitsByRegion, regionAgg, regionWinner, bandColours, bandColour } from "./dash-agg.js";
 
 const BASE = 1000; // base projection extent, shared with dash-map.js
 const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4 }; // value at which a diverging colour is full
 const NONE = "#efede7", NEUTRAL = "#f4f2ec";
 const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is full
+// leader colour of unit j for a margin in points (side a minus side b)
+const band = (j, pt) => { const b = R.unitBand?.[j]; return b ? bandColour(Math.abs(pt) < 1e-9 ? 0 : pt, b[0], b[1]) : NONE; };
 
 // static files are parsed once; live files are revalidated on every read (If-None-Match -> 304), and a
 // live failure other than 404 throws so the page keeps its last good map
@@ -143,7 +145,9 @@ export async function units({ urls, live, countTimeline }) {
   const files = await Promise.all(urls.map((u) => json(u, live)));
   const ok = files.map((f, s) => [f, s]).filter(([f]) => f?.unit_ids?.length);
   if (!ok.length) { R.units = null; schedule(); return { result: null, transfer: [] }; }
-  const times = [...new Set(ok.flatMap(([f]) => (f.frames ?? []).map((fr) => Date.parse(fr.t))))].sort((a, b) => a - b);
+  // a frame without a time (a pre-count estimate, t: null) holds from the start
+  const frameT = (fr) => (fr.t ? Date.parse(fr.t) : -8.64e15);
+  const times = [...new Set(ok.flatMap(([f]) => (f.frames ?? []).map(frameT)))].sort((a, b) => a - b);
   const n = ok.reduce((s, [f]) => s + f.unit_ids.length, 0);
   const K = times.length;
   const unit_ids = [], region = [], names = [], layer = []; // layer: overlapping unit sets (NZ electorates)
@@ -167,7 +171,7 @@ export async function units({ urls, live, countTimeline }) {
       V0[off + j] = f.V0?.[j] ?? 0;
       if (top) { top.winner[off + j] = f.winner?.[j] ?? null; top.margin[off + j] = f.margin?.[j] ?? 0; }
     }
-    const ft = (f.frames ?? []).map((fr) => Date.parse(fr.t));
+    const ft = (f.frames ?? []).map(frameT);
     let fk = -1;
     for (let k = 0; k < K; k++) {
       while (fk + 1 < ft.length && ft[fk + 1] <= times[k]) fk++;
@@ -242,13 +246,16 @@ export function control(msg) {
     case "canvas": R.ctx = msg.canvas.getContext("2d"); R.canvas = msg.canvas; break;
     case "size": Object.assign(R, { w: msg.w, h: msg.h, dpr: msg.dpr }); if (R.canvas) { R.canvas.width = Math.round(msg.w * msg.dpr); R.canvas.height = Math.round(msg.h * msg.dpr); } break;
     case "view": R.view = msg.view; break;
-    case "frame": R.view = msg.view ?? R.view; R.fadeMix = msg.fadeMix ?? R.fadeMix; R.natMix = msg.natMix ?? R.natMix; R.levelMix = msg.levelMix ?? R.levelMix; R.xfade = msg.xfade ?? null; break;
+    case "frame": R.view = msg.view ?? R.view; R.fadeMix = msg.fadeMix ?? R.fadeMix; R.natMix = msg.natMix ?? R.natMix; R.levelMix = msg.levelMix ?? R.levelMix; break;
     case "state": Object.assign(R, msg.state); break;
     case "nat": R.natColours = msg.colours ? new Map(msg.colours) : null; R.natRings = new Set(msg.rings ?? []); break;
     case "bind": {
       // per-unit colour tables from the races' two colours; party colours for "winner"
       const luts = msg.raceColors.map(([a, b]) => lutFor(a, b));
       R.unitLUT = Array.from(msg.unitRace, (r) => luts[r]);
+      // leader colouring for margins: each side's four band shades (dash-agg.js)
+      const bands = msg.raceColors.map(([a, b]) => [bandColours(a, NEUTRAL), bandColours(b, NEUTRAL)]);
+      R.unitBand = Array.from(msg.unitRace, (r) => bands[r]);
       R.featIdx = msg.featIdx;
       R.parties = new Map((msg.parties ?? []).map((p) => [p.id, p.color]));
       R.hatch = new Set(msg.hatch ?? []);
@@ -261,7 +268,6 @@ export function control(msg) {
       break;
     }
     case "paint": Object.assign(R, { mode: msg.mode, t: msg.t, tween: msg.tween }); break;
-    case "prepare": prepareLayers(msg.from, msg.to); return; // bitmaps for a level crossfade (see draw())
     default: return;
   }
   schedule();
@@ -324,7 +330,7 @@ function colours() {
     const vals = U.vals.prior;
     for (let i = 0; i < nf; i++) {
       const j = idx[i], v = j < 0 ? NaN : vals[j];
-      out[i] = Number.isNaN(v) ? NONE : luts[j][Math.round((v + 1) * 100)];
+      out[i] = Number.isNaN(v) ? NONE : band(j, v * SCALE.prior * 100);
     }
   } else {
     const vals = U.vals[R.mode] ?? U.vals.margin, b0 = k * n;
@@ -341,7 +347,8 @@ function colours() {
         if (Number.isNaN(v0)) v = s >= 0.5 ? v1 : NaN;
         else if (!Number.isNaN(v1)) v = v0 + (v1 - v0) * s;
       }
-      out[i] = counted ? (v > 0 ? COUNTED_LUT[Math.min(100, Math.round(v * 100))] : NONE) : Number.isNaN(v) ? NONE : luts[j][Math.round((v + 1) * 100)];
+      out[i] = counted ? (v > 0 ? COUNTED_LUT[Math.min(100, Math.round(v * 100))] : NONE) : Number.isNaN(v) ? NONE
+        : R.mode === "margin" ? band(j, v * SCALE.margin * 100) : luts[j][Math.round((v + 1) * 100)];
     }
   }
   if (!tween) R.cache.set(key, out);
@@ -368,11 +375,11 @@ function aggColours() {
     } else {
       const g = regionAgg(U, k, js);
       if (R.mode === "counted") c = g.counted > 0 ? COUNTED_LUT[Math.min(100, Math.round(g.counted * 100))] : NONE;
-      else if (R.mode === "prior" || k < 0) c = g.prior != null ? lutAt(lut, (2 * g.prior - 1) / SCALE.prior) : NONE;
+      else if (R.mode === "prior" || k < 0) c = g.prior != null ? band(js[0], (2 * g.prior - 1) * 100) : NONE;
       else if (R.mode === "swing") c = g.raw != null && g.prior != null ? lutAt(lut, (g.raw - g.prior) / SCALE.swing) : NONE;
       else {
         const v = R.countTimeline ? g.proj : g.raw ?? g.proj;
-        c = v != null ? lutAt(lut, (2 * v - 1) / SCALE.margin) : NONE;
+        c = v != null ? band(js[0], (2 * v - 1) * 100) : NONE;
       }
     }
     out.set(r, c);
@@ -397,44 +404,16 @@ function hatchPattern(ctx, px) {
   return pat;
 }
 
-// One frame: units (or, with a state layer, region fills plus the focus region's units faded in),
-// then the meshes. Hover, pin and region outlines are drawn by the page on its own overlay canvas
-// (dash-map.js), so pointer movement never repaints this one.
-// A level switch without a zoom crossfades two bitmaps, the map before and after the switch,
-// drawn once ("prepare", with the from/to mixes), instead of redrawing every unit each frame;
-// the page sends the crossfade's progress as `xfade` with each frame.
-const layerKey = () => `${R.view.k}|${R.view.x}|${R.view.y}|${R.w}|${R.h}|${R.dpr}|${R.mode}|${R.t}|${R.focus}|${R.fadeMix}|${R.cache.size}|${R.featIdx?.length}`;
-function prepareLayers(from, to) {
-  R.layers = null;
-  if (!R.ctx || !R.w || !R.n || typeof OffscreenCanvas === "undefined") return;
-  const W = R.canvas.width, H = R.canvas.height, keep = [R.levelMix, R.natMix];
-  const make = (m) => {
-    const c = new OffscreenCanvas(W, H);
-    R.levelMix = m.levelMix; R.natMix = m.natMix;
-    paint(c.getContext("2d"));
-    return c;
-  };
-  const a = make(from), b = make(to);
-  [R.levelMix, R.natMix] = keep;
-  R.layers = { key: layerKey(), a, b };
-}
-
+// One frame, always drawn from the projected paths under the current view (no cached bitmaps, so
+// a zoom or level change never shows two pictures): units (or, with a state layer, region fills
+// plus the units faded in over them), then the meshes and the open region's outline. Hover and pin
+// outlines are drawn by the page on its own overlay canvas (dash-map.js), so pointer movement
+// never repaints this one.
 function draw() {
   const ctx = R.ctx;
   if (!ctx || !R.w || !R.n) return;
   const t0 = performance.now();
-  const L = R.layers;
-  if (L && R.xfade != null && L.key === layerKey()) {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, R.canvas.width, R.canvas.height);
-    ctx.drawImage(L.a, 0, 0);
-    ctx.globalAlpha = R.xfade;
-    ctx.drawImage(L.b, 0, 0);
-    ctx.globalAlpha = 1;
-  } else {
-    if (R.xfade == null) R.layers = null; // the switch is over
-    paint(ctx);
-  }
+  paint(ctx);
   R.drawMs.push(performance.now() - t0);
   if (R.lastCols && !R.painted++) emit({ type: "painted", at: performance.timeOrigin + performance.now() });
   if (R.drawMs.length >= 30) { emit({ type: "drawStats", ms: R.drawMs }); R.drawMs = []; }
@@ -565,6 +544,14 @@ function paint(ctx) {
       ctx.arc(c[0], c[1], 5 * px, 0, 2 * Math.PI);
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
+  }
+  // the open region's outline, in the same frame as the map under it (never a frame apart)
+  if (focus && R.fadeMix > 0 && R.regionFill.has(focus)) {
+    ctx.globalAlpha = R.fadeMix;
+    ctx.strokeStyle = "#1b1b1b";
+    ctx.lineWidth = 1.6 * px;
+    ctx.stroke(R.regionFill.get(focus));
     ctx.globalAlpha = 1;
   }
 }

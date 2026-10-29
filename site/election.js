@@ -6,14 +6,14 @@
 // (dash-worker.js) fetches, parses and projects the geometry and the map frames; the map appears
 // when both arrive. While playing, colours are interpolated between map frames every animation frame.
 import * as d3 from "./vendor/d3.js";
-import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
+import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, probit, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
 import { createMap } from "./dash-map.js";
 import { drawTimeline } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
-import { regionAgg, regionWinner } from "./dash-agg.js";
+import { regionAgg, regionWinner, BANDS, TIE, bandOf, bandColours } from "./dash-agg.js";
 
 const EID = param("id");
 const $ = (id) => document.getElementById(id);
@@ -105,10 +105,11 @@ function engineFailed(err) {
 /* ---------------------------------------------------------------- data */
 
 const races = () => S.meta.races ?? [];
-const raceById = (id) => races().find((r) => r.race_id === id);
+// races of the meta, then the US overview's races with only a county estimate (S.extra)
+const raceById = (id) => races().find((r) => r.race_id === id) ?? S.extra?.get(id);
 const national = () => races().find((r) => !r.region);
 const mainRace = () => national() ?? races()[0];
-const regionName = (id) => S.meta.regions?.find((r) => r.id === id)?.name ?? id?.toUpperCase();
+const regionName = (id) => S.meta.regions?.find((r) => r.id === id)?.name ?? (countryCode() === "US" && id ? usStateName(id) : id?.toUpperCase());
 const raceName = (r) => (r.region && !r.name.includes(regionName(r.region)) ? `${r.name}, ${regionName(r.region)}` : r.name);
 const racesIn = (region) => races().filter((r) => r.region === region);
 // The race's office without its region ("tx-sen" -> "sen"), to keep the same office across regions.
@@ -140,12 +141,21 @@ async function loadMeta() {
   // Open on a region only when one was asked for; elections without a national race open on the
   // overview of all regions with races.
   S.region = asked?.region ?? askedRegion;
-  S.level = ["regions", "units"].includes(param("level")) ? param("level") : S.region ? "units" : "regions";
-  S.countryLevel = "regions"; // the other regions' level while one is open
+  // units by default; the US national map (market-coloured states) opens at the state level
+  S.countryLevel = meta.overview ? "regions" : "units"; // the country's level, and the other regions' while one is open
+  S.level = ["regions", "units"].includes(param("level")) ? param("level") : S.region ? "units" : S.countryLevel;
 }
 
-const withTime = (rows) => rows.map((d) => ({ ...d, time: new Date(d.t), tms: Date.parse(d.t) }));
-const timelineRows = (timeline) => new Map(Object.entries(timeline ?? {}).filter(([, rows]) => Array.isArray(rows)).map(([id, rows]) => [id, withTime(rows)]));
+// The "with polls" model of a race is meta.races[].poll_model ("v2", "v3"): its P_/share_/sd_
+// fields are read into P_v2/share_v2/sd_v2, which the readout and chart show as "with polls".
+const pollModel = (id) => raceById(id)?.poll_model ?? "v2";
+function withPollModel(d, v) {
+  if (v === "v2") return d;
+  const share = d[`share_${v}`] ?? null; // its margin: from its two-party share where the row has no margin_<v>
+  return { ...d, P_v2: d[`P_${v}`] ?? null, share_v2: share, sd_v2: d[`sd_${v}`] ?? null, margin_v2: d[`margin_${v}`] ?? (share != null ? (2 * share - 1) * 100 : null) };
+}
+const withTime = (rows, v = "v2") => rows.map((d) => ({ ...withPollModel(d, v), time: new Date(d.t), tms: Date.parse(d.t) }));
+const timelineRows = (timeline) => new Map(Object.entries(timeline ?? {}).filter(([, rows]) => Array.isArray(rows)).map(([id, rows]) => [id, withTime(rows, pollModel(id))]));
 
 // First load (and every live refresh without a tail file): the whole timeline.
 async function loadSeries() {
@@ -216,8 +226,22 @@ async function loadUnits() {
   return true;
 }
 
-// Row of a race's timeline at time t (last row at or before t). Time arrays are built once per load.
 const tIndex = new WeakMap();
+// A readout row for an estimate-only race (S.extra), from the overview: the estimate, prices
+// (Polymarket's live price where read) and margins.
+function extraRow(r) {
+  const o = r?.ov;
+  if (!o) return null;
+  const e = r.estimate ?? {}, m = o.margins ?? {};
+  const pm = S.nat?.price(o.race_key) ?? o.pm?.price ?? null, kx = o.kalshi?.price ?? null;
+  const mk = (p) => (m.market_sd_used && p > 0 && p < 1 ? probit(p) * m.market_sd_used : null);
+  return {
+    estimate: true, share: e.share ?? null, sd: e.sd ?? null, P: e.P ?? null, pm, kalshi: kx,
+    margin_model: m.estimate ?? e.margin ?? null, margin_model_sd: e.margin_sd ?? null, margin_polls: m.polls ?? null,
+    margin_market: mk(pm) ?? m.market ?? null, margin_market_kalshi: mk(kx) ?? m.market_kalshi ?? null,
+  };
+}
+// Row of a race's timeline at time t (last row at or before t). Time arrays are built once per load.
 function rowAt(raceId, t) {
   const rows = S.rows.get(raceId);
   if (!rows?.length) return null;
@@ -361,7 +385,7 @@ const regionHover = () => levelsOn() && !S.region && S.level === "regions";
 // S.region with the level path: entering a region shows its units, leaving shows regions again.
 function setRegionState(reg) {
   if (reg && !S.region) { S.countryLevel = S.level; S.level = "units"; }
-  else if (!reg && S.region) { S.level = "regions"; S.countryLevel = "regions"; }
+  else if (!reg && S.region) S.level = S.countryLevel; // back to the country at the level it had
   S.region = reg ?? null;
   for (const b of $("map-level").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.level === S.level));
 }
@@ -407,7 +431,8 @@ function regionCardHTML(reg) {
     <p class="pc-hint">${js.length.toLocaleString("en-US")} ${levelNames()[1].toLowerCase()}, weighted by expected vote. Click to open.</p>`;
 }
 
-// Legend line: how many regions (region level) or units lean to each side at the current time.
+// Legend counts at the current time: regions (region level) or units by side and, for the margin
+// modes, by band (the cells of the band legend).
 function legendCount() {
   const el = document.querySelector("#legend .legend-count");
   if (!el || !S.units) return;
@@ -418,18 +443,36 @@ function legendCount() {
   S.countKey = key;
   if (!["margin", "prior", "swing"].includes(S.mode)) { el.textContent = ""; return; }
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
+  const half = (s) => (s == null ? null : s - 0.5);
   const val = (g) => (S.mode === "swing" ? (g.raw != null && g.prior != null ? g.raw - g.prior : null)
-    : S.mode === "prior" || k < 0 ? (g.prior != null ? g.prior - 0.5 : null) : (S.countTimeline ? g.proj : g.raw ?? g.proj) - 0.5);
-  let a = 0, b = 0;
-  const add = (v) => { if (v == null || Number.isNaN(v)) return; if (v > 0) a++; else if (v < 0) b++; };
+    : S.mode === "prior" || k < 0 ? half(g.prior) : half(S.countTimeline ? g.proj : g.raw ?? g.proj));
+  let a = 0, b = 0, tie = 0;
+  const cells = { a: [0, 0, 0, 0], b: [0, 0, 0, 0] };
+  const add = (v) => {
+    if (v == null || Number.isNaN(v)) return;
+    const pt = 200 * v; // margin in points (side a minus side b)
+    if (pt === 0) { tie++; return; }
+    if (pt > 0) a++; else b++;
+    cells[pt > 0 ? "a" : "b"][bandOf(pt)]++;
+  };
   if (atRegions) for (const [, js] of S.regionUnits) { const g = regionAgg(U, k, js.filter(layerOn)); add(g.weight ? val(g) : null); }
   else for (let j = 0; j < U.n; j++) {
     if (!layerOn(j) || (S.region && U.region[j] !== S.region)) continue;
     add(val(regionAgg(U, k, [j])));
   }
+  for (const c of document.querySelectorAll("#legend [data-band]")) c.textContent = cells[c.dataset.side][+c.dataset.band] || "";
   const what = (atRegions ? levelNames()[0] : layers().find((l) => l.id === S.layer)?.name ?? levelNames()[1]).toLowerCase();
   const verb = S.mode === "swing" ? "swing towards" : "ahead";
-  el.innerHTML = a + b ? `<span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> ${verb} in <b>${a}</b> · <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> in <b>${b}</b> ${what}` : "";
+  el.innerHTML = a + b ? `<span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> ${verb} in <b>${a}</b> · <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> in <b>${b}</b> ${what}${tie ? ` · tied in <b>${tie}</b>` : ""}` : "";
+}
+
+// Margin modes: who is ahead, in four bands per side (as on YAPMS); counts filled by legendCount().
+function bandLegend(root) {
+  const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
+  const row = (nm, col, s) => `<tr><th title="${esc(nm)}">${esc(nm)}</th>${bandColours(col).map((c, b) => `<td><i style="background:${c}"></i><b data-side="${s}" data-band="${b}"></b></td>`).join("")}</tr>`;
+  root.html(`<table class="band-legend"><thead><tr><th></th>${BANDS.map((b) => `<th>${b}</th>`).join("")}</tr></thead><tbody>${row(r.a.name, r.a.color, "a")}${row(r.b.name, r.b.color, "b")}</tbody></table>
+    <p class="legend-note">Who is ahead, by margin: tilt under 1 point, lean 1–5, likely 5–15, safe 15 or more. <i class="tie" style="background:${TIE}"></i> tied.</p>
+    <p class="legend-count"></p>`);
 }
 
 /* ---------------------------------------------------------------- time */
@@ -570,14 +613,16 @@ function render() {
       S.map.paint(S.mode, tt, tween);
       S.shownKey = tween ? null : key;
     }
-    const lk = `${S.mode}|${S.mode === "winner" ? k : ""}|${S.race?.race_id}|${S.layer}|${S.mode === "winner" ? `${S.level}|${S.region}` : ""}`;
+    const lk = `${S.mode}|${S.mode === "winner" ? k : ""}|${S.race?.race_id}|${S.unitsKey}|${S.layer}|${S.mode === "winner" ? `${S.level}|${S.region}` : ""}`;
     if (lk !== S.legendKey) { S.legendKey = lk; S.countKey = null; renderLegend(); }
     legendCount();
     const nb = PRE() ? noBaseline().filter((reg) => !S.region || reg === S.region).map(regionName) : [];
     const remNote = remModes().includes(S.mode) ? `Circles: the model's estimate of the votes still to count${PRE() ? " (before the count: the whole expected vote)" : ""}.` : "";
     $("frame-label").textContent = S.mode === "ev" ? "Early vote: ballots cast before election day, from the states' daily reports. Display only; not used by the model."
       : PRE()
-      ? remNote || (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}` : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county baseline yet; prices shown.` : ""}`)
+      ? remNote || (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}`
+        : S.mapRaces?.length === 1 && S.mapRaces[0].estimate ? `Before any votes: ${S.mapRaces[0].estimate.note.replace(/^estimate:\s*/i, "an estimate, ")}.`
+        : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county baseline yet; prices shown.` : ""}`)
       : k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
         : `${remNote ? `${remNote} ` : ""}${tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames` : `Map frame ${clock(S.units.times[k], S.tz)}`}`;
     if (S.hover >= 0 || S.pinned >= 0) placeCard();
@@ -590,7 +635,9 @@ function render() {
     : `${PRE() ? `${esc(dayOf(S.t))} ` : ""}<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing && !PRE() ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
   if (S.race) {
     const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
-    renderReadout($("readout"), { race: S.race, row: rowAt(S.race.race_id, tt), t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region) });
+    const row = rowAt(S.race.race_id, tt) ?? extraRow(S.race);
+    if (pre && S.race.estimate) pre.basis = S.race.estimate.note;
+    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region) });
   }
   // race list and region picker: at most every 200 ms while playing
   const now = performance.now();
@@ -618,6 +665,7 @@ function renderLegend() {
   if (S.mode === "winner") { partyLegend(root); return; }
   if (S.mode === "rem" || S.mode === "remlean") { remLegend(root); return; }
   if (S.mode === "ev") { evLegend(root); return; }
+  if (S.mode === "margin" || S.mode === "prior") { bandLegend(root); return; }
   const w = 200, h = 8;
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
   const svg = root.append("svg").attr("viewBox", `0 0 ${w} 24`).attr("width", w).attr("height", 24);
@@ -758,7 +806,8 @@ function initMap(geo) {
       if (natShown()) {
         // the national map: a state's card, and its county file preloaded for a click
         S.nat.hover(reg, ev);
-        if (reg) prefetchUnits([S.nat.raceFor(reg)?.race_id && raceById(S.nat.raceFor(reg).race_id)]);
+        const rr = reg ? S.nat.raceFor(reg) : null;
+        if (rr) prefetchUnits([raceById(rr.race_id ?? rr.race_key)]);
         return;
       }
       // the region level: the whole region's card
@@ -835,7 +884,7 @@ function showMapState() {
 // region's units being bound (the zoom starts at once; with a state layer the units fade in when
 // they are ready).
 function focusMap(animate = true, ready = null) {
-  const reg = S.region && S.map?.hasRegion(S.region) && (pickerRegions().some((r) => r.id === S.region) || noBaseline().includes(S.region)) ? S.region : null;
+  const reg = S.region && S.map?.hasRegion(S.region) && (pickerRegions().some((r) => r.id === S.region) || noBaseline().includes(S.region) || S.race?.region === S.region) ? S.region : null;
   S.map?.focus(reg, { animate, ready, ...levelTargets(reg) });
   S.map?.setNatHover(regionHover() || natShown());
   const ext = $("extent");
@@ -1485,6 +1534,22 @@ async function initNational() {
     onColours: (colours, rings) => { S.natLayer = [colours, rings]; S.map?.setNational(colours, rings); },
     onHighlight: (r) => S.map?.highlightRegion(r),
   });
+  // the overview's other races with a county file (an estimate: past results shifted by polls) open
+  // like the modelled ones; they are not in the race list
+  S.extra = new Map();
+  for (const [o, off] of Object.entries(overview.offices ?? {})) {
+    for (const r of off.races ?? []) {
+      if (!r.units || (r.race_id && races().some((x) => x.race_id === r.race_id))) continue;
+      S.extra.set(r.race_key, {
+        race_id: r.race_key, region: r.state, units: r.units, estimate: r.estimate ?? null, ov: r,
+        name: `${r.state_name ?? r.state.toUpperCase()} ${o === "governor" ? "governor" : "Senate"}${r.special ? " (special)" : ""}`,
+        a: { name: r.dem_side?.name ?? r.candidates?.D ?? "Democratic side", color: "#1f5fbf" },
+        b: { name: r.candidates?.R ?? "Republican side", color: "#c8102e" },
+      });
+    }
+  }
+  const asked = S.extra.get(param("race"));
+  if (asked) { S.race = asked; S.region = asked.region; S.level = "units"; }
   // the merged county layer under the state map follows the office shown
   if (!param("race")) syncOffice("senate", false);
   S.nat.draw(); // the state layer is ready before the map's first frame
@@ -1595,8 +1660,9 @@ async function main() {
   initRaceSelect();
   initTabs();
   buildRaceList();
-  const twoModels = [...S.rows.values()].some((rows) => rows.some((d) => d.P_v2 != null)) || races().some((r) => r.precount?.P_v2 != null);
-  renderMethod($("pane-method"), { meta: S.meta, entry: S.entry, geometryCredit: geometryCredit(), twoModels });
+  const twoModels = [...S.rows.values()].some((rows) => rows.some((d) => d.P_v2 != null)) || races().some((r) => r.precount?.[`P_${r.poll_model ?? "v2"}`] != null);
+  const margins = [...S.rows.values()].some((rows) => rows.some((d) => d.margin_market != null || d.margin_model != null));
+  renderMethod($("pane-method"), { meta: S.meta, entry: S.entry, geometryCredit: geometryCredit(), twoModels, margins });
   renderStatsTab();
   drawChart();
   updateScrubber();

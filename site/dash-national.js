@@ -6,7 +6,7 @@
 // toggle, the Senate control bar, the legend, the hover card, the race panel with price history
 // and the office summary beside the map. Clicking a modelled state drills into its county view.
 import * as d3 from "./vendor/d3.js";
-import { C, esc, num, fmtDate } from "./common.js";
+import { C, esc, num, fmtDate, marginText, probit } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", NORACE = "#e6e4dd";
 const OFFICES = [["governor", "Governor"], ["senate", "Senate"]];
@@ -53,6 +53,13 @@ export function createNational(root, { overview, office = "senate", summary = nu
   // P(Democratic side): live Polymarket price, else the file's Polymarket price, else Kalshi's
   const pmP = (r) => (r.pm ? (st.live.has(r.race_key) ? st.live.get(r.race_key) : r.pm.price) : null);
   const priceOf = (r) => pmP(r) ?? r.kalshi?.price ?? null;
+  // market-implied margin: probit(price) × the sd the build used, from the live Polymarket price
+  // where read (Kalshi's where Polymarket has none); the build's figure otherwise
+  const marketMargin = (r) => {
+    const m = r.margins, p = priceOf(r);
+    if (m?.market_sd_used && p != null && p > 0 && p < 1) return probit(p) * m.market_sd_used;
+    return m?.market ?? m?.market_kalshi ?? null;
+  };
   const raceIn = (s) => races().filter((r) => r.state === s);
 
   function draw() {
@@ -82,7 +89,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
         ${m != null ? `<span class="m">${num(m)}</span> model · ` : ""}<span class="k">${num(pmP(r))}</span> Polymarket${st.live.has(r.race_key) ? " now" : ""} · <span class="kx">${num(r.kalshi?.price)}</span> Kalshi${"polls" in r ? ` · ${p ? `<b>${num(p.p_win)}</b> polls` : "no recent polls"}` : ""}</p>
       ${p ? `<p class="pc-hint">${esc(pollsTitle(p))}.</p>` : ""}
       ${r.dem_side?.aligned ? `<p class="pc-hint">${esc(r.dem_side.aligned)}</p>` : ""}
-      <p class="pc-hint">${r.modeled ? "Click for the county model." : "Click for the price history. No county model for this state."}</p>`;
+      <p class="pc-hint">${r.modeled ? "Click for the county model." : r.units ? "Click for county estimates (past results shifted by polls)." : "Click for the price history. No county figures for this state."}</p>`;
   }
 
   // the card for the state under the pointer (s: state code or null; ev: the pointer event)
@@ -102,7 +109,8 @@ export function createNational(root, { overview, office = "senate", summary = nu
     card.hidden = true;
     if (!rs.length) { closePanel(); return; }
     const r = rs[0];
-    if (r.modeled && r.race_id) { closePanel(); onDrill?.(r.race_id); return; }
+    // every race with a county file drills in (modelled races and the county estimates)
+    if (r.units) { closePanel(); onDrill?.(r.race_id ?? r.race_key); return; }
     openPanel(r.race_key);
   }
 
@@ -155,7 +163,11 @@ export function createNational(root, { overview, office = "senate", summary = nu
     if (!summary) return;
     const office = st.office === "senate" ? "Senate" : "Governor";
     const ctl = st.office === "senate" ? control() : null;
-    const rows = races().map((r) => ({ r, state: r.state_name ?? stateName(r.state), inc: r.incumbent ?? "", pm: pmP(r), k: r.kalshi?.price ?? null, polls: r.polls?.p_win ?? null, model: r.race_id != null ? st.model.get(r.race_id) ?? null : null }));
+    // margins (D minus R, points of the two-party vote): polls, the model (with polls where it has
+    // them; the county estimate otherwise) and the market-implied margin from Polymarket's price
+    const mg = (r) => r.margins ?? {};
+    const rows = races().map((r) => ({ r, state: r.state_name ?? stateName(r.state), inc: r.incumbent ?? "", pm: pmP(r), k: r.kalshi?.price ?? null,
+      polls: mg(r).polls ?? null, model: mg(r).model_polls ?? mg(r).model_v2 ?? mg(r).model ?? mg(r).estimate ?? null, market: marketMargin(r) }));
     const { key, dir } = st.sort;
     rows.sort((a, b) => {
       const va = a[key], vb = b[key];
@@ -164,9 +176,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
       if (vb == null) return -1;
       return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * dir;
     });
-    // the Polls column once the overview carries polls (null: no recent polls for that race)
-    const hasPolls = races().some((r) => "polls" in r);
-    const cols = [["state", "State"], ["inc", "Incumbent"], ["pm", "Polymarket"], ["k", "Kalshi"], ...(hasPolls ? [["polls", "Polls"]] : []), ["model", "Model"]];
+    const cols = [["state", "State"], ["inc", "Incumbent"], ["pm", "Polymarket"], ["k", "Kalshi"], ["polls", "Polls"], ["model", "Model"], ["market", "Market-implied"]];
     const ctlHTML = ctl ? `<h3 class="tab-h">Control of the Senate</h3>
       <p class="nat-sum-ctl"><span style="color:${DEM}"><b>Democrats ${(ctl.holdD + ctl.eD).toFixed(1)}</b></span> seats expected (${ctl.holdD} not up${ctl.hold.I ? `, incl. ${ctl.hold.I} independents` : ""}, + ${ctl.eD.toFixed(1)}),
         <span style="color:${REP}"><b>Republicans ${(ctl.holdR + ctl.eR).toFixed(1)}</b></span> (${ctl.holdR} + ${ctl.eR.toFixed(1)}); ${ctl.maj} seats for control${ctl.unpriced ? `; ${ctl.unpriced} races without a price` : ""}.
@@ -178,8 +188,8 @@ export function createNational(root, { overview, office = "senate", summary = nu
       <h3 class="tab-h">${office} races (${rows.length})</h3>
       <table class="races nat-races"><thead><tr>${cols.map(([k, l]) => `<th class="${k === "state" || k === "inc" ? "" : "n"}" aria-sort="${key === k ? (dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${l}</button></th>`).join("")}</tr></thead>
       <tbody>${rows.map((x) => `<tr tabindex="0" data-key="${esc(x.r.race_key)}" data-state="${esc(x.r.state)}"><td>${esc(x.state)}${x.r.special ? " (special)" : ""}${x.r.modeled ? ` <span class="ring" title="county model"></span>` : ""}</td><td>${esc(x.inc)}${x.r.incumbent_party ? ` (${esc(x.r.incumbent_party)})` : ""}${x.r.open ? " <small>not running</small>" : ""}</td>
-        <td class="n">${num(x.pm)}</td><td class="n kx">${num(x.k)}</td>${hasPolls ? `<td class="n" title="${esc(pollsTitle(x.r.polls))}">${x.r.polls ? num(x.polls) : "<small>–</small>"}</td>` : ""}<td class="n m">${x.r.modeled ? num(x.model) : ""}</td></tr>`).join("")}</tbody></table>
-      <p class="note">Click a race (or a state on the map) for its prices; ringed states open the county model. Polymarket's prices are read live every minute; Kalshi's are from the last scheduled build.${hasPolls ? " Polls: the chance from the recent polling average (hover for the average and the last poll's date; –: no recent polls)." : ""}</p>`;
+        <td class="n">${num(x.pm)}</td><td class="n kx">${num(x.k)}</td><td class="n" title="${esc(pollsTitle(x.r.polls))}">${marginText(x.polls)}</td><td class="n m" title="${esc(x.r.estimate?.note ?? (x.r.modeled ? "county model" : ""))}">${marginText(x.model)}</td><td class="n" title="${x.market != null ? esc(`from the price ${num(mg(x.r).market != null ? pmP(x.r) : x.k)}`) : ""}">${marginText(x.market)}</td></tr>`).join("")}</tbody></table>
+      <p class="note">Polymarket, Kalshi: prices (chance the Democratic side wins). Polls, Model, Market-implied: margins, Democratic minus Republican, in points of the two-party vote. Model: the county model with polls where a state has one (ringed), else the county estimate (past results shifted by polls). Market-implied: the margin at which the model's uncertainty gives Polymarket's price (Kalshi's where Polymarket has none). Click a race or a state to open its counties.</p>`;
     if (ctl?.markets.length) {
       const pm = ctl.markets.find((c) => c.platform !== "kalshi"), ks = ctl.markets.find((c) => c.platform === "kalshi");
       const byT = new Map();
@@ -194,7 +204,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
     summary.querySelectorAll("tbody tr").forEach((tr) => {
       const go = () => {
         const r = races().find((x) => x.race_key === tr.dataset.key);
-        if (r?.modeled && r.race_id) onDrill?.(r.race_id);
+        if (r?.units) onDrill?.(r.race_id ?? r.race_key);
         else if (r) openPanel(r.race_key);
       };
       tr.addEventListener("click", go);
@@ -238,6 +248,11 @@ export function createNational(root, { overview, office = "senate", summary = nu
     draw,
     hover,
     pick,
+    // Polymarket's price for a race (live where read), by race_key
+    price(key) {
+      for (const o of Object.values(st.overview?.offices ?? {})) { const r = o.races?.find((x) => x.race_key === key); if (r) return pmP(r); }
+      return null;
+    },
     // a modelled state's race for the current office (for prefetching its county file)
     raceFor: (s) => raceIn(s)[0] ?? null,
     get office() { return st.office; },

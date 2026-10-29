@@ -240,6 +240,14 @@ body.dash-page { font-size: 16px; line-height: 1.45; }
 .legend-count { font: 12px/1.4 var(--sans); margin: 4px 0 0; }
 .legend-count:empty { display: none; }
 .legend-count b { font-variant-numeric: tabular-nums; }
+/* leader-colouring legend: a row per side, a column per band, counts under the swatches */
+.band-legend { border-collapse: collapse; font: 11px/1.2 var(--sans); width: 100%; table-layout: fixed; }
+.band-legend th { font-weight: 400; color: var(--muted); text-align: center; padding: 0 1px 2px; }
+.band-legend tbody th { text-align: left; color: var(--ink); width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.band-legend td { text-align: center; padding: 1px; }
+.band-legend td i { display: block; height: 10px; }
+.band-legend td b { font-weight: 600; font-variant-numeric: tabular-nums; display: block; min-height: 13px; }
+.legend-note i.tie { display: inline-block; width: 10px; height: 8px; vertical-align: baseline; }
 /* the races table (Profit, Lead columns) scrolls sideways on a phone instead of widening the page */
 #pane-races { overflow-x: auto; }
 .map-body { flex: 1; min-height: 0; display: flex; }
@@ -311,6 +319,8 @@ table.kv td { padding: 2px 6px 2px 0; border-bottom: 1px solid var(--rule); }
 .ro-p dd span.m { color: var(--model); }
 .ro-p dd span.m2 { color: var(--model); opacity: .8; }
 @media (min-width: 600px) { .ro-p dd .ro-pp { white-space: nowrap; } }
+/* with the margin view, the chances are secondary: smaller figures */
+.ro-p.ro-sec dd { font-size: 0.62em; }
 .ro-p dd small { display: inline; margin: 0 10px 0 4px; }
 .ro-gap { font: 14px/1.4 var(--sans); margin: 6px 0 0; }
 .ro-gap b { font-size: 16px; }
@@ -510,8 +520,10 @@ td.sched.pre { padding-top: 6px; }
 .pre-races th { white-space: normal; vertical-align: bottom; }
 .map-frame { max-width: calc(100% - 270px); text-align: right; }
 /* ---------- national view (dash-national.js): controls over the map canvas's state layer ---------- */
-.national { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; overflow: hidden; pointer-events: none; opacity: 1; visibility: visible; transition: opacity 0.25s ease, visibility 0s; }
-.national.off { opacity: 0; visibility: hidden; transition: opacity 0.25s ease, visibility 0s linear 0.25s; }
+/* the national controls and the county map's controls never show together: the outgoing set hides
+   at once, the incoming one fades in after a short delay (no overlapping legends mid-zoom) */
+.national { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; overflow: hidden; pointer-events: none; opacity: 1; visibility: visible; transition: opacity 0.2s ease 0.15s, visibility 0s; }
+.national.off { opacity: 0; visibility: hidden; transition: none; }
 .national .nat-top, .national .nat-legend, .national .nat-panel { pointer-events: auto; }
 .nat-top { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 16px; padding: 10px 10px 0; }
 .nat-top .toggle { margin: 0; }
@@ -560,8 +572,8 @@ table.nat-races .ring { display: inline-block; width: 8px; height: 8px; border: 
 /* page-side overlay over the map canvas: hover / pin / region outlines (dash-map.js) */
 .map-overlay { position: absolute; left: 0; top: 0; z-index: 1; touch-action: manipulation; }
 .national .nat-top { background: linear-gradient(var(--paper) 70%, rgba(252, 251, 248, 0)); padding-bottom: 8px; }
-.map-ui.nat-hidden { opacity: 0; pointer-events: none; }
-.map-ui { transition: opacity 0.25s ease; }
+.map-ui.nat-hidden { opacity: 0; visibility: hidden; pointer-events: none; transition: none; }
+.map-ui { transition: opacity 0.2s ease 0.15s; }
 /* the right column's content cross-fades between the office summary and a race */
 @keyframes panel-in { from { opacity: 0; } to { opacity: 1; } }
 .p-summary, .p-readout, .p-timeline, .p-tabs { animation: panel-in 0.28s ease-out; }

@@ -349,7 +349,8 @@ async function preCell(td) {
   td.classList.add("pre");
   td.innerHTML = `<table class="pre-races"><thead><tr><th>Chance the first-named candidate wins</th><th class="n">Model</th><th class="n">Poly&shy;market</th><th class="n">Kalshi</th></tr></thead><tbody>${m.races.map((r) => {
     const row = lastRow(r.race_id);
-    return `<tr><td>${esc(label(r))} <span class="note">${esc(r.a.name)}</span></td><td class="n m">${f(modelP(row) ?? r.precount?.P_v2 ?? r.precount?.P)}</td><td class="n">${f(live.get(r.race_id) ?? row?.pm)}</td><td class="n kx">${f(row?.kalshi)}</td></tr>`;
+    const pm = r.poll_model ?? "v2"; // the race's "with polls" model version
+    return `<tr><td>${esc(label(r))} <span class="note">${esc(r.a.name)}</span></td><td class="n m">${f(row?.[`P_${pm}`] ?? modelP(row) ?? r.precount?.[`P_${pm}`] ?? r.precount?.P)}</td><td class="n">${f(live.get(r.race_id) ?? row?.pm)}</td><td class="n kx">${f(row?.kalshi)}</td></tr>`;
   }).join("")}</tbody></table>
     <p class="note">Before the count: the model's chance before any votes (${m.races.some((r) => lastRow(r.race_id)?.P_v2 != null || r.precount?.P_v2 != null) ? "from past certified results shifted toward the recent polls, where a race has them" : "from past certified results, not polls"}), ${anyLive ? "Polymarket's price now" : "the last recorded Polymarket price"} and the last recorded Kalshi price. Counting starts ${esc(fmtDate(m.date))}.</p>`;
 }

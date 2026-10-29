@@ -80,14 +80,18 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     extent: populatedFirst ? "populated" : "all", populated: null,
   };
   const frame = () => {
-    post({ type: "frame", view: st.view, fadeMix: st.fadeMix, natMix: st.natMix, levelMix: st.levelMix, xfade: st.xfade ?? null });
+    post({ type: "frame", view: st.view, fadeMix: st.fadeMix, natMix: st.natMix, levelMix: st.levelMix });
     drawOverlay();
   };
 
+  // Hover and pin outlines. The map canvas may be painted a frame later than this one (in the
+  // worker), so nothing is drawn here while the view moves: a view-dependent outline would show a
+  // second, offset copy of the borders. The open region's outline is drawn by the engine.
   function drawOverlay() {
     const { k, x, y } = st.view;
     octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.clearRect(0, 0, overlay.width, overlay.height);
+    if (st.animating) return;
     octx.setTransform(st.dpr * k, 0, 0, st.dpr * k, st.dpr * x, st.dpr * y);
     const px = 1 / k;
     // hover: a light wash and a dark outline (the whole region at the state level)
@@ -100,12 +104,6 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       if (!st.natHover) octx.setLineDash([4 * px, 3 * px]);
       octx.stroke(outlineOf(hoverR));
       octx.setLineDash([]);
-    }
-    if (st.focus) {
-      octx.globalAlpha = st.fadeMix;
-      octx.lineWidth = 1.6 * px;
-      octx.stroke(outlineOf(st.focus));
-      octx.globalAlpha = 1;
     }
     for (const [i, w] of [[st.pinned, 2.2], [st.natHover ? -1 : st.hover, 1.4]]) {
       if (i < 0) continue;
@@ -201,28 +199,18 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       return a;
     };
     st.animating = true;
-    // a level switch: once the units are bound the engine draws both ends once ("prepare") and
-    // each frame crossfades them (xfade 0..1); no per-frame redraw of every unit
-    let xf = null, prepared = false;
-    const prepare = () => {
-      prepared = true;
-      post({ type: "prepare", from: { levelMix: from.level, natMix: from.nat }, to: { levelMix: level, natMix: nat } });
-    };
+    // a level switch: the units fade over the region fills, each frame painted from the paths
+    let xf = null;
     const stillStep = (now) => {
-      // the two bitmaps are drawn in the still frames before the clock starts, when possible
-      if (settle-- > 0) { if (natReady && !prepared) prepare(); st.anim = requestAnimationFrame(stillStep); return; }
+      if (settle-- > 0) { st.anim = requestAnimationFrame(stillStep); return; }
       if (t0 == null) { t0 = now; last = now; } else onFrame?.(now - last);
       last = now;
-      if (xf == null && natReady) {
-        if (!prepared) prepare();
-        xf = now;
-      }
+      if (xf == null && natReady) xf = now;
       const p = xf == null ? 0 : d3.easeCubicInOut(Math.min(1, (now - xf) / dur));
       st.levelMix = from.level + (level - from.level) * p;
       st.natMix = from.nat + (nat - from.nat) * p;
-      st.xfade = p > 0 && p < 1 ? p : null;
       if (p < 1) { frame(); st.anim = requestAnimationFrame(stillStep); return; }
-      st.natMix = nat; st.levelMix = level; st.xfade = null;
+      st.natMix = nat; st.levelMix = level;
       st.animating = false;
       if (st.refit) { st.refit = false; st.view = fitView(currentFitIdx()); }
       frame();
