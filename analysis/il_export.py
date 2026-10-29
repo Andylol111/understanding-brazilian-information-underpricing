@@ -41,6 +41,11 @@ SA_ITEM = "https://www.arcgis.com/home/item.html?id=372606908bcf49a69adaebc24fef
 BLOC22 = ["מחל", "ט", "שס", "ג"]
 DISTRICTS = {1: "Jerusalem", 2: "Northern", 3: "Haifa", 4: "Central", 5: "Tel Aviv", 6: "Southern",
              7: "Judea and Samaria"}
+# map regions = CBS sub-districts of the 2008 census polygons, plus Judea and Samaria (CBS area polygon, code 7)
+SUBDISTRICTS = {11: "Jerusalem", 21: "Zefat", 22: "Kinneret", 23: "Yizre'el", 24: "Akko", 29: "Golan", 31: "Haifa",
+                32: "Hadera", 41: "Sharon", 42: "Petah Tiqwa", 43: "Ramla", 44: "Rehovot", 51: "Tel Aviv",
+                61: "Ashqelon", 62: "Be'er Sheva", 7: "Judea and Samaria"}
+SD_MERGE = {25: 23, 52: 51, 53: 51}   # later CBS splits of 2008 sub-districts (Yizre'el, Tel Aviv)
 NAV = "#1f4e9c"
 OPP = "#2a9d8f"            # distinct from the dashboard's model orange (#c4501b) and #1b1b1b
 EVIDENCE = "not-preregistered"     # contract label; details in evidence_note
@@ -58,44 +63,62 @@ def iso(t) -> str | None:
 
 
 def localities() -> pd.DataFrame:
-    """CBS locality list: English name (Hebrew if none) and district code."""
+    """CBS locality list: English name (Hebrew if none), district and map region (sub-district; the seven
+    Judea and Samaria sub-districts 71-77 form one region, as in the CBS area polygon)."""
     x = pd.read_excel(CBS_FILE)
     x = x.rename(columns={"סמל יישוב": "code", "שם יישוב באנגלית": "name_en", "שם יישוב": "name_he",
-                          "סמל מחוז": "district"})
+                          "סמל מחוז": "district", "סמל נפה": "subdistrict"})
     x["code"] = x["code"].astype(int)
     x["name"] = x["name_en"].fillna(x["name_he"]).astype(str).str.strip()
-    return x.set_index("code")[["name", "district"]]
+    x["sd"] = x["subdistrict"].astype(int).map(lambda s: SD_MERGE.get(s, 7 if 71 <= s <= 77 else s))
+    return x.set_index("code")[["name", "district", "sd"]]
 
 
 def polygon_codes() -> set[int]:
     doc = json.loads(GEO.read_text())
-    return {int(g["properties"]["unit_id"][3:]) for g in doc["objects"]["localities"]["geometries"]}
+    return {int(g["properties"]["unit_id"][3:]) for g in doc["objects"]["localities"]["geometries"]
+            if g["properties"].get("layer") == "localities"}
+
+
+def unit_votes(byloc: pd.DataFrame, lists: list[str], loc: pd.DataFrame, codes: list[int]) -> pd.DataFrame:
+    """Valid and A-side votes per map unit: regions (sums over every locality of the region, mapped or not; double
+    envelopes have no region) then the mapped localities."""
+    v = pd.DataFrame({"valid": byloc["valid"], "a": byloc[[c for c in lists if c in byloc.columns]].sum(axis=1)})
+    v = v[v.index.isin(loc.index)]
+    reg = v.groupby(loc.loc[v.index, "sd"]).sum().reindex(list(SUBDISTRICTS), fill_value=0)
+    reg.index = [f"il-sd{s}" for s in reg.index]
+    lo = v.reindex(codes)
+    lo.index = [f"il-{c}" for c in codes]
+    return pd.concat([reg, lo])
 
 
 def units(loc: pd.DataFrame, official: str | None, certified: str | None) -> tuple[dict, list[int], int, int]:
-    """Voting localities (2022 valid votes > 0) that have a polygon; returns units, codes, and the 2022 valid
-    votes and localities left off the map (double envelopes, localities without a CBS polygon)."""
+    """Region units (layer "regions") then voting localities (2022 valid votes > 0) that have a polygon (layer
+    "localities"); also returns the locality codes and the 2022 valid votes and localities not drawn at locality
+    level (double envelopes, localities without a CBS polygon)."""
     prior = il.by_locality(il.read_expb(RAW / tomllib.loads(CFG.read_text())["prior"]["file"]))
     poly = polygon_codes()
     voting = [c for c in prior.index if prior.at[c, "valid"] > 0]
     codes = [c for c in voting if c in poly and c in loc.index]
     off = [c for c in voting if c not in codes]
     dropped = int(prior.loc[off, "valid"].sum())
-    p = prior.loc[codes]
-    a = p[[c for c in BLOC22 if c in p.columns]].sum(axis=1) / p["valid"]
-    out = {"unit_ids": [f"il-{c}" for c in codes],
-           "region": [f"d{int(loc.at[c, 'district'])}" for c in codes],
-           "names": [loc.at[c, "name"] for c in codes],
-           "prior": (1000 * a).round().astype(int).tolist(),
+    p = unit_votes(prior, BLOC22, loc, codes)
+    n_reg = len(SUBDISTRICTS)
+    out = {"unit_ids": p.index.tolist(),
+           "layer": ["regions"] * n_reg + ["localities"] * len(codes),
+           "region": [f"d{s // 10 if s > 9 else s}" for s in SUBDISTRICTS]
+                     + [f"d{int(loc.at[c, 'district'])}" for c in codes],
+           "names": list(SUBDISTRICTS.values()) + [loc.at[c, "name"] for c in codes],
+           "prior": (1000 * p["a"] / p["valid"]).round().astype(int).tolist(),
            "V0": p["valid"].astype(int).tolist(),
            "a": {"name": "Government bloc (2022: Likud, RZ-Otzma, Shas, UTJ)", "color": NAV},
            "b": {"name": "Other lists", "color": OPP},
            "frames": []}
     if official:
         cfg = tomllib.loads(CFG.read_text())
-        f = il.by_locality(il.read_expb(official)).reindex(codes)
-        net = [k for k in cfg["blocs"]["netanyahu"] if k in f.columns]
-        share = (f[net].sum(axis=1) / f["valid"]).where(f["valid"] > 0)
+        f = unit_votes(il.by_locality(il.read_expb(official)), cfg["blocs"]["netanyahu"], loc, codes)
+        f = f.reindex(p.index)
+        share = (f["a"] / f["valid"]).where(f["valid"] > 0)
         a26 = (1000 * share).round().fillna(-1).astype(int).tolist()
         out["frames"] = [{"t": certified, "f": [1000 if v >= 0 else 0 for v in a26], "a": a26, "proj": a26}]
     return out, codes, dropped, len(off)
@@ -218,14 +241,16 @@ def main() -> None:
         f"lead {stats_in['settle_summary']['median_lead_min']:+.0f} min as configured, "
         f"{stats_in['settle_summary']['median_lead_min_gate1pct']:+.0f} min if the model waits for 1% counted "
         "(a sensitivity added after the first run).",
-        "Map: locality polygons (CBS statistical areas 2022, dissolved by locality code); built-up areas only, so "
-        "regional-council open land between localities is blank. Colour = share of valid votes for the "
+        "Map: two layers. Regions = 15 CBS sub-districts (2008 census boundaries) plus Judea and Samaria as one "
+        "region; each region sums the valid votes of all its localities (localities in sub-districts created since "
+        "2008 are counted in the 2008 sub-district they came from). Localities = CBS statistical areas 2022 "
+        "dissolved by locality code; built-up areas only, drawn over a neutral land base. Colour = share of valid votes for the "
         "2022 government bloc (Likud, Religious Zionism-Otzma Yehudit, Shas, UTJ) in the official 2022 final. "
         + ("The 2026 frame is the official CEC final: share for the Netanyahu bloc as named in the Polymarket market."
            if final else "The 2026 final map is pending the CEC's official final result."),
-        f"Not on the map: {dropped:,} of the 2022 valid votes ({n_off} units: the double envelopes of soldiers, "
-        "diplomats, prisoners etc., and localities such as recognised Bedouin tribes that have no CBS statistical "
-        "area).",
+        f"Not in the locality layer: {dropped:,} of the 2022 valid votes ({n_off} units: the double envelopes of "
+        "soldiers, diplomats, prisoners etc., and localities such as recognised Bedouin tribes that have no CBS "
+        "statistical area). The regions include those localities but not the double envelopes.",
         "Model only, no market: P(Netanyahu bloc >= 61 seats) ended at 0; outcome no.",
     ]
     meta = {
@@ -233,6 +258,7 @@ def main() -> None:
         "poll_close_utc": cfg["poll_close_utc"], "geometry": "geo/il_localities.topo.json",
         "geometry_object": "localities", "geometry_type": "polygons", "unit_key": "unit_id",
         "count_timeline": False,
+        "layers": [{"id": "regions", "name": "Regions", "default": True}, {"id": "localities", "name": "Localities"}],
         "count_note": ("Prices only: the 2026 count over time cannot be published (the official CEC count was not "
                        "reachable or archived; the copies we hold are third-party, private research use). Model "
                        "scores are shown as totals below."),
@@ -248,6 +274,10 @@ def main() -> None:
             {"name": "הלשכה המרכזית לסטטיסטיקה (הלמ\"ס), אזורים סטטיסטיים 2022, (28/10/2026), dissolved by locality "
                      "and simplified; מועתק ומופץ כמות שהוא – as is – על פי רישיון שימוש של הלמ\"ס",
              "url": SA_ITEM, "licence": f"CBS open licence ({CBS_LICENCE})"},
+            {"name": "הלשכה המרכזית לסטטיסטיקה (הלמ\"ס), נפות למפקד 2008 ויהודה והשומרון - אזור, (28/10/2026), "
+                     "simplified; מועתק ומופץ כמות שהוא – as is – על פי רישיון שימוש של הלמ\"ס",
+             "url": "https://www.arcgis.com/home/item.html?id=f0b8dd3d7cde4e999e34c93219c53aed",
+             "licence": f"CBS open licence ({CBS_LICENCE})"},
             {"name": "Polymarket order books (recorded) and market questions (public API)",
              "url": "https://polymarket.com/event/israeli-legislative-election-winner", "licence": "Polymarket public data"},
         ],
