@@ -498,6 +498,17 @@ Margins are D − R as a percentage of all votes for the office; `d2` is the two
   Presidential Returns 2000–2024 (CC0 1.0); FEC (public domain); VoteHub (CC BY 4.0); Polymarket public data;
   © Kalshi.
 
+## Wallet flow on Polymarket (`analysis/us_wallets.py`; display and analysis only, nothing registered)
+
+`site/data/us2026/hub/wallets.json`: per Senate/governor market holder concentration, active wallets, wallet age,
+taker flow by order size, "seasoned" (profitable on past resolved political markets) flow, price impact per $ and
+lead/lag, plus the 2024 historical check (seasoned flow in the final two weeks did not predict outcomes beyond the
+price: β = −2.3 ± 2.3, n = 85). Full method, coverage and results: `docs/us_wallets.md`.
+
+- **Sources and licences:** Polymarket public APIs (Gamma `/events`; data-api `/trades`, `/holders`, `/oi`,
+  `/activity`), public market data. Aggregates only; no wallet addresses or identities published, traders' identity
+  and location not pursued. Kalshi exposes no trader-level data (aggregate volume and order book only).
+
 ## Before the count (`brunder us preelection`)
 
 ```
