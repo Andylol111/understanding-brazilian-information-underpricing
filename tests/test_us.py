@@ -1435,3 +1435,14 @@ def test_load_priors_prefers_public_rows_when_a_source_differs(tmp_path, capsys)
     assert pr[["dem", "total"]].values.tolist() == [[10, 31]]
     out = capsys.readouterr().out
     assert "differs" in out and "ga_gov_2022" in out
+
+
+def test_meta_names_each_race_baseline():
+    assert us.baseline_label("ga_gov_2022") == "2022 governor (certified)"
+    assert us.baseline_label("oh_pres_2024") == "2024 president (certified)"
+    assert us.baseline_label("ak_sen_p2026") == "2026 Senate primary (certified)"
+    cfgs, _ = us.load_races(sorted(Path("configs").glob("us2026_*_v1.toml")))
+    m = us.meta(cfgs, {c["election"]["race_id"]: True for c in cfgs})
+    by = {r["race_id"]: r["baseline"] for r in m["races"]}
+    assert by["ga-gov"] == "2022 governor (certified)" and by["tx-sen"] == "2024 Senate (certified)"
+    assert m["baseline_estimate"] == "2024 president (certified)"

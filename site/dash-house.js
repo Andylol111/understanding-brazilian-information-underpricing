@@ -21,7 +21,8 @@ const day = (d) => (d ? fmtDate(d).replace(/ \d{4}$/, "") : "–");
 const ZOOM_MS = 700, FADE_MS = 300;
 const PAPER = "#fcfbf8", VEIL = 0.6; // states outside the open one recede this far toward the paper (as dash-engine.js)
 // swing arrows: what each arrow compares
-export const ARROWS = [["proj", "2026 projected vs 2024"], ["past", "2020→2024 (past)"], ["live", "Counted vs 2024"]];
+// each county arrow's baseline is its race's (meta races[].baseline, else meta.baseline_estimate); the card names it
+export const ARROWS = [["proj", "2026 projected vs baseline"], ["past", "2020→2024 (past)"], ["live", "Counted vs baseline"]];
 const ARROW_FULL = 15, ARROW_L = 22; // points of shift for the longest arrow, its length in px
 
 // House colour modes: [key, label, lines ("2026" only or "both"), value(district) -> fill | null, legend]
@@ -74,26 +75,32 @@ export function projMargin(d) {
 // Harris 2024 two-party margin on the district's lines
 const pres2p = (d) => (d.pres24?.d2 != null ? (2 * d.pres24.d2 - 1) * 100 : null);
 // County figures of an office's races (overview → units files), as shifts from the county's
-// baseline (the file's prior: the 2024 two-party share the model shifts): the latest projection
-// (with polls) and, once counting, the counted share; two-party margins, points
+// baseline (the file's prior: the past certified two-party share the race's model shifts, named per
+// race in meta.json): the latest projection (with polls) and, once counting, the counted share;
+// two-party margins, points. base: county → its race's baseline label; bases: the labels in use.
 async function countyRaces(office) {
   H.cproj ??= {};
   if (H.cproj[office]) return H.cproj[office];
   H.overview ??= await getJSON("us2026/overview.json", { optional: true });
-  const proj = new Map(), counted = new Map();
+  H.meta ??= await getJSON("us2026/meta.json", { optional: true });
+  const label = new Map((H.meta?.races ?? []).map((r) => [r.race_id, r.baseline]));
+  const proj = new Map(), counted = new Map(), base = new Map(), bases = new Map();
   await Promise.all((H.overview?.offices?.[office]?.races ?? []).filter((r) => r.units).map(async (r) => {
     const U = await getJSON(`us2026/${r.units}`, { optional: true }).catch(() => null);
     const fl = U?.frames?.at?.(-1);
     if (!fl) return;
+    const lb = label.get(r.race_id ?? r.race_key) ?? H.meta?.baseline_estimate ?? "the race's baseline";
+    bases.set(lb, [...(bases.get(lb) ?? []), r.state ?? r.race_key?.slice(0, 2)]);
     U.unit_ids.forEach((id, j) => {
       const v = fl.proj_poll?.[j] ?? fl.proj?.[j];
       const b = U.prior?.[j];
       if (!(b >= 0)) return;
+      base.set(id, lb);
       if (v >= 0) proj.set(id, (v - b) / 5); // ‰ of the two-party vote → margin points: × 2 / 10
       if (fl.f?.[j] > 0 && fl.a?.[j] >= 0) counted.set(id, (fl.a[j] - b) / 5);
     });
   }));
-  return (H.cproj[office] = { proj, counted });
+  return (H.cproj[office] = { proj, counted, base, bases });
 }
 
 export function loadHouse() {
@@ -167,7 +174,9 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     arr.hidden = !arrowsOn();
     if (arrowsOn()) {
       const live = st.kind === "arrows" && (H.cproj?.[st.office]?.counted.size ?? 0) > 0;
-      arr.innerHTML = ARROWS.map(([k, l]) => `<button type="button" data-arr="${k}" aria-pressed="${k === st.arrows}"${k === "live" && !live ? ` disabled title="Once counting starts${st.kind === "house" ? " (counties of the Senate and governor races; no district count is published)" : ""}"` : ""}>${l}</button>`).join("");
+      // House districts compare with Harris 2024 on the same lines; counties with their race's baseline
+      const label = (k, l) => (st.kind === "house" && k === "proj" ? "2026 projected vs Harris 2024" : l);
+      arr.innerHTML = ARROWS.map(([k, l]) => `<button type="button" data-arr="${k}" aria-pressed="${k === st.arrows}"${k === "live" && !live ? ` disabled title="Once counting starts${st.kind === "house" ? " (counties of the Senate and governor races; no district count is published)" : ""}"` : ""}>${label(k, l)}</button>`).join("");
       arr.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { st.arrows = b.dataset.arr; if (st.arrows === "proj") st.lines = "2026"; draw(); }));
     }
   }
@@ -311,7 +320,7 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     if (st.kind === "house") return; // live: no district count is published
     const c = await countyRaces(st.office);
     for (const [id, shift] of st.arrows === "live" ? c.counted : c.proj) {
-      arrowData.set(id, { shift, src: `${st.arrows === "live" ? "counted so far" : "projected (model estimate)"} vs 2024, two-party`, at: "county" });
+      arrowData.set(id, { shift, src: `${st.arrows === "live" ? "counted so far" : "projected (model estimate)"} vs ${c.base.get(id)}, two-party`, at: "county" });
     }
   }
   // NYT-style arrows, horizontal: length by |shift| (full at ARROW_FULL points), blue to the left
@@ -362,6 +371,16 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     }
   }
 
+  // "; baselines: GA, NC: 2022 Senate (certified); …; other states: 2024 president (certified)" for the office shown
+  function baselines() {
+    const b = H.cproj?.[st.office]?.bases;
+    if (!b?.size) return "";
+    const est = H.meta?.baseline_estimate;
+    const parts = [...b].filter(([l]) => l !== est).map(([l, sts]) => `${sts.map((s) => String(s).toUpperCase()).join(", ")}: ${l}`);
+    if (b.has(est)) parts.push(`${parts.length ? "other states" : "all states"}: ${est}`);
+    return `; baselines: ${parts.join("; ")}`;
+  }
+
   function legend() {
     const el = box.querySelector(".ov-legend");
     const hatch = `<span class="lg-none"></span> no data`;
@@ -372,8 +391,8 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
         ? "Each district: its projected 2026 margin (a model estimate, not a result: the market price read as a margin, else district polls, else the baseline) minus Harris 2024, two-party, on the same 2026 lines; the card says which."
         : st.kind === "house" && st.arrows === "live" ? "No district count is published; counted arrows show for the Senate and governor counties."
         : st.arrows === "past" ? "Each county: the shift from 2020 to 2024 (president), D minus R as a share of all votes in both years."
-        : st.arrows === "live" ? "Each county counting: the counted two-party margin so far minus the county's 2024 two-party margin (the model's baseline)."
-        : `Each county with a ${st.office === "governor" ? "governor" : "Senate"} race: its projected two-party margin (a model estimate, not a result: the race's model with polls) minus the county's 2024 two-party margin, the baseline the model shifts. Within a state the model moves every county by one uniform swing, so the arrows there are equal. No arrow: no county file.`;
+        : st.arrows === "live" ? `Each county counting: the counted two-party margin so far minus the county's two-party margin in its race's baseline (the past result the model shifts${baselines()}).`
+        : `Each county with a ${st.office === "governor" ? "governor" : "Senate"} race: its projected two-party margin (a model estimate, not a result: the race's model with polls) minus the county's two-party margin in its race's baseline, the past result the model shifts${baselines()}. Within a state the model moves every county by one uniform swing, so the arrows there are equal. No arrow: no county file.`;
       el.innerHTML = `<p class="legend-note">${esc(what)} <span style="color:${DEM}">← towards the Democrats</span> · <span style="color:${REP}">towards the Republicans →</span> · ${scale}</p>`;
     } else if (st.kind === "house") {
       const mode = MODES.find((m) => m[0] === st.mode);

@@ -1253,11 +1253,13 @@ function drawChart() {
   if (houseShown()) { districtChart($("timeline"), S.houseSel); return; } // a House district: its chances
   const rows = S.rows.get(S.race.race_id) ?? [];
   const tv = turnoutView();
-  const views = [...timelineViews(rows), ...(tv ? ["turnout"] : [])];
-  if (!views.includes(S.tlView)) S.tlView = views[0];
+  // live: the Turnout view is offered from page load (disabled until the county turnout data arrives)
+  const tvWait = !tv && LIVE && !PRE() && !!S.race.units;
+  const views = [...timelineViews(rows), ...(tv || tvWait ? ["turnout"] : [])];
+  if (!views.includes(S.tlView) || (S.tlView === "turnout" && !tv)) S.tlView = views[0];
   const box = $("tl-view");
   box.hidden = views.length < 2;
-  box.innerHTML = views.map((v) => `<button type="button" data-view="${v}" aria-pressed="${v === S.tlView}">${{ margin: "Margin", chance: "Chance", turnout: "Turnout" }[v]}</button>`).join("");
+  box.innerHTML = views.map((v) => `<button type="button" data-view="${v}" aria-pressed="${v === S.tlView}"${v === "turnout" && !tv ? ` disabled title="Fills in at the first refresh"` : ""}>${{ margin: "Margin", chance: "Chance", turnout: "Turnout" }[v]}</button>`).join("");
   box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { S.tlView = b.dataset.view; drawChart(); }));
   S.tlK = tv?.k;
   S.tl = S.tlView === "turnout"

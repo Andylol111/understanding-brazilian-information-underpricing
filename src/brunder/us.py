@@ -1368,6 +1368,18 @@ def kalshi_prices(arc: Archive, f: Path | None) -> dict[str, float]:
     return out
 
 
+_BASE_OFFICE = {"gov": "governor", "sen": "Senate", "pres": "president"}
+ESTIMATE_BASELINE = "2024 president (certified)"     # races without a county model (race_estimate)
+
+
+def baseline_label(source: str) -> str:
+    """The county baseline the model shifts, for display: prior source 'ga_gov_2022' -> '2022 governor (certified)'
+    ('ak_sen_p2026' -> '2026 Senate primary (certified)')."""
+    _, office, year = source.split("_", 2)
+    primary = year.startswith("p")
+    return f"{year.lstrip('p')} {_BASE_OFFICE.get(office, office)}{' primary' if primary else ''} (certified)"
+
+
 def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict] | None = None,
          phase: str = "live", precount: dict[str, dict | None] | None = None,
          tokens: dict[str, str] | None = None, overview: str | None = None) -> dict:
@@ -1391,6 +1403,7 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
                 "b": {"id": E["b"]["party"].lower(), "name": E["b"]["name"], "color": E["b"]["color"]},
                 "markets": mk, "units": f"units/{rid}.json" if priors_ok[rid] else None,
                 "poll_close_utc": POLL_CLOSE.get(E["state"]), "config": Path(c["_path"]).name,
+                "baseline": baseline_label(c["prior"]["share"]),
                 "config_v2": (_sibling_versions(c).get("v2") or Path("")).name or None,
                 "versions": {v: q.name for v, q in _sibling_versions(c).items()},
                 "poll_model": poll_model({v: load_config(q) for v, q in _sibling_versions(c).items()}),
@@ -1449,7 +1462,7 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
         "regions": [{"id": s, "name": STATES[s], "poll_close_utc": POLL_CLOSE[s],
                      **({"poll_close_last_utc": POLL_CLOSE_LAST[s]} if s in POLL_CLOSE_LAST else {})}
                     for s in states],
-        "races": races, "sources": srcs, "notes": notes,
+        "races": races, "sources": srcs, "notes": notes, "baseline_estimate": ESTIMATE_BASELINE,
         **({"overview": overview} if overview else {}),
     }
 
