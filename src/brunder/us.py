@@ -671,23 +671,62 @@ def _ak_primary(race: str) -> pd.DataFrame:
     return _two_party(rows[rows["race"] == race])
 
 
+MEDSL24 = "https://raw.githubusercontent.com/MEDSL/2024-elections-official/main"
+MEDSL24_CITE = ("MIT Election Data and Science Lab, U.S. President / U.S. Senate Precinct-Level Returns 2024 "
+                "(doi:10.7910/DVN/XDJYKC, doi:10.7910/DVN/ZCM3BN; CC0 1.0), github.com/MEDSL/2024-elections-official")
+MEDSL24_STATES = ("ak al ar az ca co ct de fl ga hi ia id il in ks ky la ma md me mi mn mo ms mt nc nd ne nh nj nm "
+                  "nv ny oh ok or pa ri sc sd tn tx ut va vt wa wi wv wy").split()
+
+
+def _medsl_county(df: pd.DataFrame, st: str) -> pd.DataFrame:
+    """unit_id, dem, rep, total from MEDSL rows (county_fips, party_simplified, mode, votes). States report by vote
+    mode; a county's totals are its TOTAL rows when it has any, else the sum of its modes (MEDSL README warning)."""
+    df = df.assign(votes=pd.to_numeric(df["votes"], errors="coerce").fillna(0.0),
+                   fips=df["county_fips"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(5))
+    is_total = df["mode"].astype(str).str.upper() == "TOTAL"
+    df = df[~is_total.groupby(df["fips"]).transform("any").astype(bool) | is_total]
+    party = df["party_simplified"].astype(str).str.upper()
+    g = pd.DataFrame({"dem": df["votes"].where(party == "DEMOCRAT", 0.0), "rep": df["votes"].where(party == "REPUBLICAN", 0.0),
+                      "total": df["votes"], "fips": df["fips"]}).groupby("fips").sum()
+    g.index = f"us-{st}-" + g.index
+    return g.rename_axis("unit_id").reset_index()
+
+
+def medsl24_pres(st: str) -> pd.DataFrame:
+    """2024 president by county from MEDSL's precinct file of the state (cached aggregate in data/processed)."""
+    out = US_PROC / "medsl24" / f"pres_{st}.csv"
+    if out.exists():
+        return pd.read_csv(out)
+    z = zipfile.ZipFile(io.BytesIO(_fetch(f"{MEDSL24}/individual_states/{st}24.zip", US_RAW / "medsl24" / f"{st}24.zip")))
+    parts = []
+    for ch in pd.read_csv(z.open(z.namelist()[0]), dtype=str, chunksize=500_000,
+                          usecols=["office", "stage", "mode", "votes", "county_fips", "party_simplified", "candidate"]):
+        parts.append(ch[(ch["office"] == "US PRESIDENT") & (ch["stage"].fillna("GEN") == "GEN")])
+    df = pd.concat(parts, ignore_index=True)
+    if not (df["party_simplified"] == "DEMOCRAT").any():       # NE file: party_simplified NONPARTISAN throughout
+        cand = df["candidate"].astype(str).str.upper()
+        df["party_simplified"] = np.where(cand.str.contains("HARRIS"), "DEMOCRAT",
+                                          np.where(cand.str.contains("TRUMP"), "REPUBLICAN", "OTHER"))
+    res = _medsl_county(df, st)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    res.to_csv(out, index=False)
+    return res
+
+
+def medsl24_senate() -> pd.DataFrame:
+    """2024 regular US Senate by county, all states (MEDSL 2024-senate-county.csv): state, unit_id, dem, rep, total."""
+    d = pd.read_csv(io.BytesIO(_fetch(f"{MEDSL24}/2024-senate-county.csv", US_RAW / "medsl24" / "senate_county.csv")),
+                    dtype=str)
+    d = d[(d["stage"] == "GEN") & (d["special"].str.upper() == "FALSE")]
+    return pd.concat([_medsl_county(g, st.lower()).assign(state=st.lower()) for st, g in d.groupby("state_po")],
+                     ignore_index=True)
+
+
 def _medsl_pres(st: str, year: int = 2024) -> pd.DataFrame:
-    """MIT Election Data and Science Lab, County Presidential Election Returns 2000-2024 (CC0,
-    doi:10.7910/DVN/VOQCHQ). Dataverse requires a guestbook, so it is not auto-downloaded: save the original CSV
-    as data/raw/us/medsl/countypres_2000-2024.csv."""
-    f = US_RAW / "medsl" / "countypres_2000-2024.csv"
-    if not f.exists():
-        raise FileNotFoundError(f"{f} missing (manual download, see docstring)")
-    df = pd.read_csv(f, dtype={"county_fips": str})
-    df = df[(df["year"] == year) & (df["state_po"] == st.upper())].copy()
-    df["unit_id"] = f"us-{st}-" + df["county_fips"].str.zfill(5)
-    df["party"] = df["party"].map(party_code)
-    # some states report by vote mode; county totals are the TOTAL rows when present, else the sum of modes
-    if (df["mode"] == "TOTAL").any():
-        df = df[df["mode"] == "TOTAL"]
-    df["votes"] = df["candidatevotes"].astype(float)
-    df["level"] = "county"
-    return _two_party(df)
+    """Prior source <st>_pres_2024 from MEDSL's 2024 precinct returns (see medsl24_pres)."""
+    if year != 2024:
+        raise ValueError("MEDSL GitHub precinct returns: 2024 only")
+    return medsl24_pres(st)
 
 
 def _sc_clarity(eid: int, race: str) -> pd.DataFrame:
@@ -734,7 +773,7 @@ SOURCE_INFO = {
     "tx": ("Texas Legislative Council, Capitol Data Portal", "https://data.capitol.texas.gov/", "CC BY"),
     "ga": ("Georgia Secretary of State, election results", "https://results.sos.ga.gov/results/public/Georgia", "public record"),
     "ak": ("Alaska Division of Elections, election results", "https://www.elections.alaska.gov/", "public record"),
-    "oh": ("MIT Election Data and Science Lab, County Presidential Election Returns 2000-2024", "https://doi.org/10.7910/DVN/VOQCHQ", "CC0 1.0"),
+    "oh": ("MIT Election Data and Science Lab, U.S. President Precinct-Level Returns 2024 (summed to counties)", "https://github.com/MEDSL/2024-elections-official", "CC0 1.0"),
     "sc": ("South Carolina Election Commission, election results (enr-scvotes.org)", "https://scvotes.gov/elections-statistics/election-results/", "public record"),
     "vt": ("Vermont Secretary of State, election results", "https://electionresults.vermont.gov/", "public record"),
     "az": ("Arizona Secretary of State, election results (Enhanced Voting)", "https://app.enhancedvoting.com/results/public/Arizona", "public record"),
@@ -781,8 +820,8 @@ def write_public_priors(priors: pd.DataFrame | None = None, dest: Path = PUBLIC_
         "# Sources: ca_* California Secretary of State, Statement of Vote (public record);",
         "#   tx_* Texas Legislative Council, Capitol Data Portal, https://data.capitol.texas.gov/ (CC BY; VTD returns",
         "#   summed to counties by this project); ga_* Georgia Secretary of State, results.sos.ga.gov (public record);",
-        "#   ak_* Alaska Division of Elections (public record); oh_* MIT Election Data and Science Lab, County",
-        "#   Presidential Election Returns 2000-2024, doi:10.7910/DVN/VOQCHQ (CC0); sc_* South Carolina Election",
+        "#   ak_* Alaska Division of Elections (public record); oh_* MIT Election Data and Science Lab, U.S. President",
+        "#   Precinct-Level Returns 2024, doi:10.7910/DVN/XDJYKC (CC0), summed to counties; sc_* South Carolina Election",
         "#   Commission certified results, enr-scvotes.org (public record); vt_* Vermont Secretary of State certified",
         "#   results, electionresults.vermont.gov, towns summed to counties by this project (public record).",
     ]
@@ -1167,6 +1206,7 @@ class Exporter:
         pr = priors if priors is not None else load_priors()
         self.pri = {c["election"]["race_id"]: race_prior(c, pr) for c in self.cfgs}
         self.pri2 = {rid: race_prior(c2, pr) for rid, c2 in self.v2.items()}
+        self.polls = load_polls()
         self.step, self.frame_every = pd.Timedelta(step), pd.Timedelta(frame_every)
         rids = [c["election"]["race_id"] for c in self.cfgs]
         self.timeline: dict[str, list[dict]] = {r: [] for r in rids}
@@ -1236,7 +1276,10 @@ class Exporter:
                "share": _r(res.get("share_hat")), "sd": _r(res.get("share_sd")), "P": _r(res.get("p_win")),
                "P_v2": _r(res.get("p_win_v2")), "share_v2": _r(res.get("share_v2")), "sd_v2": _r(res.get("sd_v2")),
                "pm": _r(p_a), "kalshi": _r(k_a), "rem_total": _tens(res.get("rem_total")),
-               "rem_margin_total": _tens(res.get("rem_margin_total"))}
+               "rem_margin_total": _tens(res.get("rem_margin_total")),
+               "votes_proj": _tens(units["n"].sum() + res["rem_total"]) if units is not None else None,
+               **margin_fields(res.get("share_hat"), res.get("share_sd"), res.get("share_v2"), p_a, k_a,
+                               self.polls.get(rid))}
         if not has_model:                             # prices only (e.g. Ohio without its county prior)
             self.timeline[rid].append(row)
             self.cursor[rid] = t
@@ -1424,6 +1467,17 @@ def _asof(series: pd.Series, grid: pd.DatetimeIndex) -> list[float | None]:
     return [None if not np.isfinite(x) else float(x) for x in v.to_numpy(dtype=float)]
 
 
+def margin_fields(share: float | None, sd: float | None, share_v2: float | None, p_pm: float | None,
+                  p_k: float | None, poll: dict | None) -> dict:
+    """Timeline margin columns, D − R in points of the two-party vote: the model's projected margin and its sd, model
+    v2's, the poll average's, and the margins the Polymarket / Kalshi prices imply at the model's margin sd
+    (Φ⁻¹(p) × σ; the poll sd when the model has none)."""
+    msd = 2 * sd * 100 if sd else (2 * poll["sd"] * 100 if poll else None)
+    return {"margin_model": _margin(share), "margin_model_sd": _r(msd, 2) if sd else None,
+            "margin_v2": _margin(share_v2), "margin_polls": _margin(poll["avg"]) if poll else None,
+            "margin_market": market_margin(p_pm, msd), "margin_market_kalshi": market_margin(p_k, msd)}
+
+
 def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = "30min",
                 now: pd.Timestamp | None = None, priors: pd.DataFrame | None = None,
                 pairs_path: Path | None = None, force: bool = False) -> Path:
@@ -1442,6 +1496,7 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
     pr = priors if priors is not None else load_priors()
     pri = {c["election"]["race_id"]: race_prior(c, pr) for c in cfgs}
     pri2 = {rid: race_prior(c2, pr) for rid, c2 in v2.items()}
+    polls = load_polls()
     ok = {rid: p is not None and not p.empty for rid, p in pri.items()}
     now = (now or pd.Timestamp.now(tz="UTC")).floor(step)
     grid = pd.date_range(now - pd.Timedelta(days=days), now, freq=step)
@@ -1484,7 +1539,8 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
                           "P": m.get("P"), "P_v2": m.get("P_v2"), "share_v2": m.get("share_v2"),
                           "sd_v2": m.get("sd_v2"), "pm": _r(pv), "kalshi": _r(kv),
                           "rem_total": m.get("rem_total"),
-                          "rem_margin_total": m.get("rem_margin_total")}
+                          "rem_margin_total": m.get("rem_margin_total"), "votes_proj": m.get("rem_total"),
+                          **margin_fields(m.get("share"), m.get("sd"), m.get("share_v2"), pv, kv, polls.get(rid))}
                          for t, pv, kv in zip(grid, pm_vals, k_vals)]
     _write_json(d / "meta.json", meta(cfgs, ok, kmk, phase="pre-count", precount=pre, tokens=tokens,
                                       overview="overview.json" if RACES_REGISTRY.exists() else None))
@@ -1502,7 +1558,7 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
     if default:
         _write_json(d / "units.json", default)
     if RACES_REGISTRY.exists():
-        _write_json(d / "overview.json", overview(now, days=days, step=step))
+        _write_json(d / "overview.json", add_estimates(d, overview(now, days=days, step=step), pre))
     return d
 
 
@@ -1672,15 +1728,52 @@ EV_BLOCKED = {
 }
 
 
+_GEO: list[tuple[str, str]] = []
+
+
+def _geo() -> list[tuple[str, str]]:
+    """(unit_id, "Name County, ST") of every county in the dashboard's Census geometry (public domain)."""
+    if not _GEO:
+        g = json.loads((ROOT_DIR / "site" / "data" / "geo" / "us_counties.topo.json").read_text())
+        _GEO.extend((x["properties"]["unit_id"], x["properties"]["name"]) for x in g["objects"]["counties"]["geometries"])
+    return _GEO
+
+
 def geo_units(st: str) -> dict[str, str]:
     """Normalised county name -> unit_id for any state, from the dashboard's Census county geometry."""
-    g = json.loads((ROOT_DIR / "site" / "data" / "geo" / "us_counties.topo.json").read_text())
-    out = {}
-    for x in g["objects"]["counties"]["geometries"]:
-        uid, name = x["properties"]["unit_id"], x["properties"]["name"]
-        if uid.startswith(f"us-{st}-"):
-            out[_norm(re.sub(r",\s*[A-Z]{2}$", "", name).replace(" Parish", ""))] = uid
-    return out
+    return {_norm(re.sub(r",\s*[A-Z]{2}$", "", name).replace(" Parish", "")): uid
+            for uid, name in _geo() if uid.startswith(f"us-{st}-")}
+
+
+COUNTY_BASELINE = ROOT_DIR / "data_public" / "us2026_county_baseline.csv"
+
+
+def build_county_baseline() -> Path:
+    """data_public/us2026_county_baseline.csv: state, unit_id, name, pres24_dem/rep/total, sen24_dem/rep/total
+    (2024 regular Senate races only), for every county of the geometry that MEDSL's 2024 returns cover."""
+    geo = {uid: name for uid, name in _geo()}
+    sen = medsl24_senate().set_index("unit_id")
+    parts, missing = [], {}
+    for st in MEDSL24_STATES:
+        p = medsl24_pres(st).set_index("unit_id")
+        units = [u for u in geo if u.startswith(f"us-{st}-")]
+        d = pd.DataFrame(index=pd.Index(units, name="unit_id"))
+        d["state"], d["name"] = st, [geo[u] for u in units]
+        d[["pres24_dem", "pres24_rep", "pres24_total"]] = p.reindex(units)[["dem", "rep", "total"]].to_numpy()
+        d[["sen24_dem", "sen24_rep", "sen24_total"]] = sen.reindex(units)[["dem", "rep", "total"]].to_numpy()
+        missing[st] = int(d["pres24_total"].isna().sum())
+        parts.append(d.dropna(subset=["pres24_total"]).reset_index())
+    out = pd.concat(parts, ignore_index=True)
+    with open(COUNTY_BASELINE, "w") as fh:
+        fh.write(f"# County baselines (all states): {MEDSL24_CITE}. Precinct rows summed to Census county FIPS by this "
+                 "project (TOTAL mode when a county reports one, else all modes). Counties of the dashboard geometry "
+                 "without a MEDSL county code are absent: " + ", ".join(f"{k} {v}" for k, v in missing.items() if v) + "\n")
+        out.to_csv(fh, index=False, float_format="%.0f")
+    return COUNTY_BASELINE
+
+
+def load_county_baseline() -> pd.DataFrame:
+    return pd.read_csv(COUNTY_BASELINE, comment="#")
 
 
 def _ev_frame(df: pd.DataFrame, st: str) -> pd.DataFrame:
@@ -1841,6 +1934,7 @@ def earlyvote(out: Path, today: pd.Timestamp | None = None, fetchers: dict | Non
         try:
             df, as_of = fn()
             states[st] = _ev_state(df, b[b["state"] == st].set_index("unit_id")["total"], as_of, st)
+            states[st].update(ev_implied(st, states[st]))
         except Exception as e:                       # one state failing must not stop the others
             print(f"early vote {st}: {type(e).__name__}: {e}", flush=True)
             if st in prev:
@@ -1849,7 +1943,10 @@ def earlyvote(out: Path, today: pd.Timestamp | None = None, fetchers: dict | Non
         "built": _iso(today.floor("1min")),
         "note": "Ballots already cast by county from official state publications (display only; not used by the "
                 "model). share_of_2022_total = ev_total / the county's 2022 total votes (see baseline). by_party = "
-                "party registration of the voters, where the state publishes it (D, R, O = all others).",
+                "party registration of the voters, where the state publishes it (D, R, O = all others). "
+                "margin_ev_raw = 100 × (D − R) / all EV ballots (registration is not a vote: loyalty 1, others split "
+                "evenly); ev_bias_hist = mean (raw − certified margin) at the same day before Election Day in past "
+                "generals (data_public/us2026_ev_history.json), + = early vote overstated the Democrat.",
         "states": {st: {k: v for k, v in s.items() if k != "counties"} for st, s in states.items()},
         "counties": {uid: {"state": st, **c} for st, s in states.items() for uid, c in s["counties"].items()},
         "not_available": EV_BLOCKED,
@@ -1983,6 +2080,14 @@ def refresh_overview(d: Path, arc: Archive, errors: dict | None = None) -> bool:
                     pm["price"] = _r(value(pm, now_t))
                 if km and value(km, now_t, "kalshi") is not None:
                     km["price"] = _r(value(km, now_t, "kalshi"))
+                if "margins" in r:                   # market-implied margins follow the live prices
+                    r["margins"] = race_margins(r)
+                    ev = r.get("ev")
+                    if ev and None not in (ev.get("margin_ev_implied"), ev.get("margin_ev_corrected"),
+                                           r["margins"]["market"]):
+                        mk = r["margins"]["market"]
+                        ev["market_closer_to_raw_ev"] = bool(abs(mk - ev["margin_ev_implied"])
+                                                             < abs(mk - ev["margin_ev_corrected"]))
             for m in o.get("control_markets", []):
                 for t in marks:
                     m["history"].append([_iso(t), _r(value(m, t, m["platform"]))])
@@ -2015,6 +2120,237 @@ async def run_live(cfg_paths: list[Path], out: Path, snap_root: Path | None = No
         except Exception as e:                       # never stop on the night
             print(f"{t0:%H:%M:%S} export error, continuing: {type(e).__name__}: {e}", flush=True)
         await asyncio.sleep(max(0.0, interval - (datetime.now(timezone.utc) - t0).total_seconds()))
+
+
+# ------------------------------------------------------------------ county estimates for every race (display only)
+# Races without a county model get a pre-count county map: 2024 president two-party share per county (MEDSL) moved by
+# a uniform swing to the statewide poll average (or, without polls, to the share the market price implies), expected
+# votes = EST_TURNOUT × 2024 total. Registered configs and their model are not involved.
+
+EST_TURNOUT = 0.72        # 2026 midterm / 2024 presidential two-party votes, mean of CA/TX/GA official data (docs)
+EST_SD_NOPOLL = 0.06      # statewide sd of the 2024-only estimate (no polls, no price)
+
+
+def county_resid_sd(priors: pd.DataFrame | None = None) -> float:
+    """sd of county swings around the statewide swing, Georgia 2020 → 2024 president (official, by county;
+    weighted by 2024 two-party votes): the county-level spread of a uniform-swing estimate."""
+    pr = load_priors() if priors is None else priors
+    a = pr[pr["source"] == "ga_pres_2020"].set_index("unit_id")
+    b = pr[pr["source"] == "ga_pres_2024"].set_index("unit_id")
+    w = (b["dem"] + b["rep"]).reindex(a.index)
+    sw = b["dem"] / (b["dem"] + b["rep"]) - a["dem"] / (a["dem"] + a["rep"])
+    ok = sw.notna() & w.notna()
+    m = np.average(sw[ok], weights=w[ok])
+    return float(np.sqrt(np.average((sw[ok] - m) ** 2, weights=w[ok])))
+
+
+def _margin(share: float | None) -> float | None:
+    return None if share is None else _r((2 * share - 1) * 100, 2)
+
+
+def market_margin(p: float | None, margin_sd: float | None) -> float | None:
+    """The D−R margin (points) the market price implies at our uncertainty: Φ⁻¹(p) × σ_margin."""
+    from scipy.stats import norm
+    if p is None or margin_sd is None or not np.isfinite(p):
+        return None
+    return _r(float(norm.ppf(min(max(p, 0.001), 0.999))) * margin_sd, 2)
+
+
+def race_estimate(r: dict, base: pd.DataFrame, poll: dict | None, p_market: float | None,
+                  resid: float) -> tuple[dict, dict] | None:
+    """(estimate summary, units object) for an overview race from the county baseline; None without baseline."""
+    from scipy.stats import norm
+    b = base[(base["state"] == r["state"]) & ((base["pres24_dem"] + base["pres24_rep"]) > 0)]   # '*' (suppressed)
+    if b.empty:
+        return None
+    s0 = (b["pres24_dem"] / (b["pres24_dem"] + b["pres24_rep"])).to_numpy()
+    V = (EST_TURNOUT * b["pres24_total"]).to_numpy()
+    base_state = float(np.average(s0, weights=V))
+    if poll:
+        target, sd, basis = poll["avg"], poll["sd"], "polls"
+    elif p_market is not None and 0 < p_market < 1:
+        sd, basis = POLL_SD_HIST, "market-implied"
+        target = 0.5 + float(norm.ppf(min(max(p_market, 0.01), 0.99))) * sd
+    else:
+        target, sd, basis = base_state, EST_SD_NOPOLL, "2024 president only"
+    share = np.clip(s0 + target - base_state, 0.01, 0.99)
+    csd = float(np.sqrt(sd**2 + resid**2))
+    est = {"basis": basis, "share": _r(target), "sd": _r(sd), "county_sd": _r(csd),
+           "P": _r(float(norm.cdf((target - 0.5) / sd))), "margin": _margin(target), "margin_sd": _r(2 * sd * 100, 2),
+           "baseline_share": _r(base_state), "turnout": _tens(V.sum()),
+           "note": {"polls": "estimate: 2024 president by county shifted uniformly to the poll average",
+                    "market-implied": "estimate: 2024 president by county shifted to the share the market price "
+                                      "implies (no polls; circular, for display only)",
+                    "2024 president only": "estimate: 2024 president by county (no polls, no price)"}[basis]}
+    names = b["name"].str.replace(r",\s*[A-Z]{2}$", "", regex=True).tolist()
+    units = {"race_id": r["race_key"], "estimate": est, "unit_ids": b["unit_id"].tolist(),
+             "region": [r["state"]] * len(b), "names": names,
+             "prior": (s0 * 1000).round().astype(int).tolist(),
+             "prior_margin": ((2 * s0 - 1) * 1000).round().astype(int).tolist(),
+             "V0": V.round().astype(int).tolist(),
+             "sd": [int(round(csd * 1000))] * len(b),
+             "frames": [{"t": None, "f": [0] * len(b), "a": [-1] * len(b),
+                         "proj": (share * 1000).round().astype(int).tolist(),
+                         "rem": _tens_list(V), "rem_margin": _tens_list(V * (2 * share - 1))}]}
+    return est, units
+
+
+def race_margins(r: dict) -> dict:
+    """Margin-scale comparison for an overview race, D − R in points of the two-party vote. σ for the market's
+    implied margin = the model's pre-count margin sd (modeled races), else the poll average's, else the estimate's."""
+    pa, est, pre = r.get("polls"), r.get("estimate"), r.get("precount") or {}
+    sd = (2 * pre["sd"] * 100 if pre.get("sd") else None) or (2 * pa["sd"] * 100 if pa else None) \
+        or (est or {}).get("margin_sd")
+    pm, km = (r.get("pm") or {}).get("price"), (r.get("kalshi") or {}).get("price")
+    return {"model": _margin(pre.get("share")), "model_sd": _r(2 * pre["sd"] * 100, 2) if pre.get("sd") else None,
+            "model_v2": _margin(pre.get("share_v2")), "polls": _margin(pa["avg"]) if pa else None,
+            "polls_sd": _r(2 * pa["sd"] * 100, 2) if pa else None,
+            "estimate": (est or {}).get("margin"), "market": market_margin(pm, sd),
+            "market_kalshi": market_margin(km, sd), "market_sd_used": _r(sd, 2) if sd else None}
+
+
+def add_estimates(d: Path, ov: dict, pre: dict[str, dict | None]) -> dict:
+    """Overview races: units file + estimate for races without a county model, margins for all, early-vote block."""
+    base, polls = load_county_baseline(), load_polls()
+    resid = county_resid_sd()
+    ev = json.loads((d / EV_OUT).read_text()) if (d / EV_OUT).exists() else {}
+    for o in ov["offices"].values():
+        for r in o.get("races", []):
+            rk = r["race_key"]
+            r["precount"] = pre.get(rk) if r.get("modeled") else None
+            if r.get("modeled"):
+                r["units"] = f"units/{rk}.json" if pre.get(rk) else None
+            else:
+                pm = (r.get("pm") or {}).get("price")
+                res = race_estimate(r, base, polls.get(rk), pm, resid)
+                r["estimate"], r["units"] = (res[0], f"units/{rk}.json") if res else (None, None)
+                if res:
+                    _write_json(d / "units" / f"{rk}.json", res[1])
+            r["margins"] = race_margins(r)
+            r["ev"] = ev_block(ev.get("states", {}).get(r["state"]), r["margins"])
+    return ov
+
+
+# ------------------------------------------------------------------ early-vote implied margin and its history
+# Registration ≠ vote: the raw EV-implied margin assumes every registered Democrat/Republican votes their party and
+# unaffiliated/other voters split evenly; the historical bias (same day before Election Day, past elections) absorbs
+# both loyalty and the unaffiliated split, which two past elections cannot identify separately.
+
+EV_HISTORY = ROOT_DIR / "data_public" / "us2026_ev_history.json"
+EV_ELECTION_DAY = pd.Timestamp("2026-11-03")
+
+
+def ev_raw_margin(by_party: dict | None) -> float | None:
+    if not by_party:
+        return None
+    n = by_party["D"] + by_party["R"] + by_party["O"]
+    return _r(100 * (by_party["D"] - by_party["R"]) / n, 2) if n else None
+
+
+def nc_ev_by_date(zip_path: Path) -> pd.DataFrame:
+    """NC absentee file (one row per ballot): accepted mail + one-stop ballots by return date and party (D, R, O)."""
+    z = zipfile.ZipFile(zip_path)
+    parts = []
+    for ch in pd.read_csv(z.open(z.namelist()[0]), dtype=str, chunksize=1_000_000, encoding="latin1",
+                          usecols=["voter_party_code", "ballot_rtn_dt", "ballot_rtn_status"]):
+        ch = ch[ch["ballot_rtn_status"].fillna("").str.upper().str.startswith("ACCEPTED")]
+        p = ch["voter_party_code"].fillna("").map({"DEM": "D", "REP": "R"}).fillna("O")
+        dt = pd.to_datetime(ch["ballot_rtn_dt"], format="%m/%d/%Y", errors="coerce")
+        parts.append(pd.crosstab(dt, p))
+    return pd.concat(parts).groupby(level=0).sum().reindex(columns=["D", "R", "O"], fill_value=0).sort_index()
+
+
+def build_ev_history(max_days: int = 21) -> Path:
+    """data_public/us2026_ev_history.json: NC raw EV-implied margin k = 0…max_days days before Election Day (ballots
+    returned by ED − k) in the 2022 and 2024 generals vs the certified two-party margin of the top race (2022 US
+    Senate, 2024 president). bias = raw − final (points; + = EV overstated the Democrat)."""
+    pres = medsl24_pres("nc")
+    z = zipfile.ZipFile(io.BytesIO(_fetch(f"{_NC_S3}/ENRS/2022_11_08/results_pct_20221108.zip",
+                                          US_RAW / "earlyvote" / "nc_results_pct_20221108.zip")))
+    r22 = pd.read_csv(z.open(z.namelist()[0]), sep="\t", dtype=str)
+    r22 = r22[r22["Contest Name"].str.strip() == "US SENATE"].assign(v=lambda x: _num(x["Total Votes"]))
+    by = r22.groupby(r22["Choice Party"].str.strip())["v"].sum()
+    finals = {2022: (by.get("DEM", 0), by.get("REP", 0), "2022 US Senate"),
+              2024: (pres["dem"].sum(), pres["rep"].sum(), "2024 president")}
+    hist: dict[str, dict] = {}
+    for year, ed, key in ((2022, "2022-11-08", "2022_11_08/absentee_20221108.zip"),
+                          (2024, "2024-11-05", "2024_11_05/absentee_20241105.zip")):
+        f = US_RAW / "earlyvote" / f"nc_{Path(key).name}"
+        _fetch(f"{_NC_S3}/ENRS/{key}", f)
+        cum = nc_ev_by_date(f).cumsum()
+        d, rr, race = finals[year]
+        final = _r(100 * (d - rr) / (d + rr), 2)
+        for k in range(max_days + 1):
+            through = pd.Timestamp(ed) - pd.Timedelta(days=k)
+            row = cum[cum.index <= through]
+            if row.empty:
+                continue
+            bp = {c: int(row[c].iloc[-1]) for c in ("D", "R", "O")}
+            raw = ev_raw_margin(bp)
+            hist.setdefault(str(k), {"elections": []})["elections"].append(
+                {"year": year, "through": through.strftime("%Y-%m-%d"), "by_party": bp, "raw_margin": raw,
+                 "final_race": race, "final_margin": final, "bias": _r(raw - final, 2)})
+    for h in hist.values():
+        h["bias_mean"] = _r(float(np.mean([e["bias"] for e in h["elections"]])), 2)
+    out = {"rule": "raw EV-implied margin = 100 × (D − R) / all accepted EV ballots, by the voters' party "
+                   "registration; bias = raw − certified two-party margin of the top race; key = days before "
+                   "Election Day of the data's last return date",
+           "states": {"nc": {"source": "NC State Board of Elections, per-ballot absentee files 2022 and 2024 "
+                                       "(dl.ncsbe.gov, public record); finals: NCSBE 2022 results, MEDSL 2024",
+                             "by_days_before": hist}},
+           "not_available": {"fl": "Florida's daily statistics files are overwritten (only the latest compilation is "
+                                   "published); no dated history found",
+                             "tx": "Texas publishes no party registration: volume only"}}
+    _write_json(EV_HISTORY, out)
+    return EV_HISTORY
+
+
+def ev_implied(st: str, s: dict, history: dict | None = None) -> dict:
+    """margin_ev_raw from the state's EV party split; ev_bias_hist and days_before from the history at the same day
+    before Election Day (the state's data run through the day before its as_of date)."""
+    raw = ev_raw_margin(s["totals"].get("by_party"))
+    hist = history if history is not None else (json.loads(EV_HISTORY.read_text()) if EV_HISTORY.exists() else {})
+    k = (EV_ELECTION_DAY - (pd.Timestamp(s["as_of"]) - pd.Timedelta(days=1))).days
+    h = hist.get("states", {}).get(st, {}).get("by_days_before", {}).get(str(k))
+    return {"margin_ev_raw": raw, "days_before": k, "ev_bias_hist": h["bias_mean"] if h and raw is not None else None,
+            "ev_hist": h["elections"] if h and raw is not None else None}
+
+
+def ev_block(s: dict | None, margins: dict) -> dict | None:
+    """Per race: early vote of its state (volume, raw EV-implied margin, historical bias, corrected margin) and the
+    over-reliance flag: the market-implied margin is closer to the raw than to the bias-corrected EV margin."""
+    if not s:
+        return None
+    t = s.get("totals", {})
+    raw, bias = s.get("margin_ev_raw"), s.get("ev_bias_hist")
+    corr = None if raw is None or bias is None else _r(raw - bias, 2)
+    mk = margins.get("market")
+    flag = None if None in (raw, corr, mk) else bool(abs(mk - raw) < abs(mk - corr))
+    return {"as_of": s.get("as_of"), "ev_total": t.get("ev_total"), "share_of_2022_total": t.get("share_of_2022_total"),
+            "margin_ev_implied": raw, "ev_bias_hist": bias, "margin_ev_corrected": corr,
+            "market_closer_to_raw_ev": flag}
+
+
+# ------------------------------------------------------------------ scoring (after the count): three separate scores
+
+def score_race(rows: list[dict], final_share: float, final_votes: float) -> dict:
+    """Score a race's timeline rows against the certified result, never mixing the three questions:
+    margin (model margin − final, points), turnout (projected total votes − final, relative) and probability
+    (Brier and log loss of P against the outcome). Rows without a value are skipped per score."""
+    fm, won = (2 * final_share - 1) * 100, float(final_share > 0.5)
+    m = [(r.get("counted"), r["margin_model"] - fm) for r in rows if r.get("margin_model") is not None]
+    t = [(r.get("counted"), r["votes_proj"] / final_votes - 1) for r in rows if r.get("votes_proj")]
+    p = [min(max(r["P"], 1e-6), 1 - 1e-6) for r in rows if r.get("P") is not None]
+
+    def summ(x):
+        if not x:
+            return None
+        e = np.array([v for _, v in x])
+        return {"n": len(e), "mean": _r(float(e.mean())), "mae": _r(float(np.abs(e).mean())), "last": _r(float(e[-1]))}
+    return {"margin_pts": summ(m), "turnout_rel": summ(t),
+            "probability": None if not p else {
+                "n": len(p), "brier": _r(float(np.mean([(q - won) ** 2 for q in p]))),
+                "log_loss": _r(float(-np.mean([np.log(q if won else 1 - q) for q in p])))}}
 
 
 def cli(a) -> None:

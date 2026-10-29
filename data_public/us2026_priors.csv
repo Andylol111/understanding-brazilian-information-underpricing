@@ -4,8 +4,8 @@
 # Sources: ca_* California Secretary of State, Statement of Vote (public record);
 #   tx_* Texas Legislative Council, Capitol Data Portal, https://data.capitol.texas.gov/ (CC BY; VTD returns
 #   summed to counties by this project); ga_* Georgia Secretary of State, results.sos.ga.gov (public record);
-#   ak_* Alaska Division of Elections (public record); oh_* MIT Election Data and Science Lab, County
-#   Presidential Election Returns 2000-2024, doi:10.7910/DVN/VOQCHQ (CC0); sc_* South Carolina Election
+#   ak_* Alaska Division of Elections (public record); oh_* MIT Election Data and Science Lab, U.S. President
+#   Precinct-Level Returns 2024, doi:10.7910/DVN/XDJYKC (CC0), summed to counties; sc_* South Carolina Election
 #   Commission certified results, enr-scvotes.org (public record); vt_* Vermont Secretary of State certified
 #   results, electionresults.vermont.gov, towns summed to counties by this project (public record).
 source,unit_id,dem,rep,total
@@ -1755,3 +1755,91 @@ vt_gov_2024,us-vt-50021,4992.0,26849.0,33539.0
 vt_gov_2024,us-vt-50023,8377.0,24817.0,34642.0
 vt_gov_2024,us-vt-50025,7731.0,15715.0,25082.0
 vt_gov_2024,us-vt-50027,7446.0,24472.0,33618.0
+oh_pres_2024,us-oh-39001,2098.0,10269.0,12429.0
+oh_pres_2024,us-oh-39003,12754.0,33201.0,46361.0
+oh_pres_2024,us-oh-39005,6544.0,19863.0,26662.0
+oh_pres_2024,us-oh-39007,15345.0,27656.0,43368.0
+oh_pres_2024,us-oh-39009,14134.0,11369.0,25726.0
+oh_pres_2024,us-oh-39011,4442.0,20988.0,25623.0
+oh_pres_2024,us-oh-39013,8080.0,22758.0,31032.0
+oh_pres_2024,us-oh-39015,4069.0,17257.0,21442.0
+oh_pres_2024,us-oh-39017,66713.0,114831.0,183142.0
+oh_pres_2024,us-oh-39019,3071.0,10634.0,13818.0
+oh_pres_2024,us-oh-39021,4944.0,15334.0,20468.0
+oh_pres_2024,us-oh-39023,21847.0,40403.0,62835.0
+oh_pres_2024,us-oh-39025,36130.0,76964.0,114115.0
+oh_pres_2024,us-oh-39027,4633.0,15984.0,20779.0
+oh_pres_2024,us-oh-39029,12064.0,35607.0,48046.0
+oh_pres_2024,us-oh-39031,3835.0,12362.0,16333.0
+oh_pres_2024,us-oh-39033,4683.0,15402.0,20241.0
+oh_pres_2024,us-oh-39035,376384.0,195164.0,575890.0
+oh_pres_2024,us-oh-39037,4583.0,22234.0,27000.0
+oh_pres_2024,us-oh-39039,5667.0,13302.0,19153.0
+oh_pres_2024,us-oh-39041,61657.0,70448.0,133357.0
+oh_pres_2024,us-oh-39043,16871.0,22493.0,39737.0
+oh_pres_2024,us-oh-39045,31695.0,51999.0,84431.0
+oh_pres_2024,us-oh-39047,2773.0,9706.0,12571.0
+oh_pres_2024,us-oh-39049,380518.0,210830.0,597530.0
+oh_pres_2024,us-oh-39051,6374.0,15893.0,22452.0
+oh_pres_2024,us-oh-39053,2592.0,10314.0,13000.0
+oh_pres_2024,us-oh-39055,20604.0,33844.0,54886.0
+oh_pres_2024,us-oh-39057,35575.0,53399.0,90031.0
+oh_pres_2024,us-oh-39059,4154.0,13314.0,17594.0
+oh_pres_2024,us-oh-39061,233360.0,172365.0,409753.0
+oh_pres_2024,us-oh-39063,11467.0,26052.0,37937.0
+oh_pres_2024,us-oh-39065,2863.0,9911.0,12893.0
+oh_pres_2024,us-oh-39067,1559.0,5484.0,7109.0
+oh_pres_2024,us-oh-39069,3905.0,10873.0,14911.0
+oh_pres_2024,us-oh-39071,3609.0,16269.0,19984.0
+oh_pres_2024,us-oh-39073,3704.0,9679.0,13489.0
+oh_pres_2024,us-oh-39075,1854.0,10384.0,12335.0
+oh_pres_2024,us-oh-39077,7496.0,19484.0,27212.0
+oh_pres_2024,us-oh-39079,2953.0,11249.0,14285.0
+oh_pres_2024,us-oh-39081,8592.0,22317.0,31257.0
+oh_pres_2024,us-oh-39083,8698.0,23112.0,32090.0
+oh_pres_2024,us-oh-39085,54484.0,72924.0,128535.0
+oh_pres_2024,us-oh-39087,6514.0,20013.0,26712.0
+oh_pres_2024,us-oh-39089,32832.0,61359.0,95045.0
+oh_pres_2024,us-oh-39091,5027.0,18182.0,23403.0
+oh_pres_2024,us-oh-39093,74207.0,83297.0,158959.0
+oh_pres_2024,us-oh-39095,106320.0,82398.0,190525.0
+oh_pres_2024,us-oh-39097,5713.0,14737.0,20668.0
+oh_pres_2024,us-oh-39099,50636.0,61249.0,112678.0
+oh_pres_2024,us-oh-39101,7902.0,19219.0,27355.0
+oh_pres_2024,us-oh-39103,39771.0,66308.0,107017.0
+oh_pres_2024,us-oh-39105,2202.0,8127.0,10400.0
+oh_pres_2024,us-oh-39107,3865.0,19710.0,23750.0
+oh_pres_2024,us-oh-39109,15969.0,42677.0,59176.0
+oh_pres_2024,us-oh-39111,1336.0,5396.0,6794.0
+oh_pres_2024,us-oh-39113,126767.0,125566.0,254715.0
+oh_pres_2024,us-oh-39115,1560.0,5168.0,6782.0
+oh_pres_2024,us-oh-39117,4100.0,14609.0,18855.0
+oh_pres_2024,us-oh-39119,10874.0,28147.0,39327.0
+oh_pres_2024,us-oh-39121,1069.0,5050.0,6161.0
+oh_pres_2024,us-oh-39123,8866.0,14872.0,23956.0
+oh_pres_2024,us-oh-39125,1987.0,7203.0,9276.0
+oh_pres_2024,us-oh-39127,3800.0,13062.0,16991.0
+oh_pres_2024,us-oh-39129,7397.0,21607.0,29275.0
+oh_pres_2024,us-oh-39131,2793.0,9352.0,12218.0
+oh_pres_2024,us-oh-39133,34759.0,47681.0,83181.0
+oh_pres_2024,us-oh-39135,4343.0,17146.0,21653.0
+oh_pres_2024,us-oh-39137,2996.0,16576.0,19754.0
+oh_pres_2024,us-oh-39139,16591.0,41298.0,58358.0
+oh_pres_2024,us-oh-39141,9846.0,22801.0,32930.0
+oh_pres_2024,us-oh-39143,10139.0,19311.0,29713.0
+oh_pres_2024,us-oh-39145,8021.0,22978.0,31179.0
+oh_pres_2024,us-oh-39147,7765.0,17241.0,25262.0
+oh_pres_2024,us-oh-39149,4350.0,20740.0,25288.0
+oh_pres_2024,us-oh-39151,71090.0,111478.0,184158.0
+oh_pres_2024,us-oh-39153,145005.0,125910.0,273413.0
+oh_pres_2024,us-oh-39155,39758.0,55983.0,96514.0
+oh_pres_2024,us-oh-39157,12032.0,30652.0,43019.0
+oh_pres_2024,us-oh-39159,12934.0,23982.0,37288.0
+oh_pres_2024,us-oh-39161,3000.0,11616.0,14729.0
+oh_pres_2024,us-oh-39163,1169.0,4531.0,5737.0
+oh_pres_2024,us-oh-39165,47128.0,91132.0,139593.0
+oh_pres_2024,us-oh-39167,8600.0,22161.0,31000.0
+oh_pres_2024,us-oh-39169,15898.0,36764.0,53140.0
+oh_pres_2024,us-oh-39171,4644.0,13461.0,18274.0
+oh_pres_2024,us-oh-39173,30016.0,36877.0,67565.0
+oh_pres_2024,us-oh-39175,2731.0,8564.0,11389.0

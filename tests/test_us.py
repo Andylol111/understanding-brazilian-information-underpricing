@@ -285,7 +285,10 @@ def test_export_dry_run_writes_valid_contract(tmp_path):
     assert len(tl) == 116                                              # 04:05 … 06:00, one row per minute
     for row in tl:
         assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "P_v2", "share_v2", "sd_v2", "pm", "kalshi",
-                            "rem_total", "rem_margin_total"}
+                            "rem_total", "rem_margin_total", "votes_proj", "margin_model", "margin_model_sd",
+                            "margin_v2", "margin_polls", "margin_market", "margin_market_kalshi"}
+        assert row["margin_model"] == pytest.approx((2 * row["share"] - 1) * 100, abs=0.02)
+        assert row["votes_proj"] >= row["rem_total"] and row["margin_market_kalshi"] is None
         assert 0 <= row["P_v2"] <= 1 and 0 < row["share_v2"] < 1 and row["sd_v2"] > 0   # v2 runs alongside v1
         assert isinstance(row["rem_total"], int) and row["rem_total"] % 10 == 0 and row["rem_total"] >= 0
         assert 0 <= row["counted"] <= 1 and 0 <= row["P"] <= 1 and row["kalshi"] is None
@@ -781,7 +784,8 @@ def test_parse_vt_towns_to_counties():
     assert pre["votes"].sum() == 0 and (pre["reporting"] == 0).all() and {"DEM", "REP"} <= set(pre["party"])
 
 
-@pytest.mark.parametrize("name", ["us2026_sc_sen_v1", "us2026_sc_gov_v1", "us2026_vt_gov_v1"])
+@pytest.mark.parametrize("name", ["us2026_sc_sen_v1", "us2026_sc_gov_v1", "us2026_vt_gov_v1", "us2026_oh_sen_v1",
+                                  "us2026_oh_gov_v1"])
 def test_new_configs_have_public_priors(name):
     cfg = us.load_config(ROOT / "configs" / f"{name}.toml")
     pri = us.race_prior(cfg, us.load_priors(us.PUBLIC_PRIORS))
@@ -1017,3 +1021,58 @@ def test_earlyvote_json_schema_and_stale_state(tmp_path):
     e2 = json.loads(us.earlyvote(tmp_path, now, {"tx": broken, "nc": nc}).read_text())
     assert e2["states"]["tx"]["stale"] is True and e2["states"]["tx"]["as_of"] == "2026-10-27"
     assert e2["counties"]["us-tx-48001"]["ev_total"] == 8133 and "stale" not in e2["states"]["nc"]
+
+
+# ------------------------------------------------------------------ county baselines, estimates, margins, EV-implied
+
+def test_medsl_county_total_mode_rule():
+    rows = pd.DataFrame({"county_fips": ["39001"] * 4 + ["39003"] * 2,
+                         "mode": ["TOTAL", "TOTAL", "ELECTION DAY", "ELECTION DAY", "EARLY", "ELECTION DAY"],
+                         "party_simplified": ["DEMOCRAT", "REPUBLICAN", "DEMOCRAT", "REPUBLICAN", "DEMOCRAT", "DEMOCRAT"],
+                         "votes": ["10", "20", "7", "9", "3", "*"]})
+    g = us._medsl_county(rows, "oh").set_index("unit_id")
+    assert (g.loc["us-oh-39001", "dem"], g.loc["us-oh-39001", "rep"]) == (10, 20)       # TOTAL rows only
+    assert g.loc["us-oh-39003", "dem"] == 3 and g.loc["us-oh-39003", "total"] == 3      # modes summed, '*' = 0
+
+
+def test_county_baseline_public_file_covers_states_and_ohio_prior():
+    b = us.load_county_baseline()
+    assert b["state"].nunique() == 48 and b["unit_id"].is_unique and not {"ak", "ct"} & set(b["state"])  # see header
+    oh = b[b["state"] == "oh"]
+    assert len(oh) == 88 and (oh["pres24_dem"].sum(), oh["pres24_rep"].sum()) == (2533699, 3180116)  # certified
+    pr = us.load_priors(us.PUBLIC_PRIORS)
+    o = pr[pr["source"] == "oh_pres_2024"]
+    assert len(o) == 88 and o["dem"].sum() == 2533699
+
+
+def test_race_estimate_uniform_swing_and_market_basis():
+    base = us.load_county_baseline()
+    r = {"race_key": "mi-sen", "state": "mi"}
+    est, units = us.race_estimate(r, base, {"avg": 0.53, "sd": 0.04}, None, 0.04)
+    V, proj = np.array(units["V0"], float), np.array(units["frames"][0]["proj"]) / 1000
+    assert est["basis"] == "polls" and np.average(proj, weights=V) == pytest.approx(0.53, abs=2e-3)
+    assert est["county_sd"] == pytest.approx(np.hypot(0.04, 0.04), abs=1e-4) and len(units["unit_ids"]) == 83
+    est2, _ = us.race_estimate(r, base, None, 0.84, 0.04)
+    assert est2["basis"] == "market-implied" and est2["share"] == pytest.approx(0.5 + 0.9945 * us.POLL_SD_HIST, abs=1e-3)
+    assert us.race_estimate({"race_key": "xx", "state": "zz"}, base, None, None, 0.04) is None
+
+
+def test_market_margin_and_ev_flag():
+    assert us.market_margin(0.5, 8.0) == 0 and us.market_margin(0.8413, 8.0) == pytest.approx(8.0, abs=0.01)
+    hist = {"states": {"nc": {"by_days_before": {"7": {"bias_mean": 6.0, "elections": []}}}}}
+    s = {"as_of": "2026-10-28", "totals": {"by_party": {"D": 500, "R": 300, "O": 200}, "ev_total": 1000}}
+    e = us.ev_implied("nc", s, hist)
+    assert e["margin_ev_raw"] == 20.0 and e["days_before"] == 7 and e["ev_bias_hist"] == 6.0
+    blk = us.ev_block({**s, **e}, {"market": 18.0})
+    assert blk["margin_ev_corrected"] == 14.0 and blk["market_closer_to_raw_ev"] is True
+    assert us.ev_block({**s, **e}, {"market": 13.0})["market_closer_to_raw_ev"] is False
+    assert us.ev_implied("tx", {"as_of": "2026-10-28", "totals": {"by_party": None}}, hist)["margin_ev_raw"] is None
+
+
+def test_scores_are_separate():
+    rows = [{"counted": 0.1, "margin_model": 4.0, "votes_proj": 1100, "P": 0.7},
+            {"counted": 0.9, "margin_model": 2.0, "votes_proj": 1000, "P": 0.9}]
+    s = us.score_race(rows, final_share=0.51, final_votes=1000)            # final margin +2 points, D won
+    assert s["margin_pts"]["mae"] == pytest.approx(1.0) and s["margin_pts"]["last"] == pytest.approx(0.0)
+    assert s["turnout_rel"]["mean"] == pytest.approx(0.05)
+    assert s["probability"]["brier"] == pytest.approx(((0.3) ** 2 + 0.1 ** 2) / 2)

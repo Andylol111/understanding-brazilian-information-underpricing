@@ -265,6 +265,67 @@ uv run python analysis/us_polls.py configs    # v2 configs from v1 + averages (t
 uv run python analysis/us_polls.py effect     # P vs P_v2 as the count grows (data/processed/us2026/polls_v2_effect.csv)
 ```
 
+## County baselines and estimates for every race (display only)
+
+- **Baseline:** `data_public/us2026_county_baseline.csv` holds 2024 president and 2024 regular Senate results by
+  county for 48 states (`build_county_baseline`).
+  - Source: MIT Election Data and Science Lab precinct returns 2024 (github.com/MEDSL/2024-elections-official;
+    Dataverse doi:10.7910/DVN/XDJYKC and ZCM3BN, CC0 1.0), summed to Census county FIPS.
+  - A county's totals are its `TOTAL` mode rows when it has any, else the sum of its modes (MEDSL README warning).
+  - Nebraska's file marks every president row NONPARTISAN, so party is taken from the candidate names.
+  - Alaska (election districts) and Connecticut (planning regions) don't match the 2020 county geometry and are
+    left out.
+- **Ohio prior:** the same data gives `oh_pres_2024`, the prior the registered Ohio configs name, so Ohio v1 and
+  v2 now run. Only data was added; no setting changed.
+- **Estimate for unmodeled races** (`race_estimate`, written to `units/<race>.json` with an `estimate` block):
+  - County share = 2024 president two-party share + (statewide target − the baseline statewide share), a uniform
+    swing.
+  - The target is the poll average (`basis: polls`). Without polls it is the share the Polymarket price implies,
+    0.5 + Φ⁻¹(p)·0.039 (`basis: market-implied`; circular, display only). Without either it is the 2024 baseline.
+  - Statewide sd = the poll sd, else 0.039, else 0.06.
+  - County sd = √(statewide sd² + 0.015²). The 0.015 is the sd of Georgia's county swings around the statewide
+    swing, 2020 → 2024 president, weighted by votes (`county_resid_sd` = 0.0154). It comes from one state, a
+    presidential pair, and is small.
+  - Expected votes = 0.72 × 2024 total. MEDSL's 2022 files were not used in this pass.
+  - Coverage: 68 of 71 races have a county map (the 10 modeled races use their model's file; AK ×2 and CT gov have
+    none).
+
+## Margin scale (the comparison that does not conflate)
+
+Margins are D − R in points of the two-party vote.
+
+- **Fields:** timeline rows of modeled races and overview `races[].margins` carry:
+  - `margin_model` / `margin_model_sd`: the projection;
+  - `margin_v2`;
+  - `margin_polls`;
+  - `margin_market` / `margin_market_kalshi` = Φ⁻¹(price) × σ.
+- **σ:** the model's margin sd at that minute (pre-count: the model's pre-count sd). Without a model it is the poll
+  average's sd, else the estimate's. So `margin_market` is the margin the price asks us to believe at our own
+  uncertainty.
+- **Scoring after the count** (`score_race`) keeps three scores separate, never combined:
+  - margin error, model − certified, in points;
+  - turnout error, projected total votes (`votes_proj`) / certified − 1;
+  - probability calibration, Brier and log loss of P against the outcome.
+
+## Early-vote implied margin and its history (display only)
+
+- **Raw margin:** `margin_ev_raw` = 100 × (D − R) / all early-vote ballots, by the voters' party registration. It
+  needs a party split, so it exists for NC and FL only (TX publishes none).
+  - Registration is not a vote. The raw number assumes every registered partisan votes their party and other voters
+    split evenly.
+  - Two past elections cannot separate party loyalty from the unaffiliated split. So instead of fitting them, the
+    historical bias absorbs both.
+- **Bias:** `ev_bias_hist` = mean over past generals of (raw margin − certified two-party margin of the top race),
+  taken on the same number of days before Election Day as today's data (`data_public/us2026_ev_history.json`).
+  - Source: NC SBE per-ballot absentee files 2022 and 2024, counting accepted ballots by return date.
+  - Finals: NCSBE 2022 Senate results; MEDSL 2024 president.
+  - FL has no dated history: its daily files are overwritten. TX has no party data.
+  - Positive = early vote overstated the Democrat.
+- **Flag:** `margin_ev_corrected` = raw − bias. `market_closer_to_raw_ev` is true when the market-implied margin is
+  nearer the raw EV margin than the corrected one, a sign the price may lean on early vote.
+  - Caveat: NC's bias was 10.4 points in 2022 and 2.5 in 2024 (7 days before). With two elections it is a rough
+    correction, not a calibrated one.
+
 ## Before the count (`brunder us preelection`)
 
 ```

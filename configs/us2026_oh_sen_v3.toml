@@ -1,0 +1,52 @@
+# US midterms 2026-11-03, Ohio Senate (special): model v3. Identical to the registered us2026_oh_sen_v2.toml
+# (sha256 prefix 5c503d673f8128a7) except that the poll swing prior is now active: v2 could not use it because
+# Ohio had no county baseline when v2 was registered (v2 = v1 there). Baseline now from MIT MEDSL 2024 official
+# returns (CC0). Swing prior = poll average minus that baseline's statewide share (polls as in v2, VoteHub CC BY 4.0,
+# built 2026-10-29T00:09:07Z). v1, v2 and v3 are all registered and scored.
+id = "us2026_oh_sen_v3"
+
+[election]
+eid = "us2026"
+race_id = "oh-sen"
+name = "Ohio Senate (special)"
+state = "oh"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "oh"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T00:30:00Z"
+a = { party = "DEM", name = "Sherrod Brown", color = "#1f5fbf" }
+b = { party = "REP", name = "Jon Husted", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "oh_pres_2024"        # 2024 president (MEDSL county returns, CC0); Ohio SoS files are not reachable by script (403)
+votes = "oh_pres_2024"        # 2024 president two-party votes × 0.72 (mean 2022/2024 two-party ratio in CA, TX, GA official data)
+poll_avg = 0.5196           # two-party Dem share, weighted average of 13 polls
+poll_sd = 0.0393            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 13
+poll_last = "2026-10-23"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.6908        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays, no vote-type split (OH feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0762   # poll_avg - prior statewide share 0.4434 (V-weighted, data_public/us2026_priors.csv)
+swing_prior_sd = 0.0393      # = poll_sd
+
+[count]                    # brunder.us.CountRules
+# OH reports, per county, ballots counted and ballots still outstanding (UOCAVA absentee +
+# provisional): once Election Day precincts are all in, remaining = outstanding ballots.
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.0
+use_outstanding = true
+learn_turnout = true
+
+[markets.polymarket]
+event = "ohio-senate-election-winner"
+market = "will-the-democrats-win-the-ohio-senate-race-in-2026"
+question = "Will the Democrats win the Ohio Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""
