@@ -12,7 +12,9 @@ import * as topojson from "./vendor/topojson-client.js";
 import { unitsByRegion, regionAgg, regionWinner, bandColours, bandColour, tieBreak } from "./dash-agg.js";
 
 const BASE = 1000; // base projection extent, shared with dash-map.js
-const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4 }; // value at which a diverging colour is full
+const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4, turnout: 0.2 }; // value at which a diverging colour is full
+// turnout vs expected: brown below, teal above (not the parties' red and blue)
+const TURN_LUT = d3.range(201).map((j) => d3.interpolateBrBG(j / 200));
 const NONE = "#efede7", NEUTRAL = "#f4f2ec";
 const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is full
 // leader colour of unit j for a margin in points (side a minus side b). A projection that reads
@@ -169,6 +171,11 @@ export async function units({ urls, live, countTimeline }) {
   // minus side b, in votes); NaN where a file has none
   const REM = new Float32Array(K * n).fill(NaN), REMM = new Float32Array(K * n).fill(NaN);
   let hasRem = false;
+  // turnout (modelled races): expected two-party votes, the low-propensity index and the county's
+  // past margin per unit; per frame, the turnout ratio (counted or projected / expected, ×1000)
+  const TE = new Float64Array(n).fill(NaN), LP = new Float32Array(n).fill(NaN), PMG = new Float32Array(n).fill(NaN);
+  const TR = new Int16Array(K * n).fill(-1);
+  let hasTurnout = false;
   const hasWinner = ok.some(([f]) => f.winner || f.frames?.[0]?.winner);
   const perFrame = hasWinner && ok.some(([f]) => f.frames?.[0]?.winner);
   const W = perFrame ? new Array(K * n).fill(null) : null, M = perFrame ? new Int16Array(K * n) : null;
@@ -182,6 +189,9 @@ export async function units({ urls, live, countTimeline }) {
       prior[off + j] = f.prior?.[j] ?? -1;
       V0[off + j] = f.V0?.[j] ?? 0;
       if (top) { top.winner[off + j] = f.winner?.[j] ?? null; top.margin[off + j] = f.margin?.[j] ?? 0; }
+      TE[off + j] = f.turnout_exp?.[j] ?? NaN;
+      LP[off + j] = f.lowprop_index?.[j] ?? NaN;
+      PMG[off + j] = f.prior_margin?.[j] ?? NaN;
     }
     const ft = (f.frames ?? []).map(frameT);
     let fk = -1;
@@ -198,12 +208,15 @@ export async function units({ urls, live, countTimeline }) {
         if (pp != null) hasPoll = true;
         if (W && fr.winner) { W[base + j] = fr.winner[j]; M[base + j] = fr.margin?.[j] ?? 0; }
         if (fr.rem) { REM[base + j] = fr.rem[j] ?? NaN; REMM[base + j] = fr.rem_margin_poll?.[j] ?? fr.rem_margin?.[j] ?? NaN; hasRem = true; }
+        const tr = fr.turnout_ratio_live?.[j];
+        if (tr != null) { TR[base + j] = Math.min(32767, tr); hasTurnout = true; }
       }
     }
     off += m;
   }
   // per-mode values, normalised to [-1, 1] (diverging) or [0, 1] (counted); NaN = no data
   const counted = new Float32Array(K * n), swing = new Float32Array(K * n), margin = new Float32Array(K * n), margin1 = hasPoll ? new Float32Array(K * n) : null;
+  const turnout = hasTurnout ? new Float32Array(K * n) : null; // ratio to expected, ±20% full colour
   const clamp = (v) => Math.max(-1, Math.min(1, v));
   for (let k = 0; k < K; k++) {
     for (let j = 0; j < n; j++) {
@@ -213,6 +226,7 @@ export async function units({ urls, live, countTimeline }) {
       const v = countTimeline ? P[i] : a >= 0 ? a : P[i];
       margin[i] = v >= 0 ? clamp((2 * v / 1000 - 1) / SCALE.margin) : NaN;
       if (margin1) { const w = countTimeline ? P1[i] : a >= 0 ? a : P1[i]; margin1[i] = w >= 0 ? clamp((2 * w / 1000 - 1) / SCALE.margin) : NaN; }
+      if (turnout) turnout[i] = TR[i] >= 0 ? clamp((TR[i] / 1000 - 1) / SCALE.turnout) : NaN;
     }
   }
   const priorVals = new Float32Array(n);
@@ -221,6 +235,7 @@ export async function units({ urls, live, countTimeline }) {
   const winner = !hasWinner ? null : W ? { perFrame: W, margin: M } : { top: top.winner, margin: top.margin };
   const result = {
     n, K, unit_ids, region, names, layer, source, prior, V0, times: Float64Array.from(times), F, A, P, P1, hasPoll, winner,
+    turnout: hasTurnout ? { exp: TE, lowprop: LP, priorMargin: PMG, ratio: TR } : null,
     rem: hasRem ? { votes: REM, margin: REMM } : null,
     race_id: ok.length === 1 ? first.race_id ?? null : null,
     a: ok.length === 1 ? first.a ?? null : null, b: ok.length === 1 ? first.b ?? null : null, label: first.label ?? null,
@@ -232,8 +247,8 @@ export async function units({ urls, live, countTimeline }) {
   result.remScale = { maxRem, maxLean };
   // the drawing side keeps its own values; the page gets copies of the arrays it reads
   R.units = {
-    n, K, times: result.times, winner, vals: { counted, swing, margin, margin1, prior: priorVals }, rem: result.rem, remScale: result.remScale,
-    F, A, P, P1, prior, V0, byRegion: unitsByRegion(region),
+    n, K, times: result.times, winner, vals: { counted, swing, margin, margin1, turnout, prior: priorVals }, rem: result.rem, remScale: result.remScale,
+    F, A, P, P1, prior, V0, TE, TR, byRegion: unitsByRegion(region),
   };
   R.cache.clear();
   R.featIdx = null; // waits for "bind" with this file's feature index
@@ -365,7 +380,8 @@ function colours() {
         else if (!Number.isNaN(v1)) v = v0 + (v1 - v0) * s;
       }
       out[i] = counted ? (v > 0 ? COUNTED_LUT[Math.min(100, Math.round(v * 100))] : NONE) : Number.isNaN(v) ? NONE
-        : R.mode === "margin" || R.mode === "margin1" ? band(j, v * SCALE.margin * 100, true) : luts[j][Math.round((v + 1) * 100)];
+        : R.mode === "margin" || R.mode === "margin1" ? band(j, v * SCALE.margin * 100, true)
+        : R.mode === "turnout" ? TURN_LUT[Math.round((v + 1) * 100)] : luts[j][Math.round((v + 1) * 100)];
     }
   }
   if (!tween) R.cache.set(key, out);
@@ -394,6 +410,12 @@ function aggColours() {
       if (R.mode === "counted") c = g.counted > 0 ? COUNTED_LUT[Math.min(100, Math.round(g.counted * 100))] : NONE;
       else if (R.mode === "prior" || k < 0) c = g.prior != null ? band(js[0], (2 * g.prior - 1) * 100) : NONE;
       else if (R.mode === "swing") c = g.raw != null && g.prior != null ? lutAt(lut, (g.raw - g.prior) / SCALE.swing) : NONE;
+      else if (R.mode === "turnout") {
+        // the region's turnout ratio, weighted by expected votes
+        let w = 0, s = 0;
+        for (const j of js) { const r = k >= 0 ? U.TR[k * U.n + j] : -1, e = U.TE[j]; if (r >= 0 && e > 0) { w += e; s += e * r / 1000; } }
+        c = w > 0 ? TURN_LUT[Math.round((Math.max(-1, Math.min(1, (s / w - 1) / SCALE.turnout)) + 1) * 100)] : NONE;
+      }
       else {
         const v = R.countTimeline ? g.proj : g.raw ?? g.proj;
         c = v != null ? band(js[0], (2 * v - 1) * 100) : NONE;
@@ -417,6 +439,19 @@ function hatchPattern(ctx, px) {
     R.hatchTile = c;
   }
   const pat = ctx.createPattern(R.hatchTile, "repeat");
+  pat.setTransform(new DOMMatrix().scaleSelf(px, px));
+  return pat;
+}
+// the same lines on a clear ground, laid over coloured units (turnout projected, under 95% reported)
+function hatchOverlay(ctx, px) {
+  if (!R.hatchLines) {
+    const c = new OffscreenCanvas(6, 6), g = c.getContext("2d");
+    g.strokeStyle = "rgba(27,27,27,0.35)";
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, 6); g.lineTo(6, 0); g.moveTo(-1, 1); g.lineTo(1, -1); g.moveTo(5, 7); g.lineTo(7, 5); g.stroke();
+    R.hatchLines = c;
+  }
+  const pat = ctx.createPattern(R.hatchLines, "repeat");
   pat.setTransform(new DOMMatrix().scaleSelf(px, px));
   return pat;
 }
@@ -520,6 +555,20 @@ function paint(ctx) {
     }
   }
   ctx.globalAlpha = 1;
+  if (R.mode === "turnout" && R.units?.TR && cols) {
+    // turnout still projected (under 95% reported): hatched over its colour
+    const U = R.units, k = R.curK, idx = R.featIdx;
+    if (k >= 0 && idx) {
+      ctx.fillStyle = hatchOverlay(ctx, px);
+      for (let i = 0; i < R.n; i++) {
+        const j = idx[i];
+        if (j < 0 || !paths[i] || U.TR[k * U.n + j] < 0 || U.F[k * U.n + j] >= 950) continue;
+        // only where units are shown (not under a region fill at the state level)
+        if (regionCols && R.levelMix < 1 && !(focus && R.regionOf[i] === focus && R.natMix >= 1)) continue;
+        ctx.fill(paths[i]);
+      }
+    }
+  }
   // region borders: white, 2 px at the state level, 1.5 px with a fine dark core at the unit level
   // (so state lines stay visible among county lines)
   const unitLevel = regionCols ? R.levelMix : 1;

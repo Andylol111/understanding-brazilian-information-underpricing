@@ -13,7 +13,8 @@ const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−"
 // pre: before the count (meta.phase "pre-count"): { day } for the date in the heading, { note } when
 // the model has no pre-count figure for the race, { live } "Polymarket live · 12 s ago" for the
 // latest row, { basis } the estimate's own note. ev: { short, full } early vote for the race's state.
-export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null, ev = null }) {
+// turnout: { text, title } the race's projected turnout against expected.
+export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null, ev = null, turnout = null }) {
   const a = esc(race.a.name);
   const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)} · figures for ${a}</span></p>`;
   if (!row) { el.innerHTML = `${head}<p class="note">No data for this race at this time.</p>`; return; }
@@ -46,6 +47,7 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
     const lean = row.rem_margin_total;
     chips.push(chip("Votes left (est.)", `≈ ${votesShort(row.rem_total)}`, "", lean != null ? `lean ${esc(lean >= 0 ? race.a.name : race.b.name)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)}` : "", "the model's estimate of the votes still to count and how they lean"));
   }
+  if (turnout) chips.push(chip("Turnout", esc(turnout.text), "", "", turnout.title));
   if (ev) chips.push(chip("Early vote", esc(ev.short), "", "", ev.full));
   // one line: the model against the market
   const market = row.pm ?? row.kalshi, marketName = row.pm != null ? "Polymarket" : "Kalshi";

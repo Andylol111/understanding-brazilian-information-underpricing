@@ -163,6 +163,8 @@ export function createNational(root, { overview, office = "senate", summary = nu
     if (!summary) return;
     const office = st.office === "senate" ? "Senate" : "Governor";
     const ctl = st.office === "senate" ? control() : null;
+    // the model's control chance with poll errors correlated across states (overview, when built)
+    const sen = st.overview?.offices?.senate ?? {};
     // margins (D minus R, points of the two-party vote): polls, the model (with polls where it has
     // them; the county estimate otherwise) and the market-implied margin from Polymarket's price
     const mg = (r) => r.margins ?? {};
@@ -181,7 +183,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
       <p class="nat-sum-ctl"><span style="color:${DEM}"><b>Democrats ${(ctl.holdD + ctl.eD).toFixed(1)}</b></span> seats expected (${ctl.holdD} not up${ctl.hold.I ? `, incl. ${ctl.hold.I} independents` : ""}, + ${ctl.eD.toFixed(1)}),
         <span style="color:${REP}"><b>Republicans ${(ctl.holdR + ctl.eR).toFixed(1)}</b></span> (${ctl.holdR} + ${ctl.eR.toFixed(1)}); ${ctl.maj} seats for control${ctl.unpriced ? `; ${ctl.unpriced} races without a price` : ""}.
         Expected seats: each race counted at the market's chance.</p>
-      ${ctl.markets.length ? `<p>Chance the Democrats control the Senate: ${ctl.markets.map((c) => `<span class="${c.platform === "kalshi" ? "kx" : "k"}">${num(c.now)}</span> ${c.platform === "kalshi" ? "Kalshi" : `Polymarket${c.slug && st.live.has(`ctl:${c.slug}`) ? " now" : ""}`}`).join(" · ")}</p>
+      ${ctl.markets.length || sen.control_p_corr != null ? `<p>Chance the Democrats control the Senate: ${ctl.markets.map((c) => `<span class="${c.platform === "kalshi" ? "kx" : "k"}">${num(c.now)}</span> ${c.platform === "kalshi" ? "Kalshi" : `Polymarket${c.slug && st.live.has(`ctl:${c.slug}`) ? " now" : ""}`}`).join(" · ")}${sen.control_p_corr != null ? `${ctl.markets.length ? " · " : ""}<span class="m" title="${esc(sen.control_note ?? "")}">${num(sen.control_p_corr)}</span> model with polls, poll errors correlated across states${sen.control_p_indep != null ? ` (${num(sen.control_p_indep)} if independent)` : ""}` : ""}</p>
         <div class="nat-ctl-chart"></div><p class="note">The last 14 days: <span class="k">Polymarket</span>, <span class="kx">Kalshi</span>.</p>` : ""}` : "";
     summary.innerHTML = `<p class="ro-head"><span class="ro-at"><b>${office}</b> races this year</span><span class="ro-race">chance the Democratic side wins</span></p>
       ${ctlHTML}

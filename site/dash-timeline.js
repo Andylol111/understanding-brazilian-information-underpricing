@@ -133,3 +133,37 @@ function endLabels(svg, x, items) {
   for (let i = 1; i < pts.length; i++) pts[i].y = Math.max(pts[i].y, pts[i - 1].y + 12);
   svg.selectAll(null).data(pts).join("text").attr("x", x).attr("y", (d) => d.y + 4).attr("class", "end-label").attr("fill", (d) => d.color).text((d) => d.text);
 }
+
+
+// Turnout view (US modelled races): each reported county (95% or more counted) as a dot, its
+// turnout surprise log(counted / expected) against its low-propensity index (higher: a larger
+// expected midterm drop-off), sized by expected votes, with the weighted least-squares line.
+// pts: [{ x, y, w, name }]; before any county reports, `pre` (HTML) is shown instead.
+export function drawTurnout(root, { pts, height, slope = null, corr = null, pre = null, sentence = null }) {
+  root.innerHTML = "";
+  if (!pts.length) { root.innerHTML = `<p class="note tl-turnout">${pre ?? "Turnout fills in as counties report."}</p>`; return { setCursor() {} }; }
+  height -= sentence ? 20 : 0; // the sentence sits under the chart, inside the same height
+  const width = Math.max(280, root.clientWidth), m = { l: 46, r: 16, t: 22, b: 30 };
+  const x = d3.scaleLinear().domain(d3.extent(pts, (d) => d.x)).nice().range([m.l, width - m.r]);
+  const yx = d3.extent(pts, (d) => d.y), ya = Math.max(0.05, Math.abs(yx[0]), Math.abs(yx[1]));
+  const y = d3.scaleLinear().domain([-ya, ya]).nice().range([height - m.b, m.t]);
+  const r = d3.scaleSqrt().domain([0, d3.max(pts, (d) => d.w) || 1]).range([1.5, 9]);
+  const svg = d3.select(root).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("width", width).attr("height", height).style("display", "block");
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(4)).join("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", y).attr("y2", y);
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickFormat((v) => `${v > 0 ? "+" : ""}${Math.round((Math.exp(v) - 1) * 100)}%`).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${height - m.b})`).call(d3.axisBottom(x).ticks(5).tickSizeOuter(0));
+  svg.append("text").attr("class", "legend-text").attr("x", width - m.r).attr("y", height - 2).attr("text-anchor", "end").text("low-propensity index (higher: bigger expected drop-off) →");
+  svg.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", y(0)).attr("y2", y(0)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
+  svg.append("g").selectAll("circle").data([...pts].sort((a, b) => b.w - a.w)).join("circle").attr("cx", (d) => x(d.x)).attr("cy", (d) => y(Math.max(-ya, Math.min(ya, d.y)))).attr("r", (d) => r(d.w))
+    .attr("fill", C.raw).attr("fill-opacity", 0.45).attr("stroke", "#fff").attr("stroke-width", 0.5)
+    .append("title").text((d) => `${d.name}: turnout ${d.y >= 0 ? "+" : ""}${((Math.exp(d.y) - 1) * 100).toFixed(1)}% vs expected; index ${d.x.toFixed(2)}`);
+  // weighted least squares through the dots (the slope is the file's where it has one)
+  const W = d3.sum(pts, (d) => d.w) || 1, mx = d3.sum(pts, (d) => d.w * d.x) / W, my = d3.sum(pts, (d) => d.w * d.y) / W;
+  const sxx = d3.sum(pts, (d) => d.w * (d.x - mx) ** 2), sxy = d3.sum(pts, (d) => d.w * (d.x - mx) * (d.y - my));
+  const b = slope ?? (sxx > 0 ? sxy / sxx : 0);
+  const [x0, x1] = x.domain();
+  svg.append("line").attr("x1", x(x0)).attr("x2", x(x1)).attr("y1", y(my + b * (x0 - mx))).attr("y2", y(my + b * (x1 - mx))).attr("stroke", C.model).attr("stroke-width", 2);
+  svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", 12).text(`Turnout vs expected, reported counties (${pts.length})${corr != null ? ` · correlation ${corr.toFixed(2)}` : ""}`);
+  if (sentence) d3.select(root).append("p").attr("class", "tl-turnout").text(sentence);
+  return { setCursor() {} };
+}

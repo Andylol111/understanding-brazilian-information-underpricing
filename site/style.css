@@ -654,3 +654,4 @@ body.dash-page { animation: page-in 0.25s ease-out; }
 @media (max-width: 900px) { .hub-pair { grid-template-columns: minmax(0, 1fr); } }
 .home-links { font: 15px/1.4 var(--sans); margin: 8px 0 0; }
 .tb-hub { font: 13px var(--sans); color: var(--ink); }
+.tl-turnout { font: 13px/1.4 var(--sans); margin: 2px 0 0; }

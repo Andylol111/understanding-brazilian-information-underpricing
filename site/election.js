@@ -6,9 +6,9 @@
 // (dash-worker.js) fetches, parses and projects the geometry and the map frames; the map appears
 // when both arrive. While playing, colours are interpolated between map frames every animation frame.
 import * as d3 from "./vendor/d3.js";
-import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, probit, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
+import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, probit, marginText, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
 import { createMap } from "./dash-map.js";
-import { drawTimeline, timelineViews } from "./dash-timeline.js";
+import { drawTimeline, timelineViews, drawTurnout } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
@@ -569,20 +569,22 @@ function winnerAt(k, j) {
 
 function modes() {
   if (!S.units) return [];
-  if (PRE()) return [...(hasWinner() ? ["winner"] : []), "margin", ...pollModes(), ...remModes(), "counted", ...evModes()];
+  if (PRE()) return [...(hasWinner() ? ["winner"] : []), "margin", ...pollModes(), ...remModes(), "counted", ...turnoutModes(), ...evModes()];
   const w = hasWinner() ? ["winner"] : [];
   if (!S.units.K) return [...w, "prior", ...evModes()];
-  return [...w, ...(S.countTimeline ? ["margin", ...pollModes(), "swing", ...remModes(), "counted"] : ["margin", "swing"]), ...evModes()];
+  return [...w, ...(S.countTimeline ? ["margin", ...pollModes(), "swing", ...remModes(), "counted", ...turnoutModes()] : ["margin", "swing"]), ...evModes()];
 }
 // outstanding-vote modes, when the units carry rem / rem_margin
 const remModes = () => (S.units?.rem ? ["rem", "remlean"] : []);
+// turnout against the turnout model's expectation, where the units carry it (US modelled races)
+const turnoutModes = () => (S.units?.turnout ? ["turnout"] : []);
 // units with a poll model's projection (proj_poll): "margin" shows it, "margin1" the past results only
 const pollModes = () => (S.units?.hasPoll ? ["margin1"] : []);
 // early vote by county (earlyvote.json): display only, not used by the model
 const evModes = () => (S.ev?.counties ? ["ev"] : []);
 const modeLabel = (m) => ({
   winner: "Winning party", margin: PRE() ? `Before any votes${S.units?.hasPoll ? " (with polls)" : ""}` : S.countTimeline ? `Projected margin${S.units?.hasPoll ? " (with polls)" : ""}` : "Final margin",
-  margin1: "Past results only", swing: "Swing from prior", rem: "Votes left", remlean: "Where the remaining votes lean", counted: "Counted", prior: "Comparison election", ev: "Early vote",
+  margin1: "Past results only", swing: "Swing from prior", rem: "Votes left", remlean: "Where the remaining votes lean", counted: "Counted", prior: "Comparison election", ev: "Early vote", turnout: "Turnout vs expected",
 })[m];
 
 /* ---------------------------------------------------------------- early vote (earlyvote.json) */
@@ -639,6 +641,7 @@ function render() {
     const nb = PRE() ? noBaseline().filter((reg) => !S.region || reg === S.region).map(regionName) : [];
     const remNote = remModes().includes(S.mode) ? `Circles: the model's estimate of the votes still to count${PRE() ? " (before the count: the whole expected vote)" : ""}.` : "";
     $("frame-label").textContent = S.mode === "ev" ? "Early vote: ballots cast before election day, from the states' daily reports. Display only; not used by the model."
+      : S.mode === "turnout" ? `Turnout against the turnout model's expectation${k >= 0 && S.units.times[k] > 0 ? ` at the ${clock(S.units.times[k], S.tz)} frame` : ""}; hatched: under 95% reported, projected. Display only.`
       : PRE()
       ? remNote || (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}`
         : S.mapRaces?.length === 1 && S.mapRaces[0].estimate ? `Before any votes. ${S.mapRaces[0].estimate.note}` // the data's own wording
@@ -658,7 +661,9 @@ function render() {
     const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
     const row = rowAt(S.race.race_id, tt) ?? extraRow(S.race);
     if (pre && S.race.estimate) pre.basis = S.race.estimate.note;
-    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region) });
+    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row) });
+    // the turnout chart follows the map's frame
+    if (S.tlView === "turnout" && S.tlK !== k) drawChart();
   }
   // race list and region picker: at most every 200 ms while playing
   const now = performance.now();
@@ -686,6 +691,7 @@ function renderLegend() {
   if (S.mode === "winner") { partyLegend(root); return; }
   if (S.mode === "rem" || S.mode === "remlean") { remLegend(root); return; }
   if (S.mode === "ev") { evLegend(root); return; }
+  if (S.mode === "turnout") { turnoutLegend(root); return; }
   if (S.mode === "margin" || S.mode === "margin1" || S.mode === "prior") { bandLegend(root); return; }
   const w = 200, h = 8;
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
@@ -727,6 +733,26 @@ function remLegend(root) {
   root.append("p").attr("class", "legend-note").html(lean
     ? `${pre}Projected margin of the votes still to count: <span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> / <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> ahead. Model estimate.`
     : `${pre}Votes still to count, a model estimate (not an official count of outstanding ballots).`);
+}
+// Turnout vs expected: brown below, teal above (as TURN_LUT in dash-engine.js), ±20% full colour;
+// hatched while a county is under 95% reported (its figure is then projected).
+function turnoutLegend(root) {
+  const w = 200;
+  root.append("svg").attr("viewBox", `0 0 ${w} 24`).attr("width", w).attr("height", 24).html(
+    `<defs><linearGradient id="lg-turn">${d3.range(0, 11).map((i) => `<stop offset="${i / 10}" stop-color="${d3.interpolateBrBG(i / 10)}"/>`).join("")}</linearGradient></defs>
+    <rect width="${w}" height="8" fill="url(#lg-turn)"/><text class="legend-text" x="0" y="20">−20%</text><text class="legend-text" x="${w / 2}" y="20" text-anchor="middle">as expected</text><text class="legend-text" x="${w}" y="20" text-anchor="end">+20%</text>`);
+  root.append("p").attr("class", "legend-note").html(`Votes against the turnout model's expectation. <span class="lg-none"></span> under 95% reported: projected. Display only; not used by the model.`);
+}
+// hover rows for a unit's turnout (frame k)
+function turnoutRows(U, k, j) {
+  const T = U.turnout;
+  if (!T || k < 0) return [];
+  const r = T.ratio[k * U.n + j], e = T.exp[j], lp = T.lowprop[j];
+  return [
+    ...(r >= 0 ? [[`Turnout vs expected${U.F[k * U.n + j] < 950 ? " (projected)" : ""}`, `${r >= 1000 ? "+" : "−"}${Math.abs(r / 10 - 100).toFixed(1)}%`]] : []),
+    ...(e > 0 ? [["Expected two-party votes", votesShort(10 * e)]] : []), // turnout_exp is in tens
+    ...(Number.isFinite(lp) ? [["Low-propensity index", lp.toFixed(2)]] : []),
+  ];
 }
 // Early vote: the share scale and, per state, the source and its date; states without figures.
 function evLegend(root) {
@@ -956,7 +982,7 @@ function placeCard() {
       if (!Number.isNaN(lean) && left > 0) remRows.push(["They lean", `${esc(lean >= 0 ? r.a.name : r.b.name)} +${(100 * Math.abs(lean) / left).toFixed(1)} pt`]);
     }
     const rows = S.countTimeline
-      ? [...winRow, ["Counted", pct(counted, 0)], [`${an}, votes counted`, pct(a)], [`${an}, model projection${U.hasPoll ? " (with polls)" : ""}`, pct(proj)], ...(U.hasPoll ? [[`${an}, past results only`, pct(at(U.P1))]] : []), [`${an}, comparison election`, pct(prior)], ["Swing", sw], ...remRows]
+      ? [...winRow, ["Counted", pct(counted, 0)], [`${an}, votes counted`, pct(a)], [`${an}, model projection${U.hasPoll ? " (with polls)" : ""}`, pct(proj)], ...(U.hasPoll ? [[`${an}, past results only`, pct(at(U.P1))]] : []), [`${an}, comparison election`, pct(prior)], ["Swing", sw], ...remRows, ...turnoutRows(U, k, j)]
       : [...winRow, [`${an}, result`, pct(a)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]];
     body = `<table class="kv"><tbody>${rows.map(([k2, x]) => `<tr><td>${k2}</td><td class="n">${x}</td></tr>`).join("")}</tbody></table>`;
   }
@@ -1148,27 +1174,71 @@ function chartHeight() {
   return WIDE.matches ? 220 : 240;
 }
 
-// One chart with a Margin | Chance toggle (Margin by default where the race has a model share or
-// margin); the explanation sits behind the "?" button.
+// Turnout of the selected race's counties at the map's frame (units with turnout fields, US
+// modelled races): reported counties as points, a sentence on the high low-propensity third, and
+// before any county reports, the expected turnout. null where the race has no turnout figures.
+function turnoutView() {
+  const U = S.units, T = U?.turnout;
+  if (!T || !S.unitRace?.includes(S.race)) return null;
+  const k = frameIndex(S.preview ?? S.t);
+  const row = rowAt(S.race.race_id, S.preview ?? S.t);
+  const pts = [];
+  if (k >= 0) for (let j = 0; j < U.n; j++) {
+    if (S.unitRace[j] !== S.race) continue;
+    const i = k * U.n + j, r = T.ratio[i], e = T.exp[j], lp = T.lowprop[j];
+    if (U.F[i] < 950 || !(r > 0) || !(e > 0) || !Number.isFinite(lp)) continue;
+    pts.push({ x: lp, y: Math.log(r / 1000), w: e, lean: T.priorMargin[j], name: U.names[j] ?? U.unit_ids[j] });
+  }
+  let sentence = null;
+  if (pts.length >= 6) {
+    const hi = [...pts].sort((p, q) => q.x - p.x).slice(0, Math.ceil(pts.length / 3));
+    const W = d3.sum(hi, (p) => p.w), t = d3.sum(hi, (p) => p.w * Math.exp(p.y)) / W - 1;
+    const lean = d3.sum(hi.filter((p) => Number.isFinite(p.lean)), (p) => p.w * p.lean) / d3.sum(hi.filter((p) => Number.isFinite(p.lean)), (p) => p.w) / 10;
+    sentence = `High low-propensity counties are turning out ${Math.abs(100 * t).toFixed(0)}% ${t >= 0 ? "above" : "below"} expected${Number.isFinite(lean) ? `; they lean ${marginText(lean)}` : ""}.`;
+  } else if (pts.length) sentence = "Too few counties have reported to compare yet.";
+  const exp = row?.turnout_exp_total, vs22 = S.race.precount?.turnout_exp_vs_2022;
+  const pre = `Expected turnout: ${exp != null ? `${votesShort(exp)} two-party votes` : "not available"}${vs22 != null ? ` (${vs22 >= 0 ? "+" : "−"}${Math.abs(vs22).toFixed(0)}% vs 2022)` : ""}. The chart fills in as counties report.`;
+  return { pts, k, row, sentence, pre };
+}
+
+// The strip's turnout chip: the race's projected turnout against expected, with counties reported.
+function turnoutChip(row) {
+  const v = row?.turnout_vs_expected;
+  if (v == null) return null;
+  // before the count the figure only compares two expectations: show the expected turnout instead
+  if (PRE()) return row.turnout_exp_total != null ? { text: `${votesShort(row.turnout_exp_total)} expected`, title: `The turnout model expects ${votesShort(row.turnout_exp_total)} two-party votes. Turnout against it fills in as counties report.` } : null;
+  const U = S.units, k = frameIndex(S.preview ?? S.t);
+  let n = 0, rep = 0;
+  if (U?.turnout && k >= 0) for (let j = 0; j < U.n; j++) if (S.unitRace[j] === S.race) { n++; if (U.F[k * U.n + j] >= 950) rep++; }
+  return { text: `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(0)}% vs expected`, title: `Projected ${votesShort(row.turnout_proj_total)} two-party votes against ${votesShort(row.turnout_exp_total)} expected${n ? `; ${rep} of ${n} counties reported (95% or more counted)` : ""}${row.margin_hot != null ? `. Counties above expected turnout lean ${marginText(row.margin_hot)}, those below ${marginText(row.margin_cold)}` : ""}.` };
+}
+// One chart with a Margin | Chance (| Turnout) toggle (Margin by default where the race has a
+// model share or margin); the explanation sits behind the "?" button.
 function drawChart() {
   const rows = S.rows.get(S.race.race_id) ?? [];
-  const views = timelineViews(rows);
+  const tv = turnoutView();
+  const views = [...timelineViews(rows), ...(tv ? ["turnout"] : [])];
   if (!views.includes(S.tlView)) S.tlView = views[0];
   const box = $("tl-view");
   box.hidden = views.length < 2;
-  box.innerHTML = views.map((v) => `<button type="button" data-view="${v}" aria-pressed="${v === S.tlView}">${v === "margin" ? "Margin" : "Chance"}</button>`).join("");
+  box.innerHTML = views.map((v) => `<button type="button" data-view="${v}" aria-pressed="${v === S.tlView}">${{ margin: "Margin", chance: "Chance", turnout: "Turnout" }[v]}</button>`).join("");
   box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { S.tlView = b.dataset.view; drawChart(); }));
-  S.tl = drawTimeline($("timeline"), {
-    race: S.race, rows, domain: S.domain, tz: S.tz, wall: S.wall, height: chartHeight(), countPanel: S.countTimeline,
-    view: S.tlView, us: countryCode() === "US",
-    onPreview: (t) => { S.preview = t; render(); },
-    onSet: (t) => { pause(); S.preview = null; setTime(t); },
-  });
+  S.tlK = tv?.k;
+  S.tl = S.tlView === "turnout"
+    ? drawTurnout($("timeline"), { pts: tv.pts, height: chartHeight(), slope: tv.row?.turnout_surprise_slope ?? null, corr: tv.row?.turnout_surprise_corr ?? null, pre: tv.pre, sentence: tv.sentence })
+    : drawTimeline($("timeline"), {
+      race: S.race, rows, domain: S.domain, tz: S.tz, wall: S.wall, height: chartHeight(), countPanel: S.countTimeline,
+      view: S.tlView, us: countryCode() === "US",
+      onPreview: (t) => { S.preview = t; render(); },
+      onSet: (t) => { pause(); S.preview = null; setTime(t); },
+    });
   const g = S.gateCut;
   const a = esc(S.race.a.name), b = esc(S.race.b?.name ?? "");
   const what = S.tlView === "margin"
     ? `Margin, ${countryCode() === "US" ? "Democratic minus Republican" : `${a} minus ${b}`}, in points: the model (shaded: its 90% band), the raw count once counting starts${countryCode() === "US" ? ", the polls" : ""} and the market-implied margin (the margin at which the model's uncertainty gives the market's price).`
-    : `Chance that ${a} wins: the model and the market prices.`;
+    : S.tlView === "turnout"
+      ? "Turnout: each county that has reported (95% or more counted) as a dot, its votes against the turnout model's expectation (up: more than expected), by its low-propensity index (right: a bigger expected midterm drop-off), sized by expected votes; the line is the weighted trend at the map's frame. Display only; the model's projection does not use it."
+      : `Chance that ${a} wins: the model and the market prices.`;
   const axis = PRE()
     ? "Before the count: prices every 30 minutes over the last 14 days, and Polymarket's current price as the last point."
     : g ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the vote was counted${g.maxBefore != null ? ` (at most ${pct(g.maxBefore)})` : ""}.` : "";
