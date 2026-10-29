@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>US midterms 2026: polls, pollsters, markets, track record, census</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="hub-page">
+
+<header class="topbar">
+  <a class="tb-home" href="./">All elections</a>
+  <h1 class="tb-name">US midterms 2026</h1>
+  <a class="tb-date" href="election.html?id=us2026">Election-night dashboard</a>
+</header>
+
+<main class="hub" id="hub">
+  <div class="tabs" role="tablist" aria-label="Hub sections">
+    <button type="button" role="tab" id="tab-polls" aria-controls="pane-polls" data-tab="polls" aria-selected="true">Polls</button>
+    <button type="button" role="tab" id="tab-pollsters" aria-controls="pane-pollsters" data-tab="pollsters" aria-selected="false">Pollsters</button>
+    <button type="button" role="tab" id="tab-markets" aria-controls="pane-markets" data-tab="markets" aria-selected="false">Markets</button>
+    <button type="button" role="tab" id="tab-track" aria-controls="pane-track" data-tab="track" aria-selected="false">Track record</button>
+    <button type="button" role="tab" id="tab-census" aria-controls="pane-census" data-tab="census" aria-selected="false">Census</button>
+  </div>
+  <div class="hub-race" id="hub-race" hidden>
+    <label class="select"><span>Race</span> <input id="race-filter" type="search" placeholder="Filter races" aria-label="Filter races"> <select id="race-select" aria-label="Race"></select></label>
+  </div>
+  <section role="tabpanel" id="pane-polls" aria-labelledby="tab-polls"></section>
+  <section role="tabpanel" id="pane-pollsters" aria-labelledby="tab-pollsters" hidden></section>
+  <section role="tabpanel" id="pane-markets" aria-labelledby="tab-markets" hidden></section>
+  <section role="tabpanel" id="pane-track" aria-labelledby="tab-track" hidden></section>
+  <section role="tabpanel" id="pane-census" aria-labelledby="tab-census" hidden></section>
+</main>
+
+<script src="load-error.js"></script>
+<script type="module">import("./us-hub.js").catch(window.__showLoadError);</script>
+</body>
+</html>

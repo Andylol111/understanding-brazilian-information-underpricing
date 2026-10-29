@@ -1301,6 +1301,8 @@ function renderTopbar() {
     location.href = u.toString();
   });
   if (LIVE) $("home").href = `./?live=${encodeURIComponent(LIVE)}`;
+  // the US midterms hub: polls, pollsters, markets, track record, census
+  if (countryCode() === "US" && !document.querySelector(".tb-hub")) $("date").insertAdjacentHTML("afterend", ` <a class="tb-hub" href="us.html?tab=polls${S.race?.region ? `&race=${encodeURIComponent(S.race.race_id)}` : ""}">Polls, pollsters &amp; markets</a>`);
   if (!S.countTimeline) {
     $("dash-note").hidden = false;
     $("dash-note").textContent = m.count_note ?? "No minute-by-minute count is published for this election. The map shows final results (or the comparison election while they are pending) and the chart shows market prices only.";
