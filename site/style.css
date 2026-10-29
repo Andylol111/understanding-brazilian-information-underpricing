@@ -599,23 +599,8 @@ table.nat-races .ring { display: inline-block; width: 8px; height: 8px; border: 
 /* ---------- homepage world map (world-map.js): drawn like the election maps ---------- */
 .world { max-width: 1280px; margin: 8px auto 32px; }
 .wm-stage { position: relative; }
-.wm-box { position: relative; height: 70vh; min-height: 360px; max-height: 760px; overflow: hidden; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
-.wm-svg { display: block; touch-action: manipulation; }
-.wm-c { stroke: none; transition: opacity 0.4s ease, fill 0.3s ease; }
-.wm-c.on { cursor: pointer; }
-.wm-c.on:focus { outline: none; }
-.wm-c.sel { fill: #c4501b; }
-.wm-c.sel.under { fill: #f4f2ec; } /* under the country's own regions (lakes, coastal slivers) */
-.wm-c.dim { opacity: 0.45; }
-.wm-border { fill: none; stroke: #fff; stroke-width: 0.8; vector-effect: non-scaling-stroke; pointer-events: none; }
-/* hover: a light wash and a dark outline, as on the election maps */
-.wm-hover { fill: rgba(255, 255, 255, 0.25); stroke: var(--ink); stroke-width: 1.4; vector-effect: non-scaling-stroke; pointer-events: none; }
-.wm-r { stroke: none; cursor: pointer; }
-.wm-r:focus { outline: none; }
-.wm-rborder { fill: none; stroke: #fff; stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
-.wm-hit { fill: transparent; cursor: pointer; }
-.wm-count { fill: #fff; font: 600 11px var(--sans); text-anchor: middle; pointer-events: none; }
-.wm-zoomed .wm-mark { display: none; }
+.wm-box { position: relative; height: 70vh; min-height: 360px; max-height: min(760px, calc(100vh - 24px)); overflow: hidden; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.wm-canvas { display: block; touch-action: manipulation; }
 .wm-card { width: 320px; }
 .wm-elections { list-style: none; margin: 4px 0 0; padding: 0; }
 .wm-elections li { margin: 0 0 6px; }

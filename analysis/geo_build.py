@@ -71,6 +71,7 @@ IBGE_MESH = ("https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territ
              "municipio_2025/Brasil/BR_Municipios_2025.zip")
 TSE_IBGE = "https://cdn.tse.jus.br/estatistica/sead/odsele/municipio_tse_ibge/municipio_tse_ibge.zip"
 NE_COUNTRIES_50 = "https://naciscdn.org/naturalearth/50m/cultural/ne_50m_admin_0_countries.zip"
+NE_COUNTRIES_110 = "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip"
 
 # 50 states + DC by Census state FIPS (01-56 minus the unused codes); territories are not mapped.
 US_STATE_FIPS = sorted({f"{i:02d}" for i in range(1, 57)} - {"03", "07", "14", "43", "52"})
@@ -170,18 +171,25 @@ def build_br(cache: Path, tmp: Path) -> None:
 
 
 def build_world(cache: Path, tmp: Path) -> None:
-    # 1:50m, so a zoom onto a country starts from a reasonable outline (its own map fades in over it)
-    shp = unzip_shp(fetch(NE_COUNTRIES_50, cache), tmp / "world")
-    out = OUT / "world.topo.json"
-    mapshaper(
-        "-i", str(shp), "encoding=utf8",
-        "-filter", "ISO_A2_EH != 'AQ'",
-        "-each", "iso2 = ISO_A2_EH, name = NAME",
-        "-filter-fields", "iso2,name",
-        "-rename-layers", "countries",
-        "-simplify", "weighted", "35%", "keep-shapes",
-        "-o", str(out), "format=topojson", "quantization=100000",
-    )
+    # 1:50m, so a zoom onto a country starts from a reasonable outline (its own map fades in over
+    # it); 1:110m (world_110.topo.json) for the frames where the whole world is in view, which
+    # are drawn faster from it
+    for url, name, simplify in ((NE_COUNTRIES_50, "world.topo.json", ["-simplify", "weighted", "35%", "keep-shapes"]), (NE_COUNTRIES_110, "world_110.topo.json", [])):
+        shp = unzip_shp(fetch(url, cache), tmp / name)
+        out = OUT / name
+        mapshaper(
+            "-i", str(shp), "encoding=utf8",
+            "-filter", "ISO_A2_EH != 'AQ'",
+            "-each", "iso2 = ISO_A2_EH, name = NAME",
+            "-filter-fields", "iso2,name",
+            "-rename-layers", "countries",
+            *simplify,
+            "-o", str(out), "format=topojson", "quantization=100000",
+        )
+        check_world(out)
+
+
+def check_world(out: Path) -> None:
     doc = json.loads(out.read_text())
     geoms = doc["objects"]["countries"]["geometries"]
     codes = [g["properties"]["iso2"] for g in geoms]
@@ -209,11 +217,13 @@ UNIT_SOURCES = {"nz": ("nz_electorates", "electorates", "layer == 'general'", "b
 
 
 def build_regions(cache: Path, tmp: Path) -> None:
-    jobs = [(cc, name, obj, ["-each", "region=unit_id.split('-')[1]", f"target={obj}", "-dissolve", "region", f"target={obj}"], "region")
+    # (source, ops, id field, simplification): the unit maps are kept much simpler, they are drawn
+    # every frame of the homepage zoom
+    jobs = [(cc, name, obj, ["-each", "region=unit_id.split('-')[1]", f"target={obj}", "-dissolve", "region", f"target={obj}"], "region", "40%")
             for cc, (name, obj) in REGION_SOURCES.items()]
-    jobs += [(cc, name, obj, ["-filter", flt, f"target={obj}", *(["-clip", clip] if clip else []), "-filter-fields", "unit_id"], "unit_id")
+    jobs += [(cc, name, obj, ["-filter", flt, f"target={obj}", *(["-clip", clip] if clip else []), "-filter-fields", "unit_id"], "unit_id", "12%")
              for cc, (name, obj, flt, clip) in UNIT_SOURCES.items()]
-    for cc, name, obj, ops, idf in jobs:
+    for cc, name, obj, ops, idf, keep in jobs:
         src = OUT / f"{name}.topo.json"
         if not src.exists():
             sys.exit(f"{src}: missing; build the unit map first")
@@ -221,15 +231,15 @@ def build_regions(cache: Path, tmp: Path) -> None:
         mapshaper(
             "-i", str(src), "encoding=utf8", *ops,
             "-rename-layers", "regions",
-            "-simplify", "weighted", "40%", "keep-shapes",
+            "-simplify", "weighted", keep, "keep-shapes",
             "-o", str(out), "format=topojson", "quantization=100000", f"id-field={idf}",
         )
         doc = json.loads(out.read_text())
         n = len(doc["objects"]["regions"]["geometries"])
         size = out.stat().st_size
         print(f"{out.name}: {n} regions, {size / 1e3:.0f} kB", file=sys.stderr)
-        if size > 500_000:
-            sys.exit(f"{out}: {size} bytes, over the 500 kB budget for the homepage")
+        if size > 150_000:
+            sys.exit(f"{out}: {size} bytes, over the 150 kB budget for the homepage")
 
 
 def main() -> None:

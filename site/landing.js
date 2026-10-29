@@ -396,6 +396,7 @@ async function load() {
         .then((topo) => {
           window.__worldFrames = [];
           const wm = createWorldMap($("world"), { topo, elections, href, countryName, dataRoot: rootOf, frames: window.__worldFrames });
+          window.__world = wm; // for the frame and screenshot checks
           // back from an election's breadcrumb: open on its country and zoom out to the world
           const from = elections.find((e) => e.id === new URLSearchParams(location.search).get("from"));
           if (from?.country) wm.arrive(from.country.toUpperCase());
