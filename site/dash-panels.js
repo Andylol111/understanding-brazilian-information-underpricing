@@ -8,71 +8,57 @@ const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−"
 
 /* ---------------------------------------------------------------- readout */
 
+// One compact strip: a heading line, then chips (counted, the model's margin or projection, polls,
+// the market-implied margin, chances), a one-line comparison and small notes.
 // pre: before the count (meta.phase "pre-count"): { day } for the date in the heading, { note } when
-// the model has no pre-count figure for the race, { live } "Polymarket live · 12 s ago" for the latest row.
-// ev: the early-vote line for the race's state (HTML, built by the controller), or null.
+// the model has no pre-count figure for the race, { live } "Polymarket live · 12 s ago" for the
+// latest row, { basis } the estimate's own note. ev: { short, full } early vote for the race's state.
 export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null, ev = null }) {
   const a = esc(race.a.name);
   const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)} · figures for ${a}</span></p>`;
   if (!row) { el.innerHTML = `${head}<p class="note">No data for this race at this time.</p>`; return; }
-  // the poll-informed projection (share_v2, sd_v2) where the row has one
-  const v2 = row.share_v2 != null, share = v2 ? row.share_v2 : row.share, sd = v2 ? row.sd_v2 : row.sd;
-  const which = v2 ? " (with polls)" : row.P_v2 != null ? " (without polls)" : "";
-  const band = sd != null && share != null ? `<small>± ${(164.5 * sd).toFixed(1)} pt (90%)</small>` : "";
-  const market = row.pm ?? row.kalshi; // the gap is measured against Polymarket where it lists the race
-  const marketName = row.pm != null ? "Polymarket" : "Kalshi";
-  const figs = [];
-  // US rows carry margins (Democratic minus Republican, points): the headline is the model's
-  // margin against the polls and the market-implied margin; chances come second
+  const chip = (label, value, cls = "", sub = "", title = "") => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}><small>${label}</small><b>${value}</b>${sub ? `<i>${sub}</i>` : ""}</span>`;
+  const chips = [];
+  if (countTimeline && !pre) {
+    chips.push(chip("Counted", pct(row.counted, 0)));
+    chips.push(chip("Raw count", pct(row.raw), "r"));
+  }
+  // US rows carry margins (Democratic minus Republican, points); other races show the share
   const mm = row.margin_v2 ?? row.margin_model ?? null;
   const margins = mm != null || row.margin_market != null || row.margin_polls != null;
   const mmSd = row.margin_v2 != null && row.sd_v2 != null ? 200 * row.sd_v2 : row.margin_model_sd;
   const mkt = row.margin_market ?? row.margin_market_kalshi ?? null, mktP = row.margin_market != null ? row.pm : row.kalshi;
-  const mktName = row.margin_market != null ? "Polymarket" : "Kalshi";
+  const who = row.estimate ? "Estimate" : "Model";
   if (margins) {
-    if (countTimeline && !pre) {
-      figs.push(`<div><dt>Counted</dt><dd>${pct(row.counted)}</dd></div>`);
-      figs.push(`<div><dt>Raw count</dt><dd class="r">${pct(row.raw)}</dd></div>`);
-    }
-    figs.push(`<div><dt>${row.estimate ? "Estimate" : "Model"} margin${row.margin_v2 != null ? " (with polls)" : ""}</dt><dd class="m">${marginText(mm)}${mm != null && mmSd != null ? `<small>± ${mmSd.toFixed(1)} pt (1 sd)</small>` : ""}</dd></div>`);
-    figs.push(`<div><dt>Polls</dt><dd>${marginText(row.margin_polls)}</dd></div>`);
-    figs.push(`<div><dt>Market-implied margin</dt><dd class="k">${marginText(mkt)}${mkt != null ? `<small>from the ${mktName} price ${num(mktP)}${row.margin_market != null && row.margin_market_kalshi != null && Math.abs(row.margin_market_kalshi - row.margin_market) >= 0.05 ? `; Kalshi ${marginText(row.margin_market_kalshi)}` : ""}</small>` : ""}</dd></div>`);
-  } else if (pre) {
-    figs.push(`<div><dt>Model before any votes${which}</dt><dd class="m">${share != null ? `${pct(share)}${band}` : `<small>${esc(pre.note ?? "not available")}</small>`}</dd></div>`);
-  } else if (countTimeline) {
-    figs.push(`<div><dt>Counted</dt><dd>${pct(row.counted)}</dd></div>`);
-    figs.push(`<div><dt>Raw count</dt><dd class="r">${pct(row.raw)}</dd></div>`);
-    figs.push(`<div><dt>Model projection${which}</dt><dd class="m">${pct(share)}${band}</dd></div>`);
+    chips.push(chip(`${who}${row.margin_v2 != null ? ", polls" : ""}`, marginText(mm), "m", mm != null && mmSd != null ? `± ${mmSd.toFixed(1)}` : "", "margin, Democratic minus Republican, points; ± one standard deviation"));
+    chips.push(chip("Polls", marginText(row.margin_polls)));
+    chips.push(chip("Market-implied", marginText(mkt), "k", mkt != null ? `from ${num(mktP)}` : "", `the margin at which the model's uncertainty gives the ${row.margin_market != null ? "Polymarket" : "Kalshi"} price${row.margin_market_kalshi != null && row.margin_market != null ? `; Kalshi-implied ${marginText(row.margin_market_kalshi)}` : ""}`));
+  } else {
+    const v2 = row.share_v2 != null, share = v2 ? row.share_v2 : row.share, sd = v2 ? row.sd_v2 : row.sd;
+    const label = pre ? "Model, before votes" : "Model projection";
+    if (share != null || pre?.note) chips.push(chip(`${label}${v2 ? ", polls" : ""}`, share != null ? pct(share) : "–", "m", share != null && sd != null ? `± ${(164.5 * sd).toFixed(1)}` : "", share != null ? `${race.a.name}'s share of the two-candidate vote; ± the 90% band` : pre.note));
   }
-  const pParts = [];
-  // with a poll-informed version (P_v2) it is the headline model; the count-only model is shown beside it
+  // chances: the model (with polls where it has them), Polymarket, Kalshi
   const P = modelP(row), two = row.P_v2 != null && row.P != null;
-  if (P != null) pParts.push(`<span class="m">${num(P)}</span><small>${row.estimate ? "estimate" : two ? "model with polls" : "model"}</small>`);
-  if (two) pParts.push(`<span class="m2">${num(row.P)}</span><small>without polls</small>`);
-  if (row.pm != null) pParts.push(`<span class="k">${num(row.pm)}</span><small>Polymarket</small>`);
-  if (row.kalshi != null) pParts.push(`<span class="kx">${num(row.kalshi)}</span><small>Kalshi</small>`);
-  figs.push(`<div class="ro-p${margins ? " ro-sec" : ""}"><dt>Chance of winning</dt><dd>${pParts.map((x) => `<span class="ro-pp">${x}</span>`).join(" ") || "–"}</dd></div>`);
+  const ch = [[P, "m", "model"], [row.pm, "k", "PM"], [row.kalshi, "kx", "Kalshi"]].filter(([v]) => v != null);
+  if (ch.length) chips.push(chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", "", `chance ${race.a.name} wins: ${P != null ? `${two ? "model with polls" : row.estimate ? "estimate" : "model"} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
+  if (row.rem_total > 0) {
+    const lean = row.rem_margin_total;
+    chips.push(chip("Votes left (est.)", `≈ ${votesShort(row.rem_total)}`, "", lean != null ? `lean ${esc(lean >= 0 ? race.a.name : race.b.name)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)}` : "", "the model's estimate of the votes still to count and how they lean"));
+  }
+  if (ev) chips.push(chip("Early vote", esc(ev.short), "", "", ev.full));
+  // one line: the model against the market
+  const market = row.pm ?? row.kalshi, marketName = row.pm != null ? "Polymarket" : "Kalshi";
   let gap = "";
   if (margins && mm != null && mkt != null) {
     const g = mkt - mm;
-    gap = `${row.estimate ? "Estimate" : "Model"} ${marginText(mm)}, market-implied ${marginText(mkt)}: ${Math.abs(g) < 0.05 ? "the same margin" : `the market is <b>${Math.abs(g).toFixed(1)} pt</b> more ${g > 0 ? "Democratic" : "Republican"}`}.`;
-  } else if (margins && mm != null) gap = "No market price at this time.";
-  else if (P != null && market != null) {
+    gap = `${who} ${marginText(mm)}, market-implied ${marginText(mkt)}: ${Math.abs(g) < 0.05 ? "the same margin" : `the market is <b>${Math.abs(g).toFixed(1)} pt</b> more ${g > 0 ? "Democratic" : "Republican"}`}.`;
+  } else if (P != null && market != null) {
     const g = P - market;
-    const both = row.pm != null && row.kalshi != null ? `, Kalshi ${num(row.kalshi)}` : "";
-    gap = `Model ${num(P)}, ${marketName} ${num(market)}${both}: gap to ${marketName} <b>${num(Math.abs(g))}</b>${Math.abs(g) >= 0.005 ? `, model ${g > 0 ? "higher" : "lower"}` : ""}.`;
+    gap = `Model ${num(P)}, ${marketName} ${num(market)}: gap <b>${num(Math.abs(g))}</b>${Math.abs(g) >= 0.005 ? `, model ${g > 0 ? "higher" : "lower"}` : ""}.`;
   } else if (P != null) gap = "No market price at this time.";
-  const frame = frameT != null && countTimeline && !pre ? ` <span class="ro-frame">Map: ${clock(frameT, tz)} frame.</span>` : "";
-  const basis = pre?.basis ? ` <span class="ro-frame">${esc(pre.basis)}.</span>` : "";
-  const live = (pre && row.live && pre.live ? ` <span class="ro-frame">${esc(pre.live)}.</span>` : "") + basis;
-  // the model's estimate of the votes still to count and how they lean (rem_total, rem_margin_total)
-  let rem = "";
-  if (row.rem_total > 0) {
-    const lean = row.rem_margin_total;
-    const side = lean >= 0 ? race.a.name : race.b.name;
-    rem = `<p class="ro-rem">≈ ${votesShort(row.rem_total)} votes left${lean != null ? `; they lean ${esc(side)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)} pt` : ""} <small>(model estimate)</small></p>`;
-  }
-  el.innerHTML = `${head}<dl class="ro-figs">${figs.join("")}</dl>${gap || frame || live ? `<p class="ro-gap">${gap}${frame}${live}</p>` : ""}${rem}${ev ? `<p class="ro-rem ro-ev">${ev}</p>` : ""}`;
+  const notes = [frameT != null && countTimeline && !pre ? `Map: ${clock(frameT, tz)} frame` : "", pre && row.live && pre.live ? esc(pre.live) : "", pre?.basis ? esc(pre.basis) : ""].filter(Boolean).join(" · ");
+  el.innerHTML = `${head}<div class="chips">${chips.join("")}</div>${gap || notes ? `<p class="ro-gap">${gap}${notes ? ` <span class="ro-frame">${notes}</span>` : ""}</p>` : ""}`;
 }
 
 /* ---------------------------------------------------------------- races tab */

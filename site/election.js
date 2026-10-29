@@ -8,7 +8,7 @@
 import * as d3 from "./vendor/d3.js";
 import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, probit, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
 import { createMap } from "./dash-map.js";
-import { drawTimeline } from "./dash-timeline.js";
+import { drawTimeline, timelineViews } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
@@ -605,12 +605,12 @@ function evText(x) {
   const bp = x.by_party, tot = bp ? (bp.D ?? 0) + (bp.R ?? 0) + (bp.O ?? 0) : 0;
   return `${votesShort(x.ev_total)} ballots, ${pct(x.share_of_2022_total, 0)} of the 2022 total${tot ? `; by party registration D ${pct(bp.D / tot, 0)} · R ${pct(bp.R / tot, 0)} · other ${pct(bp.O / tot, 0)}` : ""}`;
 }
-// The readout line for a race's state; null where the file says nothing about it.
+// The readout chip for a race's state ({ short, full }, plain text); null where the file says nothing.
 function evLine(reg) {
   if (!S.ev || !reg) return null;
   const s = S.ev.states?.[reg];
-  if (s?.totals) return `Early vote so far in ${esc(stateName(reg))} (as of ${esc(evDay(s.as_of))}${s.stale ? ", not updated" : ""}): ${evText(s.totals)}. <small>Display only; not used by the model.</small>`;
-  if (S.ev.not_available?.[reg]) return `Early vote in ${esc(stateName(reg))}: not available. <small>${esc(S.ev.not_available[reg])}</small>`;
+  if (s?.totals) return { short: `${votesShort(s.totals.ev_total)} · ${pct(s.totals.share_of_2022_total, 0)} of 2022`, full: `Early vote so far in ${stateName(reg)} (as of ${evDay(s.as_of)}${s.stale ? ", not updated" : ""}): ${evText(s.totals)}. Display only; not used by the model.` };
+  if (S.ev.not_available?.[reg]) return { short: "not available", full: `Early vote in ${stateName(reg)}: not available. ${S.ev.not_available[reg]}` };
   return null;
 }
 
@@ -641,7 +641,7 @@ function render() {
     $("frame-label").textContent = S.mode === "ev" ? "Early vote: ballots cast before election day, from the states' daily reports. Display only; not used by the model."
       : PRE()
       ? remNote || (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}`
-        : S.mapRaces?.length === 1 && S.mapRaces[0].estimate ? `Before any votes: ${S.mapRaces[0].estimate.note.replace(/^estimate:\s*/i, "an estimate, ")}.`
+        : S.mapRaces?.length === 1 && S.mapRaces[0].estimate ? `Before any votes. ${S.mapRaces[0].estimate.note}` // the data's own wording
         : S.units?.hasPoll && S.mode === "margin" ? "Before any votes: past certified results shifted toward the recent polls (the race's model with polls)."
         : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county baseline yet; prices shown.` : ""}`)
       : k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
@@ -1145,23 +1145,34 @@ async function selectRace(r, { keepRegion = false } = {}) {
 }
 
 function chartHeight() {
-  if (!WIDE.matches) return 300;
-  return Math.max(190, Math.min(320, Math.round(innerHeight * 0.28)));
+  return WIDE.matches ? 220 : 240;
 }
 
+// One chart with a Margin | Chance toggle (Margin by default where the race has a model share or
+// margin); the explanation sits behind the "?" button.
 function drawChart() {
+  const rows = S.rows.get(S.race.race_id) ?? [];
+  const views = timelineViews(rows);
+  if (!views.includes(S.tlView)) S.tlView = views[0];
+  const box = $("tl-view");
+  box.hidden = views.length < 2;
+  box.innerHTML = views.map((v) => `<button type="button" data-view="${v}" aria-pressed="${v === S.tlView}">${v === "margin" ? "Margin" : "Chance"}</button>`).join("");
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { S.tlView = b.dataset.view; drawChart(); }));
   S.tl = drawTimeline($("timeline"), {
-    race: S.race, rows: S.rows.get(S.race.race_id) ?? [], domain: S.domain, tz: S.tz, wall: S.wall, height: chartHeight(), countPanel: S.countTimeline,
-    placeholder: PRE() ? `Fills in from ${closeText(S.race.region)}` : null,
+    race: S.race, rows, domain: S.domain, tz: S.tz, wall: S.wall, height: chartHeight(), countPanel: S.countTimeline,
+    view: S.tlView, us: countryCode() === "US",
     onPreview: (t) => { S.preview = t; render(); },
     onSet: (t) => { pause(); S.preview = null; setTime(t); },
   });
   const g = S.gateCut;
-  $("tl-note").textContent = PRE()
-    ? "Before the count: prices every 30 minutes over the last 14 days, and Polymarket's current price as the last point. The orange line, where the model has a figure, is its chance before any votes."
-    : g
-      ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the vote was counted${g.maxBefore != null ? ` (at most ${pct(g.maxBefore)})` : ""}.`
-      : "";
+  const a = esc(S.race.a.name), b = esc(S.race.b?.name ?? "");
+  const what = S.tlView === "margin"
+    ? `Margin, ${countryCode() === "US" ? "Democratic minus Republican" : `${a} minus ${b}`}, in points: the model (shaded: its 90% band), the raw count once counting starts${countryCode() === "US" ? ", the polls" : ""} and the market-implied margin (the margin at which the model's uncertainty gives the market's price).`
+    : `Chance that ${a} wins: the model and the market prices.`;
+  const axis = PRE()
+    ? "Before the count: prices every 30 minutes over the last 14 days, and Polymarket's current price as the last point."
+    : g ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the vote was counted${g.maxBefore != null ? ` (at most ${pct(g.maxBefore)})` : ""}.` : "";
+  $("tl-note").innerHTML = `${what} ${axis}`;
   S.tl.setCursor(S.t, S.preview);
 }
 

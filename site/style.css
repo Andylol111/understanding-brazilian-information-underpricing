@@ -310,22 +310,21 @@ table.kv td { padding: 2px 6px 2px 0; border-bottom: 1px solid var(--rule); }
 .scrub-range:focus-visible { outline: 2px solid var(--model); outline-offset: 2px; }
 
 .ro-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0 0 6px; font: 13px var(--sans); color: var(--muted); }
-.ro-at b { font: 700 24px/1 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums; }
+.ro-at b { font: 700 20px/1 var(--serif); color: var(--ink); font-variant-numeric: tabular-nums; }
 .ro-race { text-align: right; }
-.ro-figs { display: grid; grid-template-columns: repeat(4, auto); justify-content: start; gap: 4px 26px; margin: 0; }
-.ro-figs dt { font: 12px/1.3 var(--sans); color: var(--muted); }
-.ro-figs dd { margin: 2px 0 0; font: 600 26px/1.1 var(--serif); font-variant-numeric: tabular-nums; }
-.ro-figs dd small { display: block; font: 400 12px/1.3 var(--sans); color: var(--muted); margin-top: 2px; }
-.ro-figs dd.m { color: var(--model); }
-.ro-figs dd.r { color: var(--raw); }
-.ro-p dd span.m { color: var(--model); }
-.ro-p dd span.m2 { color: var(--model); opacity: .8; }
-@media (min-width: 600px) { .ro-p dd .ro-pp { white-space: nowrap; } }
-/* with the margin view, the chances are secondary: smaller figures */
-.ro-p.ro-sec dd { font-size: 0.62em; }
-.ro-p dd small { display: inline; margin: 0 10px 0 4px; }
-.ro-gap { font: 14px/1.4 var(--sans); margin: 6px 0 0; }
-.ro-gap b { font-size: 16px; }
+/* the readout strip: compact chips, label above the figure */
+.chips { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.chip { display: inline-flex; flex-direction: column; padding: 3px 8px 4px; border: 1px solid var(--rule); border-radius: 3px; min-width: 0; }
+.chip small { font: 11px/1.3 var(--sans); color: var(--muted); white-space: nowrap; }
+.chip b { font: 600 18px/1.15 var(--serif); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip i { font: normal 11px/1.2 var(--sans); color: var(--muted); white-space: nowrap; }
+.chip.m b { color: var(--model); }
+.chip.r b { color: var(--raw); }
+.chip.k b { color: var(--market); }
+.chip.ro-ch b { font-size: 15px; }
+.chip .m { color: var(--model); }
+.ro-gap { font: 13px/1.4 var(--sans); margin: 6px 0 0; }
+.ro-gap b { font-size: 14px; }
 .ro-frame { font: 12px var(--sans); color: var(--muted); margin: 2px 0 0; }
 
 .tl-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; padding: 4px 0 2px; border-top: 1px solid var(--rule); }
@@ -333,6 +332,14 @@ table.kv td { padding: 2px 6px 2px 0; border-bottom: 1px solid var(--rule); }
 .btn-link { background: none; border: 0; padding: 0; font: 13px var(--sans); color: var(--muted); text-decoration: underline; cursor: pointer; }
 .timeline svg { overflow: visible; }
 .p-timeline .note { margin: 2px 0 6px; font-size: 12.5px; }
+/* chart toolbar: Margin | Chance and a "?" with the chart's explanation */
+.tl-view { margin: 0; font-size: 13px; }
+.tl-view button { padding: 3px 10px; }
+.tl-help { position: relative; margin-left: auto; }
+.tl-help summary { list-style: none; cursor: pointer; width: 20px; height: 20px; border: 1px solid var(--rule); border-radius: 50%; font: 600 12px/18px var(--sans); text-align: center; color: var(--muted); }
+.tl-help summary::-webkit-details-marker { display: none; }
+.tl-help[open] summary { border-color: var(--ink); color: var(--ink); }
+.tl-help .note { position: absolute; right: 0; top: 26px; z-index: 5; width: min(360px, 80vw); margin: 0; padding: 8px 10px; background: var(--paper); border: 1px solid var(--ink); font: 12.5px/1.45 var(--sans); color: var(--ink); }
 .axis text { font-size: 11px; }
 
 .tabs { display: flex; border-bottom: 1px solid var(--rule); border-top: 1px solid var(--rule); padding: 0 12px; }
@@ -389,8 +396,6 @@ table.compact { font-size: 13px; }
   .tab-panes { overflow: visible; }
 }
 @media (max-width: 640px) {
-  .ro-figs { grid-template-columns: 1fr 1fr; gap: 8px 18px; }
-  .ro-figs dd { font-size: 22px; }
   .map-legend { width: 180px; }
   .map-frame { display: none; }
   .scrub-time { margin-left: 0; flex-basis: 100%; }
@@ -403,7 +408,6 @@ table.compact { font-size: 13px; }
 }
 main.dash { padding: 0; }
 [hidden] { display: none !important; }
-.ro-figs dt { white-space: nowrap; }
 .ro-frame { display: inline; margin-left: 6px; }
 .p-readout { padding-top: 8px; padding-bottom: 8px; }
 .audit { margin-bottom: 10px; }
@@ -631,5 +635,3 @@ body.leaving main { opacity: 0; transition: opacity 0.22s ease; }
 body.dash-page { animation: page-in 0.25s ease-out; }
 @media (prefers-reduced-motion: reduce) { body.dash-page { animation: none; } }
 .world { position: relative; }
-.ro-rem { margin: 4px 0 0; font: 13px/1.4 var(--sans); }
-.ro-rem small { color: var(--muted); }

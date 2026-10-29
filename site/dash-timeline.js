@@ -1,11 +1,28 @@
-// Race timeline: raw count vs model projection (top), model P vs market prices (bottom), on the
-// dashboard's shared time axis. A solid cursor marks the scrubber time, a dashed one the hover.
-// Without a published count (meta.count_timeline false) only the probability panel is drawn.
+// Race timeline: one chart on the dashboard's shared time axis, in one of two views.
+//  - "margin": the model's margin (side a minus side b, points) with its 90% band, the raw
+//    count's margin once counting starts, the polls (US) and the market-implied margin (the
+//    margin at which the model's uncertainty gives the market's price);
+//  - "chance": the model's probability that side a wins against the market prices.
+// A solid cursor marks the scrubber time, a dashed one the hover. Labels sit at the line ends.
 import * as d3 from "./vendor/d3.js";
-import { C, pct, clock } from "./common.js";
+import { C, clock, probit } from "./common.js";
 
-// placeholder: before the count, the count panel is a grey box naming what fills in on the night.
-export function drawTimeline(root, { race, rows, domain, tz, wall, height, countPanel = true, placeholder = null, onPreview, onSet }) {
+const POLLS = "#8d8a82";
+
+// Margin of a row (points, side a minus side b) and its sd: US rows carry margins (with polls
+// where the race has a poll model); other two-sided races derive them from the share.
+const mm = (d) => d.margin_v2 ?? d.margin_model ?? (d.share != null ? (2 * d.share - 1) * 100 : null);
+const msd = (d) => (d.margin_v2 != null && d.sd_v2 != null ? 200 * d.sd_v2 : d.margin_model_sd ?? (d.sd != null ? 200 * d.sd : null));
+const implied = (p, sd) => (p != null && sd != null && p > 0 && p < 1 ? probit(p) * sd : null);
+const mkt = (d) => d.margin_market ?? implied(d.pm, msd(d));
+const mktK = (d) => d.margin_market_kalshi ?? implied(d.kalshi, msd(d));
+const rawM = (d) => (d.raw != null && d.counted > 0 ? (2 * d.raw - 1) * 100 : null);
+
+// Which views a race's rows support (the margin view needs a model share or margin).
+export const timelineViews = (rows) => (rows.some((d) => mm(d) != null) ? ["margin", "chance"] : ["chance"]);
+
+// view: "margin" | "chance"; us: margins read "D+3" / "R+3" (else "+3" for side a, "−3" for b).
+export function drawTimeline(root, { race, rows, domain, tz, wall, height, view = "chance", us = false, countPanel = true, onPreview, onSet }) {
   root.innerHTML = "";
   if (!rows.length) {
     root.innerHTML = `<p class="note">No count or price data for this race yet.</p>`;
@@ -13,141 +30,89 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, count
   }
   const width = Math.max(280, root.clientWidth);
   const narrow = width < 520;
-  // with a poll-informed model (P_v2) it is the main line and the count-only model a thin one;
-  // the longer end labels ("model without polls") need a wider right margin
   const two = rows.some((d) => d.P_v2 != null);
-  const m = { l: narrow ? 38 : 46, r: two ? (narrow ? 104 : 116) : narrow ? 74 : 84, t: 18, b: 22 };
-  const gap = countPanel ? 26 : 0;
-  const inner = height - m.t - m.b - gap;
-  const h1 = countPanel ? Math.round(inner * 0.55) : 0, h2 = inner - h1;
-  const top2 = m.t + h1 + gap;
+  const m = { l: narrow ? 38 : 46, r: narrow ? 104 : 116, t: 8, b: 22 };
+  const h = height - m.t - m.b;
   const x = d3.scaleUtc().domain(domain.map(wall)).range([m.l, width - m.r]);
   const X = (d) => x(wall(d.time));
   const vis = rows.filter((d) => d.time >= domain[0] && d.time <= domain[1]);
-  const yP = d3.scaleLinear().domain([0, 1]).range([top2 + h2, top2]);
-  const lastOf = (k) => [...vis].reverse().find((d) => d[k] != null);
+  const lastF = (f) => [...vis].reverse().find((d) => f(d) != null);
 
   const svg = d3.select(root).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("width", width).attr("height", height).style("display", "block");
   const clipId = `clip-${Math.random().toString(36).slice(2)}`;
   svg.append("clipPath").attr("id", clipId).append("rect").attr("x", m.l).attr("y", 0).attr("width", width - m.l - m.r).attr("height", height);
   const g = svg.append("g").attr("clip-path", `url(#${clipId})`);
-  const last = rows[rows.length - 1];
-  const final = countPanel && last.counted >= 0.999 && last.raw != null ? last.raw : null;
+  const hline = (y, stroke = "#bdb9ae") => g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", y).attr("y2", y).attr("stroke", stroke).attr("stroke-dasharray", "2,3");
+  const path = (stroke, w, f, dash) => g.append("path").datum(vis).attr("fill", "none").attr("stroke", stroke).attr("stroke-width", w).attr("stroke-dasharray", dash ?? null)
+    .attr("d", d3.line().defined((d) => f(d) != null).x(X).y((d) => Y(f(d))).curve(d3.curveStepAfter));
+  let Y;
 
-  // US rows carry margins (Democratic minus Republican, points): the top panel shows the model's
-  // margin and its 90% band, the polls and the market-implied margin (and the raw count's margin
-  // once counting starts)
-  const hasMargins = countPanel && vis.some((d) => d.margin_model != null || d.margin_v2 != null || d.margin_market != null);
-  if (hasMargins) {
-    const mm = (d) => d.margin_v2 ?? d.margin_model ?? null;
-    const msd = (d) => (d.margin_v2 != null && d.sd_v2 != null ? 200 * d.sd_v2 : d.margin_model_sd ?? null);
+  if (view === "margin") {
     const lo = (d) => (mm(d) != null && msd(d) != null ? mm(d) - 1.645 * msd(d) : null);
     const hi = (d) => (mm(d) != null && msd(d) != null ? mm(d) + 1.645 * msd(d) : null);
-    const rawM = (d) => (d.raw != null && d.counted > 0 ? (2 * d.raw - 1) * 100 : null);
-    const vals = vis.flatMap((d) => [mm(d), lo(d), hi(d), d.margin_polls, d.margin_market, d.margin_market_kalshi, rawM(d)]).filter((v) => v != null && Number.isFinite(v));
+    const counting = vis.filter((d) => d.counted > 0.005);
+    const span = counting.length ? counting : vis;
+    const vals = span.flatMap((d) => [mm(d), lo(d), hi(d), d.margin_polls, mkt(d), mktK(d), rawM(d)]).filter((v) => v != null && Number.isFinite(v));
     const [a, b] = vals.length ? d3.extent([...vals, 0]) : [-10, 10];
-    const yM = d3.scaleLinear().domain([a - 1, b + 1]).nice().range([m.t + h1, m.t]);
+    const yM = d3.scaleLinear().domain([a - 1, b + 1]).nice().range([m.t + h, m.t]);
     const [d0, d1] = yM.domain();
-    const cM = (v) => yM(Math.max(d0, Math.min(d1, v)));
-    const fmt = (v) => (v === 0 ? "0" : `${v > 0 ? "D" : "R"}+${Math.abs(v)}`);
+    Y = (v) => yM(Math.max(d0, Math.min(d1, v)));
+    const fmt = (v) => (v === 0 ? "0" : us ? `${v > 0 ? "D" : "R"}+${Math.abs(v)}` : `${v > 0 ? "+" : "−"}${Math.abs(v)}`);
     svg.insert("g", "g").attr("class", "grid").selectAll("line").data(yM.ticks(4)).join("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yM).attr("y2", yM);
     svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yM).ticks(4).tickFormat(fmt).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
-    svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", m.t - 6).text("Margin, Democratic minus Republican (points)");
-    g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yM(0)).attr("y2", yM(0)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
-    const stepM = (f) => d3.line().defined((d) => f(d) != null).x(X).y((d) => cM(f(d))).curve(d3.curveStepAfter);
+    hline(yM(0));
     g.append("path").datum(vis.filter((d) => lo(d) != null)).attr("fill", C.model).attr("opacity", 0.14)
-      .attr("d", d3.area().x(X).y0((d) => cM(lo(d))).y1((d) => cM(hi(d))).curve(d3.curveStepAfter));
-    g.append("path").datum(vis).attr("fill", "none").attr("stroke", "#8d8a82").attr("stroke-width", 1.4).attr("stroke-dasharray", "4,3").attr("d", stepM((d) => d.margin_polls ?? null));
-    g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.raw).attr("stroke-width", 2).attr("d", stepM(rawM));
-    g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.kalshi).attr("stroke-width", 1.2).attr("d", stepM((d) => d.margin_market_kalshi ?? null));
-    g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.6).attr("d", stepM((d) => d.margin_market ?? null));
-    g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 2).attr("d", stepM(mm));
-    const lastF = (f) => [...vis].reverse().find((d) => f(d) != null);
+      .attr("d", d3.area().x(X).y0((d) => Y(lo(d))).y1((d) => Y(hi(d))).curve(d3.curveStepAfter));
+    path(POLLS, 1.4, (d) => d.margin_polls ?? null, "4,3");
+    g.append("path").datum(vis.filter((d) => rawM(d) != null)).attr("fill", "none").attr("stroke", C.raw).attr("stroke-width", 2).attr("d", d3.line().x(X).y((d) => Y(rawM(d))));
+    path(C.kalshi, 1.2, mktK);
+    path(C.market, 1.6, mkt);
+    path(C.model, 2, mm);
+    // the final result, once fully counted
+    const last = rows[rows.length - 1];
+    const final = countPanel && last.counted >= 0.999 && last.raw != null ? (2 * last.raw - 1) * 100 : null;
+    if (final != null) g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", Y(final)).attr("y2", Y(final)).attr("stroke", C.model).attr("stroke-dasharray", "5,4").attr("opacity", 0.6);
     endLabels(svg, width - m.r + 5, [
-      [lastF(mm), (d) => cM(mm(d)), "model", C.model],
-      [lastF((d) => d.margin_polls ?? null), (d) => cM(d.margin_polls), "polls", "#8d8a82"],
-      [lastF((d) => d.margin_market ?? null), (d) => cM(d.margin_market), "market-implied", C.market],
-      [lastF((d) => d.margin_market_kalshi ?? null), (d) => cM(d.margin_market_kalshi), "Kalshi-implied", C.kalshi],
-      [lastF(rawM), (d) => cM(rawM(d)), "raw count", C.raw],
+      [lastF(mm), (d) => Y(mm(d)), two ? "model, polls" : "model", C.model],
+      [lastF((d) => d.margin_polls ?? null), (d) => Y(d.margin_polls), "polls", POLLS],
+      [lastF(mkt), (d) => Y(mkt(d)), "market-implied", C.market],
+      [lastF(mktK), (d) => Y(mktK(d)), "Kalshi-implied", C.kalshi],
+      [lastF(rawM), (d) => Y(rawM(d)), "raw count", C.raw],
+      [final != null ? {} : null, () => Y(final), `final ${fmt(Math.round(final * 10) / 10)}`, C.model],
     ]);
-  } else if (countPanel && placeholder) {
-    g.append("rect").attr("x", m.l).attr("y", m.t).attr("width", width - m.l - m.r).attr("height", h1).attr("fill", "#f1efe9");
-    svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", m.t - 6).attr("fill", C.muted).text(`${race.a.name}'s share of the two-candidate vote`);
-    const lines = [["raw count", C.raw], ["model projection and 90% band", C.model], ["share of the vote counted", C.muted]];
-    lines.forEach(([label, color], i) => {
-      const y = m.t + h1 / 2 - 20 + i * 15;
-      svg.append("line").attr("x1", m.l + 14).attr("x2", m.l + 34).attr("y1", y - 4).attr("y2", y - 4).attr("stroke", color).attr("stroke-width", 2).attr("opacity", 0.45);
-      svg.append("text").attr("class", "chart-note").attr("x", m.l + 40).attr("y", y).attr("fill", C.muted).text(label);
-    });
-    svg.append("text").attr("class", "chart-note").attr("x", m.l + 14).attr("y", m.t + h1 / 2 + 30).attr("fill", C.muted).text(placeholder);
-  } else if (countPanel) {
-    const lo = (d) => (d.share != null && d.sd != null ? d.share - 1.645 * d.sd : null);
-    const hi = (d) => (d.share != null && d.sd != null ? d.share + 1.645 * d.sd : null);
-    const counted = vis.filter((d) => d.counted > 0.005);
-    const vals = (counted.length ? counted : vis).flatMap((d) => [d.raw, d.share, lo(d), hi(d)]).filter((v) => v != null);
-    let [a, b] = vals.length ? d3.extent(vals) : [0.4, 0.6];
-    if (b - a < 0.04) { const c = (a + b) / 2; a = c - 0.02; b = c + 0.02; }
-    if (0.5 > a - 0.03 && 0.5 < b + 0.03) { a = Math.min(a, 0.495); b = Math.max(b, 0.505); }
-    const yS = d3.scaleLinear().domain([Math.max(0, a - 0.005), Math.min(1, b + 0.005)]).nice().range([m.t + h1, m.t]);
-    const [d0, d1] = yS.domain();
-    const cS = (v) => yS(Math.max(d0, Math.min(d1, v)));
-    svg.insert("g", "g").attr("class", "grid").selectAll("line").data(yS.ticks(4)).join("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yS).attr("y2", yS);
-    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yS).ticks(4).tickFormat((v) => `${Math.round(v * 1000) / 10}%`).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
-    svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", m.t - 6).text(`${race.a.name}'s share of the two-candidate vote`);
-    if (final != null) {
-      const wrong = vis.filter((d) => d.counted > 0.01 && d.raw != null && (d.raw - 0.5) * (final - 0.5) < 0);
-      if (wrong.length) {
-        const [wa, wb] = d3.extent(wrong, X);
-        g.append("rect").attr("x", wa).attr("width", Math.max(1, wb - wa)).attr("y", m.t).attr("height", top2 + h2 - m.t).attr("fill", C.raw).attr("opacity", 0.08);
-        g.append("text").attr("x", wa + 5).attr("y", yP(0.12)).attr("class", "chart-note").attr("fill", C.raw).text(final > 0.5 ? `raw count: ${race.a.name} behind` : `raw count: ${race.a.name} ahead`);
-      }
-      g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", cS(final)).attr("y2", cS(final)).attr("stroke", C.model).attr("stroke-dasharray", "5,4").attr("opacity", 0.6);
-    }
-    if (0.5 > d0 && 0.5 < d1) g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yS(0.5)).attr("y2", yS(0.5)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
-    g.append("path").datum(vis.filter((d) => d.sd != null && d.share != null)).attr("fill", C.model).attr("opacity", 0.14)
-      .attr("d", d3.area().x(X).y0((d) => cS(lo(d))).y1((d) => cS(hi(d))).curve(d3.curveStepAfter));
-    g.append("path").datum(vis.filter((d) => d.raw != null && d.counted > 0)).attr("fill", "none").attr("stroke", C.raw).attr("stroke-width", 2)
-      .attr("d", d3.line().x(X).y((d) => cS(d.raw)));
-    g.append("path").datum(vis.filter((d) => d.share != null)).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 2)
-      .attr("d", d3.line().x(X).y((d) => cS(d.share)).curve(d3.curveStepAfter));
+  } else {
+    const yP = d3.scaleLinear().domain([0, 1]).range([m.t + h, m.t]);
+    Y = yP;
+    svg.insert("g", "g").attr("class", "grid").selectAll("line").data([0, 0.5, 1]).join("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP).attr("y2", yP);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yP).tickValues([0, 0.5, 0.9]).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
+    for (const v of [0.1, 0.9]) hline(yP(v));
+    const main = two ? (d) => d.P_v2 ?? null : (d) => d.P ?? null;
+    if (two) path(C.model, 1, (d) => d.P ?? null, "3,2").attr("opacity", 0.75);
+    path(C.model, 2, main);
+    path(C.kalshi, 1.5, (d) => d.kalshi ?? null);
+    path(C.market, 1.6, (d) => d.pm ?? null);
     endLabels(svg, width - m.r + 5, [
-      [lastOf("raw"), (d) => cS(d.raw), "raw count", C.raw],
-      [lastOf("share"), (d) => cS(d.share), vis.some((d) => d.P_v2 != null) ? "model without polls" : "model", C.model],
-      [final != null ? {} : null, () => cS(final), `final ${pct(final)}`, C.model],
+      [lastF(main), (d) => yP(main(d)), two ? "model, polls" : "model", C.model],
+      [two ? lastF((d) => d.P ?? null) : null, (d) => yP(d.P), "without polls", C.model],
+      [lastF((d) => d.pm ?? null), (d) => yP(d.pm), "Polymarket", C.market],
+      [lastF((d) => d.kalshi ?? null), (d) => yP(d.kalshi), "Kalshi", C.kalshi],
     ]);
   }
 
-  // probability panel
-  svg.insert("g", "g").attr("class", "grid").selectAll("line").data([0, 0.5, 1]).join("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP).attr("y2", yP);
-  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yP).tickValues([0, 0.5, 0.9]).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
   const long = domain[1] - domain[0] > 24 * 3600000; // past 24 h, ticks carry the day ("12 Apr 22:00")
   const days = domain[1] - domain[0] > 72 * 3600000; // past 3 days, the date only ("12 Apr")
-  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${top2 + h2})`).call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((width - m.l - m.r) / (days ? 60 : long ? 100 : 70)))).tickFormat(d3.utcFormat(days ? "%-d %b" : long ? "%-d %b %H:%M" : "%H:%M")).tickSizeOuter(0));
-  svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", top2 - 7).text(`Probability ${race.a.name} wins`);
-  for (const v of [0.1, 0.9]) g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP(v)).attr("y2", yP(v)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
-  const step = (k) => d3.line().defined((d) => d[k] != null).x(X).y((d) => yP(d[k])).curve(d3.curveStepAfter);
-  const main = two ? "P_v2" : "P";
-  if (two) g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 1).attr("stroke-dasharray", "3,2").attr("opacity", 0.75).attr("d", step("P"));
-  g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 2).attr("d", step(main));
-  g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.kalshi).attr("stroke-width", 1.5).attr("d", step("kalshi"));
-  g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.6).attr("d", step("pm"));
-  endLabels(svg, width - m.r + 5, [
-    [lastOf(main), (d) => yP(d[main]), two ? "model with polls" : "model", C.model],
-    [two ? lastOf("P") : null, (d) => yP(d.P), "model without polls", C.model],
-    [lastOf("pm"), (d) => yP(d.pm), "Polymarket", C.market],
-    [lastOf("kalshi"), (d) => yP(d.kalshi), "Kalshi", C.kalshi],
-  ]);
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${m.t + h})`).call(d3.axisBottom(x).ticks(Math.max(2, Math.floor((width - m.l - m.r) / (days ? 60 : long ? 100 : 70)))).tickFormat(d3.utcFormat(days ? "%-d %b" : long ? "%-d %b %H:%M" : "%H:%M")).tickSizeOuter(0));
   const gate = countPanel ? vis.find((d) => d.counted >= 0.01) : null;
   if (gate) {
-    g.append("line").attr("x1", X(gate)).attr("x2", X(gate)).attr("y1", m.t).attr("y2", top2 + h2).attr("stroke", C.muted).attr("stroke-dasharray", "1,3");
-    g.append("text").attr("x", X(gate) + 4).attr("y", yP(0.03)).attr("class", "chart-note").attr("fill", C.muted).text(`1% counted ${clock(gate.t, tz)}`);
+    g.append("line").attr("x1", X(gate)).attr("x2", X(gate)).attr("y1", m.t).attr("y2", m.t + h).attr("stroke", C.muted).attr("stroke-dasharray", "1,3");
+    g.append("text").attr("x", X(gate) + 4).attr("y", m.t + h - 4).attr("class", "chart-note").attr("fill", C.muted).text(`1% counted ${clock(gate.t, tz)}`);
   }
 
-  const preview = svg.append("line").attr("class", "cursor-preview").attr("y1", m.t).attr("y2", top2 + h2).attr("opacity", 0);
-  const cursor = svg.append("line").attr("class", "cursor").attr("y1", m.t - 4).attr("y2", top2 + h2);
+  const preview = svg.append("line").attr("class", "cursor-preview").attr("y1", m.t).attr("y2", m.t + h).attr("opacity", 0);
+  const cursor = svg.append("line").attr("class", "cursor").attr("y1", m.t - 4).attr("y2", m.t + h);
   const off = +wall(0);
   const tAt = (ev) => Math.max(domain[0], Math.min(domain[1], Math.round((+x.invert(d3.pointer(ev)[0]) - off) / 60000) * 60000));
-  svg.append("rect").attr("x", m.l).attr("y", m.t).attr("width", width - m.l - m.r).attr("height", top2 + h2 - m.t).attr("fill", "transparent").style("cursor", "crosshair")
+  svg.append("rect").attr("x", m.l).attr("y", m.t).attr("width", width - m.l - m.r).attr("height", h).attr("fill", "transparent").style("cursor", "crosshair")
     .on("pointermove", (ev) => onPreview(tAt(ev)))
     .on("pointerleave", () => onPreview(null))
     .on("click", (ev) => onSet(tAt(ev)));
