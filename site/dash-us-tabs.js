@@ -47,9 +47,9 @@ export function renderUsTab(H, tab, el, ctx = {}) {
   const house = c.race?.startsWith("house:") ? c.race.slice(6) : null;
   const race = house ? null : c.race;
   if (tab === "polls") house ? drawHousePolls(H, el, house) : race ? drawPolls(H, el, race) : drawAllPolls(H, el, c);
-  else if (tab === "pollsters") drawPollsters(H, el);
+  else if (tab === "pollsters") drawPollsters(H, el, c, house, race);
   else if (tab === "markets") house ? drawHouseMarkets(H, el, house) : race ? drawMarkets(H, el, race) : drawAllMarkets(H, el, c);
-  else if (tab === "track") drawTrack(H, el);
+  else if (tab === "track") drawTrack(H, el, c, house);
   else el.innerHTML = `<p class="note">Unknown tab.</p>`;
 }
 
@@ -287,14 +287,25 @@ function drawCrosstabHistory(el, XH) {
 
 /* ---------------------------------------------------------------- pollsters */
 
-function drawPollsters(H, el) {
+function drawPollsters(H, el, c, house, race) {
   const P = H.pollsters;
   if (!P) { el.innerHTML = `<p class="note">No pollster file yet.</p>`; return; }
-  el.innerHTML = `<p class="hub-lede">How far each pollster's final-three-week polls landed from the result: ${esc(P.window ?? "")}. Lean: the average error (${esc(P.units ?? "")}); RMSE: the typical size of an error.</p>
+  let names = null, where = "";
+  if (house) {
+    names = new Set((H.houseMarkets?.districts?.[house]?.polls?.polls ?? []).map((p) => p.pollster));
+    where = `${house} district polls`;
+  } else if (race) {
+    names = new Set((H.polls?.races?.[race]?.polls ?? []).map((p) => p.pollster));
+    where = nameOf(H, race);
+  } else if (c.state) {
+    names = new Set(Object.entries(H.polls?.races ?? {}).filter(([k]) => stateOf(H, k) === c.state).flatMap(([, r]) => (r.polls ?? []).map((p) => p.pollster)));
+    where = stateName(H, c.state);
+  }
+  const rows = (P.pollsters ?? []).filter((p) => !names || names.has(p.pollster)).map((p) => ({ ...p, n_cycles: p.cycles?.length ?? 0, in: p.in_2026 ? 1 : 0 }));
+  el.innerHTML = `<p class="hub-lede">${where ? `<b>${esc(where)}</b>: ${rows.length ? `${rows.length} pollster${rows.length === 1 ? "" : "s"} in the selected scope. ` : "No pollsters in the selected scope. "}` : ""}How far each pollster's final-three-week polls landed from the result: ${esc(P.window ?? "")}. Lean: the average error (${esc(P.units ?? "")}); RMSE: the typical size of an error.</p>
     <label class="select"><span>Pollster</span> <input type="search" placeholder="Filter" aria-label="Filter pollsters" data-slot="filter"></label>
     <div class="hub-scroll" data-slot="table"></div>
     <p class="note"><span class="badge">2026</span> ${esc(P.in_2026_rule ?? "")}.</p>${sources(P)}`;
-  const rows = (P.pollsters ?? []).map((p) => ({ ...p, n_cycles: p.cycles?.length ?? 0, in: p.in_2026 ? 1 : 0 }));
   const filter = slot(el, "filter"), box = slot(el, "table");
   const draw = () => {
     const f = filter.value.trim().toLowerCase();
@@ -424,19 +435,22 @@ function drawAllMarkets(H, el, c) {
 
 /* ---------------------------------------------------------------- track record */
 
-function drawTrack(H, el) {
+function drawTrack(H, el, c, house) {
   const B = H.backtest;
   if (!B) { el.innerHTML = `<p class="note">No backtest file yet.</p>`; return; }
+  if (house) { el.innerHTML = `<p class="note">There is no district-level House track record in this dataset. The district's current polls and markets are scoped in their tabs; the published backtest covers Senate and governor races.</p>`; return; }
+  const all = B.races ?? [], rows = c.state ? all.filter((r) => String(r.state).toLowerCase() === c.state) : all;
   const sm = B.summary ?? {};
+  const where = c.state ? `<b>${esc(stateName(H, c.state))}</b>: ${rows.length} past Senate or governor race${rows.length === 1 ? "" : "s"} in the published backtest. ` : "";
   const line = (label, k, f) => `<tr><td>${label}</td><td class="n m">${f(sm.model?.[k])}</td><td class="n">${f(sm.baseline?.[k])}</td></tr>`;
-  el.innerHTML = `<p class="hub-lede">The poll model on past Senate and governor races, against a baseline of past results only. ${esc(B.label ?? "")}</p>
-    <div class="hub-pair"><table class="races hub-table"><thead><tr><th></th><th class="n">Model</th><th class="n">Past results</th></tr></thead><tbody>
+  el.innerHTML = `<p class="hub-lede">${where}The poll model on past Senate and governor races, against a baseline of past results only. ${esc(B.label ?? "")}</p>
+    ${c.state ? "" : `<div class="hub-pair"><table class="races hub-table"><thead><tr><th></th><th class="n">Model</th><th class="n">Past results</th></tr></thead><tbody>
       ${line("Races", "races", (v) => v ?? "–")}${line("Result inside the 68% band", "cover68", (v) => pct(v, 0))}${line("Result inside the 90% band", "cover90", (v) => pct(v, 0))}
       ${line("Mean absolute error (pt)", "mae_margin", (v) => num(v, 1))}${line("Brier score (lower is better)", "brier", (v) => num(v, 3))}${line("Log loss (lower is better)", "log_loss", (v) => num(v, 3))}
-    </tbody></table><div><div data-slot="cal"></div><p class="note">Chance given against how often the Democrat won: <span class="m">model</span>, <span style="color:${POLLS}">past results</span>. On the dashed line the chances were right on average.</p></div></div>
-    <h3 class="tab-h">Every race</h3><div class="hub-scroll" data-slot="table"></div>
+    </tbody></table><div><div data-slot="cal"></div><p class="note">Chance given against how often the Democrat won: <span class="m">model</span>, <span style="color:${POLLS}">past results</span>. On the dashed line the chances were right on average.</p></div></div>`}
+    <h3 class="tab-h">${c.state ? `${esc(stateName(H, c.state))} races` : "Every race"}</h3><div class="hub-scroll" data-slot="table"></div>
     <p class="note">Baseline: ${esc(typeof B.baseline === "string" ? B.baseline : JSON.stringify(B.baseline))}.</p>${sources(B)}`;
-  calibration(slot(el, "cal"), [{ bins: sm.baseline?.calibration ?? [], color: POLLS, label: "past results" }, { bins: sm.model?.calibration ?? [], color: C.model, label: "model" }]);
+  if (!c.state) calibration(slot(el, "cal"), [{ bins: sm.baseline?.calibration ?? [], color: POLLS, label: "past results" }, { bins: sm.model?.calibration ?? [], color: C.model, label: "model" }]);
   sortable(slot(el, "table"), "track", [
     ["cycle", "Year", true], ["state", "State", false], ["office", "Office", false, (r) => (r.office === "gov" ? "governor" : "Senate")], ["n_polls", "Polls", true],
     ["pred_margin", "Model", true, (r) => `${marginText(r.pred_margin)} <small>± ${num(r.sd_margin, 1)}</small>`],
@@ -445,5 +459,5 @@ function drawTrack(H, el) {
     ["base_margin", "Past results", true, (r) => marginText(r.base_margin)],
     ["P", "Chance (model / past)", true, (r) => `${num(r.P)} / ${num(r.base_P)}`],
     ["dem_won", "Winner", false, (r) => (r.dem_won ? `<span style="color:${DEM}">D</span>` : `<span style="color:${REP}">R</span>`)],
-  ], B.races ?? [], { key: "cycle", dir: -1 });
+  ], rows, { key: "cycle", dir: -1 });
 }

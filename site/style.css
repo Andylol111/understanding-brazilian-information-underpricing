@@ -241,7 +241,7 @@ body.dash-page { font-size: 16px; line-height: 1.45; }
 .legend-count:empty { display: none; }
 .legend-count b { font-variant-numeric: tabular-nums; }
 /* "counties without data": the map's diagonal hatch as a swatch */
-.lg-none { display: inline-block; width: 10px; height: 8px; margin-right: 3px; background: repeating-linear-gradient(135deg, #c9c6bd 0 1px, #efede7 1px 4px); }
+.lg-none { display: inline-block; width: 10px; height: 8px; margin-right: 3px; background: repeating-linear-gradient(135deg, #cfccc4 0 1px, #efede7 1px 4px); }
 /* leader-colouring legend: a row per side, a column per band, counts under the swatches */
 .band-legend { border-collapse: collapse; font: 11px/1.2 var(--sans); width: 100%; table-layout: fixed; }
 .band-legend th { font-weight: 400; color: var(--muted); text-align: center; padding: 0 1px 2px; }
@@ -598,16 +598,15 @@ table.nat-races .ring { display: inline-block; width: 8px; height: 8px; border: 
 .ov.in { opacity: 1; }
 .ov-scale { vertical-align: -1px; }
 .ov-arrsel { margin: 0; }
+.ov-arrows path { transition: opacity 0.7s ease; }
+.ov-arrows path.ov-out { opacity: 0.3; }
 @media (prefers-reduced-motion: reduce) { .ov { transition: none; } }
-/* Cross-document view transitions (homepage ⇄ election page, Chromium and Safari): the map box and
-   the header carry over; the rest cross-fades. Firefox: the page fades in over the paper colour. */
+/* Chromium/Safari cross-document fade; keeping the large canvas/map out of a named shared-element
+   snapshot avoids a long compositing frame. Firefox uses the same paper-backed JS fade. */
 @view-transition { navigation: auto; }
 html { background: var(--paper); }
-.wm-box, #map { view-transition-name: map; }
-.home-head, .topbar { view-transition-name: page-head; }
-::view-transition-group(map), ::view-transition-group(page-head) { animation-duration: 0.35s; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.25s; }
-@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.2s; animation-timing-function: ease; }
+@media (prefers-reduced-motion: reduce) { ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
 .ov-svg { display: block; width: 100%; height: 100%; }
 .ov-svg path.f { cursor: pointer; }
 .ov-ctl { position: absolute; left: 10px; top: 52px; display: flex; flex-direction: column; gap: 4px; max-width: calc(100% - 20px); }

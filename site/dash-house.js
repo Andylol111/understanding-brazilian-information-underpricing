@@ -19,6 +19,7 @@ const byMargin = (m, full = 30) => (m == null ? null : ramp(m / full));
 const EV = d3.interpolateLab("#ece9e1", "#3d5a40");
 const day = (d) => (d ? fmtDate(d).replace(/ \d{4}$/, "") : "–");
 const ZOOM_MS = 700, FADE_MS = 300;
+const PAPER = "#fcfbf8", VEIL = 0.6; // states outside the open one recede this far toward the paper (as dash-engine.js)
 // swing arrows: what each arrow compares
 export const ARROWS = [["proj", "2026 projected vs 2024"], ["past", "2020→2024 (past)"], ["live", "Counted vs 2024"]];
 const ARROW_FULL = 15, ARROW_L = 22; // points of shift for the longest arrow, its length in px
@@ -244,6 +245,7 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
       }
     }
     drawArrows(switched);
+    mute();
     if (st.kind === "house" && st.sel) outline(st.sel, "ov-sel");
     legend();
   }
@@ -254,7 +256,7 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     if (L && L.w === w && L.h === h && L.top === st.top) return L;
     if (L) { if (L.g === g) g = null; L.g.remove(); }
     svg.attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h);
-    if (svg.select("defs").empty()) svg.append("defs").html(`<pattern id="ov-hatch" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#efede7"/><path d="M0 6L6 0M-1 1L1 -1M5 7L7 5" stroke="#c9c6bd" stroke-width="1"/></pattern>`);
+    if (svg.select("defs").empty()) svg.append("defs").html(`<pattern id="ov-hatch" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#f1efea"/><path d="M0 6L6 0M-1 1L1 -1M5 7L7 5" stroke="#dcd9d1" stroke-width="1"/></pattern>`);
     const fc = topojson.feature(G.topo, G.obj);
     const pr = d3.geoAlbersUsa().fitExtent([[10, st.top], [w - 10, h - 40]], fc), pa = d3.geoPath(pr);
     const lg = svg.append("g").attr("class", "ov-g").style("display", "none");
@@ -266,7 +268,7 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
       .attr("fill", "none").attr("stroke", "#fff").attr("stroke-width", 1.6).attr("vector-effect", "non-scaling-stroke").attr("pointer-events", "none");
     // centroids for the arrows: districts by id, in this layer's coordinates
     const centroids = G.geom.startsWith("districts") ? new Map(fc.features.map((f) => [G.idOf(f), pa.centroid(f)])) : null;
-    L = { g: lg, features: fc.features, proj: pr, path: pa, w, h, top: st.top, centroids };
+    L = { g: lg, features: fc.features, proj: pr, path: pa, w, h, top: st.top, centroids, stOf: (f) => String(G.stOf(f)).toLowerCase() };
     layers.set(G.geom, L);
     st.home = { k: 1, x: 0, y: 0 };
     return L;
@@ -322,20 +324,42 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     const pts = [];
     if ([...arrowData.values()][0].at === "district") {
       const cs = layers.get(st.geom)?.centroids;
-      for (const [id, a] of arrowData) { const c = cs?.get(id); if (c) pts.push([c, a.shift]); }
+      for (const [id, a] of arrowData) { const c = cs?.get(id); if (c) pts.push([c, a.shift, id.slice(0, 2).toLowerCase()]); }
     } else {
       H.centroids ??= topojson.feature(H.counties, H.counties.objects.counties).features.map((f) => [f.properties?.unit_id ?? f.id, d3.geoCentroid(f)]);
-      for (const [id, ll] of H.centroids) { const a = arrowData.get(id); if (a) pts.push([proj(ll), a.shift]); }
+      for (const [id, ll] of H.centroids) { const a = arrowData.get(id); if (a) pts.push([proj(ll), a.shift, id.split("-")[1]]); }
     }
     const items = [];
-    for (const [c, shift] of pts) {
+    for (const [c, shift, s] of pts) {
       if (!c || !Number.isFinite(c[0]) || Math.abs(shift) < 0.25) continue;
       const len = Math.max(2, ARROW_L * Math.min(1, Math.abs(shift) / ARROW_FULL)), dir = shift > 0 ? -1 : 1;
-      items.push(`<path d="M${c[0].toFixed(1)},${c[1].toFixed(1)}h${(dir * len).toFixed(1)}m${(-dir * 3).toFixed(1)},-2l${(dir * 3).toFixed(1)},2l${(-dir * 3).toFixed(1)},2" stroke="${shift > 0 ? DEM : REP}"/>`);
+      items.push(`<path data-st="${s}" d="M${c[0].toFixed(1)},${c[1].toFixed(1)}h${(dir * len).toFixed(1)}m${(-dir * 3).toFixed(1)},-2l${(dir * 3).toFixed(1)},2l${(-dir * 3).toFixed(1)},2" stroke="${shift > 0 ? DEM : REP}"/>`);
     }
     const a = g.append("g").attr("class", "ov-arrows").attr("fill", "none").attr("stroke-opacity", 0.8).attr("pointer-events", "none")
       .attr("stroke-width", 1 / st.k.k).attr("opacity", reduce() || fresh ? 1 : 0).html(items.join(""));
     if (!reduce() && !fresh) a.transition().duration(FADE_MS).attr("opacity", 1);
+  }
+  // inside a state the others stay but recede, as on the map canvas (dash-engine.js veil): one
+  // shape over everything but the state's own areas, greyed (saturation blend) and 60% toward the
+  // paper, faded in with the zoom; their arrows fade too
+  function mute() {
+    const L = layers.get(st.geom);
+    if (!g || !L) return;
+    const s = st.state;
+    g.selectAll(".ov-arrows path").classed("ov-out", function () { return !!s && this.dataset.st !== s; });
+    if ((g.property("__veil") ?? null) === s) return;
+    g.property("__veil", s);
+    const quick = reduce() || box.hidden;
+    const old = g.selectAll(".ov-veil path");
+    if (quick) g.selectAll(".ov-veil").remove();
+    else old.interrupt().transition().duration(ZOOM_MS).attr("opacity", 0).on("end", function () { this.parentNode?.remove(); });
+    if (!s) return;
+    const d = `M${-4 * L.w},${-4 * L.h}H${5 * L.w}V${5 * L.h}H${-4 * L.w}Z` + L.features.filter((f) => L.stOf(f) === s).map((f) => L.path(f) ?? "").join("");
+    const v = g.insert("g", ".ov-states").attr("class", "ov-veil").attr("pointer-events", "none");
+    for (const [fill, op, blend] of [["#808080", 0.8, "saturation"], [PAPER, VEIL, null]]) {
+      const p = v.append("path").attr("d", d).attr("fill-rule", "evenodd").attr("fill", fill).style("mix-blend-mode", blend).attr("opacity", quick ? op : 0);
+      if (!quick) p.transition().duration(ZOOM_MS).attr("opacity", op);
+    }
   }
 
   function legend() {
@@ -427,6 +451,7 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     const from = st.k, ip = d3.interpolateObject(from, to);
     st.k = to;
     g.selectAll(".ov-arrows").attr("stroke-width", 1 / to.k);
+    mute();
     if (!animate || reduce()) g.attr("transform", tf(to));
     else g.transition().duration(ZOOM_MS).ease(d3.easeCubicInOut).attrTween("transform", () => (t) => tf(ip(t)));
     onState?.(st.state);
@@ -464,7 +489,7 @@ export function districtReadout(id) {
   const from = (F?.flows ?? []).filter((f) => f[1] === id).sort((a, x) => x[4] - a[4]).slice(0, 3).map((f) => `${esc(f[0])} ${pct(f[4], 0)}`).join(", ");
   const chip = (label, v, cls = "") => `<span class="chip"><small>${label}</small><b class="${cls}">${v}</b></span>`;
   return `<p class="ro-head"><span class="ro-at"><b>${esc(id)}</b>${d.redrawn ? " · new lines" : ""}${h?.incumbent ? ` · incumbent ${esc(h.incumbent)} (${esc(h.incumbent_party ?? "")})` : ""}</span><span class="ro-race">chance the Democratic party wins</span></p>
-    <div class="chips">${chip("Chance", b ? `${num(b.p)}` : "–")}${chip("Polymarket", num(m?.pm?.p), "k")}${chip("Kalshi", num(m?.kalshi?.p), "kx")}${chip("Polls", pollM(d) != null ? marginText(pollM(d)) : m?.polls?.polls?.length ? "none in 45 days" : "–")}${chip("Baseline (model only)", num(d.baseline?.p_d))}${chip("Harris 2024", marginText(d.pres24?.margin))}${chip("House 2024", h ? `${esc(h.winner_party ?? "")} ${marginText(h.margin)}` : "–")}</div>
+    <div class="chips">${chip("Chance", b ? `${num(b.p)}` : "–")}${chip("Polymarket", num(m?.pm?.p), "k")}${chip("Kalshi", num(m?.kalshi?.p), "kx")}${chip("Polls", pollM(d) != null ? marginText(pollM(d)) : m?.polls?.polls?.length ? "none in 45 days" : "–")}${chip("Baseline (model only)", num(d.baseline?.p_d))}${chip("Harris 2024", marginText(d.pres24?.margin))}${chip("House 2024", h ? marginText(h.margin) : "–")}</div>
     <p class="note">${b ? `Chance from ${esc(b.src)}.` : ""} ${m?.pm?.cands?.D ? `${esc(m.pm.cands.D)} (D) v ${esc(m.pm.cands.R ?? "–")} (R).` : ""}${flow ? ` New lines: core 2024 district ${esc(flow.core_2024 ?? "")} (Harris ${marginText(flow.core_margin)}), lean change ${marginText(flow.lean_change)}; made from ${from}.` : ""}${d.swing_pres != null ? ` Swing 2020→24: ${marginText(d.swing_pres)}.` : ""}${e ? ` Early vote ${d3.format(",")(e.ev_total)} (${pct(e.share_of_2022_total, 0)} of 2022).` : ""}</p>`;
 }
 export function districtChart(el, id) {
@@ -498,6 +523,30 @@ export function houseList(el, { state = null, onPick }) {
     const f = filter.value.trim().toLowerCase();
     body.innerHTML = rows.filter(({ d }) => !f || d.id.toLowerCase().includes(f) || (h24(d)?.incumbent ?? "").toLowerCase().includes(f)).slice(0, 120)
       .map(({ d, b }) => `<tr tabindex="0" data-id="${esc(d.id)}"><td>${esc(d.id)}${d.redrawn ? " <small>new</small>" : ""}</td><td>${esc(h24(d)?.incumbent ?? "–")}</td><td class="n" title="${esc(b?.src ?? "")}">${num(b?.p)}</td><td class="n">${marginText(d.pres24?.margin)}</td></tr>`).join("");
+  };
+  filter.addEventListener("input", fill);
+  body.addEventListener("click", (ev) => { const tr = ev.target.closest("tr[data-id]"); if (tr) onPick?.(tr.dataset.id); });
+  body.addEventListener("keydown", (ev) => { const tr = ev.target.closest("tr[data-id]"); if (tr && ev.key === "Enter") onPick?.(tr.dataset.id); });
+  fill();
+}
+
+// The Races tab with the House office on: every district, the open state's first, then the most
+// competitive nationally; market, Kalshi, polls, the baseline (model only), Harris 2024 and the gap
+// between the market and the baseline. Rows pick a district.
+export function houseRaceTable(el, { state = null, selected = null, onPick }) {
+  const close = (d) => Math.abs((best(d)?.p ?? 0) - 0.5);
+  const rows = houseDistrictIds().map(houseDistrict).sort((a, b) => (state ? (b.st.toLowerCase() === state) - (a.st.toLowerCase() === state) : 0) || close(a) - close(b) || a.id.localeCompare(b.id));
+  el.innerHTML = `<label class="select"><span>District</span> <input type="search" class="hr-filter" placeholder="TX-07, Fletcher…" aria-label="Filter districts"></label>
+    <div class="hub-scroll"><table class="races hr-table"><thead><tr><th>District</th><th class="n">Polymarket</th><th class="n">Kalshi</th><th class="n">Polls</th><th class="n">Baseline</th><th class="n">Harris 2024</th><th class="n" title="Polymarket (else Kalshi) minus the baseline (model only)">Gap</th></tr></thead><tbody></tbody></table></div>
+    <p class="note">${state ? `${esc(state.toUpperCase())} first, then` : "Most competitive first:"} districts by how close the chance is to 0.5. Chances that the Democratic party wins; polls: two-party margin of the district poll average; baseline: Harris 2024 shifted by the generic ballot (model only).</p>`;
+  const body = el.querySelector("tbody"), filter = el.querySelector(".hr-filter");
+  const fill = () => {
+    const f = filter.value.trim().toLowerCase();
+    body.innerHTML = rows.filter((d) => !f || d.id.toLowerCase().includes(f) || (h24(d)?.incumbent ?? "").toLowerCase().includes(f)).slice(0, 150).map((d) => {
+      const m = mkt(d.id), p = m?.pm?.p ?? m?.kalshi?.p ?? null, base = d.baseline?.p_d ?? null;
+      const gap = p != null && base != null ? Math.round((p - base) * 100) / 100 : null;
+      return `<tr tabindex="0" data-id="${esc(d.id)}"${d.id === selected ? ' class="sel"' : ""}><td>${esc(d.id)}${d.redrawn ? " <small>new</small>" : ""}</td><td class="n k">${num(m?.pm?.p)}</td><td class="n kx">${num(m?.kalshi?.p)}</td><td class="n">${pollM(d) != null ? marginText(pollM(d)) : "–"}</td><td class="n m">${num(base)}</td><td class="n">${marginText(d.pres24?.margin)}</td><td class="n">${gap == null ? "–" : gap === 0 ? "0.00" : `${gap > 0 ? "+" : "−"}${Math.abs(gap).toFixed(2)}`}</td></tr>`;
+    }).join("");
   };
   filter.addEventListener("input", fill);
   body.addEventListener("click", (ev) => { const tr = ev.target.closest("tr[data-id]"); if (tr) onPick?.(tr.dataset.id); });

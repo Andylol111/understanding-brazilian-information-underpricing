@@ -17,6 +17,7 @@ const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4, turnout: 0.2 }; // value at
 const TURN_LUT = d3.range(201).map((j) => d3.interpolateBrBG(j / 200));
 const NONE = "#efede7", NEUTRAL = "#f4f2ec";
 const XFADE_MS = 300; // a change of map colouring (mode) cross-fades over this long
+const PAPER = "#fcfbf8", VEIL = 0.6; // regions outside the open one recede this far toward the paper
 const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is full
 // leader colour of unit j for a margin in points (side a minus side b). A projection that reads
 // exactly even (stored in thousandths) takes the side of the unit's finer figures (tieBreak) when
@@ -496,7 +497,7 @@ function hatchPattern(ctx, px) {
     const c = new OffscreenCanvas(6, 6), g = c.getContext("2d");
     g.fillStyle = NEUTRAL;
     g.fillRect(0, 0, 6, 6);
-    g.strokeStyle = "#c9c6bd";
+    g.strokeStyle = "#dcd9d1"; // light: no-data areas recede behind the coloured ones
     g.lineWidth = 1;
     g.beginPath(); g.moveTo(0, 6); g.lineTo(6, 0); g.moveTo(-1, 1); g.lineTo(1, -1); g.moveTo(5, 7); g.lineTo(7, 5); g.stroke();
     R.hatchTile = c;
@@ -544,7 +545,22 @@ function paint(ctx) {
   const px = 1 / k;
   const cols = colours(), paths = R.paths, focus = R.focus;
   const inFocus = focus ? R.regionFeat.get(focus) ?? [] : null;
-  const dim = focus ? 1 - 0.7 * R.fadeMix : 1; // other regions dim as the view closes in
+  // the other regions stay but recede as the view closes in on one: greyed (saturation blend) and
+  // 60% toward the paper, with the zoom (fadeMix); drawn over their fills, under their borders
+  const veil = () => {
+    if (!focus || !(R.fadeMix > 0)) return;
+    const ga = ctx.globalAlpha;
+    ctx.globalCompositeOperation = "saturation";
+    ctx.globalAlpha = 0.8 * R.fadeMix;
+    ctx.fillStyle = "#808080";
+    for (const [r, p] of R.regionFill) if (r != null && r !== focus) ctx.fill(p);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = VEIL * R.fadeMix;
+    ctx.fillStyle = PAPER;
+    for (const [r, p] of R.regionFill) if (r != null && r !== focus) ctx.fill(p);
+    ctx.globalAlpha = ga;
+  };
+  const dim = focus ? 1 - VEIL * R.fadeMix : 1; // points, circles and labels of the other regions
   const hatch = R.hatch?.size ? hatchPattern(ctx, px) : null;
   let hatchFill = null; // the same hatch for units and regions without data, made on first use
   const noDataFill = () => hatch ?? (hatchFill ??= hatchPattern(ctx, px));
@@ -593,7 +609,7 @@ function paint(ctx) {
     const uO = R.levelMix, uF = inFocus ? Math.max(R.levelMix, R.natMix) : uO;
     if (uO < 1 || uF < 1) {
       for (const [r, p] of R.regionFill) {
-        ctx.globalAlpha = r === focus ? 1 : dim;
+        ctx.globalAlpha = 1;
         const c = regionCols.get(r);
         const noData = r != null && ((hatch && R.hatch.has(r)) || c == null || c === NONE);
         ctx.fillStyle = r == null ? NONE : noData ? noDataFill() : c;
@@ -603,11 +619,13 @@ function paint(ctx) {
         if (was !== undefined && was !== drawnRegion.get(r)) { const ga = ctx.globalAlpha; ctx.globalAlpha = ga * (1 - xf); ctx.fillStyle = styleOf(was); ctx.fill(p); ctx.globalAlpha = ga; }
       }
     }
+    if (!(uO > 0)) veil();
     const others = [];
     if (uO > 0) for (let i = 0; i < R.n; i++) if (!focus || R.regionOf[i] !== focus) others.push(i);
     if (uO > 0) {
-      ctx.globalAlpha = uO * dim;
+      ctx.globalAlpha = uO;
       fillUnits(others);
+      veil();
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = unitW;
       if (hidden) { for (const i of others) if (paths[i] && !hidden[i]) ctx.stroke(paths[i]); } else ctx.stroke(R.unitMesh);
@@ -620,11 +638,12 @@ function paint(ctx) {
       for (const i of inFocus) if (paths[i] && !hidden?.[i]) ctx.stroke(paths[i]);
     }
   } else {
-    // units: the other regions first at their dimmed opacity, then the focus region
-    ctx.globalAlpha = dim;
+    // units: the other regions first (veiled as the view closes in), then the focus region
+    ctx.globalAlpha = 1;
     const others = [];
     for (let i = 0; i < R.n; i++) if (!focus || R.regionOf[i] !== focus) others.push(i);
     fillUnits(others);
+    veil();
     ctx.globalAlpha = 1;
     if (inFocus) fillUnits(inFocus);
     ctx.strokeStyle = "#ffffff";

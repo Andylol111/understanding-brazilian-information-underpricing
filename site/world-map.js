@@ -16,6 +16,26 @@ import { bandColours, bandColour, bandOf } from "./dash-agg.js";
 import { stateName as usStateName } from "./dash-national.js";
 
 const LAND = "#e6e4dd", ACCENT = "#e3b8a0", UNDER = "#f4f2ec", NO_RACE = "#efede7";
+// Warm the dashboard only after a visitor points at or focuses an election link. Modulepreload
+// follows election.js's static imports; the document, metadata and geometry are low-priority
+// prefetches, so navigation need not compile/fetch them in its first animation frames.
+const warmed = new Set();
+function warmElection(a) {
+  const u = new URL(a.href, location.href), id = u.searchParams.get("id");
+  if (!id || warmed.has(id)) return;
+  warmed.add(id);
+  const link = (rel, href, as = null) => {
+    const l = document.createElement("link");
+    l.rel = rel; l.href = href; if (as) l.as = as;
+    document.head.append(l);
+  };
+  link("modulepreload", new URL("./election.js", location.href));
+  link("prefetch", u, "document");
+  getJSON(`${id}/meta.json`, { optional: true }).then((m) => {
+    if (m?.geometry) link("prefetch", new URL(`data/${m.geometry}`, location.href), "fetch");
+    if (m?.overview) link("prefetch", new URL(`data/${id}/${m.overview}`, location.href), "fetch");
+  }).catch(() => {});
+}
 const DEM = "#1f5fbf", REP = "#c8102e";
 const STATUS_LABEL = { live: "Live", scheduled: "Before the count", replay: "Replay" };
 const RANK = { live: 0, scheduled: 1, replay: 2 };
@@ -50,7 +70,7 @@ function hatchFor(ctx) {
     hatchTile.width = hatchTile.height = 6;
     const g = hatchTile.getContext("2d");
     g.fillStyle = NO_RACE; g.fillRect(0, 0, 6, 6);
-    g.strokeStyle = "#c9c6bd"; g.lineWidth = 1;
+    g.strokeStyle = "#dcd9d1"; g.lineWidth = 1;
     g.beginPath(); g.moveTo(0, 6); g.lineTo(6, 0); g.moveTo(-1, 1); g.lineTo(1, -1); g.moveTo(5, 7); g.lineTo(7, 5); g.stroke();
   }
   return ctx.createPattern(hatchTile, "repeat");
@@ -536,7 +556,11 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
         <ul class="wm-races">${rs.map((r) => `<li><a href="${r.href}" title="${esc(r.full ?? r.name)}"><span class="wm-rn">${esc(r.name)}</span><span class="wm-lead">${r.lead ? `${esc(r.lead)} <b>${num(r.chance)}</b>` : "<small>no price</small>"}</span></a></li>`).join("")}</ul>`).join("") : ""}`;
     chooser.hidden = false;
     chooser.querySelector(".crumb-back").addEventListener("click", () => back());
-    chooser.querySelectorAll("a").forEach((a) => a.addEventListener("click", (ev) => { if (!ev.metaKey && !ev.ctrlKey && !ev.shiftKey) { ev.preventDefault(); leave(a.href); } }));
+    chooser.querySelectorAll("a").forEach((a) => {
+      a.addEventListener("pointerenter", () => warmElection(a), { once: true });
+      a.addEventListener("focus", () => warmElection(a), { once: true });
+      a.addEventListener("click", (ev) => { if (!ev.metaKey && !ev.ctrlKey && !ev.shiftKey) { ev.preventDefault(); leave(a.href); } });
+    });
     chooser.querySelector("a")?.focus({ preventScroll: true });
   }
 

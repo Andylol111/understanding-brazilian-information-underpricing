@@ -13,7 +13,7 @@ import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
-import { createOverlay, houseList, districtReadout, districtChart, loadHouse, houseDistrictIds, CENSUS } from "./dash-house.js";
+import { createOverlay, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { regionAgg, regionWinner, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
 
@@ -27,6 +27,9 @@ const S = {
   perf: { firstPaintMs: null, firstRenderMs: null, tickMs: [], frameDrawMs: [], transitionFrames: [] },
 };
 window.__dashPerf = S.perf;
+// Give style/layout/paint a turn between independent start-up stages. scheduler.yield preserves
+// task priority where available; Firefox/Safari use a zero-delay task.
+const yieldBrowser = () => globalThis.scheduler?.yield ? globalThis.scheduler.yield() : new Promise((resolve) => setTimeout(resolve, 0));
 
 // Before the count (meta.phase "pre-count", and no &live=): the map shows the model's projection
 // before any votes (past certified results), the chart the last 14 days of prices, and Polymarket's
@@ -809,23 +812,23 @@ function startGeo() {
   return work("geo", { url: absUrl(S.meta.geometry, STATIC), objectName: S.meta.geometry_object, unitKey: key, country });
 }
 
-// Load geometry and frames with the current engine and attach the map once the rest of the page is
-// up. A worker that errors, has not started within ENGINE_TIMEOUT, or has not delivered within
-// ENGINE_CAP hands over to the page (engineFailed calls buildMap again with the main-thread engine).
+// Build geometry first and attach its neutral map for a frame; fetch/bind colour data after that.
+// A slow data file therefore never holds the first map shape off screen. A worker that errors, has
+// not started within ENGINE_TIMEOUT, or has not delivered within ENGINE_CAP hands over to the page.
 async function buildMap() {
   let geo = null;
   if (S.meta.geometry) {
     const kind = E.kind;
     const timers = [];
     try {
-      const job = Promise.all([startGeo(), loadUnits()]);
+      const job = startGeo();
       if (kind === "worker") {
         const limit = new Promise((_, reject) => {
           timers.push(setTimeout(() => { if (!E.readyAt) reject(new Error(`the map worker did not start within ${ENGINE_TIMEOUT / 1000} s`)); }, ENGINE_TIMEOUT));
           timers.push(setTimeout(() => reject(new Error(`the map worker did not deliver within ${ENGINE_CAP / 1000} s`)), ENGINE_CAP));
         });
-        [geo] = await Promise.race([job, limit]);
-      } else [geo] = await job;
+        geo = await Promise.race([job, limit]);
+      } else geo = await job;
     } catch (err) {
       if (kind === "worker") { await engineFailed(err); return; }
       S.mapError = err.message;
@@ -840,7 +843,9 @@ async function buildMap() {
     S.map = null;
     S.mapRegions = null;
     try {
-      initMap(geo);
+      initMap(geo); // ResizeObserver sends a neutral geometry frame before units exist
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await loadUnits();
     } catch (err) {
       if (E.kind === "worker") { await engineFailed(err); return; }
       S.mapError = err.message;
@@ -1138,6 +1143,7 @@ async function backToNational() {
   if (!S.region) return;
   if (national() && S.race !== national()) return selectRace(national());
   setRegionState(null);
+  if (S.rows) buildRaceList();
   syncUrl(true);
   await moveMap();
 }
@@ -1186,6 +1192,7 @@ async function selectRace(r, { keepRegion = false } = {}) {
   const reg = r.region ?? (keepRegion ? S.region : null);
   const moved = reg !== S.region;
   setRegionState(reg);
+  if (S.rows) buildRaceList();
   if (!sameRace || moved) syncUrl(moved);
   if (!sameRace) {
     $("race").value = r.race_id;
@@ -1481,6 +1488,8 @@ function profitOf(r) {
 }
 
 function renderStatsTab() {
+  // House districts: no count model, so no night statistics (markets, polls and the baseline only)
+  if (S.office === "house") { $("pane-stats").innerHTML = `<p class="note">The statistics (accuracy, calibration, market comparison, profit) are computed per race once the count is over, for the Senate and governor races with a county model. House districts have no count model here: their markets, polls and baseline are in the Races, Polls and Markets tabs.</p>`; return; }
   renderStats($("pane-stats"), { stats: S.stats, race: S.race, races: races(), raceName, tz: S.tz, arb: S.arb, settleOf, profitOf });
 }
 
@@ -1492,21 +1501,37 @@ function geometryCredit() {
   return "";
 }
 
-// Race picker: national races first, then one group per region (region first, then its races).
+// The race selector: the office shown first (US: Senate, governor or the House districts), then
+// the rest; elsewhere the national race and each region's races.
 function initRaceSelect() {
   const sel = $("race");
-  const nat = races().filter((r) => !r.region);
-  const byRegion = d3.groups(races().filter((r) => r.region), (r) => r.region);
-  sel.innerHTML = nat.map((r) => `<option value="${esc(r.race_id)}">${esc(r.name)}</option>`).join("")
-    + byRegion.map(([reg, list]) => `<optgroup label="${esc(regionName(reg))}">${list.map((r) => `<option value="${esc(r.race_id)}">${esc(raceName(r))}</option>`).join("")}</optgroup>`).join("");
-  sel.value = S.race?.race_id ?? "";
+  fillRaceSelect();
   sel.addEventListener("change", () => selectKey(sel.value));
-  // the House districts join the selector (US): picking one selects it on the House layer
-  if (S.ov) loadHouse().then(() => {
-    const ids = houseDistrictIds();
-    sel.insertAdjacentHTML("beforeend", `<optgroup label="House">${ids.map((id) => `<option value="house:${esc(id)}">${esc(id)} (House)</option>`).join("")}</optgroup>`);
-    if (S.houseSel) sel.value = `house:${S.houseSel}`;
-  });
+  // House data is needed now for a House deep link; otherwise keep it out of the navigation's
+  // critical first second and add the selector group when the browser is idle.
+  if (S.ov) {
+    if (S.houseSel || S.office === "house") loadHouse().then(fillRaceSelect);
+    else setTimeout(() => idle(() => loadHouse().then(fillRaceSelect)), 3500);
+  }
+  initExtent();
+}
+function fillRaceSelect() {
+  const sel = $("race");
+  const opt = (r) => `<option value="${esc(r.race_id)}">${esc(raceName(r))}</option>`;
+  if (S.nat) {
+    const groups = [["senate", "Senate", races().filter((r) => office(r) === "sen")], ["governor", "Governor", races().filter((r) => office(r) === "gov")],
+      ["house", "House", houseDistrictIds().map((id) => ({ race_id: `house:${id}`, name: `${id} (House)` }))]];
+    groups.sort((a, b) => (b[0] === S.office) - (a[0] === S.office));
+    sel.innerHTML = groups.filter(([, , list]) => list.length).map(([, label, list]) => `<optgroup label="${label}">${list.map((r) => (r.region ? opt(r) : `<option value="${esc(r.race_id)}">${esc(r.name)}</option>`)).join("")}</optgroup>`).join("");
+  } else {
+    const nat = races().filter((r) => !r.region);
+    const byRegion = d3.groups(races().filter((r) => r.region), (r) => r.region);
+    sel.innerHTML = nat.map((r) => `<option value="${esc(r.race_id)}">${esc(r.name)}</option>`).join("")
+      + byRegion.map(([reg, list]) => `<optgroup label="${esc(regionName(reg))}">${list.map(opt).join("")}</optgroup>`).join("");
+  }
+  sel.value = S.houseSel ? `house:${S.houseSel}` : S.race?.race_id ?? "";
+}
+function initExtent() {
   $("extent").addEventListener("click", () => {
     if (!S.map) return;
     S.map.setExtent(S.map.extent === "populated" ? "all" : "populated");
@@ -1536,10 +1561,18 @@ async function refresh() {
   return true;
 }
 
+// The Races tab follows the office: the House districts (dash-house.js) or the office's races
+// (US), every race elsewhere.
 function buildRaceList() {
+  if (S.office === "house") {
+    S.list = null;
+    houseRaceTable($("pane-races"), { state: S.ov?.state ?? null, selected: S.houseSel, onPick: (id) => selectDistrict(id) });
+    return;
+  }
   const hasKalshi = [...(S.rows?.values() ?? [])].some((rows) => rows.some((d) => d.kalshi != null));
-  S.list = createRaceList($("pane-races"), { races: races(), raceName, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf });
-  S.list.select(S.race.race_id);
+  const list = S.nat ? races().filter((r) => office(r) === OFFICE_ID[S.office ?? "senate"] && (!S.region || r.region === S.region)) : races();
+  S.list = createRaceList($("pane-races"), { races: list, raceName, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf });
+  S.list.select(S.race?.race_id);
 }
 
 // Live polling: every 15 s while the tab is visible. After a failed refresh the wait doubles up to
@@ -1760,7 +1793,13 @@ function setOffice(o) {
     S.censusLayer = null;
     const sel = document.querySelector(".nat-layer select");
     if (sel) sel.value = "races";
-    S.ov.show("house").then(houseSummary);
+    S.ov.show("house").then(() => {
+      houseSummary();
+      // If House had not yet been needed, its data arrived with the layer: populate the selector
+      // and the tab now rather than waiting for the deferred warm-up.
+      fillRaceSelect();
+      if (S.rows) buildRaceList();
+    });
   } else {
     if (!S.censusLayer) S.ov.hide();
     else if (S.censusLayer === "arrows") S.ov.show("arrows", { office: o, state: null });
@@ -1770,6 +1809,9 @@ function setOffice(o) {
   renderCrumbs();
   refreshUsTab();
   syncUrl(false);
+  // the selector, the Races and Statistics tabs follow the office
+  fillRaceSelect();
+  if (S.rows) { buildRaceList(); renderStatsTab(); }
 }
 function setLayer(k) {
   S.censusLayer = k === "races" ? null : k;
@@ -1808,6 +1850,7 @@ function showDistrict(id) {
   renderCrumbs();
   refreshUsTab();
   syncUrl(true);
+  buildRaceList(); // the district highlighted in the Races tab
 }
 // End a district selection (a race chosen, the office changed, back to the country): the
 // selector, list, readout and chart return to the race. True when a district was selected.
@@ -1837,6 +1880,7 @@ function selectKey(key) {
 function houseState() {
   if (!S.ov.state) clearDistrict();
   houseSummary();
+  if (S.office === "house" && S.rows) buildRaceList(); // the open state's districts first
   showNational();
   renderCrumbs();
   refreshUsTab();
@@ -1924,34 +1968,37 @@ async function main() {
   }
   document.body.classList.toggle("no-count", !S.countTimeline);
   renderTopbar();
-  // the map engine starts on the big files while the page draws everything else
+  // The worker keeps geometry parsing/projection and first-frame painting off the page's main
+  // thread in every browser (including screenshot/headless browsers). ?engine=page remains the
+  // explicit diagnostic fallback.
   S.ui = new Promise((resolve) => { S.uiReady = resolve; });
-  // Headless browsers (screenshot tools, crawlers) get the page engine: they judge the page finished
-  // from the page's own activity and do not wait for a worker's parsing, so a worker-drawn map can be
-  // missing from their capture. ?engine=worker or ?engine=page overrides.
-  const engine = param("engine") ?? (/HeadlessChrome/.test(navigator.userAgent) ? "page" : "worker");
+  const engine = param("engine") ?? "worker";
   if (engine === "page" || !startWorker()) await startMain();
   await initNational(); // before the map: it sets the state layer and the office's county files
+  await yieldBrowser();
   S.mapDone = buildMap();
   await Promise.all([loadSeries(), loadEarlyVote()]);
+  await yieldBrowser();
   computeDomain();
   S.t = defaultTime();
   S.followLatest = S.t >= S.domain[1];
   S.scrub = createScrubber($("scrubber"), { onInput: (t) => { pause(); S.preview = null; setTime(t); } });
   initRaceSelect();
   initTabs();
+  await yieldBrowser();
   buildRaceList();
   const twoModels = [...S.rows.values()].some((rows) => rows.some((d) => d.P_v2 != null)) || races().some((r) => r.precount?.[`P_${r.poll_model ?? "v2"}`] != null);
   const margins = [...S.rows.values()].some((rows) => rows.some((d) => d.margin_market != null || d.margin_model != null));
   renderMethod($("pane-method"), { meta: S.meta, entry: S.entry, geometryCredit: geometryCredit(), twoModels, margins });
   renderStatsTab();
+  await yieldBrowser();
   drawChart();
   updateScrubber();
   renderCrumbs();
   render();
   S.perf.firstPaintMs = Math.round(performance.now());
   startPrices();
-  if (S.nat) idle(() => prefetchUnits(races()));
+  if (S.nat) setTimeout(() => idle(() => prefetchUnits(races())), 1500);
 
   $("play").addEventListener("click", () => (S.playing ? pause() : play()));
   document.querySelectorAll("#speed button").forEach((b) => b.addEventListener("click", () => {
@@ -1972,9 +2019,9 @@ async function main() {
   // for the map checks (analysis/site_check.py): the modes and levels, setting them, the time
   // domain, what the engine painted, and the hover card of one unit or region
   if (S.ov) new ResizeObserver(() => S.ov.resize()).observe(document.querySelector(".map-body"));
-  // the House districts and the counties of the layer over the map, built while the page is idle so
-  // that switching to them is a cross-fade, not a build
-  if (S.ov) idle(() => S.ov.prepare("house").then(() => idle(() => S.ov.prepare("counties"), 4000)), 3000);
+  // Build non-visible overlay layers later, not during navigation. They are still idle work; the
+  // real delay keeps requestIdleCallback from running them immediately in the first quiet frame.
+  if (S.ov) setTimeout(() => idle(() => S.ov.prepare("house").then(() => setTimeout(() => idle(() => S.ov.prepare("counties")), 1200))), 3500);
   window.__dashAudit = {
     // the House / census layer (dash-house.js): office, what it drew, a card, zoom to a state
     setOffice: (o) => S.nat?.setOffice(o), office: () => S.office ?? null, layer: () => S.ov?.audit() ?? null,
