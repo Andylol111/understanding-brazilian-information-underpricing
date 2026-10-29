@@ -1224,7 +1224,8 @@ class Exporter:
                 if m2 is None or m2[0] != sig:
                     m2 = (sig, project(rows, c2, pri2))
                     self._memo[rid + "|v2"] = m2
-                res = {**res, "p_win_v2": m2[1][0]["p_win"]}
+                r2 = m2[1][0]
+                res = {**res, "p_win_v2": r2["p_win"], "share_v2": r2["share_hat"], "sd_v2": r2["share_sd"]}
         pm = _pm_market(c)
         p_yes = prices.get(pm[0]) if pm else None
         p_a = None if p_yes is None else (p_yes if pm[1] == "a" else 1 - p_yes)
@@ -1233,7 +1234,7 @@ class Exporter:
         k_a = None if k_yes is None else (k_yes if km["yes_is"] == "a" else 1 - k_yes)
         row = {"t": _iso(t), "counted": _r(res.get("counted_frac")), "raw": _r(res.get("raw")),
                "share": _r(res.get("share_hat")), "sd": _r(res.get("share_sd")), "P": _r(res.get("p_win")),
-               "P_v2": _r(res.get("p_win_v2")),
+               "P_v2": _r(res.get("p_win_v2")), "share_v2": _r(res.get("share_v2")), "sd_v2": _r(res.get("sd_v2")),
                "pm": _r(p_a), "kalshi": _r(k_a), "rem_total": _tens(res.get("rem_total")),
                "rem_margin_total": _tens(res.get("rem_margin_total"))}
         if not has_model:                             # prices only (e.g. Ohio without its county prior)
@@ -1480,7 +1481,8 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
                 print(f"{rid}: Kalshi history failed: {type(e).__name__}: {e}", flush=True)
         m = pre[rid] or {}
         timeline[rid] = [{"t": _iso(t), "counted": None, "raw": None, "share": m.get("share"), "sd": m.get("sd"),
-                          "P": m.get("P"), "P_v2": m.get("P_v2"), "pm": _r(pv), "kalshi": _r(kv),
+                          "P": m.get("P"), "P_v2": m.get("P_v2"), "share_v2": m.get("share_v2"),
+                          "sd_v2": m.get("sd_v2"), "pm": _r(pv), "kalshi": _r(kv),
                           "rem_total": m.get("rem_total"),
                           "rem_margin_total": m.get("rem_margin_total")}
                          for t, pv, kv in zip(grid, pm_vals, k_vals)]

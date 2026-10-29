@@ -283,9 +283,9 @@ def test_export_dry_run_writes_valid_contract(tmp_path):
     tl = json.loads((d / "timeline.json").read_text())[rid]
     assert len(tl) == 116                                              # 04:05 … 06:00, one row per minute
     for row in tl:
-        assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "P_v2", "pm", "kalshi", "rem_total",
-                            "rem_margin_total"}
-        assert 0 <= row["P_v2"] <= 1                                    # v2 (poll swing prior) runs alongside v1
+        assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "P_v2", "share_v2", "sd_v2", "pm", "kalshi",
+                            "rem_total", "rem_margin_total"}
+        assert 0 <= row["P_v2"] <= 1 and 0 < row["share_v2"] < 1 and row["sd_v2"] > 0   # v2 runs alongside v1
         assert isinstance(row["rem_total"], int) and row["rem_total"] % 10 == 0 and row["rem_total"] >= 0
         assert 0 <= row["counted"] <= 1 and 0 <= row["P"] <= 1 and row["kalshi"] is None
     assert tl[-1]["pm"] == pytest.approx(0.96) and tl[-1]["counted"] > tl[0]["counted"]
