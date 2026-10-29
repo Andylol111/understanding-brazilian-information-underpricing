@@ -8,7 +8,9 @@ painted (window.__world.info() on the homepage, window.__dashAudit on the electi
      its counted votes; the homepage's Canada view against the certified seats by province;
   c. cards: hover cards carry names (no raw codes, "undefined", "NaN");
   d. outlines: no stray dark strokes (near-black pixels) on the settled map;
-  e. legend: present, and no "undefined"/"NaN".
+  e. legend: present, no "undefined"/"NaN", and a key for the hatch wherever it is drawn;
+  f. back: into a region and back to the country (Esc with a unit pinned, the breadcrumb, a click
+     outside) returns to the initial whole-country fit, with region= gone from the URL.
 
 Used by analysis/site_check.py (every run) and on its own:
     uv run --no-project --with playwright --with pillow python analysis/map_audit.py --base http://127.0.0.1:8813/ [--engines chromium,firefox] [--shots /tmp/map_audit]
@@ -136,7 +138,37 @@ async def audit_election(page: Page, base: str, e: dict[str, Any], shots: Path |
     modes = await page.evaluate(f"{A}.modes()")
     lo, hi = await page.evaluate(f"{A}.domain()")
     finished = e.get("status") == "replay"
-    fails: dict[str, list[str]] = {"a fills": [], "b winners": [], "c cards": [], "d outlines": [], "e legend": []}
+    fails: dict[str, list[str]] = {"a fills": [], "b winners": [], "c cards": [], "d outlines": [], "e legend": [], "f back": []}
+    # f: into a region and back to the country by Esc (with a unit pinned), the breadcrumb, and a
+    # click outside: the view must return to the initial whole-country fit and region= leave the URL
+    back_paths = 0
+    regs = await page.evaluate(f"{A}.pickable()")
+    if regs:
+        v0 = await page.evaluate(f"{A}.view()")
+        unit_in = f"(r) => {A}.units().ids.findIndex((id) => id.split('-')[1] === r)"
+        for n, how in enumerate(("escape", "crumb", "outside")):
+            reg = regs[(len(regs) // 2 + n) % len(regs)]
+            i = await page.evaluate(f"({unit_in})({json.dumps(reg)})")
+            await page.evaluate(f"{A}.selectRegion({json.dumps(reg)})")
+            if how == "escape" and i >= 0:
+                await settle(page, 1200)
+                await page.evaluate(f"{A}.clickUnit({i})")  # a unit pinned inside the region
+            await settle(page, 1500)
+            if not await page.evaluate(f"{A}.region()"):
+                fails["f back"].append(f"{how}: region {reg} did not open")
+                continue
+            if how == "escape":
+                await page.keyboard.press("Escape")
+            elif how == "crumb":
+                await page.click("#crumb-top")
+            else:
+                await page.evaluate(f"{A}.clickUnit(-1)")
+            await settle(page, 1800)
+            v = await page.evaluate(f"{A}.view()")
+            url = await page.evaluate(f"{A}.url()")
+            back_paths += 1
+            if abs(v["k"] - v0["k"]) > 0.01 * v0["k"] or abs(v["x"] - v0["x"]) > 2 or abs(v["y"] - v0["y"]) > 2 or "region=" in url:
+                fails["f back"].append(f"{how} from {reg}: view k {v['k']:.3f} vs {v0['k']:.3f}, url {url}")
     n_states = compared = K = 0
     thumbs: list[tuple[str, bytes]] = []
     for level in levels:
@@ -192,7 +224,9 @@ async def audit_election(page: Page, base: str, e: dict[str, Any], shots: Path |
         if check == "b winners" and not finished:
             rows.append(Row(eid, check, True, "n/a (not finished)"))
             continue
-        ok_detail = f"{compared} fully counted regions/units match their counted leader" if check == "b winners" else f"{n_states} states"
+        ok_detail = (f"{compared} fully counted regions/units match their counted leader" if check == "b winners"
+                     else (f"{back_paths} returns (Esc, breadcrumb, click outside) to the initial fit" if back_paths else "n/a (no regions to open)") if check == "f back"
+                     else f"{n_states} states")
         if check == "b winners" and finished and not compared:
             note = "no count frames: the map shows the comparison election" if not K else "the count in our data never reaches 100% in any region or unit (provisional count)"
             rows.append(Row(eid, check, True, f"n/a ({note})"))

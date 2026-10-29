@@ -891,6 +891,12 @@ function mapClick(i, ev) {
     if (reg && pickerRegions().some((r) => r.id === reg)) { S.hoverReg = null; placeCard(); selectRegion(reg); }
     return;
   }
+  // a click outside the open region (background, or a unit of another region that cannot be opened):
+  // back to the whole country
+  const reg0 = i >= 0 ? S.map.regionOf(i) : null;
+  if (S.region && (i < 0 || (reg0 !== S.region && !(S.featIdx?.[i] >= 0 && pickerRegions().some((r) => r.id === reg0))))) {
+    S.pinned = -1; S.map.pin(-1); placeCard(); backToNational(); return;
+  }
   if (i < 0) { S.pinned = -1; S.map.pin(-1); placeCard(); return; }
   S.pinned = S.pinned === i ? -1 : i;
   S.pinPos = pointIn(ev);
@@ -1334,8 +1340,9 @@ function stepFrame(dir) {
 document.addEventListener("keydown", (e) => {
   const tag = e.target.tagName;
   if (e.key === "Escape") {
+    // a pinned unit is released; inside a region the same press also returns to the whole country
     if (S.pinned >= 0) { S.pinned = -1; S.map?.pin(-1); placeCard(); }
-    else backToNational();
+    backToNational();
     return;
   }
   if (tag === "SELECT" || tag === "TEXTAREA" || (tag === "INPUT" && e.target.type !== "range") || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1814,6 +1821,11 @@ async function main() {
       const t = $("place").innerText; S.hover = -1; S.hoverReg = null; $("place").hidden = true; return t;
     },
     units: () => ({ n: S.map?.ids?.length ?? 0, ids: S.map?.ids ?? [], regions: [...new Set((S.map?.ids ?? []).map((id) => id.split("-")[1]))] }),
+    view: () => S.map?.view ?? null,
+    pickable: () => pickerRegions().map((r) => r.id).filter((r) => S.map?.hasRegion(r)),
+    selectRegion, backToNational, clickUnit: (i) => mapClick(i, { clientX: 0, clientY: 0 }),
+    races: () => races().map((r) => [r.race_id, r.region ?? null]), selectRace: (id) => selectRace(raceById(id)),
+    url: () => location.search,
   };
   await S.mapDone;
   if (LIVE) startLive();
