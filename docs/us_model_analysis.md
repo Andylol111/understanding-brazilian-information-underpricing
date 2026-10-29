@@ -7,7 +7,7 @@ Reproduce with `uv run python analysis/us_model_analysis.py`; tables are written
 ## Data
 
 All of it predates 2026:
-- **County results:** MIT Election Data and Science Lab precinct returns 2018, 2022 and 2024 (github.com/MEDSL, CC0 1.0), summed to counties by candidate. The 2016 and 2020 county files sit behind a Dataverse guestbook and were not used.
+- **County results:** MIT Election Data and Science Lab precinct returns 2018, 2022 and 2024 (github.com/MEDSL, CC0 1.0), summed to counties by candidate. Also MEDSL County Presidential Election Returns 2000–2024 (doi:10.7910/DVN/VOQCHQ, CC0) for 2016 and 2020, downloaded through the Dataverse guestbook and kept out of the repository.
 - **Georgia:** Georgia SoS official county results for 2020 and 2024 (public record).
 - **Polls:** FiveThirtyEight raw_polls 2016–2022 (CC BY 4.0).
 - **Census:** ACS 2020–2024 5-year, PEP vintage 2025 and the 2023 county gazetteer (public domain).
@@ -17,19 +17,28 @@ Alaska is excluded because it reports by house district, not county. Connecticut
 ## 1. Swing rule: uniform vs proportional (logit) vs hybrid
 
 Each test predicts county two-party D shares from the earlier race's county shares plus the actual statewide
-result.
+result. Errors are in points of two-party share.
 
-| test | counties (states) | RMSE uniform | logit | hybrid | vote-weighted RMSE uniform | logit | hybrid |
+| test | counties (states) | RMSE uniform | logit | hybrid | vote-weighted uniform | logit | hybrid |
 |---|---|---|---|---|---|---|---|
-| governor 2018 → 2022 | 1711 (27) | 4.33 | 4.35 | **4.30** | **3.49** | 3.73 | 3.57 |
-| top race 2022 → president 2024 | 2336 (35) | 2.59 | 2.55 | **2.55** | **2.10** | 2.17 | 2.13 |
+| president 2016 → 2020 | 3103 (48) | 2.84 | **2.72** | 2.77 | 2.49 | **2.44** | 2.46 |
+| president 2020 → 2024 | 3103 (48) | 1.71 | **1.56** | 1.61 | **1.67** | 1.72 | 1.68 |
+| president 2016 → top race 2018 (midterm) | 2575 (41) | 3.67 | 3.81 | **3.66** | 2.96 | **2.73** | 2.78 |
+| president 2020 → top race 2022 (midterm) | 2335 (35) | 2.26 | 2.24 | **2.22** | 1.73 | **1.67** | 1.69 |
+| governor 2018 → 2022 | 1711 (27) | 4.33 | 4.35 | **4.30** | **3.49** | 3.73 | 3.56 |
+| top race 2022 → president 2024 | 2336 (35) | 2.58 | 2.55 | **2.55** | **2.10** | 2.17 | 2.13 |
 | GA president 2020 → 2024 (official) | 159 (1) | 1.61 | **1.58** | 1.59 | **1.77** | 1.82 | 1.79 |
 
-Errors are in points of two-party share.
-
-- **Bias by partisanship decile:** for governor 2018 → 2022, uniform swing's bias is flatter across deciles than logit's in the most Republican deciles (d1: +1.5 vs +1.7; d2: +1.2 vs +2.1).
-- **Logit's advantage:** where logit wins, it is by 0.03 points unweighted. It loses on the vote-weighted measure everywhere, and that is the measure that matters for the statewide margin.
-- **Conclusion: don't change (keep uniform swing).**
+- **Changed vs the previous run.** With 2016 and 2020 the picture is mixed.
+  - Logit wins vote-weighted in both president → midterm tests (2.73 vs 2.96; 1.67 vs 1.73) and in 2016 → 2020 (2.44 vs 2.49).
+  - Uniform wins in 2020 → 2024, governor 2018 → 2022 and midterm → president.
+  - The hybrid is never the worst and is within 0.06 points vote-weighted of the best in every test.
+- **Most Republican decile:** in president → midterm, uniform leaves −1.1 (2022) / +1.0 (2018) points of bias there; logit leaves +0.2 / −1.9.
+- **Conclusion: needs more data / candidate for a future version.**
+  - The 2026 case is president 2024 → midterm (several priors are 2024 president), where logit has won both times (−0.06 and −0.23 points vote-weighted).
+  - Same-office midterm priors favour uniform.
+  - The differences are a few hundredths to a quarter of a point at the county level and smaller statewide. Swing also only matters before the count is informative; the nowcast re-estimates it from returns.
+  - Analysis only: no model change before the freeze. A hybrid is the safe choice to test next cycle.
 
 ## 2. Demographics
 
@@ -38,29 +47,42 @@ age 65+, Hispanic, Black alone, log median income and log density, with weights 
 
 | test | R² (out of sample) | RMSE uniform | RMSE + demographics |
 |---|---|---|---|
+| president 2016 → 2020, leave one state out | 0.23 | 2.53 | 2.20 |
+| president 2020 → 2024, leave one state out | 0.14 | 1.62 | 1.50 |
+| president 2016 → midterm 2018, leave one state out | 0.15 | 3.20 | 2.91 |
+| president 2020 → midterm 2022, leave one state out | 0.04 | 1.79 | 1.75 |
 | governor 2018 → 2022, leave one state out | 0.07 | 3.90 | 3.71 |
-| top 2022 → president 2024, leave one state out | 0.03 | 2.17 | 2.14 |
-| fit 2018 → 2022, test 2022 → 2024 | **−0.32** | 2.17 | 2.50 |
-| fit 2022 → 2024, test 2018 → 2022 | 0.03 | 3.90 | 3.80 |
+| fit pres 16 → 20, test pres 20 → 24 | **−0.26** | 1.62 | 1.82 |
+| fit pres 16 → 18 midterm, test pres 20 → 22 midterm | **−0.22** | 1.79 | 1.98 |
+| fit pres 20 → 24, test pres 16 → 20 | 0.11 | 2.53 | 2.37 |
+| fit governor 18 → 22, test pres 20 → 22 midterm | **−0.84** | 1.79 | 2.42 |
 
-- **Coefficients are not stable across cycles.** Bachelor's+ is +0.94 then +0.01; Black +0.10 then +0.34; log density +0.08 then −0.46; log income +0.38 then +0.76.
-- **Within-cycle gains don't carry over.** The small leave-one-state-out gains disappear across cycles, and the 2018 → 2022 fit makes the next cycle worse.
-- **Conclusion: don't include.** Demographics add no reliable predictive value beyond uniform swing.
+Of the 20 fit-on-one-cycle, test-on-another pairs, 12 have negative R²; the best is 0.25.
+
+- **Changed vs the previous run:** within a cycle, demographics now explain more (leave one state out, up to 0.23 in 2016 → 2020).
+- **Across cycles it does not carry over.** The 2018 midterm fit makes 2022 worse (R² −0.22), and the 2016 → 2020 fit makes 2020 → 2024 worse (−0.26).
+- **Coefficients still change sign:** Bachelor's+ is +0.43 / +0.09 / −0.63 / +0.08 / +0.94; Black is −0.14 / −0.15 / −1.02 / −0.52 / +0.11.
+- **Conclusion: don't include (unchanged).** Demographic swing patterns are real within a cycle, but which ones next cycle brings is not predictable from the last.
 
 ## 3. Turnout (midterm drop-off)
 
-- **Model:** log(2022 top-race votes ÷ 2024 president votes) minus its state mean, regressed on the same covariates.
-- **Fit:** leave-one-state-out R² = **0.05**.
-- **Expected-vote templates:** each predicts the 2022 within-state county distribution of votes. The 2026 analogue uses 2024 as the presidential template; here 2024 comes after 2022, which is a caveat.
+- **Changed design:** with 2016 and 2020 we can use the right analogue for 2026. The 2022 midterm vs the 2020 president, and the 2018 midterm vs the 2016 president, using only data from before 2022 to predict it.
+- **Demographic model:** log(midterm top-race votes ÷ previous presidential votes) minus its state mean.
+  - Leave-one-state-out R² 0.09.
+  - Fit on 2018/2016 and tested on 2022/2020: R² **−0.10**.
+- **Expected-vote templates** for the 2022 within-state county distribution of votes:
 
 | template | counties (states) | RMSE of log county share | mean abs. error, % of county votes |
 |---|---|---|---|
-| flat ratio × 2024 president (current) | 2527 (39) | 0.118 | 7.2 |
+| flat ratio × 2020 president (current approach) | 2527 (39) | 0.112 | 7.2 |
 | previous midterm (2018 top race) | 2072 (34) | 0.111 | 7.1 |
-| 2024 president × demographic ratio (out of state) | 2527 (39) | 0.118 | 6.7 |
+| 2020 president × the county's own 2018/2016 drop-off | 2072 (34) | **0.103** | **6.1** |
+| 2020 president × demographic drop-off (fit 2018/2016) | 2527 (39) | 0.110 | 7.3 |
 
-- **Result:** the demographic ratio cuts the mean absolute error from 7.2 % to 6.7 %. The RMSE is unchanged, and the effect is small.
-- **Conclusion: don't change the model's expected vote.** The turnout model is used **for display only**: per-county expected turnout, a low-propensity index, and a live turnout-surprise readout (see below).
+- **Changed vs the previous run.** The county's own previous midterm drop-off is the best template out of time: −15 % in county vote error vs the flat ratio, and lower RMSE. The demographic model no longer helps out of time.
+- **Conclusion: include in a future version** (2026 = 2024 president × the county's 2022/2020 drop-off); analysis only now.
+  - The display index (`data_public/us2026_turnout_index.csv`) now uses each county's own 2022/2020 drop-off relative to its state, falling back to the demographic model where 2022 is missing (575 of 3102 counties). Values are capped at ×0.61–×1.65.
+  - The units files' `turnout_exp` and `lowprop_index` follow it.
 
 ## 4. Correlated polling error
 
@@ -103,15 +125,18 @@ between elections to correct reliably.
 
 ## Decision on model v4
 
-- **Swing rule:** uniform still wins on vote-weighted error, so no change.
+- **Swing rule:** logit wins the president → midterm tests and uniform wins the others, so there is no clear winner. A hybrid is the candidate for a future version.
 - **Demographics:** no stable out-of-sample value, so no change.
-- **Turnout:** the turnout model only marginally beats the flat ratio on one metric and ties on the other, so no change.
+- **Turnout:** the county's own previous midterm drop-off wins out of time (6.1 % vs 7.2 %). It is the candidate for a future version's expected vote.
 
-Nothing won clearly on held-out data, so **no v4 was written**; v3 stays.
+No v4 was written: this pass was analysis only, and nothing was evaluated on the count replays. v3 stays.
 
 ## New display fields from the turnout model (no model change)
 
-- **Data:** `data_public/us2026_turnout_index.csv` holds, per county, `adj` (predicted relative midterm turnout) and `lowprop_index` (standardised predicted drop-off; higher means a larger drop-off).
+- **Data:** `data_public/us2026_turnout_index.csv` holds, per county:
+  - `adj`: relative midterm turnout, from the county's own 2022/2020 drop-off relative to its state, else the demographic model; capped at ×0.61–×1.65;
+  - `lowprop_index`: standardised drop-off; higher means a larger drop-off;
+  - `basis`: which of the two `adj` came from.
 - **Units files** of modeled races:
   - top level: `turnout_exp` (the model's expected two-party votes spread by `adj`, statewide total unchanged) and `lowprop_index`;
   - each frame: `turnout_so_far` and `turnout_ratio_live` (×1000: counted ÷ expected where ≥ 95 % reported, else projected ÷ expected).
