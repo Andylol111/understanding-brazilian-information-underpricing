@@ -1042,11 +1042,20 @@ def test_medsl_county_total_mode_rule():
     g = us._medsl_county(rows, "oh").set_index("unit_id")
     assert (g.loc["us-oh-39001", "dem"], g.loc["us-oh-39001", "rep"]) == (10, 20)       # TOTAL rows only
     assert g.loc["us-oh-39003", "dem"] == 3 and g.loc["us-oh-39003", "total"] == 3      # modes summed, '*' = 0
+    # precinct files (NJ): same precinct as TOTAL and modes = duplicate (keep modes); TOTAL-only precincts and
+    # mode-only pseudo-precincts are disjoint (summed); "COUNTY TOTAL" rows dropped; CONTEST TOTAL is not a candidate
+    nj = pd.DataFrame({"county_fips": ["34003"] * 5 + ["34019"] * 2 + ["34015"] * 2,
+                       "precinct": ["A 1", "A 1", "A 1", "A 2", "A 2", "B 1", "B Vote By Mail", "C 1", "COUNTY TOTAL"],
+                       "mode": ["TOTAL", "EARLY", "ELECTION DAY", "TOTAL", "EARLY", "TOTAL", "MAIL-IN", "TOTAL", "TOTAL"],
+                       "party_simplified": ["DEMOCRAT"] * 9, "candidate": ["H"] * 9, "votes": ["10", "4", "6", "5", "5",
+                                                                                             "7", "3", "8", "8"]})
+    g = us._medsl_county(nj, "nj").set_index("unit_id")
+    assert (g.loc["us-nj-34003", "dem"], g.loc["us-nj-34019", "dem"], g.loc["us-nj-34015", "dem"]) == (15, 10, 8)
 
 
 def test_county_baseline_public_file_covers_states_and_ohio_prior():
     b = us.load_county_baseline()
-    assert b["state"].nunique() == 48 and b["unit_id"].is_unique and not {"ak", "ct"} & set(b["state"])  # see header
+    assert b["state"].nunique() == 49 and b["unit_id"].is_unique and "ak" not in set(b["state"])  # see header
     oh = b[b["state"] == "oh"]
     assert len(oh) == 88 and (oh["pres24_dem"].sum(), oh["pres24_rep"].sum()) == (2533699, 3180116)  # certified
     pr = us.load_priors(us.PUBLIC_PRIORS)
@@ -1054,16 +1063,32 @@ def test_county_baseline_public_file_covers_states_and_ohio_prior():
     assert len(o) == 88 and o["dem"].sum() == 2533699
 
 
-def test_race_estimate_uniform_swing_and_market_basis():
+def test_race_estimate_uniform_swing_and_no_market_fallback():
     base = us.load_county_baseline()
     r = {"race_key": "mi-sen", "state": "mi"}
-    est, units = us.race_estimate(r, base, {"avg": 0.53, "sd": 0.04}, None, 0.04)
+    est, units = us.race_estimate(r, base, {"avg": 0.53, "sd": 0.04}, 0.04)
     V, proj = np.array(units["V0"], float), np.array(units["frames"][0]["proj"]) / 1000
     assert est["basis"] == "polls" and np.average(proj, weights=V) == pytest.approx(0.53, abs=2e-3)
     assert est["county_sd"] == pytest.approx(np.hypot(0.04, 0.04), abs=1e-4) and len(units["unit_ids"]) == 83
-    est2, _ = us.race_estimate(r, base, None, 0.84, 0.04)
-    assert est2["basis"] == "market-implied" and est2["share"] == pytest.approx(0.5 + 0.9945 * us.POLL_SD_HIST, abs=1e-3)
-    assert us.race_estimate({"race_key": "xx", "state": "zz"}, base, None, None, 0.04) is None
+    est2, u2 = us.race_estimate(r, base, None, 0.04)                       # no polls: past results, never the market
+    assert est2["basis"] == "past results (no recent polls)" and est2["share"] == est2["baseline_share"]
+    assert u2["frames"][0]["proj"] == u2["prior"]
+    assert us.race_estimate({"race_key": "xx", "state": "zz"}, base, None, 0.04) is None
+
+
+def test_county_baseline_complete_for_every_race_state():
+    """No county of a state with a 2026 race may drop out (the NJ bug); county sums match official state totals."""
+    base = us.load_county_baseline()
+    geo = {uid: name for uid, name in us._geo()}
+    race_states = {r["state"] for r in json.loads(us.RACES_REGISTRY.read_text())["races"]}
+    assert us.baseline_gaps(base, geo).keys().isdisjoint(race_states)
+    nj = base[base["state"] == "nj"]
+    assert len(nj) == 21 and ((nj["pres24_dem"] + nj["pres24_rep"]) > 0).all()
+    burl = nj.set_index("unit_id").loc["us-nj-34005"]
+    assert burl["pres24_dem"] > 100_000                                    # was 0 (TOTAL-mode bug)
+    dev = us.baseline_state_check()
+    assert all(v <= us.BASELINE_TOLERANCE for k, v in dev.items() if k in race_states and k not in us.BASELINE_PARTIAL)
+    assert len(base[base["state"] == "ct"]) == 9                            # CT planning regions
 
 
 def test_market_margin_and_ev_flag():

@@ -678,13 +678,52 @@ MEDSL24_STATES = ("ak al ar az ca co ct de fl ga hi ia id il in ks ky la ma md m
                   "nv ny oh ok or pa ri sc sd tn tx ut va vt wa wi wv wy").split()
 
 
-def _medsl_county(df: pd.DataFrame, st: str) -> pd.DataFrame:
-    """unit_id, dem, rep, total from MEDSL rows (county_fips, party_simplified, mode, votes). States report by vote
-    mode; a county's totals are its TOTAL rows when it has any, else the sum of its modes (MEDSL README warning)."""
-    df = df.assign(votes=pd.to_numeric(df["votes"], errors="coerce").fillna(0.0),
-                   fips=df["county_fips"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(5))
+_NOT_A_CANDIDATE = re.compile(r"^(CONTEST TOTAL|TOTAL VOTES?|TOTAL BALLOTS|BALLOTS CAST|REGISTERED VOTERS|"
+                               r"UNDER ?VOTES?|OVER ?VOTES?|BLANK( VOTES?)?|SPOILED|TIMES (CAST|BLANK(ED)?|OVER ?VOTED))$")
+_CT_REGIONS = "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2023_Gazetteer/2023_gaz_cousubs_09.txt"
+_FIPS_RENAMED = {"46113": "46102"}                   # SD: Shannon County renamed Oglala Lakota (2015)
+
+
+def _ct_town_region() -> dict[str, str]:
+    """CT town (county-subdivision code) -> planning-region county FIPS (Census 2023 gazetteer, public domain); the
+    dashboard geometry uses the planning regions, MEDSL the former counties."""
+    t = pd.read_csv(io.BytesIO(_fetch(_CT_REGIONS, US_RAW / "medsl24" / "ct_cousubs_2023.txt")), sep="\t", dtype=str)
+    return {g[-5:]: g[:5] for g in t["GEOID"].str.strip()}
+
+
+def _medsl_county(df: pd.DataFrame, st: str, rule: str = "auto") -> pd.DataFrame:
+    """unit_id, dem, rep, total from MEDSL rows (county_fips, party_simplified, mode, votes[, candidate,
+    jurisdiction_fips]). Rows that are not candidates (CONTEST TOTAL, under/over votes, …) are dropped. States report
+    by vote mode; a county's totals are its TOTAL-mode candidate rows when those carry Democratic or Republican
+    votes, else the sum of its other modes (MEDSL README warning; NJ mixes both). CT is mapped from towns to the
+    2022 planning regions; renamed counties are mapped to their current code."""
+    if "candidate" in df:
+        df = df[~df["candidate"].fillna("").str.strip().str.upper().str.match(_NOT_A_CANDIDATE)]
+    fips = df["county_fips"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(5).replace(_FIPS_RENAMED)
+    if st == "ct" and "jurisdiction_fips" in df:
+        fips = df["jurisdiction_fips"].astype(str).str.replace(r"\.0$", "", regex=True).str[-5:].map(_ct_town_region())
+    df = df.assign(votes=pd.to_numeric(df["votes"], errors="coerce").fillna(0.0), fips=fips).dropna(subset=["fips"])
+    if "candidate" in df:                            # OR: some counties leave party_simplified empty; take the party
+        known = df.dropna(subset=["party_simplified"])  # the same candidate has elsewhere in the file
+        cand_party = known.groupby("candidate")["party_simplified"].agg(lambda s: s.mode().iat[0])
+        df = df.assign(party_simplified=df["party_simplified"].fillna(df["candidate"].map(cand_party)))
+    party = df["party_simplified"].astype(str).str.upper()
     is_total = df["mode"].astype(str).str.upper() == "TOTAL"
-    df = df[~is_total.groupby(df["fips"]).transform("any").astype(bool) | is_total]
+    rule = rule if rule != "auto" else ("overlap" if "precinct" in df else "total_first")
+    if "precinct" in df:
+        keep = ~df["precinct"].fillna("").str.upper().str.contains("COUNTY TOTAL")   # county-total pseudo-precincts
+        df, is_total, party = df[keep], is_total[keep], party[keep]
+    if rule == "overlap":
+        # where TOTAL rows and mode rows describe the same precincts they duplicate each other (keep the modes);
+        # otherwise they are disjoint (e.g. NJ vote-by-mail pseudo-precincts beside precinct TOTALs) and summed
+        prec = df["precinct"].fillna("")
+        dup = {f for f, g in df.groupby("fips") if
+               (set(prec[g.index][is_total[g.index]]) & set(prec[g.index][~is_total[g.index]]))}
+        df = df[~(df["fips"].isin(dup) & is_total)]
+    elif rule == "total_first":
+        major = (is_total & party.isin(["DEMOCRAT", "REPUBLICAN"]) & (df["votes"] > 0))
+        use_total = major.groupby(df["fips"]).transform("any").astype(bool)
+        df = df[(use_total & is_total) | (~use_total & ~is_total)]
     party = df["party_simplified"].astype(str).str.upper()
     g = pd.DataFrame({"dem": df["votes"].where(party == "DEMOCRAT", 0.0), "rep": df["votes"].where(party == "REPUBLICAN", 0.0),
                       "total": df["votes"], "fips": df["fips"]}).groupby("fips").sum()
@@ -692,24 +731,45 @@ def _medsl_county(df: pd.DataFrame, st: str) -> pd.DataFrame:
     return g.rename_axis("unit_id").reset_index()
 
 
+def _medsl24_state_ref() -> pd.DataFrame:
+    """Official 2024 president statewide totals (MEDSL 2024-president-state.csv): state, dem, rep."""
+    s = pd.read_csv(io.BytesIO(_fetch(f"{MEDSL24}/2024-president-state.csv", US_RAW / "medsl24" / "president_state.csv")))
+    tot = s["mode"].fillna("").str.upper() == "TOTAL"
+    s = s[tot | ~tot.groupby(s["state_po"]).transform("any").astype(bool)]   # TOTAL rows where a state has them
+    p = s.pivot_table(index="state_po", columns="party_simplified", values="votes", aggfunc="sum")
+    return pd.DataFrame({"dem": p["DEMOCRAT"], "rep": p["REPUBLICAN"]}).rename(index=str.lower)
+
+
 def medsl24_pres(st: str) -> pd.DataFrame:
-    """2024 president by county from MEDSL's precinct file of the state (cached aggregate in data/processed)."""
+    """2024 president by county from MEDSL's precinct file of the state (cached aggregate in data/processed). The
+    vote-mode rule (overlap / total_first / all, see _medsl_county) is the one whose state sums are closest to the
+    official statewide totals; the chosen rule and its deviation are kept in pres_<st>.json."""
     out = US_PROC / "medsl24" / f"pres_{st}.csv"
     if out.exists():
         return pd.read_csv(out)
     z = zipfile.ZipFile(io.BytesIO(_fetch(f"{MEDSL24}/individual_states/{st}24.zip", US_RAW / "medsl24" / f"{st}24.zip")))
     parts = []
     for ch in pd.read_csv(z.open(z.namelist()[0]), dtype=str, chunksize=500_000,
-                          usecols=["office", "stage", "mode", "votes", "county_fips", "party_simplified", "candidate"]):
+                          usecols=["office", "stage", "mode", "votes", "county_fips", "party_simplified", "candidate",
+                                   "precinct", "jurisdiction_fips"]):
         parts.append(ch[(ch["office"] == "US PRESIDENT") & (ch["stage"].fillna("GEN") == "GEN")])
     df = pd.concat(parts, ignore_index=True)
-    if not (df["party_simplified"] == "DEMOCRAT").any():       # NE file: party_simplified NONPARTISAN throughout
-        cand = df["candidate"].astype(str).str.upper()
-        df["party_simplified"] = np.where(cand.str.contains("HARRIS"), "DEMOCRAT",
-                                          np.where(cand.str.contains("TRUMP"), "REPUBLICAN", "OTHER"))
-    res = _medsl_county(df, st)
+    # party by candidate, not ballot line: NY fusion lines (Working Families, Conservative) and files with an empty or
+    # NONPARTISAN party_simplified (NE, parts of OR) all count for Harris / Trump
+    cand = df["candidate"].astype(str).str.upper()
+    df["party_simplified"] = np.where(cand.str.contains("HARRIS"), "DEMOCRAT",
+                                      np.where(cand.str.contains("TRUMP"), "REPUBLICAN", "OTHER"))
+    ref = _medsl24_state_ref().loc[st]
+    best = None
+    for rule in ("overlap", "total_first", "all"):
+        res = _medsl_county(df, st, rule)
+        dev = max(abs(res["dem"].sum() / ref["dem"] - 1), abs(res["rep"].sum() / ref["rep"] - 1))
+        if best is None or dev < best[2] - 1e-9:
+            best = (rule, res, dev)
+    rule, res, dev = best
     out.parent.mkdir(parents=True, exist_ok=True)
     res.to_csv(out, index=False)
+    out.with_suffix(".json").write_text(json.dumps({"rule": rule, "max_abs_dev_vs_state": round(float(dev), 5)}))
     return res
 
 
@@ -901,7 +961,7 @@ def rules(cfg: dict) -> CountRules:
 def params(cfg: dict) -> nowcast.Params:
     M = cfg.get("model", {})
     keys = ("kappa", "rho", "tau", "sigma_mun0", "nu_mun", "sigma_uf0", "nu_uf", "swing_prior_mean", "swing_prior_sd",
-            "count_scaled_terms")
+            "count_scaled_terms", "count_scale_mode")
     return nowcast.Params(**{k: M[k] for k in keys if k in M})
 
 
@@ -1837,14 +1897,47 @@ def geo_units(st: str) -> dict[str, str]:
 
 
 COUNTY_BASELINE = ROOT_DIR / "data_public" / "us2026_county_baseline.csv"
+STATE_PRES24 = ROOT_DIR / "data_public" / "us2026_state_pres24.csv"     # official statewide totals (validation)
+
+
+BASELINE_EXEMPT = {
+    "ak": "Alaska reports by state house district, not by borough",
+    "us-hi-15005": "Kalawao County: its votes are reported with Maui County",
+}
+BASELINE_PARTIAL = {
+    "la": "MEDSL's Louisiana precinct file holds Election Day votes only (about half the state's votes): parish "
+          "shares exclude early and absentee votes",
+}
+BASELINE_TOLERANCE = 0.02           # county sums must be within 2 % of the official statewide totals
+
+
+def baseline_state_check() -> dict[str, float]:
+    """Per state, max |county-sum / official statewide total − 1| over Harris and Trump (2024)."""
+    ref, d = pd.read_csv(STATE_PRES24, comment="#", index_col="state"), load_county_baseline()
+    g = d.groupby("state")[["pres24_dem", "pres24_rep"]].sum()
+    dev = np.maximum((g["pres24_dem"] / ref["dem"].reindex(g.index) - 1).abs(),
+                     (g["pres24_rep"] / ref["rep"].reindex(g.index) - 1).abs())
+    return {k: round(float(v), 4) for k, v in dev.items()}
+
+
+def baseline_gaps(d: pd.DataFrame, geo: dict[str, str]) -> dict[str, list[str]]:
+    """Per state, geometry counties without 2024 two-party votes in the baseline (exemptions excluded)."""
+    have = set(d.loc[(d["pres24_dem"] + d["pres24_rep"]) > 0, "unit_id"])
+    out: dict[str, list[str]] = {}
+    for uid in geo:
+        st = uid.split("-")[1]
+        if st in MEDSL24_STATES and st not in BASELINE_EXEMPT and uid not in BASELINE_EXEMPT and uid not in have:
+            out.setdefault(st, []).append(uid)
+    return out
 
 
 def build_county_baseline() -> Path:
     """data_public/us2026_county_baseline.csv: state, unit_id, name, pres24_dem/rep/total, sen24_dem/rep/total
-    (2024 regular Senate races only), for every county of the geometry that MEDSL's 2024 returns cover."""
+    (2024 regular Senate races only) for every county of the geometry. Fails if any county of a covered state lacks
+    2024 two-party votes (except BASELINE_EXEMPT), so a county can never silently drop out of a race map."""
     geo = {uid: name for uid, name in _geo()}
     sen = medsl24_senate().set_index("unit_id")
-    parts, missing = [], {}
+    parts = []
     for st in MEDSL24_STATES:
         p = medsl24_pres(st).set_index("unit_id")
         units = [u for u in geo if u.startswith(f"us-{st}-")]
@@ -1852,13 +1945,35 @@ def build_county_baseline() -> Path:
         d["state"], d["name"] = st, [geo[u] for u in units]
         d[["pres24_dem", "pres24_rep", "pres24_total"]] = p.reindex(units)[["dem", "rep", "total"]].to_numpy()
         d[["sen24_dem", "sen24_rep", "sen24_total"]] = sen.reindex(units)[["dem", "rep", "total"]].to_numpy()
-        missing[st] = int(d["pres24_total"].isna().sum())
         parts.append(d.dropna(subset=["pres24_total"]).reset_index())
     out = pd.concat(parts, ignore_index=True)
+    race_states = {r["state"] for r in json.loads(RACES_REGISTRY.read_text())["races"]}
+    gaps = {k: v for k, v in baseline_gaps(out, geo).items() if k in race_states}   # states with a 2026 race
+    if gaps:
+        raise ValueError("county baseline incomplete: " + "; ".join(f"{k}: {len(v)} ({', '.join(v[:4])})"
+                                                                   for k, v in gaps.items()))
+    ref = _medsl24_state_ref()
+    with open(STATE_PRES24, "w") as fh:
+        fh.write("# 2024 president, official statewide totals for Harris (dem) and Trump (rep): MIT Election Data and "
+                 "Science Lab 2024-president-state.csv (CC0 1.0); used to validate the county sums.\n")
+        ref.rename_axis("state").to_csv(fh, float_format="%.0f")
+    g = out.groupby("state")[["pres24_dem", "pres24_rep"]].sum()
+    dev = np.maximum((g["pres24_dem"] / ref["dem"].reindex(g.index) - 1).abs(),
+                     (g["pres24_rep"] / ref["rep"].reindex(g.index) - 1).abs())
+    bad = {k: round(float(v), 4) for k, v in dev.items()
+           if v > BASELINE_TOLERANCE and k in race_states and k not in BASELINE_PARTIAL}
+    if bad:
+        raise ValueError(f"county sums differ from the official statewide totals by more than "
+                         f"{BASELINE_TOLERANCE:.0%}: {bad}")
     with open(COUNTY_BASELINE, "w") as fh:
-        fh.write(f"# County baselines (all states): {MEDSL24_CITE}. Precinct rows summed to Census county FIPS by this "
-                 "project (TOTAL mode when a county reports one, else all modes). Counties of the dashboard geometry "
-                 "without a MEDSL county code are absent: " + ", ".join(f"{k} {v}" for k, v in missing.items() if v) + "\n")
+        fh.write(f"# County baselines (all states): {MEDSL24_CITE}. Precinct rows (candidates only; Harris and Trump "
+                 "by candidate across ballot lines) summed to Census county FIPS by this project, TOTAL/mode rows "
+                 "de-duplicated per county; Connecticut towns mapped to the 2022 planning regions (Census 2023 "
+                 "gazetteer). Every county of the geometry is present except: "
+                 + "; ".join(f"{k} ({v})" for k, v in BASELINE_EXEMPT.items())
+                 + ". County sums vs official statewide totals, largest deviations: "
+                 + ", ".join(f"{k} {v:.1%}" for k, v in dev.sort_values(ascending=False).items() if v > 0.005)
+                 + "; partial: " + "; ".join(f"{k} ({v})" for k, v in BASELINE_PARTIAL.items()) + "\n")
         out.to_csv(fh, index=False, float_format="%.0f")
     return COUNTY_BASELINE
 
@@ -2247,9 +2362,10 @@ def market_margin(p: float | None, margin_sd: float | None) -> float | None:
     return _r(float(norm.ppf(min(max(p, 0.001), 0.999))) * margin_sd, 2)
 
 
-def race_estimate(r: dict, base: pd.DataFrame, poll: dict | None, p_market: float | None,
-                  resid: float) -> tuple[dict, dict] | None:
-    """(estimate summary, units object) for an overview race from the county baseline; None without baseline."""
+def race_estimate(r: dict, base: pd.DataFrame, poll: dict | None, resid: float) -> tuple[dict, dict] | None:
+    """(estimate summary, units object) for an overview race from the county baseline; None without baseline.
+    With polls: the 2024 county shares shifted uniformly to the poll average. Without polls: the 2024 shares
+    unshifted ("past results (no recent polls)"); never a market-implied share (that would show the price back)."""
     from scipy.stats import norm
     b = base[(base["state"] == r["state"]) & ((base["pres24_dem"] + base["pres24_rep"]) > 0)]   # '*' (suppressed)
     if b.empty:
@@ -2259,20 +2375,17 @@ def race_estimate(r: dict, base: pd.DataFrame, poll: dict | None, p_market: floa
     base_state = float(np.average(s0, weights=V))
     if poll:
         target, sd, basis = poll["avg"], poll["sd"], "polls"
-    elif p_market is not None and 0 < p_market < 1:
-        sd, basis = POLL_SD_HIST, "market-implied"
-        target = 0.5 + float(norm.ppf(min(max(p_market, 0.01), 0.99))) * sd
     else:
-        target, sd, basis = base_state, EST_SD_NOPOLL, "2024 president only"
+        target, sd, basis = base_state, EST_SD_NOPOLL, "past results (no recent polls)"
     share = np.clip(s0 + target - base_state, 0.01, 0.99)
     csd = float(np.sqrt(sd**2 + resid**2))
+    note = {"polls": "estimate: 2024 president by county shifted uniformly to the poll average",
+            "past results (no recent polls)": "past results (no recent polls): 2024 president by county"}[basis]
+    if r["state"] in BASELINE_PARTIAL:
+        note += "; caveat: " + BASELINE_PARTIAL[r["state"]]
     est = {"basis": basis, "share": _r(target), "sd": _r(sd), "county_sd": _r(csd),
            "P": _r(float(norm.cdf((target - 0.5) / sd))), "margin": _margin(target), "margin_sd": _r(2 * sd * 100, 2),
-           "baseline_share": _r(base_state), "turnout": _tens(V.sum()),
-           "note": {"polls": "estimate: 2024 president by county shifted uniformly to the poll average",
-                    "market-implied": "estimate: 2024 president by county shifted to the share the market price "
-                                      "implies (no polls; circular, for display only)",
-                    "2024 president only": "estimate: 2024 president by county (no polls, no price)"}[basis]}
+           "baseline_share": _r(base_state), "turnout": _tens(V.sum()), "note": note}
     names = b["name"].str.replace(r",\s*[A-Z]{2}$", "", regex=True).tolist()
     units = {"race_id": r["race_key"], "estimate": est, "unit_ids": b["unit_id"].tolist(),
              "region": [r["state"]] * len(b), "names": names,
@@ -2314,8 +2427,7 @@ def add_estimates(d: Path, ov: dict, pre: dict[str, dict | None]) -> dict:
             if r.get("modeled"):
                 r["units"] = f"units/{rk}.json" if pre.get(rk) else None
             else:
-                pm = (r.get("pm") or {}).get("price")
-                res = race_estimate(r, base, polls.get(rk), pm, resid)
+                res = race_estimate(r, base, polls.get(rk), resid)
                 r["estimate"], r["units"] = (res[0], f"units/{rk}.json") if res else (None, None)
                 if res:
                     _write_json(d / "units" / f"{rk}.json", res[1])

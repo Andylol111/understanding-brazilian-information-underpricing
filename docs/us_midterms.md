@@ -293,30 +293,62 @@ registered files and is idempotent. Two changes, nothing else:
      ±1.645 sd (90 %).
    - Polls overstated the Democrat by 1.4 points on average; this is not corrected.
 
+3. **Count-time check** (`analysis/us_polls.py calib`): Georgia 2022 governor and Senate, certified results by
+   vote type, 40 simulated nights each with early and mail votes posted first. Poll priors use our rule on 538's
+   2022 polls. GA 2024 has no polls in that file, so it is not included. All four variants put the final share
+   inside the 90 % interval in every case:
+
+   | % counted | mean \|z\| v1 / v2 / v3 | margin MAE (pts) v1 / v2 / v3 | margin sd (pts) v2 / v3 |
+   |---|---|---|---|
+   | 1 | 0.45 / 0.24 / 0.19 | 4.6 / 2.4 / 1.2 | 10.3 / 6.3 |
+   | 5 | 0.71 / 0.38 / 0.33 | 6.3 / 3.6 / 2.0 | 9.6 / 6.0 |
+   | 10 | 0.84 / 0.46 / 0.44 | 6.9 / 4.1 / 2.4 | 9.0 / 5.5 |
+   | 25 | 1.03 / 0.67 / 0.73 | 7.0 / 4.9 / 3.5 | 7.3 / 4.8 |
+   | 50 | 1.24 / 0.92 / 1.09 | 5.8 / 4.6 / 3.6 | 5.0 / 3.3 |
+   | 75 | 0.26 / 0.14 / 0.14 | 0.6 / 0.3 / 0.2 | 2.5 / 1.7 |
+
+   - v3 held: coverage was 100 % from 5 % to 25 % counted, against the 85 % threshold. So no v4 was written.
+   - The alternative scaling (`count_scale_mode = "any"`: terms fully present from the first returns) had mean
+     |z| ≤ 0.76 at every checkpoint. It remains an option in `brunder.nowcast`.
+   - Two races are a thin test.
+
 ## County baselines and estimates for every race (display only)
 
 - **Baseline:** `data_public/us2026_county_baseline.csv` holds 2024 president and 2024 regular Senate results by
-  county for 48 states (`build_county_baseline`).
+  county for 49 states plus Connecticut's planning regions (`build_county_baseline`).
   - Source: MIT Election Data and Science Lab precinct returns 2024 (github.com/MEDSL/2024-elections-official;
     Dataverse doi:10.7910/DVN/XDJYKC and ZCM3BN, CC0 1.0), summed to Census county FIPS.
-  - A county's totals are its `TOTAL` mode rows when it has any, else the sum of its modes (MEDSL README warning).
-  - Nebraska's file marks every president row NONPARTISAN, so party is taken from the candidate names.
-  - Alaska (election districts) and Connecticut (planning regions) don't match the 2020 county geometry and are
-    left out.
+  - Only candidate rows count: CONTEST TOTAL, under/over votes and similar rows are dropped. Harris and Trump are
+    identified by candidate name across ballot lines, which covers NY fusion lines and the empty or NONPARTISAN
+    party fields in NE and parts of OR.
+  - Rows labelled "COUNTY TOTAL" are dropped. Where a county's TOTAL rows and vote-mode rows describe the same
+    precincts, they duplicate each other and only the modes are kept; otherwise they are summed (NJ has both
+    cases).
+  - Each state uses whichever mode rule (precinct overlap, TOTAL-first, or all rows) brings its county sums closest
+    to the official statewide totals (`data_public/us2026_state_pres24.csv`).
+  - Connecticut towns are mapped to the 2022 planning regions (Census 2023 gazetteer). SD 46113 is mapped to 46102.
+  - **The build fails** if any county of a state with a 2026 race lacks 2024 two-party votes, or if a race state's
+    county sums are more than 2 % off its official totals. Exceptions:
+    - Alaska: it reports by house district, not borough.
+    - Hawaii's Kalawao: its votes are reported with Maui.
+    - Louisiana: MEDSL's precinct file has Election Day votes only (49 % short), so parish shares exclude early
+      votes. Its estimate carries that caveat.
+  - Remaining deviations from the official totals: NJ 1.4 %, ME 1.2 %. IN (5 %) and MO (8 %) have no 2026 race.
 - **Ohio prior:** the same data gives `oh_pres_2024`, the prior the registered Ohio configs name, so Ohio v1 and
   v2 now run. Only data was added; no setting changed.
 - **Estimate for unmodeled races** (`race_estimate`, written to `units/<race>.json` with an `estimate` block):
   - County share = 2024 president two-party share + (statewide target − the baseline statewide share), a uniform
     swing.
-  - The target is the poll average (`basis: polls`). Without polls it is the share the Polymarket price implies,
-    0.5 + Φ⁻¹(p)·0.039 (`basis: market-implied`; circular, display only). Without either it is the 2024 baseline.
-  - Statewide sd = the poll sd, else 0.039, else 0.06.
+  - The target is the poll average (`basis: polls`). Without polls the 2024 county shares are shown unshifted
+    (`basis: "past results (no recent polls)"`). A market-implied fallback would show the price back to itself,
+    so none is used.
+  - Statewide sd = the poll sd, else 0.06.
   - County sd = √(statewide sd² + 0.015²). The 0.015 is the sd of Georgia's county swings around the statewide
     swing, 2020 → 2024 president, weighted by votes (`county_resid_sd` = 0.0154). It comes from one state, a
     presidential pair, and is small.
   - Expected votes = 0.72 × 2024 total. MEDSL's 2022 files were not used in this pass.
-  - Coverage: 68 of 71 races have a county map (the 10 modeled races use their model's file; AK ×2 and CT gov have
-    none).
+  - Coverage: 69 of 71 races have a county map; the 10 modeled races use their model's file. AK ×2 has none.
+    Hawaii's map has 4 of 5 counties (Kalawao reports with Maui).
 
 ## Margin scale (the comparison that does not conflate)
 

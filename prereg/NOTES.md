@@ -68,6 +68,12 @@ Democrats by about 1.4 points on average in 2016–2022; polling errors are corr
 error model was checked on one held-out year (2022: 70% within 1 sd, 92% within the 90% band).
 Also added to the US forward test after the first registration: SC Senate, SC governor and VT governor
 (registered at `57b2e50`, before any 2026 result).
+Count-time check of the primary (written 2026-10-29, before any 2026 result; `analysis/us_polls.py calib`):
+Georgia 2022 governor and Senate, certified results by vote type, 40 simulated nights each with early and mail
+votes posted first, poll priors from the same averaging rule on 538's 2022 polls. 90% coverage for v1/v2/v3 was
+100% at 1, 5, 10, 25, 50 and 75% counted; mean margin error (points) v1/v2/v3: 6.3/3.6/2.0 at 5% counted,
+7.0/4.9/3.5 at 25%, 5.8/4.6/3.6 at 50%. Two races only, so coverage is coarse; v3's mean |z| rises to 1.09 at
+50% counted. The primary stays v3 (Ohio v4).
 
 ## Hungary 2026 (`configs/hu2026_v1.toml`): not pre-registered
 

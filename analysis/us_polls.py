@@ -212,6 +212,55 @@ def _v2(cfg: dict, pri: pd.DataFrame, avg: float, sd: float) -> dict:
     return {**cfg, "model": {**cfg["model"], "swing_prior_mean": avg - us.baseline_share(pri), "swing_prior_sd": sd}}
 
 
+CAL_CHECK = (0.01, 0.05, 0.10, 0.25, 0.50, 0.75)
+
+
+def calib(n_sim: int = 40) -> None:
+    """Count-time calibration of v1 / v2 / v3 (and the candidate v3 'any': reporting-order and between-region terms
+    fully present from the first returns) on Georgia 2022 governor and Senate: certified county results by vote type,
+    simulated count orders with early + mail votes posted first (analysis/us_calibrate.py), production GA settings.
+    Poll priors: our rule on 538's 2022 polls (v2 sd = 0.039 + sampling; v3 sd = POLL_SD_BINS by number of polls).
+    GA 2024 president has no polls in the 538 file, so it is not included. Reports 90 % coverage, mean |z| and the
+    mean absolute margin error (points) by share counted."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import us_calibrate as cal
+    priors = us.load_priors()
+    rng = np.random.default_rng(20261101)
+    ga = us.load_config(us.ROOT_DIR / "configs" / "us2026_ga_sen_v1.toml")
+    out = []
+    for name, eid, race, prior_src, ratio, r538 in [
+            ("GA 2022 gov", "2022NovGen", "gov", "ga_pres_2020", 0.80, "2022_Gov-G_GA"),
+            ("GA 2022 sen", "2022NovGen", "sen", "ga_pres_2020", 0.80, "2022_Sen-G_GA")]:
+        bt = cal.by_type(eid, race)
+        cfg = {**ga, "election": {**ga["election"], "race": "x"}, "prior": {"share": prior_src, "votes": prior_src},
+               "count": {**ga["count"], "turnout_ratio": ratio}}
+        pri = us.race_prior(cfg, priors)
+        pa = _poll_prior_538(r538)
+        v2 = _v2(cfg, pri, pa["avg"], pa["sd"])
+        v3 = {**v2, "model": {**v2["model"], "swing_prior_sd": us.poll_sd_by_n(pa["n_polls"]), "count_scaled_terms": True}}
+        v3a = {**v3, "model": {**v3["model"], "count_scale_mode": "any"}}
+        models = {"v1": cfg, "v2": v2, "v3": v3, "v3-any": v3a}
+        total = bt[["early_d", "early_r", "late_d", "late_r"]].sum().sum()
+        final = (bt["early_d"] + bt["late_d"]).sum() / total
+        for s in range(n_sim):
+            ev = cal.events(bt, rng)
+            cum = ((ev["d"] + ev["r"]).cumsum() / total).to_numpy()
+            for c in CAL_CHECK:
+                rows = cal.rows_at(ev, int(np.searchsorted(cum, c)) + 1)
+                for m, cm in models.items():
+                    r = us.project(rows, cm, pri)[0]
+                    out.append({"race": name, "model": m, "check": c, "z": (r["share_hat"] - final) / r["share_sd"],
+                                "margin_err": 200 * (r["share_hat"] - final), "margin_sd": 200 * r["share_sd"]})
+    df = pd.DataFrame(out)
+    tab = df.groupby(["model", "check"]).agg(cover90=("z", lambda z: np.mean(np.abs(z) < 1.645)),
+                                             mean_abs_z=("z", lambda z: np.abs(z).mean()),
+                                             margin_mae=("margin_err", lambda e: np.abs(e).mean()),
+                                             margin_sd=("margin_sd", "mean")).round(3).reset_index()
+    pd.set_option("display.width", 200)
+    print(tab.pivot(index="check", columns="model", values=["cover90", "mean_abs_z", "margin_mae", "margin_sd"])
+          .to_string())
+
+
 def effect(n_sim: int = 30) -> None:
     """P (v1) vs P_v2 as the count grows. (a) Georgia 2022 governor and Senate: certified county results by vote type,
     simulated count orders (analysis/us_calibrate.py), production GA settings, v2 prior = our rule on 538's 2022
@@ -291,8 +340,8 @@ def effect(n_sim: int = 30) -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("step", choices=["error", "errorbins", "build", "configs", "next", "effect"])
+    ap.add_argument("step", choices=["error", "errorbins", "build", "configs", "next", "effect", "calib"])
     ap.add_argument("--day", help="VoteHub cache day YYYYmmdd (default today)")
     a = ap.parse_args()
     {"error": error, "errorbins": errorbins, "build": lambda: build(a.day), "configs": configs,
-     "next": next_versions, "effect": effect}[a.step]()
+     "next": next_versions, "effect": effect, "calib": calib}[a.step]()
