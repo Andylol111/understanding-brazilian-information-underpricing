@@ -90,7 +90,31 @@ def county_table() -> pd.DataFrame:
     t = pd.concat(rows)
     t["s_top22"] = t["s_sen22"].where(t["s_sen22"].notna(), t.get("s_gov22"))
     t["v_top22"] = t["v_sen22"].where(t["v_sen22"].notna(), t.get("v_gov22"))
-    return t.join(covariates())
+    t["s_top18"] = t["s_sen18"].where(t["s_sen18"].notna(), t.get("s_gov18"))
+    t["v_top18"] = t["v_sen18"].where(t["v_sen18"].notna(), t.get("v_gov18"))
+    return t.join(county_pres()).join(covariates())
+
+
+def county_pres() -> pd.DataFrame:
+    """2016 and 2020 president by county from MIT MEDSL County Presidential Election Returns 2000-2024
+    (doi:10.7910/DVN/VOQCHQ, CC0; downloaded through the Dataverse guestbook, cached under data/raw/us/medsl):
+    TOTAL rows where a county has them, else the sum of its modes."""
+    d = pd.read_csv(RAW / "medsl" / "countypres_2000-2024.csv", dtype={"county_fips": str})
+    d = d[d["year"].isin([2016, 2020]) & d["county_fips"].notna()].copy()
+    d["fips"] = d["county_fips"].str.replace(r"\.0$", "", regex=True).str.zfill(5)
+    tot = d["mode"].fillna("TOTAL").str.upper() == "TOTAL"
+    has = tot.groupby([d["year"], d["fips"]]).transform("any").astype(bool)
+    d = d[(has & tot) | (~has & ~tot)]
+    st = {uid.split("-")[2][:2]: uid.split("-")[1] for uid, _ in us._geo()}
+    out = {}
+    for y, g in d.groupby("year"):
+        p = g.pivot_table(index="fips", columns="party", values="candidatevotes", aggfunc="sum").fillna(0)
+        tv = g.groupby("fips")["candidatevotes"].sum()
+        out[f"s_pres{str(y)[2:]}"] = p["DEMOCRAT"] / (p["DEMOCRAT"] + p["REPUBLICAN"])
+        out[f"v_pres{str(y)[2:]}"] = tv
+    res = pd.DataFrame(out)
+    res.index = [f"us-{st.get(f[:2], 'xx')}-{f}" for f in res.index]
+    return res
 
 
 def covariates() -> pd.DataFrame:
@@ -144,7 +168,11 @@ def contested(d: pd.DataFrame, sa: str, va: str, sb: str, vb: str) -> pd.DataFra
 
 
 def swing_rules(t: pd.DataFrame) -> pd.DataFrame:
-    tests = [("gov18->gov22", "s_gov18", "v_gov18", "s_gov22", "v_gov22"),
+    tests = [("pres16->pres20", "s_pres16", "v_pres16", "s_pres20", "v_pres20"),
+             ("pres20->pres24", "s_pres20", "v_pres20", "s_pres24", "v_pres24"),
+             ("gov18->gov22", "s_gov18", "v_gov18", "s_gov22", "v_gov22"),
+             ("pres20->top22 (midterm)", "s_pres20", "v_pres20", "s_top22", "v_top22"),
+             ("pres16->top18 (midterm)", "s_pres16", "v_pres16", "s_top18", "v_top18"),
              ("top22->pres24", "s_top22", "v_top22", "s_pres24", "v_pres24")]
     rows = []
     pri = us.load_priors()
@@ -188,7 +216,9 @@ def _r2(y, p, w) -> float:
 
 def demographics(t: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """County swing beyond the statewide (logit-or-uniform) shift, regressed on standardised covariates."""
-    cyc = {"gov18->gov22": ("s_gov18", "v_gov18", "s_gov22"), "top22->pres24": ("s_top22", "v_top22", "s_pres24")}
+    cyc = {"pres16->pres20": ("s_pres16", "v_pres16", "s_pres20"), "pres20->pres24": ("s_pres20", "v_pres20", "s_pres24"),
+           "pres16->top18": ("s_pres16", "v_pres16", "s_top18"), "pres20->top22": ("s_pres20", "v_pres20", "s_top22"),
+           "gov18->gov22": ("s_gov18", "v_gov18", "s_gov22")}
     data, rows, coefs = {}, [], []
     for name, (sa, va, sb) in cyc.items():
         d = t[["state", sa, va, sb] + FEATS].dropna()
@@ -216,7 +246,7 @@ def demographics(t: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
                      "rmse_uniform_pts": np.sqrt(np.average(y**2, weights=w)),
                      "rmse_with_demog_pts": np.sqrt(np.average((y - pred) ** 2, weights=w)), "counties": len(d)})
     names = list(data)
-    for a, b in ((names[0], names[1]), (names[1], names[0])):
+    for a, b in [(a, b) for a in names for b in names if a != b]:
         da, db = data[a], data[b]
         Xa, Xb = ((da[FEATS] - mu) / sd).to_numpy(), ((db[FEATS] - mu) / sd).to_numpy()
         wa, wb = np.sqrt(da.iloc[:, 2].to_numpy()), np.sqrt(db.iloc[:, 2].to_numpy())
@@ -234,28 +264,42 @@ def demographics(t: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
 TURNOUT_MODEL = us.ROOT_DIR / "data_public" / "us2026_turnout_model.json"
 
 
+def _ratio_dev(d: pd.DataFrame, num: str, den: str) -> pd.Series:
+    lr = np.log(d[num] / d[den])
+    w = d[den]
+    return lr - lr.groupby(d["state"]).transform(lambda s: np.average(s, weights=w[s.index]))
+
+
 def turnout(t: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-    """Midterm drop-off: r = top-of-ticket votes 2022 / president 2024 by county, on standardised covariates
-    (leave-one-state-out R²). Expected-vote templates for a midterm, compared on the 2022 within-state distribution:
-    (a) flat ratio × 2024 president (= the 2024 distribution), (b) the previous midterm (2018), (c) 2024 × the
-    demographic ratio model fit on the other states."""
-    d = t[["state", "v_top22", "v_pres24", "v_gov18", "v_sen18"] + FEATS].dropna(subset=["v_top22", "v_pres24"] + FEATS)
-    d = d[(d["v_top22"] > 0) & (d["v_pres24"] > 0)]
-    d["lr"] = np.log(d["v_top22"] / d["v_pres24"])
-    d["lr_dev"] = d["lr"] - d.groupby("state")["lr"].transform(lambda s: np.average(s, weights=d.loc[s.index, "v_pres24"]))
+    """Midterm drop-off = log(midterm top-race votes / previous presidential votes) by county, minus its state mean
+    (2018/2016 and 2022/2020). R² leave one state out and across time (fit 2018/2016, test 2022/2020). Expected-vote
+    templates for the 2022 within-state county distribution, all using only data available before 2022:
+    (a) flat ratio x 2020 president; (b) the previous midterm (2018 top race); (c) 2020 president x the county's own
+    2018/2016 drop-off; (d) 2020 president x the demographic drop-off model fit on 2018/2016."""
+    cols = ["state", "v_top22", "v_pres20", "v_top18", "v_pres16"] + FEATS
+    d = t[cols].dropna(subset=["v_top22", "v_pres20"] + FEATS)
+    d = d[(d["v_top22"] > 0) & (d["v_pres20"] > 0)]
     mu, sd = d[FEATS].mean(), d[FEATS].std()
-    X, y, w = ((d[FEATS] - mu) / sd).to_numpy(), d["lr_dev"].to_numpy(), np.sqrt(d["v_pres24"].to_numpy())
+    X = ((d[FEATS] - mu) / sd).to_numpy()
+    y22, w22 = _ratio_dev(d, "v_top22", "v_pres20").to_numpy(), np.sqrt(d["v_pres20"].to_numpy())
     pred = np.zeros(len(d))
     for st in d["state"].unique():
         m = (d["state"] == st).to_numpy()
-        pred[m] = np.column_stack([np.ones(m.sum()), X[m]]) @ _ols(X[~m], y[~m], w[~m])
-    r2 = _r2(y, pred, w)
-    d["pred_dev"] = pred
+        pred[m] = np.column_stack([np.ones(m.sum()), X[m]]) @ _ols(X[~m], y22[~m], w22[~m])
+    r2_loso = _r2(y22, pred, w22)
+    h = d.dropna(subset=["v_top18", "v_pres16"])
+    h = h[(h["v_top18"] > 0) & (h["v_pres16"] > 0)]
+    Xh = ((h[FEATS] - mu) / sd).to_numpy()
+    y18 = _ratio_dev(h, "v_top18", "v_pres16").to_numpy()
+    coef18 = _ols(Xh, y18, np.sqrt(h["v_pres16"].to_numpy()))
+    p_time = np.column_stack([np.ones(len(d)), X]) @ coef18
+    r2_time = _r2(y22, p_time, w22)
+    own = np.log(d["v_top18"] / d["v_pres16"]).where(d["v_top18"].gt(0) & d["v_pres16"].gt(0))
     rows = []
-    v18 = d["v_sen18"].where(d["v_sen18"].notna(), d["v_gov18"])
-    for name, base in (("flat ratio x 2024 president", d["v_pres24"]),
-                       ("previous midterm (2018 top race)", v18),
-                       ("2024 president x demographic ratio (LOSO)", d["v_pres24"] * np.exp(d["pred_dev"]))):
+    for name, base in (("flat ratio x 2020 president", d["v_pres20"]),
+                       ("previous midterm (2018 top race)", d["v_top18"]),
+                       ("2020 president x own 2018/2016 drop-off", d["v_pres20"] * np.exp(own)),
+                       ("2020 president x demographic drop-off (fit 2018/2016)", d["v_pres20"] * np.exp(p_time))):
         ok = base.notna() & (base > 0)
         g = d[ok].assign(b=base[ok])
         share_p = g["b"] / g.groupby("state")["b"].transform("sum")
@@ -264,10 +308,10 @@ def turnout(t: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         rows.append({"template": name, "counties": len(g), "states": g["state"].nunique(),
                      "rmse_log_share": float(np.sqrt(np.average(e**2, weights=g["v_top22"]))),
                      "mae_pct_of_county_votes": float(100 * np.average(np.abs(np.expm1(-e)), weights=g["v_top22"]))})
-    coef = _ols(X, y, w)
+    coef = _ols(X, y22, w22)
     model = {"feats": FEATS, "mean": mu.to_dict(), "sd": sd.to_dict(), "coef": dict(zip(["const"] + FEATS, coef)),
-             "loso_r2": r2,
-             "target": "log(2022 top-race votes / 2024 president votes) minus its state mean (vote-weighted)"}
+             "loso_r2": r2_loso, "time_r2_fit2018_test2022": r2_time,
+             "target": "log(2022 top-race votes / 2020 president votes) minus its state mean (vote-weighted)"}
     return pd.DataFrame(rows), model
 
 
@@ -361,19 +405,27 @@ def early_vote() -> pd.DataFrame:
 
 
 def write_turnout_index(t: pd.DataFrame, model: dict) -> Path:
-    """data_public/us2026_turnout_index.csv for every county with covariates: adj = predicted midterm turnout
-    relative to the state's average drop-off (exp of the model's log deviation; display only) and lowprop_index =
-    standardised predicted drop-off (higher = larger midterm drop-off = lower-propensity electorate)."""
+    """data_public/us2026_turnout_index.csv: adj = the county's own last midterm drop-off relative to its state
+    (2022 top race / 2020 president, state-demeaned; the best template out of time, docs/us_model_analysis.md §3), else
+    the demographic model's prediction; lowprop_index = standardised drop-off (higher = larger midterm drop-off =
+    lower-propensity electorate). Display only."""
     c = t[FEATS].dropna()
     X = ((c - pd.Series(model["mean"])) / pd.Series(model["sd"])).to_numpy()
     b = np.array([model["coef"][k] for k in ["const"] + FEATS])
-    dev = np.column_stack([np.ones(len(X)), X]) @ b
-    out = pd.DataFrame({"unit_id": c.index, "adj": np.exp(dev), "lowprop_index": -(dev - dev.mean()) / dev.std()})
+    dev = pd.Series(np.column_stack([np.ones(len(X)), X]) @ b, index=c.index)
+    h = t.dropna(subset=["v_top22", "v_pres20"])
+    h = h[(h["v_top22"] > 0) & (h["v_pres20"] > 0)]
+    own = _ratio_dev(h, "v_top22", "v_pres20")
+    dev = own.combine_first(dev).clip(-0.5, 0.5)          # tiny or mis-recorded counties: cap at ×0.61 … ×1.65
+    source = pd.Series("demographic model", index=dev.index).where(~dev.index.isin(own.index), "own 2022/2020 drop-off")
+    out = pd.DataFrame({"unit_id": dev.index, "adj": np.exp(dev.to_numpy()),
+                        "lowprop_index": -(dev - dev.mean()).to_numpy() / dev.std(), "basis": source.to_numpy()})
     f = us.ROOT_DIR / "data_public" / "us2026_turnout_index.csv"
     with open(f, "w") as fh:
-        fh.write("# Predicted midterm turnout by county (display only): analysis/us_model_analysis.py turnout model "
-                 f"(leave-one-state-out R2 {model['loso_r2']:.3f}); inputs MEDSL 2022/2024 (CC0) and Census ACS "
-                 "2020-2024, PEP 2025, 2023 gazetteer (public domain)\n")
+        fh.write("# Midterm turnout propensity by county (display only; analysis/us_model_analysis.py): the county's "
+                 "2022 top-race / 2020 president vote ratio relative to its state (MEDSL 2022 precinct returns and "
+                 "MEDSL County Presidential Returns, CC0), else a demographic model (Census ACS 2020-2024, PEP 2025, "
+                 "2023 gazetteer, public domain)\n")
         out.to_csv(fh, index=False, float_format="%.4f")
     return f
 

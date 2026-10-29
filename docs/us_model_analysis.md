@@ -73,6 +73,7 @@ Our averaging rule was applied to 538's 2016–2022 Senate and governor races (1
   - Independent races: P(control) = **0.88**, seats 80 % interval 50–55.
   - Correlated (ρ = 0.21): **0.75**, interval 49–56.
 - **Conclusion: include, for joint quantities only.** Senate control, and any multi-race figure, should use the common component. Per-race probabilities are unaffected. This is a display or analysis change, not a change to the registered models.
+- **Now on the overview:** `overview.json` `offices.senate` shows `control_p_corr`, `control_p_indep`, `seats_80_corr`, `seats_80_indep` and `control_note`. `brunder.us.senate_control` (ρ = `SENATE_RHO` = 0.21) recomputes them on every pre-count run and every live overview refresh.
 
 ## 5. Drift during the count (GA 2022 governor and Senate, 40 simulated nights each, early votes first)
 

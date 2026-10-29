@@ -24,15 +24,16 @@
   "lndens": 1.7344548291977553
  },
  "coef": {
-  "const": 0.012431946016273138,
-  "ba": 0.02281001381500591,
-  "age65": 0.028373557598994695,
-  "hisp": 0.00566554409024785,
-  "black": 0.009012579211509745,
-  "lninc": -0.008266874809350688,
-  "lndens": -0.011314728642209263
+  "const": 0.017239347035937873,
+  "ba": 0.009137945323439842,
+  "age65": 0.02925657480773353,
+  "hisp": -0.003112266861244155,
+  "black": -0.0028279081870313744,
+  "lninc": 0.013209855845864612,
+  "lndens": -0.009050877545205121
  },
- "loso_r2": 0.05123949354647339,
- "target": "log(2022 top-race votes / 2024 president votes) minus its state mean (vote-weighted)",
- "source": "analysis/us_model_analysis.py; MEDSL 2022/2024 (CC0), Census ACS/PEP/gazetteer (public domain)"
+ "loso_r2": 0.08733083310388945,
+ "time_r2_fit2018_test2022": -0.10260368506636719,
+ "target": "log(2022 top-race votes / 2020 president votes) minus its state mean (vote-weighted)",
+ "source": "analysis/us_model_analysis.py; MEDSL 2018/2020/2022 (CC0), Census (public domain)"
 }

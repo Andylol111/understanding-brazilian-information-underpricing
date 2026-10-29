@@ -2382,6 +2382,8 @@ def refresh_overview(d: Path, arc: Archive, errors: dict | None = None) -> bool:
                 if value(m, now_t, m["platform"]) is not None:
                     m["price"] = _r(value(m, now_t, m["platform"]))
         ov["as_of"] = _iso(now_t)
+        if "senate" in ov.get("offices", {}):
+            ov["offices"]["senate"].update(senate_control(ov))
         _write_json(f, ov)
     except Exception as e:                           # the overview must never block the race files
         if errors is not None:
@@ -2515,7 +2517,46 @@ def add_estimates(d: Path, ov: dict, pre: dict[str, dict | None]) -> dict:
                     _write_json(d / "units" / f"{rk}.json", res[1])
             r["margins"] = race_margins(r)
             r["ev"] = ev_block(ev.get("states", {}).get(r["state"]), r["margins"])
+    if "senate" in ov.get("offices", {}):
+        ov["offices"]["senate"].update(senate_control(ov))
     return ov
+
+
+SENATE_RHO = 0.21   # cross-race correlation of poll-average errors, 538 raw_polls 2016-2022 (docs/us_model_analysis.md)
+
+
+def senate_control(ov: dict, rho: float = SENATE_RHO, n_sim: int = 100_000) -> dict:
+    """P(Democratic-caucus Senate majority: ≥ 51 seats, the VP being Republican) from this cycle's races — poll
+    average with the v3 error for its number of polls where polled, else the Polymarket price's implied share
+    (0.5 + Φ⁻¹(p)·0.039) — with races independent and with a common error (correlation rho). Display only."""
+    from scipy.stats import norm
+    sen = ov["offices"]["senate"]
+    hold = sen.get("holdovers") or {}
+    d_hold = int(hold.get("D", 0) + hold.get("I", 0))
+    mu, sd = [], []
+    for r in sen.get("races", []):
+        pa = r.get("polls")
+        if pa:
+            mu.append(pa["avg"]), sd.append(poll_sd_by_n(int(pa["n_polls"])))
+        else:
+            p = (r.get("pm") or {}).get("price")
+            p = 0.5 if p is None else min(max(float(p), 0.005), 0.995)
+            mu.append(0.5 + float(norm.ppf(p)) * POLL_SD_HIST), sd.append(POLL_SD_HIST)
+    if not mu:
+        return {}
+    mu, sd = np.array(mu), np.array(sd)
+    rng = np.random.default_rng(2026)
+    out = {}
+    for key, r in (("indep", 0.0), ("corr", rho)):
+        z = np.sqrt(r) * rng.standard_normal((n_sim, 1)) + np.sqrt(1 - r) * rng.standard_normal((n_sim, len(mu)))
+        seats = d_hold + ((mu + sd * z) > 0.5).sum(axis=1)
+        out[f"control_p_{key}"] = _r(float(np.mean(seats >= 51)), 3)
+        out[f"seats_80_{key}"] = [int(np.percentile(seats, 10)), int(np.percentile(seats, 90))]
+    out["control_note"] = (f"Chance the Democratic caucus (with independents) holds at least 51 seats: {d_hold} seats "
+                           f"not up plus each race's poll average (v3 error by number of polls) or, without polls, the "
+                           f"Polymarket price. 'corr' adds a polling error shared by all races (correlation {rho}, "
+                           "from 2016-2022 races); 'indep' treats races as independent.")
+    return out
 
 
 # ------------------------------------------------------------------ early-vote implied margin and its history

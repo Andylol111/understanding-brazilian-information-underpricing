@@ -1265,3 +1265,16 @@ def test_turnout_row_surprise_and_hot_cold():
     assert fr["turnout_ratio_live"][0] == round(1000 * surprise[0])
     none = us.turnout_row(None, None, None)
     assert all(v is None for v in none.values())
+
+
+def test_senate_control_correlated_vs_independent():
+    races = [{"polls": {"avg": 0.52, "n_polls": 12}, "pm": None}, {"polls": None, "pm": {"price": 0.5}},
+             {"polls": {"avg": 0.47, "n_polls": 2}, "pm": None}]
+    ov = {"offices": {"senate": {"holdovers": {"D": 49, "R": 48, "I": 0}, "races": races}}}
+    c = us.senate_control(ov)
+    assert {"control_p_indep", "control_p_corr", "seats_80_indep", "seats_80_corr", "control_note"} <= set(c)
+    assert 0 < c["control_p_corr"] < 1 and 0 < c["control_p_indep"] < 1
+    lo_i, hi_i = c["seats_80_indep"]
+    lo_c, hi_c = c["seats_80_corr"]
+    assert hi_c - lo_c >= hi_i - lo_i                                    # a shared error widens the seat range
+    assert us.senate_control(ov, rho=0.0)["control_p_corr"] == pytest.approx(c["control_p_indep"], abs=0.01)
