@@ -794,7 +794,7 @@ def test_parse_vt_towns_to_counties():
 
 
 @pytest.mark.parametrize("name", ["us2026_sc_sen_v1", "us2026_sc_gov_v1", "us2026_vt_gov_v1", "us2026_oh_sen_v1",
-                                  "us2026_oh_gov_v1"])
+                                  "us2026_oh_gov_v1", "us2026_nc_sen_v1", "us2026_fl_sen_v1", "us2026_fl_gov_v1"])
 def test_new_configs_have_public_priors(name):
     cfg = us.load_config(ROOT / "configs" / f"{name}.toml")
     pri = us.race_prior(cfg, us.load_priors(us.PUBLIC_PRIORS))
@@ -837,6 +837,67 @@ def test_snap_resolver_clarity_listing_and_vt_static():
     assert out["vt_static_main"] == "https://static.electionresults.vermont.gov/elections/g1.json"
     assert out["vt_static_statewide"] == "https://static.electionresults.vermont.gov/elections/g1-s-20261103230500.json"
     assert snap._CLARITY_EID[spec] == "127500"                          # found once, cached
+
+
+def test_parse_nc_county_files():
+    df = us.parse_nc(rd("nc_20221108_county.txt.gz"),
+                     [rd(f"nc_20221108_results_{i}.txt.gz") for i in (1, 60, 92)])
+    c = df[df["level"] == "county"]
+    assert set(c["unit_id"]) == {"us-nc-37001", "us-nc-37119", "us-nc-37183"} and set(c["race"]) == {"sen"}
+    v = c.pivot_table(index="unit_id", columns="party", values="votes", aggfunc="sum")
+    assert v.loc["us-nc-37001", "REP"] == 32866 and v.loc["us-nc-37001", "DEM"] == 25866   # Alamance (NCSBE 2022)
+    a = c[(c["unit_id"] == "us-nc-37001") & (c["party"] == "REP")].iloc[0]
+    assert a["early"] == 15135 + 909 and a["reporting"] == a["units"] == 38 and a["ballots"] > a["votes"]
+    s = df[df["level"] == "state"].set_index("party")["votes"]
+    assert s["DEM"] == c[c["party"] == "DEM"]["votes"].sum()
+    pre = us.parse_nc(rd("nc_20261103_county.txt.gz"), [rd("nc_20261103_results_92.txt.gz")])
+    p = pre[pre["level"] == "county"]
+    assert set(p["unit_id"]) == {"us-nc-37183"} and p["votes"].sum() == 0 and {"DEM", "REP"} <= set(p["party"])
+    assert us.parse_feed("nc", {"county": None, "results": []}).empty
+
+
+def test_counties_from_geometry_nc():
+    c = us.counties("nc")
+    assert len(c) == 100 and c["unit_id"].str.match(r"^us-nc-37\d{3}$").all()
+    assert dict(zip(c["key"], c["unit_id"]))["MECKLENBURG"] == "us-nc-37119"
+
+
+def test_snap_resolver_ncsbe():
+    import asyncio
+    import httpx
+    from brunder import snap
+    base = "https://er.ncsbe.gov/enr/20261103/data"
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if str(req.url) == f"{base}/county.txt":
+            return httpx.Response(200, content=rd("nc_20261103_county.txt.gz"))
+        return httpx.Response(404)
+
+    snap._NCSBE_IDS.clear()
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as web:
+            return await snap._resolve(web, [], [], "2026-11-03", [], [base])
+    out = dict(asyncio.run(go()))
+    assert out["ncsbe_county"] == f"{base}/county.txt"
+    res = {k: u for k, u in out.items() if k.startswith("ncsbe_results_")}
+    assert len(res) == 100 and res["ncsbe_results_092"] == f"{base}/results_92.txt"
+    assert all(k.startswith(us.FEEDS["nc"]["results"][:-1]) for k in res) and us.FEEDS["nc"]["county"] == "ncsbe_county"
+
+
+def test_parse_fl_results_file():
+    df = us.parse_fl(rd("fl_20221108_official_subset.txt.gz"))       # official extract (latin-1)
+    c = df[df["level"] == "county"]
+    assert set(c["unit_id"]) == {"us-fl-12001", "us-fl-12086", "us-fl-12027", "us-fl-12109"}
+    assert set(c["race"]) == {"sen", "gov"}
+    a = c[(c["unit_id"] == "us-fl-12001") & (c["race"] == "sen")].groupby("party")["votes"].sum()
+    assert a["REP"] == 39220 and a["DEM"] == 55439                    # Alachua 2022 Senate (FL DOS official)
+    assert (c["reporting"] == c["units"]).all()
+    pre = us.parse_fl(rd("fl_20261103_enight_subset.txt.gz"))        # 2026 election-night file before the count
+    p = pre[pre["level"] == "county"]
+    assert len(set(p["unit_id"])) == 4 and p["votes"].sum() == 0 and (p["reporting"] == 0).all()
+    assert {"DEM", "REP"} <= set(p[p["race"] == "sen"]["party"]) and {"DEM", "REP"} <= set(p[p["race"] == "gov"]["party"])
+    assert us.parse_feed("fl", {"enight": None}).empty
 
 
 # ------------------------------------------------------------------ polls and model v2

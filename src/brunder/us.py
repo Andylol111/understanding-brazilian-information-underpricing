@@ -71,9 +71,11 @@ FEEDS = {           # snapshot keys (snap._name of the recorded URL); "*" = ever
            "summary": "clarity_" + _name("https://www.enr-scvotes.org/SC") + "_summary",
            "status": "clarity_" + _name("https://www.enr-scvotes.org/SC") + "_status"},
     "vt": {"main": "vt_static_main", "statewide": "vt_static_statewide"},          # resolver --vt-static
+    "nc": {"county": "ncsbe_county", "results": "ncsbe_results_*"},                # resolver --ncsbe YYYYMMDD
+    "fl": {"enight": _name("https://flelectionfiles.floridados.gov/enightfilespublic/20261103_ElecResultsFL.txt")},
 }
 STATES = {"ca": "California", "tx": "Texas", "oh": "Ohio", "ga": "Georgia", "ak": "Alaska", "az": "Arizona",
-          "sc": "South Carolina", "vt": "Vermont"}
+          "sc": "South Carolina", "vt": "Vermont", "nc": "North Carolina", "fl": "Florida"}
 
 
 # ------------------------------------------------------------------ units
@@ -89,6 +91,11 @@ def counties(st: str) -> pd.DataFrame:
         return pd.DataFrame({"unit_id": [f"us-ak-hd{d:02d}" for d in range(1, 41)],
                              "name": [f"House District {d}" for d in range(1, 41)],
                              "key": [str(d) for d in range(1, 41)]})
+    if st not in _COUNTIES:                          # other states: the dashboard's Census geometry, FIPS order
+        g = sorted((uid, name) for uid, name in _geo() if uid.startswith(f"us-{st}-"))
+        names = [re.sub(r"\s+(County|Parish|Borough|city|City and Borough|Census Area|Municipality)$", "",
+                        re.sub(r",\s*[A-Z]{2}$", "", n)) for _, n in g]
+        return pd.DataFrame({"unit_id": [u for u, _ in g], "name": names, "key": [_norm(n) for n in names]})
     fips = {"ca": "06", "tx": "48", "oh": "39", "ga": "13", "az": "04", "sc": "45", "vt": "50"}[st]
     items = [x.rsplit(":", 1) for x in _COUNTIES[st].split(",")]
     return pd.DataFrame({"unit_id": [f"us-{st}-{fips}{c}" for _, c in items], "name": [n for n, _ in items],
@@ -425,6 +432,89 @@ def parse_vt(main: bytes, statewide: bytes) -> pd.DataFrame:
     return _frame(rows)
 
 
+def _json_values(blob: bytes) -> list:
+    """All top-level JSON values of a text body (NCSBE files hold one array; tolerate several)."""
+    t, dec, i, out = blob.decode("utf-8-sig"), json.JSONDecoder(), 0, []
+    while i < len(t):
+        while i < len(t) and t[i] in " \r\n\t":
+            i += 1
+        if i >= len(t):
+            break
+        v, i = dec.raw_decode(t, i)
+        out.append(v)
+    return out
+
+
+def parse_nc(county_txt: bytes, results: list[bytes]) -> pd.DataFrame:
+    """NC State Board of Elections ENR (er.ncsbe.gov/enr/<YYYYMMDD>/data): county.txt (per county: precincts
+    reported prt / total ptl, ballots cast bct, registered rtl) and results_<county id>.txt (per contest and
+    candidate: total vct, one-stop early evc, Election Day ovc, absentee by mail avc, provisional pvc). early =
+    one-stop + mail. Statewide rows are the county sums."""
+    ids = _ids("nc")
+    info = {}
+    for c in (c for arr in _json_values(county_txt) for c in arr):
+        if str(c.get("cid")) != "0":
+            info[str(c["cid"])] = c
+    rows = []
+    for blob in results:
+        for x in (x for arr in _json_values(blob) for x in arr):
+            race = race_key(re.sub(r"\(VOTE FOR.*", "", x.get("cnm", "")))
+            c = info.get(str(x.get("cid")))
+            if race is None or c is None or _norm(c["cnm"]) not in ids:
+                continue
+            uid, name = ids[_norm(c["cnm"])]
+            rows.append({"level": "county", "unit_id": uid, "name": name, "race": race, "candidate": x["bnm"],
+                         "party": party_code(x.get("pty")), "votes": float(x.get("vct") or 0),
+                         "early": float(x.get("evc") or 0) + float(x.get("avc") or 0),
+                         "reporting": float(x.get("prt") or 0), "units": float(x.get("ptl") or 0),
+                         "ballots": float(c.get("bct") or 0), "registered": float(c.get("rtl") or 0),
+                         "outstanding": np.nan})
+    df = _frame(rows)
+    if df.empty:
+        return df
+    st = df.groupby(["race", "candidate", "party"], as_index=False)[["votes", "early", "reporting", "units"]].sum()
+    st = st.assign(level="state", unit_id="us-nc", name="North Carolina", ballots=np.nan, registered=np.nan,
+                   outstanding=np.nan)
+    return _frame(df.to_dict("records") + st.to_dict("records"))
+
+
+_FL_RACES = {"USS": "sen", "GOV": "gov"}
+
+
+def parse_fl(blob: bytes) -> pd.DataFrame:
+    """Florida Division of Elections results text file (tab-separated; election-night file
+    flelectionfiles.floridados.gov/enightfilespublic/<YYYYMMDD>_ElecResultsFL.txt, and the official extract of
+    results.elections.myflorida.com): one row per county × candidate with RaceCode (USS, GOV), PartyCode, Precincts,
+    PrecinctsReporting, CanVotes. No vote-type split (early and mail votes post at poll close with 0 precincts
+    reporting). Statewide rows are the county sums."""
+    try:                                             # election-night file UTF-8; official extract latin-1
+        text = blob.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = blob.decode("latin-1")
+    d = pd.read_csv(io.StringIO(text), sep="\t", dtype=str, keep_default_na=False)
+    d = d[d["RaceCode"].str.strip().isin(list(_FL_RACES))]
+    ids = _ids("fl")
+    rows = []
+    for x in d.to_dict("records"):
+        k = _norm(x["CountyName"])
+        if k not in ids:
+            continue
+        uid, name = ids[k]
+        rows.append({"level": "county", "unit_id": uid, "name": name, "race": _FL_RACES[x["RaceCode"].strip()],
+                     "candidate": " ".join(f"{x['CanNameFirst']} {x['CanNameLast']}".split()),
+                     "party": party_code(x["PartyCode"].strip()), "votes": float(x["CanVotes"] or 0),
+                     "early": np.nan, "reporting": float(x["PrecinctsReporting"] or 0),
+                     "units": float(x["Precincts"] or 0), "ballots": np.nan, "registered": np.nan,
+                     "outstanding": np.nan})
+    df = _frame(rows)
+    if df.empty:
+        return df
+    st = df.groupby(["race", "candidate", "party"], as_index=False)[["votes", "reporting", "units"]].sum()
+    st = st.assign(level="state", unit_id="us-fl", name="Florida", early=np.nan, ballots=np.nan, registered=np.nan,
+                   outstanding=np.nan)
+    return _frame(df.to_dict("records") + st.to_dict("records"))
+
+
 def parse_feed(kind: str, blobs: dict[str, bytes | list[bytes] | None]) -> pd.DataFrame:
     """Rows for one feed from its latest snapshots. blobs keys as in FEEDS[kind]; '*' keys give a list."""
     match kind:
@@ -448,6 +538,10 @@ def parse_feed(kind: str, blobs: dict[str, bytes | list[bytes] | None]) -> pd.Da
         case "vt":
             return parse_vt(blobs["main"], blobs["statewide"]) if blobs.get("main") and blobs.get("statewide") \
                 else _frame([])
+        case "nc":
+            return parse_nc(blobs["county"], blobs.get("results") or []) if blobs.get("county") else _frame([])
+        case "fl":
+            return parse_fl(blobs["enight"]) if blobs.get("enight") else _frame([])
     raise ValueError(kind)
 
 
@@ -810,6 +904,38 @@ def _vt_static(guid: str, race: str) -> pd.DataFrame:
     return _two_party(rows[rows["race"] == race])
 
 
+def _ncsbe_pct(date: str, contest: str) -> pd.DataFrame:
+    """NC State Board of Elections certified precinct results (dl.ncsbe.gov ENRS/<date>/results_pct_<date>.zip),
+    summed to counties for one contest."""
+    d = f"{date[:4]}_{date[4:6]}_{date[6:]}"
+    z = zipfile.ZipFile(io.BytesIO(_fetch(f"https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/{d}/results_pct_{date}.zip",
+                                          US_RAW / "nc" / f"results_pct_{date}.zip")))
+    r = pd.read_csv(z.open(z.namelist()[0]), sep="\t", dtype=str)
+    r = r[r["Contest Name"].str.strip() == contest]
+    ids = _ids("nc")
+    rows = pd.DataFrame({"level": "county", "unit_id": r["County"].map(lambda n: ids[_norm(n)][0]),
+                         "party": r["Choice Party"].fillna("").str.strip().map(party_code),
+                         "votes": pd.to_numeric(r["Total Votes"], errors="coerce").fillna(0)})
+    return _two_party(rows)
+
+
+def _fl_official(date: str, race: str) -> pd.DataFrame:
+    """Florida Division of Elections official results extract (results.elections.myflorida.com: Download, official
+    results; one POST, cached), county two-party votes for one race. date as M/D/YYYY."""
+    m, d, y = date.split("/")
+    dest = US_RAW / "fl" / f"results_{y}{int(m):02d}{int(d):02d}_official.txt"
+    if not dest.exists():
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with httpx.Client(timeout=120, headers=UA, follow_redirects=True) as c:
+            r = c.post("https://results.elections.myflorida.com/ResultsExtract.Asp",
+                       data={"ElectionDate": date, "OfficialResults": "Y", "PartyRaces": "N", "DataMode": "",
+                             "FormsButton2": "Download"})
+            r.raise_for_status()
+        dest.write_bytes(r.content)
+    rows = parse_fl(dest.read_bytes())
+    return _two_party(rows[rows["race"] == race])
+
+
 PRIOR_SOURCES = {
     "ca_gov_2022": lambda: _ca_sov(2022, "gov"),
     "ca_pres_2024": lambda: _ca_sov(2024, "pres"),
@@ -827,6 +953,10 @@ PRIOR_SOURCES = {
     "sc_gov_2022": lambda: _sc_clarity(115412, "gov"),
     "sc_sen_2022": lambda: _sc_clarity(115412, "sen"),
     "vt_gov_2024": lambda: _vt_static("67a35c79-05a2-4ae3-a77d-97812256188b", "gov"),
+    "nc_sen_2022": lambda: _ncsbe_pct("20221108", "US SENATE"),
+    "nc_pres_2024": lambda: _medsl_pres("nc"),
+    "fl_sen_2022": lambda: _fl_official("11/8/2022", "sen"),
+    "fl_gov_2022": lambda: _fl_official("11/8/2022", "gov"),
 }
 SOURCE_INFO = {
     "ca": ("California Secretary of State, Statement of Vote", "https://www.sos.ca.gov/elections/prior-elections/statewide-election-results", "public record"),
@@ -836,6 +966,8 @@ SOURCE_INFO = {
     "oh": ("MIT Election Data and Science Lab, U.S. President Precinct-Level Returns 2024 (summed to counties)", "https://github.com/MEDSL/2024-elections-official", "CC0 1.0"),
     "sc": ("South Carolina Election Commission, election results (enr-scvotes.org)", "https://scvotes.gov/elections-statistics/election-results/", "public record"),
     "vt": ("Vermont Secretary of State, election results", "https://electionresults.vermont.gov/", "public record"),
+    "nc": ("NC State Board of Elections, election results", "https://www.ncsbe.gov/results-data", "public record"),
+    "fl": ("Florida Division of Elections, election results", "https://results.elections.myflorida.com/", "public record"),
     "az": ("Arizona Secretary of State, election results (Enhanced Voting)", "https://app.enhancedvoting.com/results/public/Arizona", "public record"),
 }
 
@@ -1182,8 +1314,9 @@ def pm_tokens(cfgs: list[dict], pairs_path: Path | None = None, lookup: bool = F
 # 7 p.m. ET (Vermont SoS polling-place information).
 POLL_CLOSE = {"ga": "2026-11-04T00:00:00Z", "oh": "2026-11-04T00:30:00Z", "tx": "2026-11-04T01:00:00Z",
               "ca": "2026-11-04T04:00:00Z", "ak": "2026-11-04T05:00:00Z", "sc": "2026-11-04T00:00:00Z",
-              "vt": "2026-11-04T00:00:00Z"}
-POLL_CLOSE_LAST = {"tx": "2026-11-04T02:00:00Z", "ak": "2026-11-04T06:00:00Z"}   # El Paso/Hudspeth (MT); Aleutians
+              "vt": "2026-11-04T00:00:00Z", "nc": "2026-11-04T00:30:00Z", "fl": "2026-11-04T00:00:00Z"}
+POLL_CLOSE_LAST = {"tx": "2026-11-04T02:00:00Z", "ak": "2026-11-04T06:00:00Z",   # El Paso/Hudspeth (MT); Aleutians
+                   "fl": "2026-11-04T01:00:00Z"}                                  # FL panhandle (central time)
 POLL_SOURCES = [
     {"name": "Georgia.gov, Vote in person on Election Day (polls 7 a.m.-7 p.m.)",
      "url": "https://georgia.gov/vote-in-person-election-day", "licence": "public record"},
@@ -1198,6 +1331,10 @@ POLL_SOURCES = [
      "url": "https://scvotes.gov/elections-statistics/upcoming-elections", "licence": "public record"},
     {"name": "Vermont Secretary of State, polling location information (all polls close at 7 p.m.)",
      "url": "https://sos.vermont.gov/elections/voters/polling-places", "licence": "public record"},
+    {"name": "NC State Board of Elections, Vote on Election Day (polls 6:30 a.m.-7:30 p.m.)",
+     "url": "https://www.ncsbe.gov/voting/vote-person-election-day", "licence": "public record"},
+    {"name": "Florida Division of Elections, Election Day voting (polls 7 a.m.-7 p.m. local time; panhandle central)",
+     "url": "https://dos.fl.gov/elections/for-voters/voting/election-day-voting/", "licence": "public record"},
 ]
 NO_PRIOR = "county prior not available yet"
 
@@ -1275,7 +1412,8 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
         "statewide swing from the poll average frozen in configs/us2026_*_v2.toml (VoteHub polls, CC BY 4.0): the "
         "polls lead before and early in the count, and the counted votes take over as the count grows.",
         "Polls close (UTC, Nov 4): " + ", ".join(f"{STATES[s]} {POLL_CLOSE[s][11:16]}" for s in states)
-        + (" (Texas 02:00 in El Paso and Hudspeth counties)." if "tx" in states else "."),
+        + (" (Texas 02:00 in El Paso and Hudspeth counties)" if "tx" in states else "")
+        + (" (Florida 01:00 in the central-time panhandle)" if "fl" in states else "") + ".",
     ]
     if phase == "pre-count":
         notes.insert(0, "Before the count model v1's estimate is the past certified results by county (the race "

@@ -87,11 +87,13 @@ def next_versions() -> None:
     (a) [model] count_scaled_terms = true — before the count the statewide uncertainty is the poll error alone, the
     reporting-order (tau) and between-region terms grow with the counted votes' weight (brunder.nowcast) — and
     (b) swing_prior_sd = the historical error of a poll average with that many polls (brunder.us.POLL_SD_BINS),
-    instead of the flat 0.039 + sampling. Registered files are never written."""
+    instead of the flat 0.039 + sampling. Registered files are never written. A race added after the first freeze
+    (v1 not registered, e.g. North Carolina Senate) builds its next version from its own unregistered v2."""
     frozen = registered_ids()
     for p in sorted((us.ROOT_DIR / "configs").glob(f"{us.EID}_*_v1.toml")):
         c1 = us.load_config(p)
-        vs = {v: q for v, q in us._sibling_versions(c1).items() if q.stem in frozen}   # registered versions only
+        new = c1["id"] not in frozen
+        vs = {v: q for v, q in us._sibling_versions(c1).items() if new or q.stem in frozen}   # registered only
         cfgs = {v: us.load_config(q) for v, q in vs.items()}
         pm = us.poll_model(cfgs)
         if pm is None:
@@ -100,7 +102,7 @@ def next_versions() -> None:
         if cfgs[pm]["model"].get("count_scaled_terms"):
             print(vs[pm].name, "already has the count-scaled poll error: no next version")
             continue
-        reg = [int(v[1:]) for v in vs if Path(vs[v]).stem in frozen]
+        reg = [int(v[1:]) for v in vs]
         n = max(reg + [1]) + 1
         q = p.with_name(p.name.replace("_v1.toml", f"_v{n}.toml"))
         if q.stem in frozen:

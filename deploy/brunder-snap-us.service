@@ -2,7 +2,9 @@
 # Started by brunder-snap-us.timer; stops itself at --until. Sources: docs/edge_tool.md ("Recording other
 # elections"). Left out on purpose: Kansas (robots.txt disallows /ent/), Michigan (Cloudflare blocks
 # non-browser clients; not circumvented), Iowa (its CloudFront answers datacenter IPs with an empty
-# 202 bot challenge; not circumvented), Maine (no official election-night feed).
+# 202 bot challenge; not circumvented), Maine (no official election-night feed), Pennsylvania (Incapsula
+# bot protection), Wisconsin (Cloudflare 403; no statewide night feed), New Hampshire (Akamai 403),
+# Nebraska (HTML pages only, no data file; no parser).
 # SSL_CERT_FILE: certifi + GlobalSign GCC R46 OV TLS CA 2025, which Alaska's server omits from its chain.
 [Unit]
 Description=brunder passive recorder: US midterms 2026-11-03
@@ -26,6 +28,8 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder snap us_midterms_2026 
   --ga-enr https://app.enhancedvoting.com/results/public/api/jurisdictions/Arizona \
   --clarity 'https://www.enr-scvotes.org/SC|https://scvotes.gov/elections-statistics/election-results/|^ *2026 (Statewide )?General Election *$$' \
   --vt-static https://static.electionresults.vermont.gov/elections/68d61e96-1d28-4210-8c1d-8e90512ae105.json \
+  --url https://flelectionfiles.floridados.gov/enightfilespublic/20261103_ElecResultsFL.txt \
+  --ncsbe https://er.ncsbe.gov/enr/20261103/data \
   --date 2026-11-03 \
   --pm-event alabama-governor-winner-2026 --pm-event alabama-senate-election-winner-154 \
   --pm-event alaska-governor-election-winner --pm-event alaska-senate-election-winner \

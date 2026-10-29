@@ -77,7 +77,7 @@ async def _clarity_eid(web: httpx.AsyncClient, spec: str, m: int, d: int, y: int
 
 
 async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str], date: str | None,
-                   vt_static: list[str] = ()) -> list[tuple[str, str]]:
+                   vt_static: list[str] = (), ncsbe: list[str] = ()) -> list[tuple[str, str]]:
     """Day-of URLs whose election id / version is only known once published. Returns (key, url) pairs.
       clarity: Clarity/Scytl ENR base, e.g. https://electionresults.iowa.gov/IA, optionally "BASE|LISTING_URL|REGEX"
                (see _clarity_eid). Data lives under a version that changes on every upload; records ALL.json
@@ -87,7 +87,9 @@ async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str]
                `data` file, and the per-county breakdown (`data/ballot-item/<id>`) of Governor and US Senate.
       vt_static: Vermont results file static.electionresults.vermont.gov/elections/<guid>.json; records it
                (vt_static_main) and the statewide-offices file it points to, renamed on every update
-               (vt_static_statewide)."""
+               (vt_static_statewide).
+      ncsbe:   NC State Board of Elections ENR base, e.g. https://er.ncsbe.gov/enr/20261103/data; records
+               county.txt (ncsbe_county) and every county's results_<id>.txt (ncsbe_results_<id>), ids from county.txt."""
     out = []
     if not date:
         return out
@@ -129,7 +131,19 @@ async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str]
                 out.append(("vt_static_statewide", f"{root}/{path.replace(chr(92), '/')}"))
         except Exception as e:
             print(f"resolver {url}: {type(e).__name__}: {e}", flush=True)
+    for base in ncsbe:
+        try:
+            out.append(("ncsbe_county", f"{base}/county.txt"))
+            if base not in _NCSBE_IDS:
+                txt = (await web.get(f"{base}/county.txt")).text
+                _NCSBE_IDS[base] = sorted({int(c) for c in re.findall(r'"cid"\s*:\s*"(\d+)"', txt)} - {0})
+            out += [(f"ncsbe_results_{i:03d}", f"{base}/results_{i}.txt") for i in _NCSBE_IDS[base]]
+        except Exception as e:
+            print(f"resolver {base}: {type(e).__name__}: {e}", flush=True)
     return out
+
+
+_NCSBE_IDS: dict[str, list[int]] = {}         # NCSBE ENR base -> county ids (stable per election)
 
 
 def _pm_tokens(pm_events: list[str]) -> dict[str, str]:
@@ -147,7 +161,8 @@ def _pm_tokens(pm_events: list[str]) -> dict[str, str]:
 
 async def run(tag: str, urls: list[str], pm_events: list[str], interval: float = 30.0,
               until: datetime | None = None, clarity: list[str] = (), ga_enr: list[str] = (),
-              date: str | None = None, out_root: Path | None = None, vt_static: list[str] = ()) -> None:
+              date: str | None = None, out_root: Path | None = None, vt_static: list[str] = (),
+              ncsbe: list[str] = ()) -> None:
     out = (out_root or SNAP) / tag
     out.mkdir(parents=True, exist_ok=True)
     tokens = await asyncio.to_thread(_pm_tokens, pm_events)
@@ -188,13 +203,18 @@ async def run(tag: str, urls: list[str], pm_events: list[str], interval: float =
             except Exception as e:
                 print(f"{t:%H:%M:%S} url error, continuing: {type(e).__name__}: {e}", flush=True)
             try:
-                for key, u in await _resolve(web, list(clarity), list(ga_enr), date, list(vt_static)):
-                    try:                                     # one resolved URL failing must not stop the rest
-                        r = await web.get(u)
-                        if r.status_code == 200:
-                            save(key, r.content, "json", t)
-                    except Exception as e:
-                        print(f"{t:%H:%M:%S} {key}: {type(e).__name__}: {e}", flush=True)
+                sem = asyncio.Semaphore(8)                   # NC alone resolves 101 files; ≤ 8 requests at a time
+
+                async def get(u: str) -> httpx.Response:
+                    async with sem:
+                        return await web.get(u)
+                pairs = await _resolve(web, list(clarity), list(ga_enr), date, list(vt_static), list(ncsbe))
+                rs = await asyncio.gather(*(get(u) for _, u in pairs), return_exceptions=True)
+                for (key, _), r in zip(pairs, rs):           # one resolved URL failing must not stop the rest
+                    if isinstance(r, httpx.Response) and r.status_code == 200:
+                        save(key, r.content, "json", t)
+                    elif isinstance(r, Exception):
+                        print(f"{t:%H:%M:%S} {key}: {type(r).__name__}: {r}", flush=True)
             except Exception as e:
                 print(f"{t:%H:%M:%S} resolver error, continuing: {type(e).__name__}: {e}", flush=True)
             try:

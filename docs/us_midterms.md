@@ -172,13 +172,38 @@ the live test data. The race has no config: AZ's certified county results (azsos
 Cloudflare challenge that is not circumvented. Enhanced Voting holds no earlier AZ general election, and its 2026
 primary covers 3 counties only. AZ is listed with prices in the overview.
 
-Florida: skipped. Its results site is a set of ASP frame pages with no machine-readable county endpoint found in the
-time available.
-
 Settings: SC and VT feeds report no vote-type split, so they use the Georgia calibration without a split (τ 0.06,
 ρ 0.3). Both states count on election night (SC early and absentee ballots, VT town hand counts including
 absentees), so complete counties are taken as 98 % counted, as in GA and TX. SC's `PX`/`PY` were only seen on
 finished elections (equal); that they mean reported/total precincts on the night is an assumption.
+
+Florida was first skipped on 2026-10-28 for want of a county endpoint. It was added on 2026-10-29 (next section).
+
+### North Carolina and Florida (added 2026-10-29; settings chosen without any 2026 general-election data)
+
+| race_id | configs | feed (recorder) | units | prior (official) | settings |
+|---|---|---|---|---|---|
+| nc-sen | `us2026_nc_sen_v1..v3` | NCSBE ENR, `er.ncsbe.gov/enr/20261103/data/county.txt` + `results_<county id>.txt` (101 static files; `brunder snap --ncsbe <base>`) | 100 counties | 2022 Senate share and two-party votes (NCSBE certified precinct file `results_pct_20221108.zip`) | GA vote-type settings: τ 0.04, ρ 0.6, `vote_type` (early = one-stop + mail, reported per candidate), early_share 0.46 (NC 2022 Senate); complete = all precincts in → 98 %, learned turnout |
+| fl-sen | `us2026_fl_sen_v1..v3` | FL Division of Elections election-night file `flelectionfiles.floridados.gov/enightfilespublic/20261103_ElecResultsFL.txt` (one tab-separated file, plain `--url`) | 67 counties | 2022 Senate (official results extract, results.elections.myflorida.com) | no vote-type split, as SC: τ 0.06, ρ 0.3; complete = all precincts in → 98 %, learned turnout |
+| fl-gov | `us2026_fl_gov_v1..v3` | same | 67 counties | 2022 governor | as fl-sen |
+
+- **Configs:** v2 and v3 were built by `analysis/us_polls.py configs` / `next` with the same rules as the other races. v1 is not registered, so `next` builds v3 from the race's own v2.
+- **Parsers:** `parse_nc` and `parse_fl`.
+  - NC was tested on all 100 county files of the 2022 general. The Senate statewide sum equals the certified Budd 1,905,786 / Beasley 1,784,049.
+  - FL was tested on the 2022 official extract: Rubio 4,474,847 / Demings 3,201,522 and DeSantis 4,614,210 / Crist 3,106,313. It was also tested on the 2024 election-night file and on the 2026 file, which is still the zeroed test deck.
+- **Recorder cost:** `snap` fetches resolved URLs 8 at a time, so NC's 101 files per poll do not delay the other feeds.
+- **NC early-vote bias:** the NC 2022 one-stop vote was more Republican than the final result. In an early-votes-only replay against a 2024-president prior, the share was −3 pts, within 1 sd. Election Day precincts correct it.
+- **FL count order:** FL posts early and mail votes at 7 p.m. local time with 0 precincts reported. The model reads that as votes counted against expected votes, since the file has no split.
+
+**States checked and left out on 2026-10-29** (no bot protection circumvented):
+
+| state | reason |
+|---|---|
+| Pennsylvania | electionreturns.pa.gov is served behind Incapsula |
+| Wisconsin | elections.wi.gov answers 403 under Cloudflare, and there is no statewide election-night feed (counties report) |
+| New Hampshire | sos.nh.gov answers 403 under Akamai ("Access Denied") |
+| Maine | maine.gov answers 403, and there is no official election-night feed |
+| Nebraska | electionresults.nebraska.gov is open, but serves ASP.NET HTML pages only; there is no machine-readable county endpoint and no parser in the time available. Senate is Osborn (independent) v Ricketts |
 
 ## Polls
 

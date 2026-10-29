@@ -1,0 +1,46 @@
+# US midterms 2026-11-03, North Carolina Senate. Frozen before polls close (2026-11-04 00:30 UTC in NC); the integrator
+# registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence:
+# docs/us_midterms.md. Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_nc_sen_v1"
+
+[election]
+eid = "us2026"
+race_id = "nc-sen"
+name = "North Carolina Senate"
+state = "nc"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "nc"                    # brunder.us.FEEDS (NCSBE ENR county.txt + results_<id>.txt; resolver --ncsbe)
+poll_close_utc = "2026-11-04T00:30:00Z"
+a = { party = "DEM", name = "Roy Cooper", color = "#1f5fbf" }
+b = { party = "REP", name = "Michael Whatley", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "nc_sen_2022"        # 2022 Senate (Beasley v Budd): same office, last midterm (NCSBE certified precinct results)
+votes = "nc_sen_2022"        # 2022 Senate two-party votes
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays, vote_type on (analysis/us_calibrate.py)
+tau = 0.04
+rho = 0.6
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# NC reports one-stop early and mail ballots first after polls close, then Election Day precincts (NCSBE ENR
+# reports each county's one-stop / absentee / Election Day / provisional votes and precincts reported), the same
+# order as GA: vote_type on, a county with every precinct reported is 98% counted, learned turnout.
+# early_share = 0.46 = NC 2022 Senate one-stop + mail share of the two-party vote (NCSBE ENR 2022, county files).
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = true
+early_share = 0.46
+
+[markets.polymarket]
+event = "north-carolina-senate-election-winner"
+market = "will-the-democrats-win-the-north-carolina-senate-race-in-2026"
+question = "Will the Democrats win the North Carolina Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

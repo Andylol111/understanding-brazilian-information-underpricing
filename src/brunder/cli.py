@@ -96,6 +96,8 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--ga-enr", action="append", default=[], help="Enhanced Voting jurisdiction URL (day-of id resolved)")
     s.add_argument("--vt-static", action="append", default=[],
                    help="Vermont static results file …/elections/<guid>.json (records it + its statewide file)")
+    s.add_argument("--ncsbe", action="append", default=[],
+                   help="NCSBE ENR data base, e.g. https://er.ncsbe.gov/enr/20261103/data (county.txt + results_<id>.txt)")
     s.add_argument("--date", help="election date YYYY-MM-DD for the resolvers")
     s = sub.add_parser("kalshi", help="Kalshi public market data: find series, list an event, record order books")
     s.add_argument("step", choices=["search", "event", "record"])
@@ -201,7 +203,7 @@ def main(argv: list[str] | None = None) -> None:
             from . import snap
             until = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
             asyncio.run(snap.run(a.tag, a.url, a.pm_event, a.interval, until, a.clarity, a.ga_enr, a.date,
-                                 vt_static=a.vt_static))
+                                 vt_static=a.vt_static, ncsbe=a.ncsbe))
         case "kalshi":
             from . import arb, kalshi
             match a.step:
