@@ -841,22 +841,43 @@ def load_config(path: Path) -> dict:
     return cfg
 
 
-def _v2_path(c: dict) -> Path:
+_VERSION = re.compile(r"_v(\d+)$")
+
+
+def config_version(c: dict) -> int:
+    m = _VERSION.search(str(c.get("id", "")))
+    return int(m.group(1)) if m else 1
+
+
+def _sibling_versions(c: dict) -> dict[str, Path]:
+    """Later versions of a v1 config next to it (…_v2.toml, …_v3.toml), in version order."""
     p = Path(c["_path"])
-    return p.with_name(p.name.replace("_v1.toml", "_v2.toml"))
+    found = {int(m.group(1)): q for q in p.parent.glob(p.name.replace("_v1.toml", "_v*.toml"))
+             if (m := re.search(r"_v(\d+)\.toml$", q.name)) and int(m.group(1)) > 1}
+    return {f"v{n}": found[n] for n in sorted(found)}
 
 
-def load_races(cfg_paths: list[Path]) -> tuple[list[dict], dict[str, dict]]:
-    """(race configs, model v2 config per race_id). v2 configs passed explicitly are attached to their race, not
-    run as races of their own; a v1 config's sibling *_v2.toml is attached when it exists."""
+def load_races(cfg_paths: list[Path]) -> tuple[list[dict], dict[str, dict[str, dict]]]:
+    """(race configs = the v1 configs, later model versions per race_id {"v2": cfg, "v3": cfg, …}). Later versions
+    passed explicitly are attached to their race, not run as races of their own; a v1 config's sibling *_vN.toml
+    files are attached too. Every version runs (each registered config is scored)."""
     loaded = [load_config(Path(p)) for p in cfg_paths]
-    cfgs = [c for c in loaded if not str(c.get("id", "")).endswith("_v2")]
-    v2 = {c["election"]["race_id"]: c for c in loaded if str(c.get("id", "")).endswith("_v2")}
+    cfgs = [c for c in loaded if config_version(c) == 1]
+    versions: dict[str, dict[str, dict]] = {}
+    for c in loaded:
+        if config_version(c) > 1:
+            versions.setdefault(c["election"]["race_id"], {})[f"v{config_version(c)}"] = c
     for c in cfgs:
-        q = _v2_path(c)
-        if c["election"]["race_id"] not in v2 and q != Path(c["_path"]) and q.exists():
-            v2[c["election"]["race_id"]] = load_config(q)
-    return cfgs, v2
+        have = versions.setdefault(c["election"]["race_id"], {})
+        for v, q in _sibling_versions(c).items():
+            have.setdefault(v, load_config(q))
+    return cfgs, {rid: dict(sorted(vs.items(), key=lambda kv: int(kv[0][1:]))) for rid, vs in versions.items() if vs}
+
+
+def poll_model(versions: dict[str, dict]) -> str | None:
+    """The race's active poll model: the latest version with a swing prior (e.g. Ohio: v3; its v2 has none)."""
+    act = [v for v, c in versions.items() if c.get("model", {}).get("swing_prior_sd") is not None]
+    return act[-1] if act else None
 
 
 @dataclass(frozen=True)
@@ -1130,7 +1151,9 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
                 "b": {"id": E["b"]["party"].lower(), "name": E["b"]["name"], "color": E["b"]["color"]},
                 "markets": mk, "units": f"units/{rid}.json" if priors_ok[rid] else None,
                 "poll_close_utc": POLL_CLOSE.get(E["state"]), "config": Path(c["_path"]).name,
-                "config_v2": _v2_path(c).name if _v2_path(c).exists() else None}
+                "config_v2": (_sibling_versions(c).get("v2") or Path("")).name or None,
+                "versions": {v: q.name for v, q in _sibling_versions(c).items()},
+                "poll_model": poll_model({v: load_config(q) for v, q in _sibling_versions(c).items()})}
         if phase == "pre-count":
             race["precount"] = precount.get(rid)
         if not priors_ok[rid]:
@@ -1201,11 +1224,11 @@ class Exporter:
         change; replay: use 1, the archive is final)."""
         self.max_retries, self.phase = max_retries, phase
         self._retries: dict[str, tuple[pd.Timestamp, int]] = {}
-        self.cfgs, self.v2 = load_races(cfg_paths)
+        self.cfgs, self.versions = load_races(cfg_paths)
         self.arc = Archive(snap_root or SNAP / TAG)
         pr = priors if priors is not None else load_priors()
         self.pri = {c["election"]["race_id"]: race_prior(c, pr) for c in self.cfgs}
-        self.pri2 = {rid: race_prior(c2, pr) for rid, c2 in self.v2.items()}
+        self.pri_v = {rid: {v: race_prior(cv, pr) for v, cv in vs.items()} for rid, vs in self.versions.items()}
         self.polls = load_polls()
         self.step, self.frame_every = pd.Timedelta(step), pd.Timedelta(frame_every)
         rids = [c["election"]["race_id"] for c in self.cfgs]
@@ -1258,14 +1281,16 @@ class Exporter:
                 memo = (sig, project(rows, c, pri))
                 self._memo[rid] = memo
             res, units = memo[1]
-            c2, pri2 = self.v2.get(rid), self.pri2.get(rid)
-            if c2 is not None and pri2 is not None and not pri2.empty:
-                m2 = self._memo.get(rid + "|v2")
-                if m2 is None or m2[0] != sig:
-                    m2 = (sig, project(rows, c2, pri2))
-                    self._memo[rid + "|v2"] = m2
-                r2 = m2[1][0]
-                res = {**res, "p_win_v2": r2["p_win"], "share_v2": r2["share_hat"], "sd_v2": r2["share_sd"]}
+            for v, cv in self.versions.get(rid, {}).items():       # every later model version (v2, v3, …)
+                pv = self.pri_v[rid][v]
+                if pv is None or pv.empty:
+                    continue
+                mv = self._memo.get(f"{rid}|{v}")
+                if mv is None or mv[0] != sig:
+                    mv = (sig, project(rows, cv, pv))
+                    self._memo[f"{rid}|{v}"] = mv
+                rv = mv[1][0]
+                res = {**res, f"p_win_{v}": rv["p_win"], f"share_{v}": rv["share_hat"], f"sd_{v}": rv["share_sd"]}
         pm = _pm_market(c)
         p_yes = prices.get(pm[0]) if pm else None
         p_a = None if p_yes is None else (p_yes if pm[1] == "a" else 1 - p_yes)
@@ -1275,6 +1300,8 @@ class Exporter:
         row = {"t": _iso(t), "counted": _r(res.get("counted_frac")), "raw": _r(res.get("raw")),
                "share": _r(res.get("share_hat")), "sd": _r(res.get("share_sd")), "P": _r(res.get("p_win")),
                "P_v2": _r(res.get("p_win_v2")), "share_v2": _r(res.get("share_v2")), "sd_v2": _r(res.get("sd_v2")),
+               **{f"{k}_{v}": _r(res.get(f"{n}_{v}")) for v in self.versions.get(rid, {}) if v != "v2"
+                  for k, n in (("P", "p_win"), ("share", "share"), ("sd", "sd"))},
                "pm": _r(p_a), "kalshi": _r(k_a), "rem_total": _tens(res.get("rem_total")),
                "rem_margin_total": _tens(res.get("rem_margin_total")),
                "votes_proj": _tens(units["n"].sum() + res["rem_total"]) if units is not None else None,
@@ -1486,7 +1513,7 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
     sampled every `step` over the last `days`, and a map frame = the prior. Network: Polymarket and Kalshi public
     APIs only. Refuses to overwrite files of the live or replay phase unless force."""
     from . import polymarket
-    cfgs, v2 = load_races(cfg_paths)
+    cfgs, versions = load_races(cfg_paths)
     d = Path(out) / EID
     if (d / "meta.json").exists() and not force:
         phase = json.loads((d / "meta.json").read_text()).get("phase")
@@ -1495,7 +1522,7 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
             return d
     pr = priors if priors is not None else load_priors()
     pri = {c["election"]["race_id"]: race_prior(c, pr) for c in cfgs}
-    pri2 = {rid: race_prior(c2, pr) for rid, c2 in v2.items()}
+    pri_v = {rid: {v: race_prior(cv, pr) for v, cv in vs.items()} for rid, vs in versions.items()}
     polls = load_polls()
     ok = {rid: p is not None and not p.empty for rid, p in pri.items()}
     now = (now or pd.Timestamp.now(tz="UTC")).floor(step)
@@ -1510,10 +1537,13 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
             res, _ = project(_frame([]), c, pri[rid])
             pre[rid] = {"P": _r(res["p_win"]), "share": _r(res["share_hat"]), "sd": _r(res["share_sd"]),
                         "rem_total": _tens(res["rem_total"]), "rem_margin_total": _tens(res["rem_margin_total"]),
-                        "P_v2": None, "share_v2": None, "sd_v2": None}
-            if pri2.get(rid) is not None and not pri2[rid].empty:
-                r2, _ = project(_frame([]), v2[rid], pri2[rid])
-                pre[rid].update(P_v2=_r(r2["p_win"]), share_v2=_r(r2["share_hat"]), sd_v2=_r(r2["share_sd"]))
+                        "P_v2": None, "share_v2": None, "sd_v2": None,
+                        "poll_model": poll_model(versions.get(rid, {}))}
+            for v, cv in versions.get(rid, {}).items():
+                if pri_v[rid][v] is not None and not pri_v[rid][v].empty:
+                    rv, _ = project(_frame([]), cv, pri_v[rid][v])
+                    pre[rid].update({f"P_{v}": _r(rv["p_win"]), f"share_{v}": _r(rv["share_hat"]),
+                                     f"sd_{v}": _r(rv["share_sd"])})
         pm_vals = [None] * len(grid)
         pm = c.get("markets", {}).get("polymarket", {})
         if tokens.get(rid):
@@ -1538,6 +1568,8 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
         timeline[rid] = [{"t": _iso(t), "counted": None, "raw": None, "share": m.get("share"), "sd": m.get("sd"),
                           "P": m.get("P"), "P_v2": m.get("P_v2"), "share_v2": m.get("share_v2"),
                           "sd_v2": m.get("sd_v2"), "pm": _r(pv), "kalshi": _r(kv),
+                          **{f"{k}_{v}": m.get(f"{k}_{v}") for v in versions.get(rid, {}) if v != "v2"
+                             for k in ("P", "share", "sd")},
                           "rem_total": m.get("rem_total"),
                           "rem_margin_total": m.get("rem_margin_total"), "votes_proj": m.get("rem_total"),
                           **margin_fields(m.get("share"), m.get("sd"), m.get("share_v2"), pv, kv, polls.get(rid))}
@@ -2203,7 +2235,9 @@ def race_margins(r: dict) -> dict:
         or (est or {}).get("margin_sd")
     pm, km = (r.get("pm") or {}).get("price"), (r.get("kalshi") or {}).get("price")
     return {"model": _margin(pre.get("share")), "model_sd": _r(2 * pre["sd"] * 100, 2) if pre.get("sd") else None,
-            "model_v2": _margin(pre.get("share_v2")), "polls": _margin(pa["avg"]) if pa else None,
+            "model_v2": _margin(pre.get("share_v2")),
+            "model_polls": _margin(pre.get(f"share_{pre['poll_model']}")) if pre.get("poll_model") else None,
+            "poll_model": pre.get("poll_model"), "polls": _margin(pa["avg"]) if pa else None,
             "polls_sd": _r(2 * pa["sd"] * 100, 2) if pa else None,
             "estimate": (est or {}).get("margin"), "market": market_margin(pm, sd),
             "market_kalshi": market_margin(km, sd), "market_sd_used": _r(sd, 2) if sd else None}

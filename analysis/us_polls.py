@@ -53,11 +53,23 @@ def _after_block(body: str, section: str, lines: list[str]) -> str:
     return body[:m.end()] + "".join(x + "\n" for x in lines) + body[m.end():]
 
 
+def registered_ids() -> set[str]:
+    """Config ids in prereg/registry.jsonl: frozen, never regenerated."""
+    f = us.ROOT_DIR / "prereg" / "registry.jsonl"
+    if not f.exists():
+        return set()
+    return {__import__("json").loads(line)["id"] for line in f.read_text().splitlines() if line.strip()}
+
+
 def configs() -> None:
     polls = us.load_polls()
     built = __import__("json").loads(us.POLLS_PUBLIC.read_text())["built"]
     priors = us.load_priors()
+    frozen = registered_ids()
     for p in sorted((us.ROOT_DIR / "configs").glob(f"{us.EID}_*_v1.toml")):
+        if p.name.replace("_v1.toml", "_v2") in frozen:
+            print(p.name.replace("_v1.toml", "_v2.toml"), "registered: not regenerated")
+            continue
         text = p.read_text()
         cfg = us.load_config(p)
         rid = cfg["election"]["race_id"]

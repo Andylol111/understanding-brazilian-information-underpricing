@@ -943,11 +943,14 @@ def test_swing_prior_off_is_bit_identical_to_previous_model():
 def test_v2_configs_only_change_the_prior():
     import hashlib
     import re as _re
-    for p2 in sorted((ROOT / "configs").glob("us2026_*_v2.toml")):
-        p1 = p2.with_name(p2.name.replace("_v2", "_v1"))
+    for p2 in sorted((ROOT / "configs").glob("us2026_*_v[2-9].toml")):
+        p1 = p2.with_name(_re.sub(r"_v\d\.toml$", "_v1.toml", p2.name))
         c1, c2 = us.load_config(p1), us.load_config(p2)
-        assert hashlib.sha256(p1.read_bytes()).hexdigest() in p2.read_text().splitlines()[0]
-        assert c2["id"] == c1["id"][:-3] + "_v2"
+        n = int(p2.stem[-1])
+        prev = p2.with_name(_re.sub(r"_v\d\.toml$", f"_v{n - 1}.toml", p2.name))
+        head = "".join(line for line in p2.read_text().splitlines() if line.startswith("#"))
+        assert hashlib.sha256(prev.read_bytes()).hexdigest()[:16] in head        # cites the version it extends
+        assert c2["id"] == c1["id"][:-3] + p2.stem[-3:]
         for k in ("election", "count", "markets"):
             assert c2[k] == c1[k], (p2.name, k)
         assert {k: c2["model"][k] for k in c1["model"]} == c1["model"]
@@ -963,7 +966,7 @@ def test_v2_configs_only_change_the_prior():
         if extra:
             assert 0.2 < c2["prior"]["poll_avg"] < 0.8 and _re.fullmatch(r"\d{4}-\d\d-\d\d", c2["prior"]["poll_last"])
     cfgs, v2 = us.load_races([ROOT / "configs" / "us2026_ga_sen_v1.toml", ROOT / "configs" / "us2026_ga_sen_v2.toml"])
-    assert [c["id"] for c in cfgs] == ["us2026_ga_sen_v1"] and v2["ga-sen"]["id"] == "us2026_ga_sen_v2"
+    assert [c["id"] for c in cfgs] == ["us2026_ga_sen_v1"] and v2["ga-sen"]["v2"]["id"] == "us2026_ga_sen_v2"
 
 
 # ------------------------------------------------------------------ early vote (display only)
@@ -1076,3 +1079,40 @@ def test_scores_are_separate():
     assert s["margin_pts"]["mae"] == pytest.approx(1.0) and s["margin_pts"]["last"] == pytest.approx(0.0)
     assert s["turnout_rel"]["mean"] == pytest.approx(0.05)
     assert s["probability"]["brier"] == pytest.approx(((0.3) ** 2 + 0.1 ** 2) / 2)
+
+
+# ------------------------------------------------------------------ model versions (v1, v2, v3 all run)
+
+def test_load_races_attaches_every_version_and_picks_poll_model():
+    cfgs, vs = us.load_races([ROOT / "configs" / "us2026_oh_sen_v1.toml"])
+    assert [c["id"] for c in cfgs] == ["us2026_oh_sen_v1"]
+    assert list(vs["oh-sen"]) == ["v2", "v3"] and us.poll_model(vs["oh-sen"]) == "v3"   # registered v2: no prior
+    _, vs = us.load_races([ROOT / "configs" / "us2026_ga_sen_v1.toml"])
+    assert list(vs["ga-sen"]) == ["v2"] and us.poll_model(vs["ga-sen"]) == "v2"
+
+
+def test_preelection_runs_ohio_v1_v2_v3(tmp_path, monkeypatch):
+    _mock_prices(monkeypatch)
+    paths = [ROOT / "configs" / "us2026_oh_sen_v1.toml"]
+    priors, _ = _synth_priors([us.load_config(paths[0])])
+    pairs = tmp_path / "pairs.toml"
+    pairs.write_text(PAIRS_PRE)
+    d = us.preelection(paths, tmp_path / "site", days=1, now=NOW, priors=priors, pairs_path=pairs)
+    race = json.loads((d / "meta.json").read_text())["races"][0]
+    assert race["poll_model"] == "v3" and race["versions"] == {"v2": "us2026_oh_sen_v2.toml", "v3": "us2026_oh_sen_v3.toml"}
+    pc = race["precount"]
+    assert pc["P_v2"] == pytest.approx(pc["P"]) and pc["P_v3"] != pytest.approx(pc["P"])   # v2 = v1 (no swing prior)
+    row = json.loads((d / "timeline.json").read_text())["oh-sen"][-1]
+    assert row["P_v3"] == pc["P_v3"] and row["share_v3"] == pc["share_v3"]
+
+
+def test_config_generator_never_touches_registered_files():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("us_polls", ROOT / "analysis" / "us_polls.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    frozen = mod.registered_ids()
+    assert {"us2026_oh_sen_v2", "us2026_oh_sen_v3", "us2026_ga_sen_v2"} <= frozen
+    files = {p: p.read_bytes() for p in (ROOT / "configs").glob("us2026_*_v*.toml") if p.stem in frozen}
+    mod.configs()
+    assert all(p.read_bytes() == b for p, b in files.items())
