@@ -1410,3 +1410,28 @@ def test_senate_control_correlated_vs_independent():
     lo_c, hi_c = c["seats_80_corr"]
     assert hi_c - lo_c >= hi_i - lo_i                                    # a shared error widens the seat range
     assert us.senate_control(ov, rho=0.0)["control_p_corr"] == pytest.approx(c["control_p_indep"], abs=0.01)
+
+
+def _priors_csv(path: Path, rows: list[tuple]) -> Path:
+    pd.DataFrame(rows, columns=["source", "unit_id", "dem", "rep", "total"]).to_csv(path, index=False)
+    return path
+
+
+def test_load_priors_fills_sources_missing_from_a_stale_local_build(tmp_path):
+    # the VM's data/processed priors predated the sc/nc/fl configs: those races must still get the public prior
+    pub = _priors_csv(tmp_path / "pub.csv", [("ga_gov_2022", "us-ga-13001", 10, 20, 31),
+                                             ("nc_sen_2022", "us-nc-37001", 5, 6, 12)])
+    proc = _priors_csv(tmp_path / "proc.csv", [("ga_gov_2022", "us-ga-13001", 10, 20, 31),
+                                               ("local_only", "us-xx-00001", 1, 2, 3)])
+    pr = us.load_priors(processed=proc, public=pub)
+    assert sorted(pr["source"]) == ["ga_gov_2022", "local_only", "nc_sen_2022"]
+    assert us.load_priors(processed=tmp_path / "absent.csv", public=pub).equals(pd.read_csv(pub))
+
+
+def test_load_priors_prefers_public_rows_when_a_source_differs(tmp_path, capsys):
+    pub = _priors_csv(tmp_path / "pub.csv", [("ga_gov_2022", "us-ga-13001", 10, 20, 31)])
+    proc = _priors_csv(tmp_path / "proc.csv", [("ga_gov_2022", "us-ga-13001", 99, 20, 120)])
+    pr = us.load_priors(processed=proc, public=pub)
+    assert pr[["dem", "total"]].values.tolist() == [[10, 31]]
+    out = capsys.readouterr().out
+    assert "differs" in out and "ga_gov_2022" in out

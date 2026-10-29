@@ -564,7 +564,9 @@ El Paso and Hudspeth, mountain time) and California 04:00 (8 p.m. PT). Standard 
 time ended on Nov 1. Sources: georgia.gov (vote in person on Election Day), Ohio SoS 2026 elections calendar, Texas
 SoS news release of 2026-10-27, and the California SoS Elections Officers' Digest.
 
-Priors come from `data/processed/us2026/priors.csv` when it exists, else from the committed `data_public/us2026_priors.csv`.
+Priors come from the committed `data_public/us2026_priors.csv` (the registered input); a local
+`data/processed/us2026/priors.csv` only adds sources the public file lacks, and a source whose local rows differ is
+taken from the public file with a warning (a stale local build once left 8 of 13 races without a prior on the server).
 That file is the same derived county table (official public-record and CC BY sources, attribution header), written
 by `brunder us priors`. Races without a prior (Ohio, until the MEDSL file is added) are listed with prices and
 `model_note` "county prior not available yet". The command refuses to overwrite files whose phase is live or
@@ -598,10 +600,12 @@ Kalshi pairs file must include the registry's markets. A failing overview refres
 ## Live and replay
 
 ```
-uv run brunder us priors                                         # once; copy data/processed/us2026/priors.csv to the server
+uv run brunder us priors                                         # optional: sources not yet in data_public
 uv run brunder us live configs/us2026_*_v1.toml --out <served data root> --until 2026-11-05T12:00Z
 uv run brunder us export configs/us2026_*_v1.toml --out site/data   # replay from the archive afterwards
 uv run python analysis/us_dryrun.py --out /tmp/us2026_dryrun     # synthetic night, end-to-end check (never publish)
+uv run python analysis/us_night_replay.py run --work /tmp/brr --minutes 15   # past official counts (GA/NC/FL 2022, TX) as recorder snapshots, 12x
+uv run --with playwright python analysis/us_night_replay.py page --live http://127.0.0.1:8791/   # headless page checks
 ```
 
 `live` re-reads the recorder's archive every 30 s, extends the per-minute timeline and rewrites the files

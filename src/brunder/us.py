@@ -993,12 +993,29 @@ def build_priors(sources: list[str] | None = None) -> Path:
 PUBLIC_PRIORS = ROOT_DIR / "data_public" / "us2026_priors.csv"
 
 
-def load_priors(path: Path | None = None) -> pd.DataFrame:
-    """data/processed/us2026/priors.csv when built locally (brunder us priors), else the committed public copy
-    data_public/us2026_priors.csv (same derived table, attribution header) so CI runs need no private data."""
-    if path is None:
-        path = US_PROC / "priors.csv" if (US_PROC / "priors.csv").exists() else PUBLIC_PRIORS
-    return pd.read_csv(path, comment="#")
+def load_priors(path: Path | None = None, processed: Path | None = None, public: Path | None = None) -> pd.DataFrame:
+    """County priors: the committed data_public/us2026_priors.csv (the registered input) plus any source that only a
+    local build (data/processed/us2026/priors.csv, `brunder us priors`) has. A source in both whose rows differ is
+    taken from the public file, with a warning: a stale local build must never drop or change a registered prior.
+    `path`: read exactly that file instead."""
+    if path is not None:
+        return pd.read_csv(path, comment="#")
+    pub = pd.read_csv(public or PUBLIC_PRIORS, comment="#")
+    proc_path = processed or US_PROC / "priors.csv"
+    if not proc_path.exists():
+        return pub
+    proc = pd.read_csv(proc_path, comment="#")
+
+    def same(s: str) -> bool:
+        a, b = (d[d["source"] == s].sort_values("unit_id") for d in (proc, pub))
+        return (len(a) == len(b) and (a["unit_id"].to_numpy() == b["unit_id"].to_numpy()).all()
+                and np.allclose(a[["dem", "rep", "total"]].to_numpy(float), b[["dem", "rep", "total"]].to_numpy(float)))
+    differ = [s for s in sorted(set(proc["source"]) & set(pub["source"])) if not same(s)]
+    if differ:
+        print(f"priors: {proc_path} differs from {public or PUBLIC_PRIORS} for {', '.join(differ)}; "
+              "using the public (registered) rows", flush=True)
+    extra = proc[~proc["source"].isin(set(pub["source"]))]
+    return pd.concat([pub, extra[[c for c in pub.columns if c in extra.columns]]], ignore_index=True)
 
 
 def write_public_priors(priors: pd.DataFrame | None = None, dest: Path = PUBLIC_PRIORS) -> Path:

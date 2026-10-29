@@ -1237,7 +1237,8 @@ function turnoutView() {
 
 // The strip's turnout chip: the race's projected turnout against expected, with counties reported.
 function turnoutChip(row) {
-  const v = row?.turnout_vs_expected;
+  // turnout_vs_expected: projected ÷ expected two-party votes, in % (100 = as expected)
+  const v = row?.turnout_vs_expected == null ? null : row.turnout_vs_expected - 100;
   if (v == null) return null;
   // before the count the figure only compares two expectations: show the expected turnout instead
   if (PRE()) return row.turnout_exp_total != null ? { text: `${votesShort(row.turnout_exp_total)} expected`, title: `The turnout model expects ${votesShort(row.turnout_exp_total)} two-party votes. Turnout against it fills in as counties report.` } : null;

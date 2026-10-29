@@ -10,7 +10,7 @@
 // Margins: Democratic minus Republican, points; chances: P(Democratic party wins the seat).
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { getJSON, esc, num, pct, fmtDate, marginText, probit } from "./common.js";
+import { getJSON, STATIC, esc, num, pct, fmtDate, marginText, probit } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", ROOT = "us2026/house/";
 const ramp = (v) => d3.interpolateLab(NEUTRAL, v >= 0 ? DEM : REP)(Math.min(1, Math.abs(v)) ** 0.8); // v in [-1, 1]
@@ -178,13 +178,13 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
       await loadHouse();
       if (!H.topo[lines]) {
         // the 2026 lines' figures are districts.json (loaded with the House files); the 2024 lines' districts_2024.json
-        const [t, d] = await Promise.all([getJSON(`geo/us_house_${lines}.topo.json`), H.data[lines] ? Promise.resolve(H.data[lines]) : getJSON(`${ROOT}districts_2024.json`)]);
+        const [t, d] = await Promise.all([getJSON(`geo/us_house_${lines}.topo.json`, { root: STATIC }), H.data[lines] ? Promise.resolve(H.data[lines]) : getJSON(`${ROOT}districts_2024.json`)]);
         H.topo[lines] = t; H.data[lines] = d;
       }
       const topo = H.topo[lines];
       return { topo, obj: topo.objects.districts, geom: `districts${lines}`, idOf: (f) => f.properties.id, stOf: (f) => f.properties.st.toLowerCase() };
     }
-    H.counties ??= await getJSON("geo/us_counties.topo.json");
+    H.counties ??= await getJSON("geo/us_counties.topo.json", { root: STATIC }); // geometry: never on the live server
     const idOf = (f) => f.properties?.unit_id ?? f.id;
     return { topo: H.counties, obj: H.counties.objects.counties, geom: "counties", idOf, stOf: (f) => idOf(f).split("-")[1] };
   }
@@ -303,7 +303,7 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
       return;
     }
     H.swing ??= await getJSON(`${ROOT}swing.json`, { optional: true });
-    H.counties ??= await getJSON("geo/us_counties.topo.json"); // county centroids for the arrows
+    H.counties ??= await getJSON("geo/us_counties.topo.json", { root: STATIC }); // county centroids for the arrows
     if (st.arrows === "past") {
       for (const [id, s] of Object.entries(H.swing?.counties ?? {})) if (s?.[0] != null && s?.[1] != null) arrowData.set(id, { shift: s[1] - s[0], src: "2020 → 2024 president", at: "county" });
       return;
