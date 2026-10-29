@@ -6,7 +6,7 @@
 // toggle, the Senate control bar, the legend, the hover card, the race panel with price history
 // and the office summary beside the map. Clicking a modelled state drills into its county view.
 import * as d3 from "./vendor/d3.js";
-import { C, esc, num } from "./common.js";
+import { C, esc, num, fmtDate } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", NORACE = "#e6e4dd";
 const OFFICES = [["governor", "Governor"], ["senate", "Senate"]];
@@ -71,12 +71,16 @@ export function createNational(root, { overview, office = "senate", summary = nu
   const raceName = (r) => `${r.state_name ?? stateName(r.state)} ${r.office === "governor" ? "governor" : "Senate"}${r.special ? " (special)" : ""}`;
   const incumbent = (r) => (r.incumbent ? `${esc(r.incumbent)}${r.incumbent_party ? ` (${esc(r.incumbent_party)})` : ""}${r.open ? ", not running" : ""}` : r.open ? "open seat" : "–");
 
+  // overview polls: { avg (two-party Democratic share), n_polls, last_date, p_win } or null
+  const pollsTitle = (p) => (p ? [p.avg != null ? `Polling average ${(100 * p.avg).toFixed(1)}% for the Democratic side (two-party)` : "Polling average", p.n_polls ? `${p.n_polls} poll${p.n_polls === 1 ? "" : "s"}` : "", p.last_date ? `last poll ${fmtDate(p.last_date)}` : ""].filter(Boolean).join(", ") : "No recent polls");
   function cardHTML(r) {
     const m = r.race_id != null ? st.model.get(r.race_id) : null;
+    const p = r.polls;
     return `<p><b>${esc(raceName(r))}</b></p>
       <p>Incumbent: ${incumbent(r)}</p>
       <p>Chance ${esc(r.dem_side?.name ?? "the Democratic side")}${r.dem_side?.party && r.dem_side.party !== "D" ? ` (${esc(r.dem_side.party)})` : ""} wins:
-        ${m != null ? `<span class="m">${num(m)}</span> model · ` : ""}<span class="k">${num(pmP(r))}</span> Polymarket${st.live.has(r.race_key) ? " now" : ""} · <span class="kx">${num(r.kalshi?.price)}</span> Kalshi</p>
+        ${m != null ? `<span class="m">${num(m)}</span> model · ` : ""}<span class="k">${num(pmP(r))}</span> Polymarket${st.live.has(r.race_key) ? " now" : ""} · <span class="kx">${num(r.kalshi?.price)}</span> Kalshi${"polls" in r ? ` · ${p ? `<b>${num(p.p_win)}</b> polls` : "no recent polls"}` : ""}</p>
+      ${p ? `<p class="pc-hint">${esc(pollsTitle(p))}.</p>` : ""}
       ${r.dem_side?.aligned ? `<p class="pc-hint">${esc(r.dem_side.aligned)}</p>` : ""}
       <p class="pc-hint">${r.modeled ? "Click for the county model." : "Click for the price history. No county model for this state."}</p>`;
   }
@@ -151,7 +155,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
     if (!summary) return;
     const office = st.office === "senate" ? "Senate" : "Governor";
     const ctl = st.office === "senate" ? control() : null;
-    const rows = races().map((r) => ({ r, state: r.state_name ?? stateName(r.state), inc: r.incumbent ?? "", pm: pmP(r), k: r.kalshi?.price ?? null, model: r.race_id != null ? st.model.get(r.race_id) ?? null : null }));
+    const rows = races().map((r) => ({ r, state: r.state_name ?? stateName(r.state), inc: r.incumbent ?? "", pm: pmP(r), k: r.kalshi?.price ?? null, polls: r.polls?.p_win ?? null, model: r.race_id != null ? st.model.get(r.race_id) ?? null : null }));
     const { key, dir } = st.sort;
     rows.sort((a, b) => {
       const va = a[key], vb = b[key];
@@ -160,7 +164,9 @@ export function createNational(root, { overview, office = "senate", summary = nu
       if (vb == null) return -1;
       return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * dir;
     });
-    const cols = [["state", "State"], ["inc", "Incumbent"], ["pm", "Polymarket"], ["k", "Kalshi"], ["model", "Model"]];
+    // the Polls column once the overview carries polls (null: no recent polls for that race)
+    const hasPolls = races().some((r) => "polls" in r);
+    const cols = [["state", "State"], ["inc", "Incumbent"], ["pm", "Polymarket"], ["k", "Kalshi"], ...(hasPolls ? [["polls", "Polls"]] : []), ["model", "Model"]];
     const ctlHTML = ctl ? `<h3 class="tab-h">Control of the Senate</h3>
       <p class="nat-sum-ctl"><span style="color:${DEM}"><b>Democrats ${(ctl.holdD + ctl.eD).toFixed(1)}</b></span> seats expected (${ctl.holdD} not up${ctl.hold.I ? `, incl. ${ctl.hold.I} independents` : ""}, + ${ctl.eD.toFixed(1)}),
         <span style="color:${REP}"><b>Republicans ${(ctl.holdR + ctl.eR).toFixed(1)}</b></span> (${ctl.holdR} + ${ctl.eR.toFixed(1)}); ${ctl.maj} seats for control${ctl.unpriced ? `; ${ctl.unpriced} races without a price` : ""}.
@@ -172,8 +178,8 @@ export function createNational(root, { overview, office = "senate", summary = nu
       <h3 class="tab-h">${office} races (${rows.length})</h3>
       <table class="races nat-races"><thead><tr>${cols.map(([k, l]) => `<th class="${k === "state" || k === "inc" ? "" : "n"}" aria-sort="${key === k ? (dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${l}</button></th>`).join("")}</tr></thead>
       <tbody>${rows.map((x) => `<tr tabindex="0" data-key="${esc(x.r.race_key)}" data-state="${esc(x.r.state)}"><td>${esc(x.state)}${x.r.special ? " (special)" : ""}${x.r.modeled ? ` <span class="ring" title="county model"></span>` : ""}</td><td>${esc(x.inc)}${x.r.incumbent_party ? ` (${esc(x.r.incumbent_party)})` : ""}${x.r.open ? " <small>not running</small>" : ""}</td>
-        <td class="n">${num(x.pm)}</td><td class="n kx">${num(x.k)}</td><td class="n m">${x.r.modeled ? num(x.model) : ""}</td></tr>`).join("")}</tbody></table>
-      <p class="note">Click a race (or a state on the map) for its prices; ringed states open the county model. Polymarket's prices are read live every minute; Kalshi's are from the last scheduled build.</p>`;
+        <td class="n">${num(x.pm)}</td><td class="n kx">${num(x.k)}</td>${hasPolls ? `<td class="n" title="${esc(pollsTitle(x.r.polls))}">${x.r.polls ? num(x.polls) : "<small>–</small>"}</td>` : ""}<td class="n m">${x.r.modeled ? num(x.model) : ""}</td></tr>`).join("")}</tbody></table>
+      <p class="note">Click a race (or a state on the map) for its prices; ringed states open the county model. Polymarket's prices are read live every minute; Kalshi's are from the last scheduled build.${hasPolls ? " Polls: the chance from the recent polling average (hover for the average and the last poll's date; –: no recent polls)." : ""}</p>`;
     if (ctl?.markets.length) {
       const pm = ctl.markets.find((c) => c.platform !== "kalshi"), ks = ctl.markets.find((c) => c.platform === "kalshi");
       const byT = new Map();
@@ -219,6 +225,11 @@ export function createNational(root, { overview, office = "senate", summary = nu
     const w = 200;
     box.innerHTML = `<svg viewBox="0 0 ${w} 24" width="${w}" height="24"><defs><linearGradient id="nat-grad">${d3.range(0, 201, 10).map((j) => `<stop offset="${j / 200}" stop-color="${ramp[200 - j]}"/>`).join("")}</linearGradient></defs>
         <rect width="${w}" height="8" fill="url(#nat-grad)"/><text x="0" y="20" class="legend-text">Democratic side</text><text x="${w}" y="20" text-anchor="end" class="legend-text">Republican</text></svg>
+      <p class="legend-count">${(() => {
+        const ps = races().map(priceOf).filter((p) => p != null);
+        const d = ps.filter((p) => p > 0.5).length, r = ps.filter((p) => p < 0.5).length;
+        return `Favoured: <span style="color:${DEM}">Democratic side</span> in <b>${d}</b> · <span style="color:${REP}">Republican</span> in <b>${r}</b> states`;
+      })()}</p>
       <p class="legend-note"><span class="sw" style="background:${NORACE}"></span> no ${st.office === "senate" ? "Senate" : "governor"} race · <span class="ring"></span> county model</p>
       <p class="legend-note">Colour: market chance (Polymarket, else Kalshi).</p>`;
   }

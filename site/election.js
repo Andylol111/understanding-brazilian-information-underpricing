@@ -6,13 +6,14 @@
 // (dash-worker.js) fetches, parses and projects the geometry and the map frames; the map appears
 // when both arrive. While playing, colours are interpolated between map frames every animation frame.
 import * as d3 from "./vendor/d3.js";
-import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
+import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes } from "./common.js";
 import { createMap } from "./dash-map.js";
 import { drawTimeline } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational } from "./dash-national.js";
+import { regionAgg, regionWinner } from "./dash-agg.js";
 
 const EID = param("id");
 const $ = (id) => document.getElementById(id);
@@ -133,10 +134,14 @@ async function loadMeta() {
   S.tz = meta.tz ?? "UTC";
   S.layer = (meta.layers?.find((l) => l.default) ?? meta.layers?.[0])?.id ?? null;
   const asked = raceById(param("race"));
-  S.race = asked ?? mainRace() ?? null;
+  // ?region=sp opens that region (its race in the main race's office); ?level=regions|units the level
+  const askedRegion = (meta.regions ?? []).some((r) => r.id === param("region")) ? param("region") : null;
+  S.race = asked ?? (askedRegion ? racesIn(askedRegion).find((r) => office(r) === office(mainRace())) ?? racesIn(askedRegion)[0] : null) ?? mainRace() ?? null;
   // Open on a region only when one was asked for; elections without a national race open on the
   // overview of all regions with races.
-  S.region = asked?.region ?? null;
+  S.region = asked?.region ?? askedRegion;
+  S.level = ["regions", "units"].includes(param("level")) ? param("level") : S.region ? "units" : "regions";
+  S.countryLevel = "regions"; // the other regions' level while one is open
 }
 
 const withTime = (rows) => rows.map((d) => ({ ...d, time: new Date(d.t), tms: Date.parse(d.t) }));
@@ -249,6 +254,7 @@ const layers = () => S.meta.layers ?? [];
 const layerOn = (j) => !S.layer || (S.units?.layer?.[j] ?? S.layer) === S.layer;
 
 function bindUnits() {
+  if (!S.levelInit) initLevel(); // the map level is set before the first frame of units
   S.featIdx = Int32Array.from(S.map.ids, (id) => S.unitIndex.get(id) ?? -1);
   // colours are built in the worker from each unit's race colours
   const raceList = [...new Set(S.unitRace)];
@@ -291,6 +297,138 @@ function noBaseline() {
   if (!PRE()) return [];
   const byRegion = d3.group(races().filter((r) => r.region), (r) => r.region);
   return [...byRegion].filter(([, rs]) => rs.every((r) => !r.units)).map(([reg]) => reg);
+}
+
+/* ---------------------------------------------------------------- map levels: regions <-> units */
+
+// Every map with regions has two levels: whole regions coloured by their units' totals (or, on the
+// US national map, by the market) and the units themselves. The way down is one path: the country
+// at the region level -> click a region (zoom) -> that region's units; Back goes up one step.
+const LEVEL_NAMES = {
+  US: ["States", "Counties"], BR: ["States", "Municipalities"], CA: ["Provinces", "Ridings"],
+  MX: ["States", "Districts"], HU: ["Counties", "Districts"], IL: ["Districts", "Localities"],
+};
+const levelNames = () => LEVEL_NAMES[countryCode()] ?? ["Regions", "Local units"];
+const levelsOn = () => !!S.map && (!!S.nat || pickerRegions().length >= 2);
+
+// Opacity targets for the map: nat = the open region's units over its fill, level = the other
+// regions' units over theirs (see dash-map.js focus()).
+function levelTargets(reg = S.region) {
+  if (!levelsOn()) return { level: 1 };
+  const u = S.level === "units";
+  return reg ? { nat: u ? 1 : 0, level: S.countryLevel === "units" ? 1 : 0 } : { nat: 0, level: u ? 1 : 0 };
+}
+
+function initLevel() {
+  S.levelInit = true;
+  const on = levelsOn();
+  S.map.setAggregate(on && !S.nat);
+  if (on) S.map.setLevel({ ...levelTargets(), animate: false });
+  setupLevels();
+}
+
+// The level switch in the toolbar above the map.
+function setupLevels() {
+  const box = $("map-level");
+  box.hidden = !levelsOn();
+  if (box.hidden) return;
+  const [rn, un] = levelNames();
+  box.innerHTML = [["regions", rn], ["units", un]].map(([l, name]) => `<button type="button" data-level="${l}" aria-pressed="${l === S.level}">${name}</button>`).join("");
+  box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => setLevel(b.dataset.level)));
+}
+
+async function setLevel(l, { push = true } = {}) {
+  if (l === S.level || !levelsOn()) return;
+  S.level = l;
+  if (!S.region) S.countryLevel = l;
+  for (const b of $("map-level").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.level === l));
+  if (push) syncUrl(true);
+  S.hover = -1; S.hoverReg = null; placeCard();
+  // the units shown at the unit level may need loading first (they fade in when bound)
+  const ready = unitsPlan().key !== S.unitsKey ? reloadUnitsIfNeeded() : null;
+  S.map.setLevel({ ...levelTargets(), ready });
+  S.map.setNatHover(regionHover());
+  showNational();
+  S.legendKey = null;
+  afterZoom(render);
+  await ready;
+}
+
+// Hover and click pick whole regions at the region level of the whole country.
+const regionHover = () => levelsOn() && !S.region && S.level === "regions";
+
+// S.region with the level path: entering a region shows its units, leaving shows regions again.
+function setRegionState(reg) {
+  if (reg && !S.region) { S.countryLevel = S.level; S.level = "units"; }
+  else if (!reg && S.region) { S.level = "regions"; S.countryLevel = "regions"; }
+  S.region = reg ?? null;
+  for (const b of $("map-level").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.level === S.level));
+}
+
+// The address follows the view (race, region, level), so back/forward and shared links work.
+function syncUrl(push) {
+  if (S.fromPop) return;
+  const url = new URL(location.href);
+  if (S.race) url.searchParams.set("race", S.race.race_id);
+  if (S.region) url.searchParams.set("region", S.region); else url.searchParams.delete("region");
+  if (levelsOn()) url.searchParams.set("level", S.level); else url.searchParams.delete("level");
+  if (url.href === location.href) return;
+  if (push) history.pushState(null, "", url); else history.replaceState(null, "", url);
+}
+
+async function onPopState() {
+  const q = new URLSearchParams(location.search);
+  S.fromPop = true;
+  try {
+    const race = raceById(q.get("race"));
+    const reg = (S.meta.regions ?? []).some((r) => r.id === q.get("region")) ? q.get("region") : null;
+    if (race && race !== S.race) await selectRace(race);
+    if (reg !== S.region) { if (reg) await selectRegion(reg); else await backToNational(); }
+    const lvl = q.get("level");
+    if ((lvl === "regions" || lvl === "units") && lvl !== S.level) await setLevel(lvl, { push: false });
+  } finally { S.fromPop = false; }
+}
+
+// One region's totals for the hover card at the region level.
+function regionCardHTML(reg) {
+  const U = S.units, js = U && S.regionUnits?.get(reg)?.filter(layerOn);
+  if (!js?.length) return `<p class="note">No results for this ${levelNames()[0].toLowerCase().replace(/s$/, "")} in this race.</p>`;
+  const r = S.unitRace[js[0]];
+  const k = frameIndex(S.preview ?? S.t);
+  const g = regionAgg(U, k, js);
+  const swing = g.raw != null && g.prior != null ? g.raw - g.prior : null;
+  const sw = swing == null ? "–" : `${swing >= 0 ? "+" : "−"}${Math.abs(100 * swing).toFixed(1)} pt`;
+  const an = esc(r.a.name);
+  const rows = S.countTimeline
+    ? [["Counted", pct(g.counted, 0)], [`${an}, votes counted`, pct(g.raw)], [`${an}, model projection`, pct(g.proj)], [`${an}, comparison election`, pct(g.prior)], ["Swing", sw]]
+    : [[`${an}, result`, pct(g.raw)], [`${an}, comparison election`, pct(g.prior)], ["Swing", sw]];
+  return `<table class="kv"><tbody>${rows.map(([a, x]) => `<tr><td>${a}</td><td class="n">${x}</td></tr>`).join("")}</tbody></table>
+    <p class="pc-hint">${js.length.toLocaleString("en-US")} ${levelNames()[1].toLowerCase()}, weighted by expected vote. Click to open.</p>`;
+}
+
+// Legend line: how many regions (region level) or units lean to each side at the current time.
+function legendCount() {
+  const el = document.querySelector("#legend .legend-count");
+  if (!el || !S.units) return;
+  const U = S.units, k = frameIndex(S.preview ?? S.t);
+  const atRegions = levelsOn() && S.level === "regions" && !S.region;
+  const key = `${S.mode}|${k}|${atRegions}|${S.region}|${S.layer}`;
+  if (key === S.countKey) return;
+  S.countKey = key;
+  if (!["margin", "prior", "swing"].includes(S.mode)) { el.textContent = ""; return; }
+  const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
+  const val = (g) => (S.mode === "swing" ? (g.raw != null && g.prior != null ? g.raw - g.prior : null)
+    : S.mode === "prior" || k < 0 ? (g.prior != null ? g.prior - 0.5 : null) : (S.countTimeline ? g.proj : g.raw ?? g.proj) - 0.5);
+  let a = 0, b = 0;
+  const add = (v) => { if (v == null || Number.isNaN(v)) return; if (v > 0) a++; else if (v < 0) b++; };
+  if (atRegions) for (const [, js] of S.regionUnits) { const g = regionAgg(U, k, js.filter(layerOn)); add(g.weight ? val(g) : null); }
+  else for (let j = 0; j < U.n; j++) {
+    if (!layerOn(j) || (S.region && U.region[j] !== S.region)) continue;
+    add(val(regionAgg(U, k, [j])));
+  }
+  const what = (atRegions ? levelNames()[0] : layers().find((l) => l.id === S.layer)?.name ?? levelNames()[1]).toLowerCase();
+  const verb = S.mode === "swing" ? "swing towards" : "ahead";
+  el.innerHTML = a + b ? `<span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> ${verb} in <b>${a}</b> · <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> in <b>${b}</b> ${what}` : "";
 }
 
 /* ---------------------------------------------------------------- time */
@@ -400,8 +538,9 @@ function render() {
       S.map.paint(S.mode, tt, tween);
       S.shownKey = tween ? null : key;
     }
-    const lk = `${S.mode}|${S.mode === "winner" ? k : ""}|${S.race?.race_id}|${S.layer}`;
-    if (lk !== S.legendKey) { S.legendKey = lk; renderLegend(); }
+    const lk = `${S.mode}|${S.mode === "winner" ? k : ""}|${S.race?.race_id}|${S.layer}|${S.mode === "winner" ? `${S.level}|${S.region}` : ""}`;
+    if (lk !== S.legendKey) { S.legendKey = lk; S.countKey = null; renderLegend(); }
+    legendCount();
     const nb = PRE() ? noBaseline().filter((reg) => !S.region || reg === S.region).map(regionName) : [];
     const remNote = remModes().includes(S.mode) ? `Circles: the model's estimate of the votes still to count${PRE() ? " (before the count: the whole expected vote)" : ""}.` : "";
     $("frame-label").textContent = PRE()
@@ -433,7 +572,7 @@ function updateLists(t) {
   if (S.list) {
     S.list.update(new Map(races().map((r) => {
       const row = rowAt(r.race_id, t);
-      return [r.race_id, { P: row?.P ?? null, pm: row?.pm ?? null, k: row?.kalshi ?? null }];
+      return [r.race_id, { P: modelP(row), pm: row?.pm ?? null, k: row?.kalshi ?? null }];
     })));
   }
   updatePicker(t);
@@ -461,6 +600,7 @@ function renderLegend() {
   if (S.mode !== "counted") {
     const lab = (nm) => (S.mode === "swing" ? `towards ${esc(nm)}` : `${esc(nm)} ahead`);
     root.append("div").attr("class", "legend-names").html(`<span>${lab(r.a.name)}</span><span>${lab(r.b.name)}</span>`);
+    root.append("p").attr("class", "legend-count"); // filled by legendCount()
   }
 }
 
@@ -487,15 +627,24 @@ function remLegend(root) {
 function partyLegend(root) {
   const k = frameIndex(S.preview ?? S.t);
   const counts = new Map();
-  for (let j = 0; j < S.units.n; j++) {
-    if (!layerOn(j)) continue;
-    const [p] = winnerAt(k, j);
-    if (p != null) counts.set(p, (counts.get(p) ?? 0) + 1);
+  const atRegions = levelsOn() && S.level === "regions" && !S.region;
+  if (atRegions) {
+    // the region level: regions by the party leading most of their expected vote
+    for (const [, js] of S.regionUnits) {
+      const lead = regionWinner(S.units, js.filter(layerOn), (j) => winnerAt(k, j)[0]);
+      if (lead) counts.set(lead.party, (counts.get(lead.party) ?? 0) + 1);
+    }
+  } else {
+    for (let j = 0; j < S.units.n; j++) {
+      if (!layerOn(j)) continue;
+      const [p] = winnerAt(k, j);
+      if (p != null) counts.set(p, (counts.get(p) ?? 0) + 1);
+    }
   }
   const rows = [...counts].sort((a, b) => b[1] - a[1]);
   const party = (id) => S.meta.parties.find((p) => p.id === id) ?? { name: id, color: "#8a8a8a" };
   root.html(`<ul class="party-legend">${rows.map(([id, n]) => `<li><i style="background:${esc(party(id).color)}"></i>${esc(party(id).name)} <b>${n}</b></li>`).join("")}</ul>
-    <p class="legend-note">Units won. Paler: narrower win (full colour at a ${WIN_FULL * 100}-point margin).</p>`);
+    <p class="legend-note">${atRegions ? `${levelNames()[0]}: the party winning most of the expected vote in their ${levelNames()[1].toLowerCase()}.` : "Units won."} Paler: narrower win (full colour at a ${WIN_FULL * 100}-point margin).</p>`);
 }
 
 /* ---------------------------------------------------------------- map */
@@ -567,7 +716,9 @@ function initMap(geo) {
         if (reg) prefetchUnits([S.nat.raceFor(reg)?.race_id && raceById(S.nat.raceFor(reg).race_id)]);
         return;
       }
-      S.hover = i;
+      // the region level: the whole region's card
+      S.hoverReg = regionHover() ? reg : null;
+      S.hover = S.hoverReg ? -1 : i;
       S.hoverPos = ev ? pointIn(ev) : null;
       placeCard();
       highlightPickerRow(reg);
@@ -579,11 +730,17 @@ function initMap(geo) {
   if (S.units) bindUnits();
 }
 
-const natShown = () => !!S.nat && !S.region;
+// the US national map's own state layer and controls (at the state level)
+const natShown = () => !!S.nat && !S.region && S.level !== "units";
 const pointIn = (ev) => { const r = $("map").getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
 
 function mapClick(i, ev) {
   if (natShown()) { S.nat.pick(i >= 0 ? S.map.regionOf(i) : null); return; }
+  if (regionHover()) {
+    const reg = i >= 0 ? S.map.regionOf(i) : null;
+    if (reg && pickerRegions().some((r) => r.id === reg)) { S.hoverReg = null; placeCard(); selectRegion(reg); }
+    return;
+  }
   if (i < 0) { S.pinned = -1; S.map.pin(-1); placeCard(); return; }
   S.pinned = S.pinned === i ? -1 : i;
   S.pinPos = pointIn(ev);
@@ -633,7 +790,8 @@ function showMapState() {
 // they are ready).
 function focusMap(animate = true, ready = null) {
   const reg = S.region && S.map?.hasRegion(S.region) && (pickerRegions().some((r) => r.id === S.region) || noBaseline().includes(S.region)) ? S.region : null;
-  S.map?.focus(reg, { animate, ready });
+  S.map?.focus(reg, { animate, ready, ...levelTargets(reg) });
+  S.map?.setNatHover(regionHover() || natShown());
   const ext = $("extent");
   ext.hidden = !S.map?.hasPopulatedView || !!reg;
   ext.textContent = S.map?.extent === "populated" ? "Whole map" : "Populated areas";
@@ -645,6 +803,12 @@ function focusMap(animate = true, ready = null) {
 function placeCard() {
   const el = $("place");
   const i = S.pinned >= 0 ? S.pinned : S.hover;
+  if (S.hoverReg && S.pinned < 0 && S.map) {
+    el.innerHTML = `<p class="pc-name"><b>${esc(regionName(S.hoverReg))}</b></p>${regionCardHTML(S.hoverReg)}`;
+    el.hidden = false;
+    positionCard(el, S.hoverPos);
+    return;
+  }
   if (i < 0 || !S.map) { el.hidden = true; return; }
   const j = S.featIdx?.[i] ?? -1;
   let body;
@@ -679,8 +843,12 @@ function placeCard() {
   el.innerHTML = `<p class="pc-name"><b>${esc(name)}</b>${reg && !String(name).includes(`, ${reg.toUpperCase()}`) ? `, ${esc(regionName(reg))}` : ""}</p>${body}
     <p class="pc-hint">${S.pinned >= 0 ? "Pinned. Click it again to release." : "Click to pin."}</p>`;
   el.hidden = false;
+  positionCard(el, S.pinned >= 0 ? S.pinPos : S.hoverPos);
+}
+
+function positionCard(el, at) {
   const box = $("map").getBoundingClientRect();
-  const pos = (S.pinned >= 0 ? S.pinPos : S.hoverPos) ?? [box.width / 2, box.height / 2];
+  const pos = at ?? [box.width / 2, box.height / 2];
   if (!WIDE.matches) { el.style.left = ""; el.style.top = ""; return; }
   const cw = el.offsetWidth, ch = el.offsetHeight;
   let x = pos[0] + 16, y = pos[1] + 16;
@@ -700,20 +868,29 @@ function pickerRegions() {
   return list.length >= 2 ? list : [];
 }
 
+// Breadcrumb "World › Brazil › São Paulo" and a Back button one step up (Esc does the same
+// within the election).
 function renderCrumbs() {
   const el = $("crumbs");
   const top = countryName();
-  if (!S.region) {
-    const n = pickerRegions().filter((r) => racesIn(r.id).length).length;
-    el.innerHTML = `<b>${esc(top)}</b>${S.nat ? ` <span class="crumb-note">· every race this year by state; ringed states have a county model (click to open)</span>`
-      : !national() && n ? ` <span class="crumb-note">· ${n} ${n === 1 ? "region" : "regions"} with races; pick one</span>` : ""}`;
-    return;
-  }
-  el.innerHTML = `<button type="button" class="crumb-link" id="crumb-top">${esc(top)}</button> <span aria-hidden="true">›</span> <b>${esc(regionName(S.region))}</b>
-    <button type="button" class="crumb-back" id="crumb-back" title="Esc">Back to ${national() ? "national" : S.nat ? "the national map" : "all regions"}</button>`;
-  $("crumb-top").addEventListener("click", backToNational);
-  $("crumb-back").addEventListener("click", backToNational);
+  const world = `<a class="crumb-link" href="./?from=${encodeURIComponent(EID)}" id="crumb-world">World</a> <span aria-hidden="true">›</span>`;
+  const back = `<button type="button" class="crumb-back" id="crumb-back" title="${S.region ? "Esc" : "Back to the world map"}">‹ Back</button>`;
+  el.innerHTML = S.region
+    ? `${back} ${world} <button type="button" class="crumb-link" id="crumb-top">${esc(top)}</button> <span aria-hidden="true">›</span> <b>${esc(regionName(S.region))}</b>`
+    : `${back} ${world} <b>${esc(top)}</b>`;
+  $("crumb-top")?.addEventListener("click", backToNational);
+  $("crumb-back").addEventListener("click", () => (S.region ? backToNational() : toWorld()));
+  $("crumb-world").addEventListener("click", (ev) => { if (!ev.metaKey && !ev.ctrlKey && !ev.shiftKey) { ev.preventDefault(); toWorld(); } });
 }
+
+// Up from the country: a short fade, then the world map opens framed on this country and zooms out.
+function toWorld() {
+  const url = `./?from=${encodeURIComponent(EID)}`; // the world map sits right under the header
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { location.href = url; return; }
+  document.body.classList.add("leaving");
+  setTimeout(() => { location.href = url; }, 220);
+}
+window.addEventListener("pageshow", (ev) => { if (ev.persisted) document.body.classList.remove("leaving"); });
 
 function buildPicker() {
   const el = $("regions");
@@ -765,7 +942,7 @@ function updatePicker(t) {
     if (S.countTimeline && r?.counted != null) c = r.counted; // the region's own race, when it has one
     row.children[1].textContent = PRE() ? untilText(closeOf(reg) - Date.now(), true) ?? "closed" : c == null ? "" : pct(c, 0);
     const ind = row.children[2];
-    const m = r?.P ?? null, pm = r?.pm ?? null, kx = r?.kalshi ?? null;
+    const m = modelP(r), pm = r?.pm ?? null, kx = r?.kalshi ?? null;
     [m, pm, kx].forEach((v, i) => {
       const mark = ind.children[i];
       mark.hidden = v == null;
@@ -778,16 +955,21 @@ function updatePicker(t) {
 }
 
 async function selectRegion(reg) {
-  const race = regionRace(reg);
+  // a national race whose units cover the region stays selected (its units there); else the
+  // region's own race in the same office
+  const keep = S.race && !S.race.region && S.units?.region?.includes(reg);
+  const race = keep ? null : regionRace(reg);
   if (race) return selectRace(race);
-  S.region = reg;
+  setRegionState(reg);
+  syncUrl(true);
   await moveMap();
 }
 
 async function backToNational() {
   if (!S.region) return;
-  if (national()) return selectRace(national());
-  S.region = null;
+  if (national() && S.race !== national()) return selectRace(national());
+  setRegionState(null);
+  syncUrl(true);
   await moveMap();
 }
 
@@ -821,16 +1003,17 @@ async function reloadUnitsIfNeeded() {
 
 /* ---------------------------------------------------------------- race, chart, scrubber */
 
-async function selectRace(r) {
+// keepRegion: a race without a region (national) stays on the open region (its units there).
+async function selectRace(r, { keepRegion = false } = {}) {
   if (!r) return;
   const sameRace = r === S.race;
   S.race = r;
-  S.region = r.region ?? null;
+  const reg = r.region ?? (keepRegion ? S.region : null);
+  const moved = reg !== S.region;
+  setRegionState(reg);
+  if (!sameRace || moved) syncUrl(moved);
   if (!sameRace) {
     $("race").value = r.race_id;
-    const url = new URL(location.href);
-    url.searchParams.set("race", r.race_id);
-    history.replaceState(null, "", url);
     S.list?.select(r.race_id);
     S.legendKey = null;
     // the chart and statistics redraw when the map's zoom leaves the main thread idle
@@ -1232,7 +1415,7 @@ function updateNational(yes = natYes) {
       if (y != null) live.set(`ctl:${c.slug}`, c.yes_is === "rep" ? 1 - y : y);
     }
   }
-  const model = new Map(races().map((r) => [r.race_id, rowAt(r.race_id, S.t)?.P ?? null]).filter(([, p]) => p != null));
+  const model = new Map(races().map((r) => [r.race_id, modelP(rowAt(r.race_id, S.t))]).filter(([, p]) => p != null));
   S.nat.update({ overview: S.overview, live, model });
 }
 
@@ -1266,14 +1449,15 @@ function syncOffice(o, reload = true) {
   if (reload) reloadUnitsIfNeeded();
 }
 
-// While the national map shows, the right column shows the office summary instead of one race,
-// and the national controls replace the county map's (both fade; see style.css).
+// While no state is open, the right column shows the office summary instead of one race; at the
+// state level the national controls (office toggle, legend) replace the county map's (both fade;
+// see style.css). At the county level the county map's modes and legend show.
 function showNational() {
-  const on = !!S.nat && !S.region;
-  $("national").classList.toggle("off", !on);
+  const on = !!S.nat && !S.region, map = natShown();
+  $("national").classList.toggle("off", !map);
   $("dash").classList.toggle("nat-on", on);
-  for (const id of ["map-mode", "legend", "frame-label"]) $(id).classList.toggle("nat-hidden", on);
-  if (on) afterZoom(() => { if (natShown()) S.nat.draw(); });
+  for (const id of ["map-mode", "legend", "frame-label"]) $(id).classList.toggle("nat-hidden", map);
+  if (map) afterZoom(() => { if (natShown()) S.nat.draw(); });
   else S.nat?.hover(null);
 }
 
@@ -1360,7 +1544,8 @@ async function main() {
   initRaceSelect();
   initTabs();
   buildRaceList();
-  renderMethod($("pane-method"), { meta: S.meta, entry: S.entry, geometryCredit: geometryCredit() });
+  const twoModels = [...S.rows.values()].some((rows) => rows.some((d) => d.P_v2 != null)) || races().some((r) => r.precount?.P_v2 != null);
+  renderMethod($("pane-method"), { meta: S.meta, entry: S.entry, geometryCredit: geometryCredit(), twoModels });
   renderStatsTab();
   drawChart();
   updateScrubber();
@@ -1385,6 +1570,7 @@ async function main() {
   }).observe($("timeline"));
 
   S.uiReady(); // the map (loading in parallel since the top bar) can now attach
+  window.addEventListener("popstate", onPopState);
   await S.mapDone;
   if (LIVE) startLive();
 }

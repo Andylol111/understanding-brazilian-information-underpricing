@@ -46,6 +46,9 @@ export const votesShort = (v) => {
   const a = Math.abs(v);
   return a >= 1e6 ? `${(v / 1e6).toFixed(a >= 1e7 ? 0 : 1)}M` : a >= 1e4 ? `${Math.round(v / 1e3)}k` : a >= 1e3 ? `${(v / 1e3).toFixed(1)}k` : `${Math.round(v)}`;
 };
+// The model's chance in a timeline row: the version with polls (P_v2) where an election has one,
+// else the count-only model (P). Rows with both also show P as "model without polls".
+export const modelP = (row) => row?.P_v2 ?? row?.P ?? null;
 
 export function fmtDate(iso) {
   const d = new Date(`${iso}T12:00:00Z`);

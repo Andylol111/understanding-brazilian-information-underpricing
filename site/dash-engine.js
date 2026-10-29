@@ -9,6 +9,7 @@
 //    and headless pages throttle or never run), so the first frame appears once data is bound.
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
+import { unitsByRegion, regionAgg, regionWinner } from "./dash-agg.js";
 
 const BASE = 1000; // base projection extent, shared with dash-map.js
 const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4 }; // value at which a diverging colour is full
@@ -58,6 +59,9 @@ const R = { // drawing state
   // (fadeMix 0..1) and, with a state layer (natColours: region -> colour), the opacity of the
   // focus region's units over its state fill (natMix 0..1)
   focus: null, fadeMix: 0, natColours: null, natRings: null, natMix: 0,
+  // map level: levelMix is the opacity of units outside the focus region over their region's fill
+  // (0: state level, 1: unit level); with `aggregate` the region fills come from the units' totals
+  levelMix: 1, aggregate: false,
   units: null, featIdx: null, unitLUT: null, parties: new Map(), partyLUTs: new Map(), countTimeline: true,
   mode: "margin", t: 0, tween: false, cache: new Map(), buf: null, lastCols: null, scheduled: false, painted: 0, drawMs: [],
 };
@@ -101,10 +105,11 @@ export async function geo({ url, objectName, unitKey, country }) {
   const regionOutlines = Object.fromEntries(regions.map((r) => [r, mesh((a, b) => (a === b ? regionOf(a) === r : (regionOf(a) === r) !== (regionOf(b) === r)))]));
   // each region as one shape (the state layer of a national map) and its label point
   const byRegion = d3.group(obj.geometries.map((g, i) => [g, i]), ([, i]) => regionOf(features[i]));
-  const regionFill = new Map(), regionCentre = {}, regionFeat = new Map();
+  const regionFill = new Map(), regionCentre = {}, regionFeat = new Map(), regionShapes = {};
   for (const [r, list] of byRegion) {
     const merged = topojson.merge(topo, list.map(([g]) => g));
-    regionFill.set(r, new Path2D(path(merged) ?? ""));
+    regionShapes[r] = path(merged) ?? "";
+    regionFill.set(r, new Path2D(regionShapes[r]));
     regionCentre[r] = path.centroid(merged);
     regionFeat.set(r, list.map(([, i]) => i));
   }
@@ -112,6 +117,7 @@ export async function geo({ url, objectName, unitKey, country }) {
     ids, names: features.map((f) => f.properties.name ?? null), paths, isPoint, centres, bounds, areas,
     unitMesh: mesh((a, b) => a !== b), regionMesh: mesh((a, b) => a !== b && regionOf(a) !== regionOf(b)), outline: mesh((a, b) => a === b),
     regionOutlines,
+    regionShapes, // each region's merged shape, for the page's hover highlight at the state level
   };
   // keep what drawing needs
   Object.assign(R, {
@@ -205,7 +211,10 @@ export async function units({ urls, live, countTimeline }) {
   if (hasRem) for (let i = 0; i < K * n; i++) { if (REM[i] > maxRem) maxRem = REM[i]; if (Math.abs(REMM[i]) > maxLean) maxLean = Math.abs(REMM[i]); }
   result.remScale = { maxRem, maxLean };
   // the drawing side keeps its own values; the page gets copies of the arrays it reads
-  R.units = { n, K, times: result.times, winner, vals: { counted, swing, margin, prior: priorVals }, rem: result.rem, remScale: result.remScale };
+  R.units = {
+    n, K, times: result.times, winner, vals: { counted, swing, margin, prior: priorVals }, rem: result.rem, remScale: result.remScale,
+    F, A, P, prior, V0, byRegion: unitsByRegion(region),
+  };
   R.cache.clear();
   R.featIdx = null; // waits for "bind" with this file's feature index
   return { result, transfer: [] };
@@ -233,7 +242,7 @@ export function control(msg) {
     case "canvas": R.ctx = msg.canvas.getContext("2d"); R.canvas = msg.canvas; break;
     case "size": Object.assign(R, { w: msg.w, h: msg.h, dpr: msg.dpr }); if (R.canvas) { R.canvas.width = Math.round(msg.w * msg.dpr); R.canvas.height = Math.round(msg.h * msg.dpr); } break;
     case "view": R.view = msg.view; break;
-    case "frame": R.view = msg.view ?? R.view; R.fadeMix = msg.fadeMix ?? R.fadeMix; R.natMix = msg.natMix ?? R.natMix; break;
+    case "frame": R.view = msg.view ?? R.view; R.fadeMix = msg.fadeMix ?? R.fadeMix; R.natMix = msg.natMix ?? R.natMix; R.levelMix = msg.levelMix ?? R.levelMix; R.xfade = msg.xfade ?? null; break;
     case "state": Object.assign(R, msg.state); break;
     case "nat": R.natColours = msg.colours ? new Map(msg.colours) : null; R.natRings = new Set(msg.rings ?? []); break;
     case "bind": {
@@ -252,6 +261,7 @@ export function control(msg) {
       break;
     }
     case "paint": Object.assign(R, { mode: msg.mode, t: msg.t, tween: msg.tween }); break;
+    case "prepare": prepareLayers(msg.from, msg.to); return; // bitmaps for a level crossfade (see draw())
     default: return;
   }
   schedule();
@@ -328,6 +338,39 @@ function colours() {
   return (R.lastCols = out);
 }
 
+// Region fills from the units' totals (the state level): one colour per region for the current
+// mode and frame, on the region's race colours. Cached per mode and frame like the unit colours.
+const lutAt = (lut, v) => lut[Math.round((Math.max(-1, Math.min(1, v)) + 1) * 100)];
+function aggColours() {
+  const U = R.units;
+  if (!U || !R.unitLUT) return null;
+  const k = frameIndex(R.t);
+  const key = `agg|${R.mode}|${k}`;
+  if (R.cache.has(key)) return R.cache.get(key);
+  const out = new Map(), w = U.winner;
+  for (const [r, js] of U.byRegion) {
+    const lut = R.unitLUT[js[0]];
+    let c = NONE;
+    if (REM_MODES.has(R.mode)) c = REM_GROUND;
+    else if (R.mode === "winner" && w) {
+      const lead = regionWinner(U, js, (j) => (w.perFrame ? (k >= 0 ? w.perFrame[k * U.n + j] : null) : w.top[j]));
+      if (lead) c = partyLUT(lead.party)[Math.round(lead.share * 20)];
+    } else {
+      const g = regionAgg(U, k, js);
+      if (R.mode === "counted") c = g.counted > 0 ? COUNTED_LUT[Math.min(100, Math.round(g.counted * 100))] : NONE;
+      else if (R.mode === "prior" || k < 0) c = g.prior != null ? lutAt(lut, (2 * g.prior - 1) / SCALE.prior) : NONE;
+      else if (R.mode === "swing") c = g.raw != null && g.prior != null ? lutAt(lut, (g.raw - g.prior) / SCALE.swing) : NONE;
+      else {
+        const v = R.countTimeline ? g.proj : g.raw ?? g.proj;
+        c = v != null ? lutAt(lut, (2 * v - 1) / SCALE.margin) : NONE;
+      }
+    }
+    out.set(r, c);
+  }
+  R.cache.set(key, out);
+  return out;
+}
+
 // Light diagonal hatch (regions without a baseline), 6 CSS px apart at any zoom.
 function hatchPattern(ctx, px) {
   if (!R.hatchTile) {
@@ -347,13 +390,50 @@ function hatchPattern(ctx, px) {
 // One frame: units (or, with a state layer, region fills plus the focus region's units faded in),
 // then the meshes. Hover, pin and region outlines are drawn by the page on its own overlay canvas
 // (dash-map.js), so pointer movement never repaints this one.
+// A level switch without a zoom crossfades two bitmaps, the map before and after the switch,
+// drawn once ("prepare", with the from/to mixes), instead of redrawing every unit each frame;
+// the page sends the crossfade's progress as `xfade` with each frame.
+const layerKey = () => `${R.view.k}|${R.view.x}|${R.view.y}|${R.w}|${R.h}|${R.dpr}|${R.mode}|${R.t}|${R.focus}|${R.fadeMix}|${R.cache.size}|${R.featIdx?.length}`;
+function prepareLayers(from, to) {
+  R.layers = null;
+  if (!R.ctx || !R.w || !R.n || typeof OffscreenCanvas === "undefined") return;
+  const W = R.canvas.width, H = R.canvas.height, keep = [R.levelMix, R.natMix];
+  const make = (m) => {
+    const c = new OffscreenCanvas(W, H);
+    R.levelMix = m.levelMix; R.natMix = m.natMix;
+    paint(c.getContext("2d"));
+    return c;
+  };
+  const a = make(from), b = make(to);
+  [R.levelMix, R.natMix] = keep;
+  R.layers = { key: layerKey(), a, b };
+}
+
 function draw() {
   const ctx = R.ctx;
   if (!ctx || !R.w || !R.n) return;
   const t0 = performance.now();
+  const L = R.layers;
+  if (L && R.xfade != null && L.key === layerKey()) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, R.canvas.width, R.canvas.height);
+    ctx.drawImage(L.a, 0, 0);
+    ctx.globalAlpha = R.xfade;
+    ctx.drawImage(L.b, 0, 0);
+    ctx.globalAlpha = 1;
+  } else {
+    if (R.xfade == null) R.layers = null; // the switch is over
+    paint(ctx);
+  }
+  R.drawMs.push(performance.now() - t0);
+  if (R.lastCols && !R.painted++) emit({ type: "painted", at: performance.timeOrigin + performance.now() });
+  if (R.drawMs.length >= 30) { emit({ type: "drawStats", ms: R.drawMs }); R.drawMs = []; }
+}
+
+function paint(ctx) {
   const { k, x, y } = R.view;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, R.canvas.width, R.canvas.height);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.setTransform(R.dpr * k, 0, 0, R.dpr * k, R.dpr * x, R.dpr * y);
   const px = 1 / k;
   const cols = colours(), paths = R.paths, focus = R.focus;
@@ -376,19 +456,35 @@ function draw() {
     }
   };
   const nat = R.natColours;
-  if (nat) {
-    // state layer: one shape per region; the focus region's units fade in over it
-    for (const [r, p] of R.regionFill) {
-      ctx.globalAlpha = r === focus ? 1 : dim;
-      ctx.fillStyle = nat.get(r) ?? NONE;
-      ctx.fill(p);
+  // a region layer: the national map's state colours (nat) or the units' region totals (aggregate)
+  const regionCols = nat ?? (R.aggregate ? aggColours() : null);
+  const unitW = Math.min(1, 0.3 + 0.12 * k) * px; // unit borders: up to 1 CSS px, thinner zoomed out
+  if (regionCols) {
+    // state level under the units: the focus region's units show at natMix (or the level's mix),
+    // the other regions' units at levelMix (0: state level, 1: unit level)
+    const uO = R.levelMix, uF = inFocus ? Math.max(R.levelMix, R.natMix) : uO;
+    if (uO < 1 || uF < 1) {
+      for (const [r, p] of R.regionFill) {
+        ctx.globalAlpha = r === focus ? 1 : dim;
+        ctx.fillStyle = hatch && R.hatch.has(r) ? hatch : regionCols.get(r) ?? NONE;
+        ctx.fill(p);
+      }
     }
-    if (inFocus && R.natMix > 0) {
-      ctx.globalAlpha = R.natMix;
+    const others = [];
+    if (uO > 0) for (let i = 0; i < R.n; i++) if (!focus || R.regionOf[i] !== focus) others.push(i);
+    if (uO > 0) {
+      ctx.globalAlpha = uO * dim;
+      fillUnits(others);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = unitW;
+      if (hidden) { for (const i of others) if (paths[i] && !hidden[i]) ctx.stroke(paths[i]); } else ctx.stroke(R.unitMesh);
+    }
+    if (inFocus && uF > 0) {
+      ctx.globalAlpha = uF;
       fillUnits(inFocus);
-      ctx.strokeStyle = hatch && R.hatch.has(focus) ? "#bdb9ae" : "#fcfbf8";
-      ctx.lineWidth = (hatch && R.hatch.has(focus) ? 0.6 : Math.min(0.6, 0.12 * k)) * px;
-      for (const i of inFocus) if (paths[i]) ctx.stroke(paths[i]);
+      ctx.strokeStyle = hatch && R.hatch.has(focus) ? "#bdb9ae" : "#ffffff";
+      ctx.lineWidth = hatch && R.hatch.has(focus) ? 0.6 * px : unitW;
+      for (const i of inFocus) if (paths[i] && !hidden?.[i]) ctx.stroke(paths[i]);
     }
   } else {
     // units: the other regions first at their dimmed opacity, then the focus region
@@ -398,38 +494,46 @@ function draw() {
     fillUnits(others);
     ctx.globalAlpha = 1;
     if (inFocus) fillUnits(inFocus);
+    ctx.strokeStyle = "#ffffff";
     if (hidden) {
       // overlapping layers: the shared meshes would draw the other layer's lines; outline each unit
-      ctx.strokeStyle = "#fcfbf8";
-      ctx.lineWidth = Math.min(0.9, 0.2 * k) * px;
+      ctx.lineWidth = Math.min(1, 0.4 + 0.2 * k) * px;
       for (let i = 0; i < R.n; i++) if (paths[i] && !hidden[i]) ctx.stroke(paths[i]);
     } else {
-      ctx.strokeStyle = "#fcfbf8";
-      ctx.lineWidth = Math.min(0.6, 0.12 * k) * px;
+      ctx.lineWidth = unitW;
       ctx.stroke(R.unitMesh);
     }
     if (hatch) {
-      // county lines inside hatched regions, where the paper-coloured mesh would not show
+      // county lines inside hatched regions, where the white mesh would not show
       ctx.strokeStyle = "#bdb9ae";
       ctx.lineWidth = 0.6 * px;
       for (let i = 0; i < R.n; i++) if (paths[i] && R.hatch.has(R.regionOf[i])) ctx.stroke(paths[i]);
     }
   }
   ctx.globalAlpha = 1;
+  // region borders: white, 2 px at the state level, 1.5 px with a fine dark core at the unit level
+  // (so state lines stay visible among county lines)
+  const unitLevel = regionCols ? R.levelMix : 1;
   if (!hidden) {
-    ctx.strokeStyle = "rgba(27,27,27,0.6)";
-    ctx.lineWidth = 0.8 * px;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = (2 - 0.5 * unitLevel) * px;
     ctx.stroke(R.regionMesh);
+    if (unitLevel > 0) {
+      ctx.strokeStyle = `rgba(27,27,27,${(0.45 * unitLevel).toFixed(3)})`;
+      ctx.lineWidth = 0.6 * px;
+      ctx.stroke(R.regionMesh);
+    }
   }
   ctx.strokeStyle = "#8d8a82";
   ctx.lineWidth = 0.7 * px;
   ctx.stroke(R.outline);
-  if (!nat && R.pointOrder.length) {
-    ctx.strokeStyle = "#fcfbf8";
+  const pointMix = regionCols ? R.levelMix : 1;
+  if (pointMix > 0 && R.pointOrder.length) {
+    ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 0.6 * px;
     for (const i of R.pointOrder) {
       if (!Number.isFinite(R.centres[2 * i])) continue;
-      ctx.globalAlpha = focus && R.regionOf[i] !== focus ? dim : 1;
+      ctx.globalAlpha = pointMix * (focus && R.regionOf[i] !== focus ? dim : 1);
       ctx.beginPath();
       ctx.arc(R.centres[2 * i], R.centres[2 * i + 1], R.radius[i] * px, 0, 2 * Math.PI);
       ctx.fillStyle = cols ? cols[i] : NONE;
@@ -438,24 +542,21 @@ function draw() {
     }
     ctx.globalAlpha = 1;
   }
-  if (REM_MODES.has(R.mode)) remCircles(ctx, px, dim, nat);
-  if (nat && R.natRings?.size) {
+  if (REM_MODES.has(R.mode)) remCircles(ctx, px, dim, nat && R.levelMix < 1);
+  if (nat && R.natRings?.size && R.levelMix < 1) {
     // regions with a unit-level model: a ring at the region's centre, gone once its units show
     ctx.strokeStyle = "#1b1b1b";
     ctx.lineWidth = 1.6 * px;
     for (const r of R.natRings) {
       const c = R.regionCentre[r];
       if (!c || !Number.isFinite(c[0])) continue;
-      ctx.globalAlpha = r === focus ? 1 - R.natMix : dim;
+      ctx.globalAlpha = (1 - R.levelMix) * (r === focus ? 1 - R.natMix : dim);
       ctx.beginPath();
       ctx.arc(c[0], c[1], 5 * px, 0, 2 * Math.PI);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
   }
-  R.drawMs.push(performance.now() - t0);
-  if (cols && !R.painted++) emit({ type: "painted", at: performance.timeOrigin + performance.now() });
-  if (R.drawMs.length >= 30) { emit({ type: "drawStats", ms: R.drawMs }); R.drawMs = []; }
 }
 
 // Outstanding-vote modes: a circle per unit at its label point, area proportional to the votes

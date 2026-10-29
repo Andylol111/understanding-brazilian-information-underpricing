@@ -1,7 +1,7 @@
 // Homepage: the evidence across elections (from site/data/summary.json, written by
 // analysis/edge_audit.py) and the list of elections (elections.json, each election's files).
 import * as d3 from "./vendor/d3.js";
-import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes } from "./common.js";
+import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes, modelP } from "./common.js";
 import { polymarketYes } from "./dash-precount.js";
 import { createWorldMap } from "./world-map.js";
 
@@ -349,9 +349,9 @@ async function preCell(td) {
   td.classList.add("pre");
   td.innerHTML = `<table class="pre-races"><thead><tr><th>Chance the first-named candidate wins</th><th class="n">Model</th><th class="n">Poly&shy;market</th><th class="n">Kalshi</th></tr></thead><tbody>${m.races.map((r) => {
     const row = lastRow(r.race_id);
-    return `<tr><td>${esc(label(r))} <span class="note">${esc(r.a.name)}</span></td><td class="n m">${f(row?.P ?? r.precount?.P)}</td><td class="n">${f(live.get(r.race_id) ?? row?.pm)}</td><td class="n kx">${f(row?.kalshi)}</td></tr>`;
+    return `<tr><td>${esc(label(r))} <span class="note">${esc(r.a.name)}</span></td><td class="n m">${f(modelP(row) ?? r.precount?.P_v2 ?? r.precount?.P)}</td><td class="n">${f(live.get(r.race_id) ?? row?.pm)}</td><td class="n kx">${f(row?.kalshi)}</td></tr>`;
   }).join("")}</tbody></table>
-    <p class="note">Before the count: the model's chance before any votes (from past certified results, not polls), ${anyLive ? "Polymarket's price now" : "the last recorded Polymarket price"} and the last recorded Kalshi price. Counting starts ${esc(fmtDate(m.date))}.</p>`;
+    <p class="note">Before the count: the model's chance before any votes (${m.races.some((r) => lastRow(r.race_id)?.P_v2 != null || r.precount?.P_v2 != null) ? "from past certified results shifted toward the recent polls, where a race has them" : "from past certified results, not polls"}), ${anyLive ? "Polymarket's price now" : "the last recorded Polymarket price"} and the last recorded Kalshi price. Counting starts ${esc(fmtDate(m.date))}.</p>`;
 }
 
 const mainRace = (m) => m?.races?.find((r) => !r.region) ?? m?.races?.[0];
@@ -394,7 +394,10 @@ async function load() {
       getJSON("geo/world.topo.json", { root: STATIC })
         .then((topo) => {
           window.__worldFrames = [];
-          createWorldMap($("world"), { topo, elections, href, countryName, frames: window.__worldFrames });
+          const wm = createWorldMap($("world"), { topo, elections, href, countryName, frames: window.__worldFrames });
+          // back from an election's breadcrumb: open on its country and zoom out to the world
+          const from = elections.find((e) => e.id === new URLSearchParams(location.search).get("from"));
+          if (from?.country) wm.arrive(from.country.toUpperCase());
         })
         .catch((err) => { $("world").innerHTML = `<p class="note">The world map could not be drawn (${esc(err.message)}).</p>`; });
     }

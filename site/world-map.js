@@ -170,8 +170,16 @@ export function createWorldMap(root, { topo, elections, href, countryName, frame
     setTimeout(() => { location.href = url; }, 220);
   }
   window.addEventListener("pageshow", (ev) => { if (ev.persisted) { document.body.classList.remove("leaving"); back(); } });
+  // back from an election (index.html?from=<id>): start framed on its country, then zoom out
+  function arrive(code) {
+    if (!byCountry.has(code) || !st.w) return;
+    land.classed("dim", (f) => f.properties.iso2 !== code);
+    st.view = fit(code);
+    apply();
+    requestAnimationFrame(() => requestAnimationFrame(() => { land.classed("dim", false); zoomTo({ k: 1, x: 0, y: 0 }); }));
+  }
 
   new ResizeObserver(layout).observe(box);
   layout();
-  return { choose, back };
+  return { choose, back, arrive };
 }

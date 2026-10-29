@@ -13,7 +13,10 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, count
   }
   const width = Math.max(280, root.clientWidth);
   const narrow = width < 520;
-  const m = { l: narrow ? 38 : 46, r: narrow ? 74 : 84, t: 18, b: 22 };
+  // with a poll-informed model (P_v2) it is the main line and the count-only model a thin one;
+  // the longer end labels ("model without polls") need a wider right margin
+  const two = rows.some((d) => d.P_v2 != null);
+  const m = { l: narrow ? 38 : 46, r: two ? (narrow ? 104 : 116) : narrow ? 74 : 84, t: 18, b: 22 };
   const gap = countPanel ? 26 : 0;
   const inner = height - m.t - m.b - gap;
   const h1 = countPanel ? Math.round(inner * 0.55) : 0, h2 = inner - h1;
@@ -73,7 +76,7 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, count
       .attr("d", d3.line().x(X).y((d) => cS(d.share)).curve(d3.curveStepAfter));
     endLabels(svg, width - m.r + 5, [
       [lastOf("raw"), (d) => cS(d.raw), "raw count", C.raw],
-      [lastOf("share"), (d) => cS(d.share), "model", C.model],
+      [lastOf("share"), (d) => cS(d.share), vis.some((d) => d.P_v2 != null) ? "model without polls" : "model", C.model],
       [final != null ? {} : null, () => cS(final), `final ${pct(final)}`, C.model],
     ]);
   }
@@ -87,11 +90,14 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, count
   svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", top2 - 7).text(`Probability ${race.a.name} wins`);
   for (const v of [0.1, 0.9]) g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP(v)).attr("y2", yP(v)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
   const step = (k) => d3.line().defined((d) => d[k] != null).x(X).y((d) => yP(d[k])).curve(d3.curveStepAfter);
-  g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 2).attr("d", step("P"));
+  const main = two ? "P_v2" : "P";
+  if (two) g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 1).attr("stroke-dasharray", "3,2").attr("opacity", 0.75).attr("d", step("P"));
+  g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 2).attr("d", step(main));
   g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.kalshi).attr("stroke-width", 1.5).attr("d", step("kalshi"));
   g.append("path").datum(vis).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.6).attr("d", step("pm"));
   endLabels(svg, width - m.r + 5, [
-    [lastOf("P"), (d) => yP(d.P), "model", C.model],
+    [lastOf(main), (d) => yP(d[main]), two ? "model with polls" : "model", C.model],
+    [two ? lastOf("P") : null, (d) => yP(d.P), "model without polls", C.model],
     [lastOf("pm"), (d) => yP(d.pm), "Polymarket", C.market],
     [lastOf("kalshi"), (d) => yP(d.kalshi), "Kalshi", C.kalshi],
   ]);

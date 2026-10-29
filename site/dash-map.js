@@ -8,6 +8,7 @@ import * as d3 from "./vendor/d3.js";
 const PAD = 14; // screen padding when fitting (CSS px)
 const GRID = 48; // hit-test grid cells per side over the base space
 const ZOOM_MS = [600, 750]; // transition length range
+const LEVEL_MS = 450; // a level switch (states <-> units) without a zoom
 const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 // geo: output of the engine's "geo" job; post(msg, transfer): send a control message to the engine;
@@ -28,6 +29,11 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
   const outlineOf = (r) => {
     if (!outlines.has(r)) outlines.set(r, new Path2D(geo.regionOutlines?.[r] ?? ""));
     return outlines.get(r);
+  };
+  const shapes = new Map(); // region -> Path2D of its merged shape (hover wash at the state level)
+  const shapeOf = (r) => {
+    if (!shapes.has(r)) shapes.set(r, new Path2D(geo.regionShapes?.[r] ?? ""));
+    return shapes.get(r);
   };
   // every feature of each region, from the geometry (a region can be zoomed to before its units load)
   const regionAll = new Map();
@@ -68,13 +74,13 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
   } else post({ type: "canvas", canvas });
 
   const st = {
-    w: 0, h: 0, dpr: 1, view: { k: 1, x: 0, y: 0 }, anim: 0, fadeMix: 0, natMix: 0,
-    inUnits: null, focus: null, focusToken: 0, hover: -1, pinned: -1, hoverRegion: null, nat: false, natHover: false,
+    w: 0, h: 0, dpr: 1, view: { k: 1, x: 0, y: 0 }, anim: 0, fadeMix: 0, natMix: 0, levelMix: 1,
+    inUnits: null, focus: null, focusToken: 0, hover: -1, pinned: -1, hoverRegion: null, nat: false, agg: false, natHover: false,
     radius: new Float32Array(n).fill(3),
     extent: populatedFirst ? "populated" : "all", populated: null,
   };
   const frame = () => {
-    post({ type: "frame", view: st.view, fadeMix: st.fadeMix, natMix: st.natMix });
+    post({ type: "frame", view: st.view, fadeMix: st.fadeMix, natMix: st.natMix, levelMix: st.levelMix, xfade: st.xfade ?? null });
     drawOverlay();
   };
 
@@ -84,10 +90,13 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     octx.clearRect(0, 0, overlay.width, overlay.height);
     octx.setTransform(st.dpr * k, 0, 0, st.dpr * k, st.dpr * x, st.dpr * y);
     const px = 1 / k;
+    // hover: a light wash and a dark outline (the whole region at the state level)
+    const wash = (p) => { octx.fillStyle = "rgba(255,255,255,0.22)"; octx.fill(p); };
     octx.strokeStyle = "#1b1b1b";
     const hoverR = st.natHover && st.hover >= 0 ? regionOf(st.hover) : st.hoverRegion;
     if (hoverR && hoverR !== st.focus) {
-      octx.lineWidth = (st.natHover ? 1.8 : 2.2) * px;
+      if (st.natHover) wash(shapeOf(hoverR));
+      octx.lineWidth = (st.natHover ? 1.6 : 2.2) * px;
       if (!st.natHover) octx.setLineDash([4 * px, 3 * px]);
       octx.stroke(outlineOf(hoverR));
       octx.setLineDash([]);
@@ -98,10 +107,10 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       octx.stroke(outlineOf(st.focus));
       octx.globalAlpha = 1;
     }
-    for (const [i, w] of [[st.pinned, 2.2], [st.natHover ? -1 : st.hover, 1.5]]) {
+    for (const [i, w] of [[st.pinned, 2.2], [st.natHover ? -1 : st.hover, 1.4]]) {
       if (i < 0) continue;
       octx.lineWidth = w * px;
-      if (!isPoint[i]) octx.stroke(hitPath(i));
+      if (!isPoint[i]) { if (i === st.hover) wash(hitPath(i)); octx.stroke(hitPath(i)); }
       else if (Number.isFinite(centres[2 * i])) { octx.beginPath(); octx.arc(centres[2 * i], centres[2 * i + 1], (st.radius[i] + 1) * px, 0, 2 * Math.PI); octx.stroke(); }
     }
   }
@@ -144,12 +153,16 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
   // work the page wants done once the current transition is over (it would cost frames during it)
   const after = [];
   const flushAfter = () => { while (after.length) setTimeout(after.shift(), 0); };
+  const afterEnd = (fn) => { if (st.animating) after.push(fn); else fn(); };
 
   // One choreographed transition: the view along the van Wijk & Nuij zoom path (d3.interpolateZoom,
   // 600-750 ms, cubic in-out), the other regions dimming with it and, with a state layer, the focus
   // region's units fading in over the last 40% of the zoom (out: over the first 40%). The fade in
   // waits for `ready` (units bound); if they arrive late it runs as soon as they do.
-  function transition(view, { fade, nat, ready } = {}) {
+  // level: target opacity of the units outside the focus region over their region fills (the
+  // map level: 0 states, 1 units); fading in, it waits for `ready` like nat. Without a change of
+  // view (a level switch) the fades take LEVEL_MS from the start.
+  function transition(view, { fade, nat, level = st.levelMix, ready } = {}) {
     cancelAnimationFrame(st.anim);
     st.animating = false;
     let natReady = !ready;
@@ -157,21 +170,64 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     // and a resize during it is refitted
     ready?.then(() => { natReady = true; }, () => { natReady = true; });
     if (document.hidden || reducedMotion() || !st.w) {
-      st.view = view; st.fadeMix = fade; st.natMix = nat > st.natMix && !natReady ? st.natMix : nat;
+      st.view = view; st.fadeMix = fade;
+      st.natMix = nat > st.natMix && !natReady ? st.natMix : nat;
+      st.levelMix = level > st.levelMix && !natReady ? st.levelMix : level;
       frame();
       flushAfter();
-      if (!natReady && nat > st.natMix) ready.then(() => { st.natMix = nat; frame(); }, () => {});
+      if (!natReady && (nat > st.natMix || level > st.levelMix)) ready.then(() => { st.natMix = nat; st.levelMix = level; frame(); }, () => {});
       return;
     }
     const toZ = (v) => [(st.w / 2 - v.x) / v.k, (st.h / 2 - v.y) / v.k, st.w / v.k];
     const interp = d3.interpolateZoom(toZ(st.view), toZ(view));
-    const dur = Math.max(ZOOM_MS[0], Math.min(ZOOM_MS[1], interp.duration * 0.6));
-    const from = { fade: st.fadeMix, nat: st.natMix };
+    const still = Math.abs(view.k - st.view.k) < 1e-6 * view.k && Math.hypot(view.x - st.view.x, view.y - st.view.y) < 0.5;
+    const dur = still ? LEVEL_MS : Math.max(ZOOM_MS[0], Math.min(ZOOM_MS[1], interp.duration * 0.6));
+    const from = { fade: st.fadeMix, nat: st.natMix, level: st.levelMix };
     // the clock starts on the third animation frame: the first two carry the style and layout of
     // whatever the page changed in the same task (crumbs, lists), which would otherwise show as a
     // stalled step; 33 ms of stillness reads as the click's response, a stall mid-zoom does not
-    let t0 = null, last = 0, settle = 2, natFrom = null;
+    let t0 = null, last = 0, settle = 2;
+    const inFrom = {}; // when each fade-in started
+    // fading out: over the first 40%; fading in: over 40%, from 60% of the zoom or when the units
+    // are bound
+    const mix = (key, to, now, lin) => {
+      const a = from[key];
+      if (to < a) return a + (to - a) * Math.min(1, lin / 0.4);
+      if (to > a) {
+        if (natReady && inFrom[key] == null) inFrom[key] = Math.max(now, t0 + 0.6 * dur);
+        if (inFrom[key] == null || now < inFrom[key]) return a;
+        return a + (to - a) * d3.easeCubicOut(Math.min(1, (now - inFrom[key]) / (0.4 * dur)));
+      }
+      return a;
+    };
     st.animating = true;
+    // a level switch: once the units are bound the engine draws both ends once ("prepare") and
+    // each frame crossfades them (xfade 0..1); no per-frame redraw of every unit
+    let xf = null, prepared = false;
+    const prepare = () => {
+      prepared = true;
+      post({ type: "prepare", from: { levelMix: from.level, natMix: from.nat }, to: { levelMix: level, natMix: nat } });
+    };
+    const stillStep = (now) => {
+      // the two bitmaps are drawn in the still frames before the clock starts, when possible
+      if (settle-- > 0) { if (natReady && !prepared) prepare(); st.anim = requestAnimationFrame(stillStep); return; }
+      if (t0 == null) { t0 = now; last = now; } else onFrame?.(now - last);
+      last = now;
+      if (xf == null && natReady) {
+        if (!prepared) prepare();
+        xf = now;
+      }
+      const p = xf == null ? 0 : d3.easeCubicInOut(Math.min(1, (now - xf) / dur));
+      st.levelMix = from.level + (level - from.level) * p;
+      st.natMix = from.nat + (nat - from.nat) * p;
+      st.xfade = p > 0 && p < 1 ? p : null;
+      if (p < 1) { frame(); st.anim = requestAnimationFrame(stillStep); return; }
+      st.natMix = nat; st.levelMix = level; st.xfade = null;
+      st.animating = false;
+      if (st.refit) { st.refit = false; st.view = fitView(currentFitIdx()); }
+      frame();
+      flushAfter();
+    };
     const step = (now) => {
       if (settle-- > 0) { st.anim = requestAnimationFrame(step); return; }
       if (t0 == null) { t0 = now; last = now; } else onFrame?.(now - last);
@@ -181,20 +237,18 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       const k = st.w / w;
       st.view = { k, x: st.w / 2 - cx * k, y: st.h / 2 - cy * k };
       st.fadeMix = from.fade + (fade - from.fade) * u;
-      if (nat < from.nat) st.natMix = from.nat * (1 - Math.min(1, lin / 0.4));
-      else if (nat > from.nat) {
-        // fade in over 40% of the duration, from 60% of the zoom or when the units are bound
-        if (natReady && natFrom == null) natFrom = Math.max(now, t0 + 0.6 * dur);
-        st.natMix = natFrom == null || now < natFrom ? from.nat : from.nat + (nat - from.nat) * d3.easeCubicOut(Math.min(1, (now - natFrom) / (0.4 * dur)));
-      }
+      st.natMix = mix("nat", nat, now, lin);
+      st.levelMix = mix("level", level, now, lin);
       frame();
-      const natDone = nat <= from.nat || st.natMix >= nat;
-      if (lin < 1 || !natDone) { st.anim = requestAnimationFrame(step); return; }
+      const done = (nat <= from.nat || st.natMix >= nat) && (level <= from.level || st.levelMix >= level);
+      if (lin < 1 || !done) { st.anim = requestAnimationFrame(step); return; }
+      st.natMix = nat; st.levelMix = level;
       st.animating = false;
-      if (st.refit) { st.refit = false; st.view = fitView(currentFitIdx()); frame(); }
+      if (st.refit) { st.refit = false; st.view = fitView(currentFitIdx()); }
+      frame();
       flushAfter();
     };
-    st.anim = requestAnimationFrame(step);
+    st.anim = requestAnimationFrame(still ? stillStep : step);
   }
 
   function pick(ev) {
@@ -244,43 +298,56 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     regionOf,
     hasRegion: (r) => regionAll.has(r),
     // Zoom to a region (null: the whole map). ready: a promise for the region's units being bound;
-    // with a state layer their fade-in waits for it.
-    focus(region, { animate = true, ready = null } = {}) {
+    // over a region layer their fade-in waits for it. nat: target opacity of the focus region's
+    // units over its region fill; level: of the other regions' units (the map level).
+    focus(region, { animate = true, ready = null, nat, level = st.levelMix } = {}) {
       const next = region && regionAll.has(region) ? region : null;
+      const layered = st.nat || st.agg;
+      const natT = nat ?? (layered && next ? 1 : 0);
       const token = ++st.focusToken;
       if (next !== st.focus) {
-        // a new region's units start hidden under its state fill and fade in when bound
-        if (next && st.nat && st.focus) st.natMix = 0;
+        // a new region's units start hidden under its region fill and fade in when bound
+        if (next && layered && st.focus) st.natMix = 0;
         if (next) post({ type: "state", state: { focus: next } });
         st.focus = next;
-        st.natHover = st.nat && !next;
       }
-      if (!st.w) {
-        // not laid out yet: the first resize fits the view; the mixes take their end values now
+      const jump = (view) => {
+        cancelAnimationFrame(st.anim);
+        st.animating = false;
+        if (view) st.view = view;
         st.fadeMix = next ? 1 : 0;
-        st.natMix = st.nat && next && !ready ? 1 : 0;
-        if (st.nat && next && ready) ready.then(() => { if (token === st.focusToken) { st.natMix = 1; frame(); } }, () => {});
+        const set = () => { if (token === st.focusToken) { st.natMix = natT; st.levelMix = level; frame(); } };
+        if (ready && (natT > st.natMix || level > st.levelMix)) ready.then(set, set); else { st.natMix = natT; st.levelMix = level; }
         if (!next) post({ type: "state", state: { focus: null } });
-        return;
-      }
+        if (view) frame();
+      };
+      // not laid out yet: the first resize fits the view; the mixes take their end values now
+      if (!st.w) { jump(null); return; }
       const view = fitView(currentFitIdx());
-      const target = { fade: next ? 1 : 0, nat: st.nat && next ? 1 : 0, ready };
+      if (!animate) { jump(view); return; }
+      transition(view, { fade: next ? 1 : 0, nat: natT, level, ready });
       if (!next) {
         // zooming out: the old focus stays drawn (fading) until the transition ends
-        const done = () => { if (token === st.focusToken) post({ type: "state", state: { focus: null } }); };
-        if (animate) { transition(view, target); setTimeout(done, ZOOM_MS[1] + 50); } else { transition(view, { ...target, ready: null }); done(); }
-        return;
-      }
-      if (animate) transition(view, target);
-      else {
-        cancelAnimationFrame(st.anim);
-        st.view = view; st.fadeMix = 1;
-        if (st.nat) {
-          if (ready) ready.then(() => { if (token === st.focusToken) { st.natMix = 1; frame(); } }, () => {}); else st.natMix = 1;
-        }
-        frame();
+        afterEnd(() => { if (token === st.focusToken) post({ type: "state", state: { focus: null } }); });
       }
     },
+    // Switch the map level without zooming: level / nat as in focus().
+    setLevel({ level, nat = st.natMix, ready = null, animate = true }) {
+      if (!animate || !st.w) {
+        cancelAnimationFrame(st.anim);
+        st.animating = false;
+        const set = () => { st.natMix = nat; st.levelMix = level; frame(); };
+        if (ready && level > st.levelMix) ready.then(set, set); else set();
+        return;
+      }
+      transition(st.animating ? fitView(currentFitIdx()) : st.view, { fade: st.fadeMix, nat, level, ready });
+    },
+    // Region fills from the units' totals under the units (the state level of any map).
+    setAggregate(on) {
+      st.agg = !!on;
+      post({ type: "state", state: { aggregate: st.agg } });
+    },
+    get levelMix() { return st.levelMix; },
     // index[i] = position of feature i in the units arrays, or -1; votes sizes the dots;
     // colouring: { unitRace: per-unit index into raceColors, raceColors: [[a, b]], parties, countTimeline }
     setUnits(index, votes, colouring) {
@@ -310,7 +377,8 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       post({ type: "nat", colours: colours ? [...colours] : null, rings });
       drawOverlay();
     },
-    setNatHover(on) { st.natHover = st.nat && on; drawOverlay(); },
+    // hover picks whole regions (the state level) instead of units
+    setNatHover(on) { if (st.natHover === !!on) return; st.natHover = !!on; drawOverlay(); },
     highlightRegion(r) {
       if (r === st.hoverRegion) return;
       st.hoverRegion = r;
@@ -325,6 +393,6 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     },
     resize,
     // run fn when the current transition has ended (at once when none is running)
-    afterTransition(fn) { if (st.animating) after.push(fn); else fn(); },
+    afterTransition: afterEnd,
   };
 }

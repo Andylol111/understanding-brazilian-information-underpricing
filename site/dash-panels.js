@@ -1,7 +1,7 @@
 // Right-hand panels of the dashboard: the readout at the current time, and the three tabs
 // (races, statistics, method & sources). Pure rendering from values the controller passes in.
 import * as d3 from "./vendor/d3.js";
-import { C, esc, pct, num, usd, votesShort, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
+import { C, esc, pct, num, usd, votesShort, modelP, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
 
 const PLATFORM = { polymarket: "Polymarket", kalshi: "Kalshi" };
 const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}`);
@@ -14,28 +14,34 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   const a = esc(race.a.name);
   const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)} · figures for ${a}</span></p>`;
   if (!row) { el.innerHTML = `${head}<p class="note">No data for this race at this time.</p>`; return; }
-  const band = row.sd != null && row.share != null ? `<small>± ${(164.5 * row.sd).toFixed(1)} pt (90%)</small>` : "";
+  // the poll-informed projection (share_v2, sd_v2) where the row has one
+  const v2 = row.share_v2 != null, share = v2 ? row.share_v2 : row.share, sd = v2 ? row.sd_v2 : row.sd;
+  const which = v2 ? " (with polls)" : row.P_v2 != null ? " (without polls)" : "";
+  const band = sd != null && share != null ? `<small>± ${(164.5 * sd).toFixed(1)} pt (90%)</small>` : "";
   const market = row.pm ?? row.kalshi; // the gap is measured against Polymarket where it lists the race
   const marketName = row.pm != null ? "Polymarket" : "Kalshi";
   const figs = [];
   if (pre) {
-    figs.push(`<div><dt>Model before any votes</dt><dd class="m">${row.share != null ? `${pct(row.share)}${band}` : `<small>${esc(pre.note ?? "not available")}</small>`}</dd></div>`);
+    figs.push(`<div><dt>Model before any votes${which}</dt><dd class="m">${share != null ? `${pct(share)}${band}` : `<small>${esc(pre.note ?? "not available")}</small>`}</dd></div>`);
   } else if (countTimeline) {
     figs.push(`<div><dt>Counted</dt><dd>${pct(row.counted)}</dd></div>`);
     figs.push(`<div><dt>Raw count</dt><dd class="r">${pct(row.raw)}</dd></div>`);
-    figs.push(`<div><dt>Model projection</dt><dd class="m">${pct(row.share)}${band}</dd></div>`);
+    figs.push(`<div><dt>Model projection${which}</dt><dd class="m">${pct(share)}${band}</dd></div>`);
   }
   const pParts = [];
-  if (row.P != null) pParts.push(`<span class="m">${num(row.P)}</span><small>model</small>`);
+  // with a poll-informed version (P_v2) it is the headline model; the count-only model is shown beside it
+  const P = modelP(row), two = row.P_v2 != null && row.P != null;
+  if (P != null) pParts.push(`<span class="m">${num(P)}</span><small>${two ? "model with polls" : "model"}</small>`);
+  if (two) pParts.push(`<span class="m2">${num(row.P)}</span><small>without polls</small>`);
   if (row.pm != null) pParts.push(`<span class="k">${num(row.pm)}</span><small>Polymarket</small>`);
   if (row.kalshi != null) pParts.push(`<span class="kx">${num(row.kalshi)}</span><small>Kalshi</small>`);
-  figs.push(`<div class="ro-p"><dt>Chance of winning</dt><dd>${pParts.join(" ") || "–"}</dd></div>`);
+  figs.push(`<div class="ro-p"><dt>Chance of winning</dt><dd>${pParts.map((x) => `<span class="ro-pp">${x}</span>`).join(" ") || "–"}</dd></div>`);
   let gap = "";
-  if (row.P != null && market != null) {
-    const g = row.P - market;
+  if (P != null && market != null) {
+    const g = P - market;
     const both = row.pm != null && row.kalshi != null ? `, Kalshi ${num(row.kalshi)}` : "";
-    gap = `Model ${num(row.P)}, ${marketName} ${num(market)}${both}: gap to ${marketName} <b>${num(Math.abs(g))}</b>${Math.abs(g) >= 0.005 ? `, model ${g > 0 ? "higher" : "lower"}` : ""}.`;
-  } else if (row.P != null) gap = "No market price at this time.";
+    gap = `Model ${num(P)}, ${marketName} ${num(market)}${both}: gap to ${marketName} <b>${num(Math.abs(g))}</b>${Math.abs(g) >= 0.005 ? `, model ${g > 0 ? "higher" : "lower"}` : ""}.`;
+  } else if (P != null) gap = "No market price at this time.";
   const frame = frameT != null && countTimeline && !pre ? ` <span class="ro-frame">Map: ${clock(frameT, tz)} frame.</span>` : "";
   const live = pre && row.live && pre.live ? ` <span class="ro-frame">${esc(pre.live)}.</span>` : "";
   // the model's estimate of the votes still to count and how they lean (rem_total, rem_margin_total)
@@ -388,12 +394,13 @@ function arbChart(rows, tz) {
 
 /* ---------------------------------------------------------------- method tab */
 
-export function renderMethod(el, { meta, entry, geometryCredit }) {
+export function renderMethod(el, { meta, entry, geometryCredit, twoModels = false }) {
   const notes = (meta.notes ?? []).map((n) => `<li>${esc(n)}</li>`).join("");
   const src = (meta.sources ?? []).map((s) => `<li><a href="${esc(s.url)}">${esc(s.name)}</a>, ${esc(s.licence)}</li>`).join("");
   const evs = Object.entries(EVIDENCE).map(([k, e]) => `<li>${evidenceLabel(k)} ${esc(e.long[0].toUpperCase() + e.long.slice(1))}.</li>`).join("");
   el.innerHTML = `
     <h3 class="tab-h">How this election was modelled</h3>
+    ${twoModels ? `<p>Two versions of the model are shown. The <span class="m">model with polls</span> (the main line and figure) starts from past certified results shifted toward the recent polling average for the race, then updates as votes are counted. The <span class="m">model without polls</span> (thin dashed line) starts from past certified results alone and updates from the count in the same way. Both use only what was known at each minute. As more votes are counted both rely more on the count, so the two come closer; the difference matters most before and early in the count.</p>` : ""}
     ${notes ? `<ul>${notes}</ul>` : `<p class="note">No notes.</p>`}
     <h3 class="tab-h">Evidence labels</h3>
     <p>This election: ${entry?.evidence ? evidenceLabel(entry.evidence) : "–"}</p>
