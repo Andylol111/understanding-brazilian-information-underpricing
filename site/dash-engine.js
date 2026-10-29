@@ -9,14 +9,22 @@
 //    and headless pages throttle or never run), so the first frame appears once data is bound.
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { unitsByRegion, regionAgg, regionWinner, bandColours, bandColour } from "./dash-agg.js";
+import { unitsByRegion, regionAgg, regionWinner, bandColours, bandColour, tieBreak } from "./dash-agg.js";
 
 const BASE = 1000; // base projection extent, shared with dash-map.js
 const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4 }; // value at which a diverging colour is full
 const NONE = "#efede7", NEUTRAL = "#f4f2ec";
 const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is full
-// leader colour of unit j for a margin in points (side a minus side b)
-const band = (j, pt) => { const b = R.unitBand?.[j]; return b ? bandColour(Math.abs(pt) < 1e-9 ? 0 : pt, b[0], b[1]) : NONE; };
+// leader colour of unit j for a margin in points (side a minus side b). A projection that reads
+// exactly even (stored in thousandths) takes the side of the unit's finer figures (tieBreak) when
+// `fine` (projection modes, frame R.curK); grey only for an exact tie.
+const band = (j, pt, fine = false) => {
+  const b = R.unitBand?.[j];
+  if (!b) return NONE;
+  let v = Math.abs(pt) < 1e-9 ? 0 : pt;
+  if (v === 0 && fine && R.units) v = tieBreak(R.units, R.curK, j) * 1e-6;
+  return bandColour(v, b[0], b[1]);
+};
 
 // static files are parsed once; live files are revalidated on every read (If-None-Match -> 304), and a
 // live failure other than 404 throws so the page keeps its last good map
@@ -153,6 +161,10 @@ export async function units({ urls, live, countTimeline }) {
   const unit_ids = [], region = [], names = [], layer = []; // layer: overlapping unit sets (NZ electorates)
   const source = new Uint8Array(n), prior = new Int16Array(n).fill(-1), V0 = new Float64Array(n);
   const F = new Int16Array(K * n), A = new Int16Array(K * n).fill(-1), P = new Int16Array(K * n).fill(-1);
+  // the projection of the race's poll model (proj_poll) where a file has one: P holds it (falling
+  // back to proj unit by unit) and P1 the past-results projection (proj), shown as "margin1"
+  const P1 = new Int16Array(K * n).fill(-1);
+  let hasPoll = false;
   // outstanding vote (display only): expected remaining votes and their projected margin (side a
   // minus side b, in votes); NaN where a file has none
   const REM = new Float32Array(K * n).fill(NaN), REMM = new Float32Array(K * n).fill(NaN);
@@ -180,15 +192,18 @@ export async function units({ urls, live, countTimeline }) {
       for (let j = 0; j < m; j++) {
         F[base + j] = fr.f?.[j] ?? 0;
         A[base + j] = fr.a?.[j] ?? -1;
-        P[base + j] = fr.proj?.[j] ?? -1;
+        P1[base + j] = fr.proj?.[j] ?? -1;
+        const pp = fr.proj_poll?.[j];
+        P[base + j] = pp != null ? pp : P1[base + j];
+        if (pp != null) hasPoll = true;
         if (W && fr.winner) { W[base + j] = fr.winner[j]; M[base + j] = fr.margin?.[j] ?? 0; }
-        if (fr.rem) { REM[base + j] = fr.rem[j] ?? NaN; REMM[base + j] = fr.rem_margin?.[j] ?? NaN; hasRem = true; }
+        if (fr.rem) { REM[base + j] = fr.rem[j] ?? NaN; REMM[base + j] = fr.rem_margin_poll?.[j] ?? fr.rem_margin?.[j] ?? NaN; hasRem = true; }
       }
     }
     off += m;
   }
   // per-mode values, normalised to [-1, 1] (diverging) or [0, 1] (counted); NaN = no data
-  const counted = new Float32Array(K * n), swing = new Float32Array(K * n), margin = new Float32Array(K * n);
+  const counted = new Float32Array(K * n), swing = new Float32Array(K * n), margin = new Float32Array(K * n), margin1 = hasPoll ? new Float32Array(K * n) : null;
   const clamp = (v) => Math.max(-1, Math.min(1, v));
   for (let k = 0; k < K; k++) {
     for (let j = 0; j < n; j++) {
@@ -197,6 +212,7 @@ export async function units({ urls, live, countTimeline }) {
       swing[i] = a >= 0 && p >= 0 ? clamp((a - p) / 1000 / SCALE.swing) : NaN;
       const v = countTimeline ? P[i] : a >= 0 ? a : P[i];
       margin[i] = v >= 0 ? clamp((2 * v / 1000 - 1) / SCALE.margin) : NaN;
+      if (margin1) { const w = countTimeline ? P1[i] : a >= 0 ? a : P1[i]; margin1[i] = w >= 0 ? clamp((2 * w / 1000 - 1) / SCALE.margin) : NaN; }
     }
   }
   const priorVals = new Float32Array(n);
@@ -204,7 +220,7 @@ export async function units({ urls, live, countTimeline }) {
   const first = ok[0][0];
   const winner = !hasWinner ? null : W ? { perFrame: W, margin: M } : { top: top.winner, margin: top.margin };
   const result = {
-    n, K, unit_ids, region, names, layer, source, prior, V0, times: Float64Array.from(times), F, A, P, winner,
+    n, K, unit_ids, region, names, layer, source, prior, V0, times: Float64Array.from(times), F, A, P, P1, hasPoll, winner,
     rem: hasRem ? { votes: REM, margin: REMM } : null,
     race_id: ok.length === 1 ? first.race_id ?? null : null,
     a: ok.length === 1 ? first.a ?? null : null, b: ok.length === 1 ? first.b ?? null : null, label: first.label ?? null,
@@ -216,8 +232,8 @@ export async function units({ urls, live, countTimeline }) {
   result.remScale = { maxRem, maxLean };
   // the drawing side keeps its own values; the page gets copies of the arrays it reads
   R.units = {
-    n, K, times: result.times, winner, vals: { counted, swing, margin, prior: priorVals }, rem: result.rem, remScale: result.remScale,
-    F, A, P, prior, V0, byRegion: unitsByRegion(region),
+    n, K, times: result.times, winner, vals: { counted, swing, margin, margin1, prior: priorVals }, rem: result.rem, remScale: result.remScale,
+    F, A, P, P1, prior, V0, byRegion: unitsByRegion(region),
   };
   R.cache.clear();
   R.featIdx = null; // waits for "bind" with this file's feature index
@@ -309,6 +325,7 @@ function colours() {
   const U = R.units, idx = R.featIdx, nf = R.n;
   if (!U || !idx || idx.length !== nf) return R.lastCols;
   const k = frameIndex(R.t);
+  R.curK = k; // the frame for tie-breaks in band()
   const tween = R.tween && R.mode !== "winner" && k >= 0 && k + 1 < U.K;
   const key = `${R.mode}|${k}`;
   if (!tween && R.cache.has(key)) return (R.lastCols = R.cache.get(key));
@@ -348,7 +365,7 @@ function colours() {
         else if (!Number.isNaN(v1)) v = v0 + (v1 - v0) * s;
       }
       out[i] = counted ? (v > 0 ? COUNTED_LUT[Math.min(100, Math.round(v * 100))] : NONE) : Number.isNaN(v) ? NONE
-        : R.mode === "margin" ? band(j, v * SCALE.margin * 100) : luts[j][Math.round((v + 1) * 100)];
+        : R.mode === "margin" || R.mode === "margin1" ? band(j, v * SCALE.margin * 100, true) : luts[j][Math.round((v + 1) * 100)];
     }
   }
   if (!tween) R.cache.set(key, out);
@@ -373,7 +390,7 @@ function aggColours() {
       const lead = regionWinner(U, js, (j) => (w.perFrame ? (k >= 0 ? w.perFrame[k * U.n + j] : null) : w.top[j]));
       if (lead) c = partyLUT(lead.party)[Math.round(lead.share * 20)];
     } else {
-      const g = regionAgg(U, k, js);
+      const g = regionAgg(R.mode === "margin1" ? { ...U, P: U.P1 } : U, k, js); // margin1: the past-results projection
       if (R.mode === "counted") c = g.counted > 0 ? COUNTED_LUT[Math.min(100, Math.round(g.counted * 100))] : NONE;
       else if (R.mode === "prior" || k < 0) c = g.prior != null ? band(js[0], (2 * g.prior - 1) * 100) : NONE;
       else if (R.mode === "swing") c = g.raw != null && g.prior != null ? lutAt(lut, (g.raw - g.prior) / SCALE.swing) : NONE;
@@ -429,13 +446,16 @@ function paint(ctx) {
   const inFocus = focus ? R.regionFeat.get(focus) ?? [] : null;
   const dim = focus ? 1 - 0.7 * R.fadeMix : 1; // other regions dim as the view closes in
   const hatch = R.hatch?.size ? hatchPattern(ctx, px) : null;
+  let hatchFill = null; // the same hatch for units without data, made on first use
   const hidden = R.hidden;
   // fills grouped by colour: one fillStyle per colour instead of one per unit (costly in Firefox)
   const fillUnits = (list) => {
     const groups = new Map();
     for (const i of list) {
       if (!paths[i] || hidden?.[i]) continue;
-      const s = hatch && R.hatch.has(R.regionOf[i]) ? hatch : cols ? cols[i] : NONE;
+      // units with no data inside a region that has results: hatched, so they never pass for a tie
+      const noData = R.mode !== "ev" && R.featIdx?.[i] < 0 && R.units?.byRegion.has(R.regionOf[i]);
+      const s = (hatch && R.hatch.has(R.regionOf[i])) || noData ? (hatch ?? (hatchFill ??= hatchPattern(ctx, px))) : cols ? cols[i] : NONE;
       const g = groups.get(s);
       if (g) g.push(i); else groups.set(s, [i]);
     }

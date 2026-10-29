@@ -15,6 +15,19 @@ export const bandOf = (pt) => { const a = Math.abs(pt); return a < 1 ? 0 : a < 5
 export const bandColours = (colour, neutral = "#f4f2ec") => STRENGTH.map((s) => d3.interpolateLab(neutral, colour)(s));
 // colour for a margin in points (side a minus side b), from bandColours of each side
 export const bandColour = (pt, aCols, bCols) => (pt === 0 ? TIE : (pt > 0 ? aCols : bCols)[bandOf(pt)]);
+// Projections are stored in thousandths, so a unit within 0.05 pt of even reads exactly 0.5. Grey
+// is for an exact tie only: such a unit takes the side its finer figures lean to, in order: the
+// projected margin of all expected votes before counting starts (rem margin, in votes), the raw
+// count, the comparison election. Returns +1 (side a), -1 (side b) or 0 (tied on all of them).
+export function tieBreak(U, k, j) {
+  const i = k >= 0 ? k * U.n + j : -1;
+  const rm = i >= 0 && U.F[i] === 0 ? U.rem?.margin?.[i] : NaN;
+  if (Number.isFinite(rm) && rm !== 0) return Math.sign(rm);
+  const a = i >= 0 ? U.A[i] : -1;
+  if (a >= 0 && a !== 500) return Math.sign(a - 500);
+  const p = U.prior[j];
+  return p >= 0 && p !== 500 ? Math.sign(p - 500) : 0;
+}
 export function unitsByRegion(region) {
   const out = new Map();
   region.forEach((r, j) => {

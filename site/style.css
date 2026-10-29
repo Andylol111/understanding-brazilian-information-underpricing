@@ -240,6 +240,8 @@ body.dash-page { font-size: 16px; line-height: 1.45; }
 .legend-count { font: 12px/1.4 var(--sans); margin: 4px 0 0; }
 .legend-count:empty { display: none; }
 .legend-count b { font-variant-numeric: tabular-nums; }
+/* "counties without data": the map's diagonal hatch as a swatch */
+.lg-none { display: inline-block; width: 10px; height: 8px; margin-right: 3px; background: repeating-linear-gradient(135deg, #c9c6bd 0 1px, #efede7 1px 4px); }
 /* leader-colouring legend: a row per side, a column per band, counts under the swatches */
 .band-legend { border-collapse: collapse; font: 11px/1.2 var(--sans); width: 100%; table-layout: fixed; }
 .band-legend th { font-weight: 400; color: var(--muted); text-align: center; padding: 0 1px 2px; }

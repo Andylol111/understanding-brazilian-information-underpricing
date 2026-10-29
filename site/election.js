@@ -13,7 +13,7 @@ import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
-import { regionAgg, regionWinner, BANDS, TIE, bandOf, bandColours } from "./dash-agg.js";
+import { regionAgg, regionWinner, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
 
 const EID = param("id");
 const $ = (id) => document.getElementById(id);
@@ -436,21 +436,26 @@ function regionCardHTML(reg) {
 function legendCount() {
   const el = document.querySelector("#legend .legend-count");
   if (!el || !S.units) return;
-  const U = S.units, k = frameIndex(S.preview ?? S.t);
+  // margin1: counted on the past-results projection
+  const U = S.mode === "margin1" ? { ...S.units, P: S.units.P1 } : S.units, k = frameIndex(S.preview ?? S.t);
   const atRegions = levelsOn() && S.level === "regions" && !S.region;
   const key = `${S.mode}|${k}|${atRegions}|${S.region}|${S.layer}`;
   if (key === S.countKey) return;
   S.countKey = key;
-  if (!["margin", "prior", "swing"].includes(S.mode)) { el.textContent = ""; return; }
+  if (!["margin", "margin1", "prior", "swing"].includes(S.mode)) { el.textContent = ""; return; }
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
   const half = (s) => (s == null ? null : s - 0.5);
   const val = (g) => (S.mode === "swing" ? (g.raw != null && g.prior != null ? g.raw - g.prior : null)
     : S.mode === "prior" || k < 0 ? half(g.prior) : half(S.countTimeline ? g.proj : g.raw ?? g.proj));
   let a = 0, b = 0, tie = 0;
   const cells = { a: [0, 0, 0, 0], b: [0, 0, 0, 0] };
-  const add = (v) => {
+  // a unit's projection reading exactly even takes the side of its finer figures (tieBreak, as
+  // on the map); only an exact tie counts as tied
+  const fine = S.mode === "margin" || S.mode === "margin1";
+  const add = (v, j = -1) => {
     if (v == null || Number.isNaN(v)) return;
-    const pt = 200 * v; // margin in points (side a minus side b)
+    let pt = 200 * v; // margin in points (side a minus side b)
+    if (pt === 0 && fine && j >= 0) pt = tieBreak(U, k, j) * 1e-6;
     if (pt === 0) { tie++; return; }
     if (pt > 0) a++; else b++;
     cells[pt > 0 ? "a" : "b"][bandOf(pt)]++;
@@ -458,13 +463,23 @@ function legendCount() {
   if (atRegions) for (const [, js] of S.regionUnits) { const g = regionAgg(U, k, js.filter(layerOn)); add(g.weight ? val(g) : null); }
   else for (let j = 0; j < U.n; j++) {
     if (!layerOn(j) || (S.region && U.region[j] !== S.region)) continue;
-    add(val(regionAgg(U, k, [j])));
+    add(val(regionAgg(U, k, [j])), j);
   }
   for (const c of document.querySelectorAll("#legend [data-band]")) c.textContent = cells[c.dataset.side][+c.dataset.band] || "";
   const what = (atRegions ? levelNames()[0] : layers().find((l) => l.id === S.layer)?.name ?? levelNames()[1]).toLowerCase();
   const verb = S.mode === "swing" ? "swing towards" : "ahead";
-  el.innerHTML = a + b ? `<span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> ${verb} in <b>${a}</b> · <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> in <b>${b}</b> ${what}${tie ? ` · tied in <b>${tie}</b>` : ""}` : "";
+  // units with no data inside regions that have results (hatched on the map)
+  let none = 0;
+  if (!atRegions && S.featIdx) for (let i = 0; i < S.featIdx.length; i++) {
+    if (S.featIdx[i] >= 0) continue;
+    const reg = S.map.regionOf(i);
+    if (S.regionUnits?.has(reg) && (!S.region || reg === S.region)) none++;
+  }
+  const noneText = none ? ` · <span class="lg-none"></span><b>${none}</b> ${what} without data` : "";
+  el.innerHTML = a + b ? `<span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> ${verb} in <b>${a}</b> · <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> in <b>${b}</b> ${what}${tie ? ` · tied in <b>${tie}</b>` : ""}${noneText}` : "";
 }
+// one unit, for "No data for this county"
+const unitNoun = () => ({ Counties: "county", Municipalities: "municipality", Ridings: "riding", Districts: "district", Localities: "locality" })[levelNames()[1]] ?? "area";
 
 // Margin modes: who is ahead, in four bands per side (as on YAPMS); counts filled by legendCount().
 function bandLegend(root) {
@@ -554,16 +569,21 @@ function winnerAt(k, j) {
 
 function modes() {
   if (!S.units) return [];
-  if (PRE()) return [...(hasWinner() ? ["winner"] : []), "margin", ...remModes(), "counted", ...evModes()];
+  if (PRE()) return [...(hasWinner() ? ["winner"] : []), "margin", ...pollModes(), ...remModes(), "counted", ...evModes()];
   const w = hasWinner() ? ["winner"] : [];
   if (!S.units.K) return [...w, "prior", ...evModes()];
-  return [...w, ...(S.countTimeline ? ["margin", "swing", ...remModes(), "counted"] : ["margin", "swing"]), ...evModes()];
+  return [...w, ...(S.countTimeline ? ["margin", ...pollModes(), "swing", ...remModes(), "counted"] : ["margin", "swing"]), ...evModes()];
 }
 // outstanding-vote modes, when the units carry rem / rem_margin
 const remModes = () => (S.units?.rem ? ["rem", "remlean"] : []);
+// units with a poll model's projection (proj_poll): "margin" shows it, "margin1" the past results only
+const pollModes = () => (S.units?.hasPoll ? ["margin1"] : []);
 // early vote by county (earlyvote.json): display only, not used by the model
 const evModes = () => (S.ev?.counties ? ["ev"] : []);
-const modeLabel = (m) => ({ winner: "Winning party", margin: PRE() ? "Before any votes" : S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", rem: "Votes left", remlean: "Where the remaining votes lean", counted: "Counted", prior: "Comparison election", ev: "Early vote" })[m];
+const modeLabel = (m) => ({
+  winner: "Winning party", margin: PRE() ? `Before any votes${S.units?.hasPoll ? " (with polls)" : ""}` : S.countTimeline ? `Projected margin${S.units?.hasPoll ? " (with polls)" : ""}` : "Final margin",
+  margin1: "Past results only", swing: "Swing from prior", rem: "Votes left", remlean: "Where the remaining votes lean", counted: "Counted", prior: "Comparison election", ev: "Early vote",
+})[m];
 
 /* ---------------------------------------------------------------- early vote (earlyvote.json) */
 
@@ -622,6 +642,7 @@ function render() {
       : PRE()
       ? remNote || (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}`
         : S.mapRaces?.length === 1 && S.mapRaces[0].estimate ? `Before any votes: ${S.mapRaces[0].estimate.note.replace(/^estimate:\s*/i, "an estimate, ")}.`
+        : S.units?.hasPoll && S.mode === "margin" ? "Before any votes: past certified results shifted toward the recent polls (the race's model with polls)."
         : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county baseline yet; prices shown.` : ""}`)
       : k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
         : `${remNote ? `${remNote} ` : ""}${tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames` : `Map frame ${clock(S.units.times[k], S.tz)}`}`;
@@ -665,7 +686,7 @@ function renderLegend() {
   if (S.mode === "winner") { partyLegend(root); return; }
   if (S.mode === "rem" || S.mode === "remlean") { remLegend(root); return; }
   if (S.mode === "ev") { evLegend(root); return; }
-  if (S.mode === "margin" || S.mode === "prior") { bandLegend(root); return; }
+  if (S.mode === "margin" || S.mode === "margin1" || S.mode === "prior") { bandLegend(root); return; }
   const w = 200, h = 8;
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
   const svg = root.append("svg").attr("viewBox", `0 0 ${w} 24`).attr("width", w).attr("height", 24);
@@ -702,9 +723,10 @@ function remLegend(root) {
   const fill = lean ? r.a.color : "#4f647d";
   root.append("svg").attr("viewBox", `0 0 ${w} ${h + 14}`).attr("width", w).attr("height", h + 14).html(items.map((c) =>
     `<circle cx="${c.cx}" cy="${h - c.r - 2}" r="${c.r}" fill="${fill}" fill-opacity="0.72" stroke="#fcfbf8"/><text class="legend-text" x="${c.cx}" y="${h + 12}" text-anchor="middle">${votesShort(c.v)}</text>`).join(""));
+  const pre = PRE() ? "Before any votes: all expected votes. " : "";
   root.append("p").attr("class", "legend-note").html(lean
-    ? `Projected margin of the votes still to count: <span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> / <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> ahead. Model estimate.`
-    : "Votes still to count, a model estimate (not an official count of outstanding ballots).");
+    ? `${pre}Projected margin of the votes still to count: <span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> / <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> ahead. Model estimate.`
+    : `${pre}Votes still to count, a model estimate (not an official count of outstanding ballots).`);
 }
 // Early vote: the share scale and, per state, the source and its date; states without figures.
 function evLegend(root) {
@@ -913,7 +935,7 @@ function placeCard() {
     const bp = x?.by_party, tot = bp ? (bp.D ?? 0) + (bp.R ?? 0) + (bp.O ?? 0) : 0;
     body = x ? `<table class="kv"><tbody><tr><td>Early vote so far</td><td class="n">${votesShort(x.ev_total)}</td></tr><tr><td>Share of the 2022 total</td><td class="n">${pct(x.share_of_2022_total, 0)}</td></tr>${x.mail_returned != null ? `<tr><td>By mail / in person</td><td class="n">${votesShort(x.mail_returned)} / ${votesShort(x.in_person)}</td></tr>` : ""}${tot ? `<tr><td>By party registration</td><td class="n">D ${pct(bp.D / tot, 0)} · R ${pct(bp.R / tot, 0)} · other ${pct(bp.O / tot, 0)}</td></tr>` : ""}</tbody></table><p class="pc-hint">As of ${esc(evDay(S.ev.states?.[st]?.as_of))}; display only, not used by the model.</p>`
       : `<p class="note">${S.ev.not_available?.[st] ? "Early vote: not available for this state." : "No early-vote figures for this county."}</p>`;
-  } else if (j < 0 || !U) body = `<p class="note">Not part of this election's results.</p>`;
+  } else if (j < 0 || !U) body = `<p class="note">${U && S.regionUnits?.has(S.map.regionOf(i)) ? `No data for this ${unitNoun()}.` : "Not part of this election's results."}</p>`;
   else {
     const r = S.unitRace[j];
     const k = frameIndex(S.preview ?? S.t);
@@ -934,7 +956,7 @@ function placeCard() {
       if (!Number.isNaN(lean) && left > 0) remRows.push(["They lean", `${esc(lean >= 0 ? r.a.name : r.b.name)} +${(100 * Math.abs(lean) / left).toFixed(1)} pt`]);
     }
     const rows = S.countTimeline
-      ? [...winRow, ["Counted", pct(counted, 0)], [`${an}, votes counted`, pct(a)], [`${an}, model projection`, pct(proj)], [`${an}, comparison election`, pct(prior)], ["Swing", sw], ...remRows]
+      ? [...winRow, ["Counted", pct(counted, 0)], [`${an}, votes counted`, pct(a)], [`${an}, model projection${U.hasPoll ? " (with polls)" : ""}`, pct(proj)], ...(U.hasPoll ? [[`${an}, past results only`, pct(at(U.P1))]] : []), [`${an}, comparison election`, pct(prior)], ["Swing", sw], ...remRows]
       : [...winRow, [`${an}, result`, pct(a)], [`${an}, comparison election`, pct(prior)], ["Swing", sw]];
     body = `<table class="kv"><tbody>${rows.map(([k2, x]) => `<tr><td>${k2}</td><td class="n">${x}</td></tr>`).join("")}</tbody></table>`;
   }
