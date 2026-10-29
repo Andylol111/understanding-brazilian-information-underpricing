@@ -1191,3 +1191,51 @@ def test_poll_sd_bins_pool_and_lookup():
     assert [hi for hi, _ in b] == [2, 10, 10**6]                                    # 6-10 (0.03) > 3-5 (0.02): pooled
     assert b[1][1] == pytest.approx(np.sqrt((2 * 0.02**2 + 2 * 0.03**2) / 4), abs=1e-4)
     assert us.poll_sd_by_n(2) == 0.0429 and us.poll_sd_by_n(7) == 0.0334 and us.poll_sd_by_n(17) == 0.0228
+
+
+# ------------------------------------------------------------------ hub data (site/data/us2026/hub)
+
+HUB = ROOT / "site" / "data" / "us2026" / "hub"
+
+
+@pytest.mark.parametrize("name", ["polls", "pollsters", "markets", "backtest", "census"])
+def test_hub_file_size_and_sources(name):
+    f = HUB / f"{name}.json"
+    assert f.exists() and f.stat().st_size < 1.5e6
+    d = json.loads(f.read_text())
+    assert d.get("source") or d.get("sources")
+
+
+def test_hub_polls_weights_match_the_average():
+    d = json.loads((HUB / "polls.json").read_text())
+    assert d["source"]["licence"] == "CC BY 4.0" and len(d["races"]) >= 40
+    for rk, r in d["races"].items():
+        used = [p for p in r["polls"] if p["weight"]]
+        assert all(p["excluded"] is None for p in used) and all(p["weight"] is None for p in r["polls"] if p["excluded"])
+        if r["average"]:
+            assert sum(p["weight"] for p in used) == pytest.approx(1.0, abs=2e-3)
+            avg = sum(p["weight"] * p["dem2"] for p in used)
+            assert avg == pytest.approx(r["average"]["avg"], abs=2e-3), rk
+            assert len(r["history"]) == 60 and all(len(h) == 3 for h in r["history"])
+
+
+def test_hub_pollsters_backtest_markets_census_schemas():
+    p = json.loads((HUB / "pollsters.json").read_text())["pollsters"]
+    assert {"pollster", "polls", "races", "cycles", "lean", "rmse", "in_2026"} <= set(p[0]) and any(x["in_2026"] for x in p)
+    b = json.loads((HUB / "backtest.json").read_text())
+    assert "pre-count only" in b["label"] and {"model", "baseline"} == set(b["summary"])
+    for s in b["summary"].values():
+        assert {"races", "cover68", "cover90", "mae_margin", "brier", "log_loss", "calibration"} <= set(s)
+    assert {r["cycle"] for r in b["races"]} == {2018, 2022}
+    m = json.loads((HUB / "markets.json").read_text())
+    assert {"races", "accuracy", "sources"} <= set(m) and {"markets", "brier", "bins", "coverage"} <= set(m["accuracy"])
+    for v in m["races"].values():
+        for k in ("pm", "kalshi"):
+            if v[k]:
+                assert all(len(x) in (2, 3) and 0 <= (x[1] if x[1] is not None else 0) <= 1 for x in v[k]["daily"])
+    c = json.loads((HUB / "census.json").read_text())
+    geo = {uid for uid, _ in us._geo()}
+    assert set(c["counties"]) <= geo and len(c["counties"]) > 3000 and "statewide" in c["redistricting"]
+    nj = c["counties"]["us-nj-34005"]
+    assert {"pop2020", "pop2025", "change_pct", "age65_pct", "ba_plus_pct", "hispanic_pct", "black_pct",
+            "median_income"} == set(nj)

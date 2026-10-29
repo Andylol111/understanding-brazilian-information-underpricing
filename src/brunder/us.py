@@ -1795,19 +1795,29 @@ def _cap(w: pd.Series, by: pd.Series, cap: float) -> pd.Series:
     return w / w.sum()
 
 
-def poll_average(rows: pd.DataFrame, asof: str = POLLS_ASOF) -> dict | None:
-    """Weighted two-party Dem share of the polls ending in the window; None without any. sd = sqrt(POLL_SD_HIST²
-    + sampling variance of the weighted mean, Σ w² s(1-s)/n_2party); p_win = Φ((avg - 0.5) / sd)."""
-    from scipy.stats import norm
+def poll_weights(rows: pd.DataFrame, asof: str = POLLS_ASOF) -> pd.DataFrame:
+    """The polls inside the window with their age (days) and normalised weight after the pollster cap (the exact
+    weights of poll_average); empty when none."""
     if rows is None or rows.empty:
-        return None
+        return pd.DataFrame()
     t = pd.Timestamp(asof)
     age = (t - pd.to_datetime(rows["end"])).dt.days
     r = rows[(age >= 0) & (age <= POLL_WINDOW_DAYS)].copy()
     if r.empty:
-        return None
+        return r
     r["age"] = age[r.index]
-    w = _cap(np.sqrt(r["n"]) * 0.5 ** (r["age"] / POLL_HALF_LIFE), r["pollster"], POLL_CAP)
+    r["weight"] = _cap(np.sqrt(r["n"]) * 0.5 ** (r["age"] / POLL_HALF_LIFE), r["pollster"], POLL_CAP)
+    return r
+
+
+def poll_average(rows: pd.DataFrame, asof: str = POLLS_ASOF) -> dict | None:
+    """Weighted two-party Dem share of the polls ending in the window; None without any. sd = sqrt(POLL_SD_HIST²
+    + sampling variance of the weighted mean, Σ w² s(1-s)/n_2party); p_win = Φ((avg - 0.5) / sd)."""
+    from scipy.stats import norm
+    r = poll_weights(rows, asof)
+    if r.empty:
+        return None
+    w = r["weight"]
     avg = float((w * r["s"]).sum())
     n2 = r["n"] * (r["dem"] + r["opp"]) / 100
     samp = float((w**2 * r["s"] * (1 - r["s"]) / n2).sum())

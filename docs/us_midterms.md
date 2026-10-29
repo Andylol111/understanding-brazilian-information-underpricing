@@ -386,6 +386,31 @@ Margins are D − R in points of the two-party vote.
   - Caveat: NC's bias was 10.4 points in 2022 and 2.5 in 2024 (7 days before). With two elections it is a rough
     correction, not a calibrated one.
 
+## US midterms hub data (`analysis/us_hub.py`; display and analysis only)
+
+Files are in `site/data/us2026/hub/`, each under 1.5 MB. Rebuild them with
+`uv run python analysis/us_hub.py [polls pollsters markets backtest census]`.
+
+| file | content | sources (licence) |
+|---|---|---|
+| `polls.json` | Every poll of each race (Democratic side named) with its exact normalised weight in our average (as of 2026-11-02, after the pollster cap), polls left out with the reason, and the daily average for the last 60 days using only polls published by each day | VoteHub (CC BY 4.0) |
+| `pollsters.json` | Per pollster, Senate/governor polls of the final 21 days, 2016–2022: polls, races, lean (mean poll − result, two-party D points), RMSE, and whether the pollster is in our 2026 averages | 538 raw_polls (CC BY 4.0) |
+| `markets.json` | Per race: Polymarket daily price (last 90 days), total volume and spread; Kalshi daily midpoint, volume and spread. Plus Polymarket's resolved 2024 Senate/governor markets, final-week price vs outcome: 34 markets, Brier 0.037, calibration bins | Polymarket public data; © Kalshi |
+| `backtest.json` | Our pre-count rule on 2018 and 2022 (126 races): poll average plus v3 error bins, with bins fit leaving the tested cycle out, vs a past-results-only baseline (the state's previous presidential share, sd 0.06) | 538 raw_polls and results (CC BY 4.0) |
+| `census.json` | Per county: 2020 estimates base, 2025 estimate, change; age 65+ (PEP 2025); Bachelor's+, Hispanic, Black alone and median income (ACS 2020–2024 5-year summary file). Per state: population change | US Census Bureau (public domain) |
+
+- **Backtest (pre-count only; no count-over-time data for those years):** model vs baseline.
+  - 68 % coverage 0.75 vs 0.73; 90 % coverage 0.90 vs 0.87.
+  - Margin MAE 4.4 vs 10.7 points.
+  - Brier 0.052 vs 0.141; log loss 0.17 vs 0.57.
+- **Limits:**
+  - Polymarket has no public daily volume (total only).
+  - The 2022 Polymarket Senate markets have no CLOB price history, so 2022 is not scored.
+  - The ACS API now requires a key, so the public summary-file tables are used instead.
+  - `pop2020` is the Census 2020-based estimates base, not the census count.
+- **Redistricting:** Senate and governor races are statewide, so district maps, including mid-decade House
+  redistricting, do not affect them. There has been no reapportionment since 2020.
+
 ## Before the count (`brunder us preelection`)
 
 ```
