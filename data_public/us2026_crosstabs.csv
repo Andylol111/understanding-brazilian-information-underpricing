@@ -1,0 +1,256 @@
+# Published crosstabs of the polls in our 2026 Senate/governor averages (site/data/us2026/hub/polls.json, VoteHub CC BY 4.0), read 2026-10-29 from pollster/sponsor release pages and their linked PDF/XLSX files (robots.txt honoured; 4xx = not retried). Shares in % of the weighted sample as printed; values transcribed by a language model from the document text and checked to appear verbatim in source_url (see docs/us_crosstabs.md). status: recall_xtab | recall | composition | no_crosstabs | blocked | robots.
+id,pollster,race,status,http,source_url,recall_harris,recall_trump,recall_other,recall_nonvoter,dem_among_harris,opp_among_harris,dem_among_trump,opp_among_trump,dem_among_other,opp_among_other,party_dem,party_rep,party_ind,party_kind,college_grad,white,age_65plus,age_18_29,lv_screen,mode
+us-202data959fae6,Data for Progress,ak-sen,recall,200,https://www.filesforprogress.org/datasets/2026/10/dfp_alaska_oct_2026.pdf,40.0,53.0,,3.0,,,,,,,14.55,29.83,55.62,party id,,,,,,SMS + web panel
+us-202pub53b72052,Public Policy Polling,ak-sen,robots,robots,,,,,,,,,,,,,,,,,,,,,
+us-202qua198b0338,Quantus Insights,ak-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202cyg0d88fe11,Cygnal,al-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202thef799bd14,The Alabama Poll,al-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202rmg809825be,RMG Research,al-sen,robots,robots,,,,,,,,,,,,,,,,,,,,,
+us-202hen5c2d9c7e,Hendrix College,ar-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202gracbfdd9ed,Grayhouse,ar-sen,robots,robots,,,,,,,,,,,,,,,,,,,,,
+us-202actc8c031ff,ActiVote,fl-sen,composition,200,https://www.activote.net/polls/2026/fl-u-s-senate/,,,,,,,,,,,32.0,45.0,,party id,,60.0,40.0,12.0,likely midterm voters (definition not specified),app-based (ActiVote app)
+us-202ech9cca8dca,Echelon Insights,fl-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202co/bf7a2617,co/efficient,fl-sen,composition,200,https://battlegrounds.coefficient.org/fl/,,,,,,,,,,,32.0,47.0,21.0,party registration,34.0,65.0,46.0,,Likely general election voters; vote history shown (Last 4 Generals),Mobile text responses + landline interviews
+us-202unif780f058,University of North Florida,fl-sen,recall_xtab,200,https://static1.squarespace.com/static/6994d571bce3436c60d86870/t/6ad8a5ec13c20404a1f8052b/1792583148294/UNF+PORL+FALL+Statewide+2026+FLLV+-+Press+Release+1021+EMBARGO.pdf,38.0,48.0,4.0,6.0,93.0,5.0,6.0,87.0,,,33.0,45.0,22.0,party registration,39.0,69.0,39.0,,Voter file: voted in at least one of the 2020/2022/2024 general elections (plus new registrants); screened out those who said probably/definitely not voting,"live phone (CATI, voter-file sample), English/Spanish"
+us-202mdwe9967dcc,MDW,fl-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202st.fc2e22ed,St. Pete Polls,fl-sen,composition,200,https://www.stpetepolls.org/files/StPetePolls_2026_State_Gov_October7_K7ZU3GA.pdf,,,,,,,,,,,30.9,42.4,26.8,party registration,,62.7,,11.3,"Registered voters (voter file); those saying they don't plan to vote in the 2026 general excluded (96.3% yes, 3.7% unsure kept)",IVR (57%) + P2P SMS text (43%)
+us-202tar0bbd9d56,Targoz Market Research,fl-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202chad8109bd5,Change Research,fl-sen,recall,200,https://changeresearch.com/uploads/2026/09/Florida-September-25-27-2026-Crosstabs.pdf,44.0,52.0,2.0,2.0,,,,,,,36.0,47.0,16.0,party registration,49.0,67.0,40.0,,Self-rated motivation to vote 8-10 on 0-10 scale,"Online (text-to-web via Switchboard + Facebook/Instagram ads), SurveyMonkey"
+us-202insad41796a,InsiderAdvantage,fl-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202ste67ef4e2d,Stetson University Center for Public Opinion Research,fl-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202echc0a48602,Echelon Insights,ga-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202act204154cb,ActiVote,ga-sen,composition,200,https://www.activote.net/polls/2026/ga-u-s-senate/,,,,,,,,,,,,,,,,54.0,31.0,15.0,likely midterm voters (definition not given),app-based (ActiVote app)
+us-202quae590b629,Quantus Insights,ga-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202uni278821c4,University of Georgia School of Public and International Affairs,ga-sen,composition,200,https://s3.documentcloud.org/documents/28824163/ajc-poll-october-2026-1.pdf,,,,,,,,,,,35.6,38.0,26.4,party id,38.1,63.6,31.9,9.3,Voted in 2022 GE and/or 2024 GE and/or 2026 primary; registered in GA; definitely/probably voting in 2026 GE,"live phone (dual-frame ~90% cell/10% landline, L2 voter file sample)"
+us-202wed7f897488,Wedgewood Polls,ga-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202bigbe8a8854,Big Data Poll,ga-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202insbbb32dd3,InsiderAdvantage,ga-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202echbc68f468,Echelon Insights,ia-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202ins750c2821,InsiderAdvantage,ia-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202co/2755fd48,co/efficient,ia-sen,composition,200,https://battlegrounds.coefficient.org/ia/,,,,,,,,,,,33.0,44.0,23.0,party registration,32.0,95.0,41.0,,likely general election voters (definition not specified),mobile text + landline IVR + live landline interviews
+us-202newc8f58efe,New River Strategies/GS Strategy Group,ia-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202you1e856ad2,YouGov,ia-sen,recall_xtab,200,https://d3nkl3psvxxpe9.cloudfront.net/documents/ttw_ia_20261006_lv.pdf,41.0,52.0,2.0,5.0,98.0,0.0,7.0,84.0,,,32.0,42.0,26.0,party registration,32.0,92.0,32.0,13.0,"Model using past vote, demographics, and self-reported likelihood to vote","text-to-web (voter-file sample, YouGov online survey)"
+us-202nat70f2036c,National Public Affairs,ia-sen,recall,200,https://backend.natpublicaffairs.com/media/Iowa_General_Election_Memo_101526.3.pdf,40.0,51.0,4.0,4.0,,,,,,,31.0,46.0,22.0,party registration,37.0,90.0,39.0,,likely 2026 general election voters from voter-file sample,live phone (landline/cell) + text-to-web
+us-202mar9ee393ca,Marist University,ia-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202eme2172a9a0,Emerson College,ia-sen,recall_xtab,200,https://docs.google.com/spreadsheets/d/1mKToIlrAwY0ehEA60PVFemP5WjwxsTxN/export?format=xlsx,41.55,51.64,3.89,2.89,88.0,3.0,9.0,83.0,,,31.19,39.79,29.0,party registration,41.47,91.01,,14.78,,matched online panel (44.2%) + mobile/text (55.8%)
+us-202cnnc393624c,CNN/SSRS,ia-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202beaadb6c4f9,Beacon Research/Shaw & Co. Research,ia-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202marf54f428e,Marist University,ia-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202act5e47e608,ActiVote,il-sen,composition,200,https://www.activote.net/polls/2026/il-u-s-senate/,,,,,,,,,,,,,,,,79.0,40.0,13.0,likely midterm voters (definition not stated),app-based online (ActiVote app)
+us-202pub12c802d5,Public Policy Polling,il-sen,composition,200,https://www.cnwmedia.com/article/cnw-poll-pritzker-leads-bailey-by-20-points-democrats-ahead-in-four-other-statewide-races,,,,,,,,,,,42.0,27.0,30.0,party id,39.0,70.0,33.0,,,"text + landline IVR (72% text, 28% landline)"
+us-202ins9dcc36f4,InsiderAdvantage,ks-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202wedd2e2b8b0,Wedgewood Polls,ks-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202suf710febda,Suffolk University,ma-sen,recall,200,https://www.suffolk.edu/-/media/suffolk/documents/academics/research-at-suffolk/suprc/polls/massachusetts2/2026/10_20_2026_massachusetts_statewide_marginals.pdf?la=en&hash=12AC3ACF484DC216ED83A879BAF0781ACEA5FC89,59.0,31.2,4.4,3.2,,,,,,,30.2,11.8,54.0,party registration,49.6,74.8,30.0,,"Said very or somewhat likely to vote in Nov 2026 general, or had already voted",live phone (landline + cell)
+us-202uni13705323,University of Massachusetts Department of Political Science/YouGov,ma-sen,recall_xtab,200,https://www.umass.edu/poll/about/reports/2026-10-massachusetts-public-opinion-poll,63.0,37.0,,,88.0,1.0,9.0,84.0,,,54.0,27.0,19.0,party id,,81.0,,18.0,none (registered voters),"online panel (YouGov opt-in, matched sample)"
+us-202mas5785b9ea,MassINC Polling Group,ma-sen,composition,200,https://commonwealthbeacon.org/wp-content/uploads/2026/09/Topline-2026-09-CWB-Ballot-Questions-TUES-RELEASE.pdf,,,,,,,,,,,56.0,30.0,13.0,party id,56.0,79.0,,13.0,,online survey
+us-202unifcec5d26,University of New Hampshire,ma-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202mar84640418,Marist University,me-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202ech31fe342b,Echelon Insights,me-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202bea00f453c2,Beacon Research/Shaw & Co. Research,me-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202inscfc77987,InsiderAdvantage,me-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202the6b777566,The Washington Post/George Mason University School of Policy and Government,me-sen,robots,robots,,,,,,,,,,,,,,,,,,,,,
+us-202mare89f317d,Marist University,me-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202wedfe4427b1,Wedgewood Polls,me-sen,blocked,404,,,,,,,,,,,,,,,,,,,,,
+us-202co/7102b7eb,co/efficient,me-sen,composition,200,https://battlegrounds.coefficient.org/me/,,,,,,,,,,,37.0,32.0,31.0,party registration,36.0,97.0,43.0,,likely general election voters (vote history 'last 4 general elections' shown),mobile text + landline interviews
+us-202the9a68a494,The New York Times/Siena University,me-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202fabe2bcab70,"Fabrizio, Lee & Associates/Impact Research",me-sen,recall,200,https://www.aarp.org/content/dam/aarp/research/topics/voter-opinion-research/politics/2026-midterm-election-poll-maine-annotated-questionnaire.doi.10.26419-2fres.01065.011.pdf,48.0,42.0,3.0,5.0,,,,,,,38.0,33.0,27.0,party registration,42.0,92.0,33.0,,Likely 2026 voters screened on vote likelihood (92% definitely vote); unclear which answers ended the interview,"live phone (cell 40%, landline 15%) + SMS-to-web (45%), voter list sample"
+us-202uni51f1c418,University of New Hampshire,me-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202ins51d307b7,InsiderAdvantage,mi-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202gle5c572e3a,"Glengariff Group, Inc.",mi-sen,blocked,402,,,,,,,,,,,,,,,,,,,,,
+us-202mic57c88db3,Michigan State University Institute for Public Policy and Social Research/YouGov,mi-sen,recall,200,https://ippsr.msu.edu/sites/default/files/soss/soss95.pdf,40.4,42.2,1.4,,,,,,,,34.9,31.7,33.4,party id,34.0,77.6,28.9,16.1,"Almost certain or very likely to vote, or already voted",online panel (YouGov)
+us-202thed1db38e3,The Tyson Group,mi-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202mit7960c973,Mitchell Research & Communications,mi-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202z tb2a3f7be,Z to A Research,mi-sen,robots,robots,,,,,,,,,,,,,,,,,,,,,
+us-202tra046dabbf,Trafalgar Group,mi-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202beac0286b40,Beacon Research/Shaw & Co. Research,mi-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202thee5a838a4,The Tyson Group,mi-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202guic8eacfa2,Guidant Polling and Strategy,mi-sen,robots,robots,,,,,,,,,,,,,,,,,,,,,
+us-202co/b838141c,co/efficient,mi-sen,composition,200,https://battlegrounds.coefficient.org/mi/,,,,,,,,,,,41.0,40.0,19.0,party id,33.0,83.0,38.0,,likely general election voters (vote history shown: last 4 general elections),mobile text + landline interviews
+us-202thecf4746de,The New York Times/Siena University,mi-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202cyg13fa7f0a,Cygnal/Beacon Research,mi-sen,composition,200,https://enjoyer.com/michigan-poll-fall-2026/,,,,,,,,,,,37.0,35.0,23.0,party id,43.0,79.0,31.0,11.0,"Known registered voters, weighted to a likely 2026 general election voter universe",live phone + text
+us-202suf59500e62,Suffolk University,mi-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202sur63027f3e,SurveyUSA,mn-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202gqr63b7a4d3,GQR,mn-sen,robots,robots,,,,,,,,,,,,,,,,,,,,,
+us-202big7e4bf32f,Big Data Poll,mn-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202weda6e4ad64,Wedgewood Polls,ms-sen,blocked,404,,,,,,,,,,,,,,,,,,,,,
+us-202qua7812bd54,Quantus Insights,mt-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202amec1fe2597,American Pulse Research & Polling,mt-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202qua525d8d11,Quantus Insights,nc-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202act3e915bba,ActiVote,nc-sen,composition,200,https://www.activote.net/polls/2026/nc-u-s-senate/,,,,,,,,,,,31.0,32.0,36.0,party id,,68.0,33.0,17.0,likely midterm voters (definition not given),"app-based (ActiVote app; inferred, not stated)"
+us-202har90f566f4,Harper Polling,nc-sen,recall,200,https://www.carolinajournal.com/wp-content/uploads/2026/10/H25035-CJ-NC-Oct26-Toplines.pdf,44.5,47.7,2.8,5.0,,,,,,,33.4,32.7,28.5,party registration,47.3,68.3,30.6,,Likely 2026 general election voters,live phone + SMS-to-online
+us-202surbcf9e1be,SurveyUSA,nc-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202elo000dcdfc,Elon University/YouGov,nc-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202chaa0d9b00c,Change Research,nc-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202eas168b53d4,East Carolina University,nc-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202bigf2db767c,Big Data Poll,nc-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202ech8ce34abf,Echelon Insights,ne-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202natd1a93c5a,National Public Affairs,ne-sen,recall,200,https://backend.natpublicaffairs.com/media/NE_Tracker_R2_Trend_Memo_102226.7.pdf,36.0,56.0,4.0,4.0,,,,,,,28.0,55.0,16.0,party registration,41.0,88.0,37.0,,likely 2026 general election voters from voter-file-based sample,live phone + text-to-web
+us-202nat61ba6088,National Public Affairs,ne-sen,recall,200,https://backend.natpublicaffairs.com/media/Nebraska_General_Election_Memo_100926.pdf,37.0,56.0,3.0,4.0,,,,,,,26.0,53.0,15.0,party registration,41.0,88.0,38.0,,likely 2026 general election voters from voter-file sample,live phone + text-to-web
+us-202sai55f1c7c2,Saint Anselm,nh-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202the55816505,The New York Times/Siena University,nh-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202uni02a0a46f,University of New Hampshire,nh-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202surae0ec3b2,SurveyUSA,nm-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202ech01f06c61,Echelon Insights,oh-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202ins6e5f29f2,InsiderAdvantage,oh-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202vot936927b5,VoteHub/Verasight,oh-sen,recall_xtab,200,https://cdn.votehub.com/pdfs/VoteHub_Verasight_Oct_2026_Ohio_Report_D1CB7735.pdf,40.7,48.1,1.7,4.1,95.0,2.2,8.6,83.7,79.9,0.0,30.8,39.7,27.4,party id,40.0,83.5,34.6,9.1,Likely voter model applied to 623 RVs (turnout likelihood weighting); effective LV n=531,online (text-to-web from voter file 45% + Verasight online panel via email 55%)
+us-202bea80ab32e9,Beacon Research/Shaw & Co. Research,oh-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202mar3b19e64d,Marist University,oh-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202new8d3274bf,New River Strategies/GS Strategy Group,oh-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202bow14c3613e,Bowling Green State University/YouGov,oh-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202co/52c27a2f,co/efficient,oh-sen,composition,200,https://battlegrounds.coefficient.org/oh,,,,,,,,,,,37.0,48.0,15.0,party registration,31.0,88.0,42.0,,likely general election voters; vote history shown (Last 4 General Elections: 4 of 4),mobile text + landline interviews
+us-202cnna1713372,CNN/SSRS,oh-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202insea9816ae,InsiderAdvantage,oh-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202mara7f1d430,Marist University,oh-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202big1f625134,Big Data Poll,oh-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202qua2790f813,Quantus Insights,oh-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202embbacff0bd,Embold Research,ri-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202uni2e797321,University of New Hampshire,ri-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202tarbd5d9c4c,Targoz Market Research,sc-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202ins4236730d,InsiderAdvantage,sc-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202actbd0ac41f,ActiVote,tx-sen,composition,200,https://www.activote.net/polls/2026/tx-u-s-senate/,,,,,,,,,,,,,,,,60.0,30.0,17.0,likely midterm voters (undefined),mobile app panel (ActiVote app)
+us-202youe49ed5b8,YouGov,tx-sen,recall,200,https://st1.uvnimg.com/f0/3a/9fe2c0c445b7bd44b43fb9236c8e/n-univision-texas-october-poll-crosstabs-base-final.pdf,35.4,47.3,1.1,16.3,,,,,,,39.7,48.6,11.7,party id,39.5,58.5,22.3,,none (registered voters),online panel (YouGov)
+us-202vot954dd8b2,VoteHub/Verasight,tx-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202bea368d4e46,Beacon Research/Shaw & Co. Research,tx-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202eme43ceed84,Emerson College,tx-sen,recall,200,https://docs.google.com/spreadsheets/d/15mO22Uo80CA1-Wj1IKJYtPG-yFtacOmr/edit?usp=sharing&ouid=107857247170786005927&rtpof=true&sd=true,41.6,53.0,,,,,,,,,32.9,44.4,22.8,party id,,,,,Very likely to vote (98.0%) or already voted (2.0%),MMS text-to-web (Consensus Strategies probability panel) + landline IVR + PureSpectrum online panel
+us-202pol8bd7b267,Pollfinity,tx-sen,recall,200,https://pollfinity.com/assets/polls/tx-governor-senate-2026-oct-topline.pdf,38.0,51.0,2.0,2.0,100.0,,,83.0,,,,,,,,,35.0,,None; registered voters from the voter file with no turnout filter (S2: 88% extremely likely),"text-to-web (SMS-to-web), voter-file sample"
+us-202slidcb5236a,Slingshot Strategies,tx-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202ins62d5470c,InsiderAdvantage,tx-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202act4e413645,ActiVote,tx-sen,composition,200,https://www.activote.net/polls/2026/tx-u-s-senate/2026-10-14/,,,,,,,,,,,,,,,,60.0,30.0,17.0,likely midterm voters (definition not specified),app-based (ActiVote app)
+us-202new4178c636,New River Strategies/GS Strategy Group,tx-sen,blocked,403,,,,,,,,,,,,,,,,,,,,,
+us-202quaee83ce98,Quantus Insights,tx-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202recc152b3f7,ReconMR/Siena University,tx-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202beab9600d9b,Beacon Research/Shaw & Co. Research,tx-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202gui7fa4251f,Guidant Polling and Strategy,tx-sen,robots,robots,,,,,,,,,,,,,,,,,,,,,
+us-202unic8d0412d,University of Massachusetts Lowell Center for Public Opinion/YouGov,tx-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202sli284b821d,Slingshot Strategies,tx-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+us-202tex6938a787,Texas Southern University Barbara Jordan Public Policy Research and Survey Center,tx-sen,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202thede40df6f,The Alabama Poll,al-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202rmg75bbe7fe,RMG Research,al-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202ala46ff7ca4,Alaska Survey Research,ak-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202ala7c90a5de,Alaska Survey Research,ak-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202dat0dccd670,Data for Progress,ak-gov,recall,200,https://www.filesforprogress.org/datasets/2026/10/dfp_alaska_oct_2026.pdf,40.0,53.0,,3.0,,,,,,,14.55,29.83,55.62,party id,,,,,,SMS + web panel
+gov202the33f8c9ea,The New York Times/Siena University,ak-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202cyg016be6c7,Cygnal,ak-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202gra20c962ec,GrayHouse,az-gov,recall,200,https://static.politico.com/18/20/7b3a12e64e32a9bdf387821c452c/arizona-governor-ag-treasurer-toplines.pdf,46.0,48.0,,,,,,,,,,,,party registration,,,,,"Voter-file sample; weighted to GrayHouse engagement/turnout modeling, not only self-reported likelihood",SMS text-to-web (60%) + live phone cell (35%) / landline (5%)
+gov202equ8231431c,Equis Research,az-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202surafe1b671,SurveyUSA,ca-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202eme545ba1d8,Emerson College,ca-gov,recall,200,https://docs.google.com/spreadsheets/d/1CNKS1vdy2zMV1hVgXjxspGwEnQV0Fro_/edit?usp=sharing&ouid=107857247170786005927&rtpof=true&sd=true,58.4,34.9,,,,,,,,,50.2,26.9,23.0,party registration,,51.1,,11.2,Very likely to vote (86.3%) or already voted (13.7%),MMS text-to-web (voter file + panel) + online panel (PureSpectrum)
+gov202uni78d0c8fb,University of California Berkeley Jack Citrin Center for Public Opinion Research/Verasight/TrueDot,ca-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202surd1c462e5,SurveyUSA,ca-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202uc 6d968dc2,UC Berkeley Institute of Governmental Studies,ca-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202eme7710a4af,Emerson College,ct-gov,recall,200,https://docs.google.com/spreadsheets/d/1nklRMEhdhtxNDF4UN5simRICf9GbK1ay/edit?gid=198431064#gid=198431064,52.9,35.8,,,,,,,,,36.4,21.2,42.4,party registration,45.3,78.4,,12.1,,MMS text-to-web (Aristotle voter file) + PureSpectrum online panel matched to voter file
+gov202qui60ce144d,Quinnipiac University,ct-gov,composition,200,https://poll.qu.edu/images/polling/ct/ct10142026_demos_cbdw14.pdf,,,,,,,,,,,37.0,21.0,36.0,party id,,,,,,live phone (RDD landline + cell)
+gov202gre7c3d73e6,GreatBlue Research,ct-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202unia97380e2,University of New Hampshire,ct-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202ech7ccc86ed,Echelon Insights,fl-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202co/bb858b1c,co/efficient,fl-gov,composition,200,https://battlegrounds.coefficient.org/fl/,,,,,,,,,,,32.0,47.0,21.0,party registration,34.0,65.0,46.0,,likely general election voters; vote history shown (Last 4 Generals),mobile text + landline interviews
+gov202act3d1f5d54,ActiVote,fl-gov,composition,200,https://www.activote.net/polls/2026/fl-governor/,,,,,,,,,,,32.0,45.0,,party id,,60.0,40.0,12.0,,
+gov202uni6ec2ef24,University of North Florida,fl-gov,recall_xtab,200,https://static1.squarespace.com/static/6994d571bce3436c60d86870/t/6ad8a5ec13c20404a1f8052b/1792583148294/UNF+PORL+FALL+Statewide+2026+FLLV+-+Press+Release+1021+EMBARGO.pdf,38.0,48.0,4.0,6.0,94.0,3.0,7.0,89.0,,,33.0,45.0,22.0,party registration,39.0,69.0,39.0,,"Voted in at least one of the 2020, 2022 or 2024 general elections (voter file), plus a proportional share of new registrants; anyone saying they would probably ","live phone (CATI, hand-dialed, voter-file sample, English and Spanish)"
+gov202you47518a20,YouGov,fl-gov,recall,200,https://st1.uvnimg.com/65/9b/a8b15584426684070c3d05cf6e34/n-univision-florida-poll-crosstabs-base-final.pdf,38.67,50.42,0.85,10.06,,,,,,,40.36,48.12,11.52,party id,37.21,68.48,30.67,,none (registered voters),online panel (YouGov)
+gov202chaea67d341,Change Research,fl-gov,recall,200,https://changeresearch.com/uploads/2026/10/Florida-October-2026-Crosstabs.pdf,44.0,51.0,3.0,2.0,,,,,,,36.0,47.0,15.0,party registration,46.0,66.0,40.0,,"Self-rated motivation to vote 8-10 on a 0-10 scale (920 of 1,106 registered voters)",Online (Facebook/Instagram/web ads plus text-to-web via voter-file cell numbers; SurveyMonkey)
+gov202mdwc8b1a4b5,MDW Communications,fl-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202st.5da962b0,St. Pete Polls,fl-gov,composition,200,https://www.stpetepolls.org/files/StPetePolls_2026_State_Gov_October7_K7ZU3GA.pdf,,,,,,,,,,,30.9,42.4,26.8,party registration,,62.7,,11.3,"Registered voters (voter file as of Sept 14); those saying they do not plan to vote in the 2026 general were excluded (96.3% yes, 3.7% unsure)",IVR (57%) + P2P SMS text (43%)
+gov202tar4f4b4cfb,Targoz Market Research,fl-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202cha9102cf63,Change Research,fl-gov,recall,200,https://changeresearch.com/uploads/2026/09/Florida-September-25-27-2026-Crosstabs.pdf,44.0,52.0,2.0,2.0,,,,,,,36.0,47.0,16.0,party registration,49.0,67.0,40.0,,Self-rated motivation to vote 8-10 on 0-10 scale,online (text-to-web via voter file + social media ads)
+gov202steb5a21bdb,Stetson University Center for Public Opinion Research,fl-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202ech45428865,Echelon Insights,ga-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202actab967fe7,ActiVote,ga-gov,composition,200,https://www.activote.net/polls/2026/ga-governor/,,,,,,,,,,,,,,,,54.0,31.0,15.0,likely midterm voters (definition not specified),app-based (ActiVote app)
+gov202qua2fa31d0f,Quantus Insights,ga-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202gba360d6617,GBAO Strategies,ga-gov,composition,200,https://s3.documentcloud.org/documents/28824163/ajc-poll-october-2026-1.pdf,,,,,,,,,,,35.6,38.0,26.4,party id,38.1,63.6,31.9,9.3,"Voted in 2022 general, 2024 general and/or 2026 primary; self-reported registered in GA; definitely/probably voting in 2026 general","live phone (dual-frame ~90% cell/10% landline, L2 voter-file sample)"
+gov202insbd5a2c1e,InsiderAdvantage,ga-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202wed3b9968cd,Wedgewood Polls,ga-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202bigf56bfd9a,Big Data Poll,ga-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202insa0df0d3c,InsiderAdvantage,ga-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202act5fe38c91,ActiVote,il-gov,composition,200,https://www.activote.net/polls/2026/il-governor/,,,,,,,,,,,,,,,,79.0,40.0,13.0,likely midterm voters (definition not given),ActiVote app (online)
+gov202pub5131a761,Public Policy Polling,il-gov,composition,200,https://www.cnwmedia.com/article/cnw-poll-pritzker-leads-bailey-by-20-points-democrats-ahead-in-four-other-statewide-races,,,,,,,,,,,42.0,27.0,30.0,party id,39.0,70.0,33.0,,,text (72%) + landline IVR (28%)
+gov202ech60c386d1,Echelon Insights,ia-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202co/923c9460,co/efficient,ia-gov,composition,200,https://battlegrounds.coefficient.org/ia/,,,,,,,,,,,33.0,44.0,23.0,party registration,32.0,95.0,41.0,,likely general election voters (definition not specified),mobile text + landline interviews (IVR) + live landline
+gov202new52eff308,New River,ia-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202youbb5e2c57,YouGov,ia-gov,recall_xtab,200,https://d3nkl3psvxxpe9.cloudfront.net/documents/ttw_ia_20261006_lv.pdf,41.0,52.0,2.0,5.0,99.0,0.0,11.0,79.0,,,32.0,42.0,26.0,party registration,32.0,92.0,32.0,13.0,"Model using past vote, demographics, and self-reported likelihood to vote","text-to-web (voter file sample, YouGov online)"
+gov202natf1efe9ac,National Public Affairs,ia-gov,recall,200,https://backend.natpublicaffairs.com/media/Iowa_General_Election_Memo_101526.3.pdf,40.0,51.0,4.0,4.0,,,,,,,31.0,46.0,22.0,party registration,37.0,90.0,39.0,,likely 2026 general election voters from voter-file sample,live phone (landline/cell) + text-to-web
+gov202mare696c6f1,Marist University,ia-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202eme98216637,Emerson College,ia-gov,recall_xtab,200,https://docs.google.com/spreadsheets/d/1mKToIlrAwY0ehEA60PVFemP5WjwxsTxN/export?format=xlsx,41.55,51.64,3.89,2.89,95.0,2.0,12.0,81.0,31.0,31.0,31.19,39.79,29.0,party registration,41.47,91.01,,14.78,,matched online panel (44.2%) + mobile/text (55.8%)
+gov202cnn1640632d,CNN/SSRS,ia-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202thefb920530,The New York Times/Siena University,ia-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202bea91ef4faa,Beacon Research/Shaw & Co. Research,ia-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202marf9ae66ed,Marist University,ia-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202thecdc40b4c,The New York Times/Siena University,ks-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202wed2c3eda94,Wedgewood Polls,ks-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202mare4c178b5,Marist University,me-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202ech161b28e4,Echelon Insights,me-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202bea65109344,Beacon Research/Shaw & Co. Research,me-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202the9c601223,The Washington Post/George Mason University School of Policy and Government,me-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202mar89bef491,Marist University,me-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202co/7572d005,co/efficient,me-gov,composition,200,https://battlegrounds.coefficient.org/me/,,,,,,,,,,,37.0,32.0,31.0,party registration,36.0,97.0,43.0,,Likely general election voters; vote history breakdown shown (last 4 general elections),Mobile text responses and landline interviews
+gov202theb70a3a4b,The New York Times/Siena University,me-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202fab355ac62e,"Fabrizio, Lee & Associates/Impact Research",me-gov,recall,200,https://www.aarp.org/content/dam/aarp/research/topics/voter-opinion-research/politics/2026-midterm-election-poll-maine-annotated-questionnaire.doi.10.26419-2fres.01065.011.pdf,48.0,42.0,3.0,5.0,,,,,,,38.0,33.0,27.0,party registration,42.0,95.0,33.0,,Voter-list sample; terminate unless likely to vote (92% definitely vote),"live phone (cell 40%, landline 15%) + SMS-to-web (45%)"
+gov202uniab68595a,University of New Hampshire,me-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202uni1d47b8b4,University of Maryland Baltimore County Institute of Politics,md-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202gui12b1fe0d,Guidant Polling and Strategy,mi-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202gle26998710,"Glengariff Group, Inc.",mi-gov,blocked,402,,,,,,,,,,,,,,,,,,,,,
+gov202mic9eb10e12,Michigan State University Institute for Public Policy and Social Research/YouGov,mi-gov,recall,200,https://ippsr.msu.edu/sites/default/files/soss/soss95.pdf,40.4,42.2,1.4,,,,,,,,34.9,31.7,33.4,party id,34.0,77.6,28.9,16.1,"Almost certain or very likely to vote, or already voted",online panel (YouGov)
+gov202z t4d86dfd0,Z to A Research,mi-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202bea0796a0d8,Beacon Research/Shaw & Co. Research,mi-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202co/08a815fe,co/efficient,mi-gov,composition,200,https://battlegrounds.coefficient.org/mi/,,,,,,,,,,,41.0,40.0,19.0,party id,33.0,83.0,38.0,,likely general election voters (vote history shown: last 4 general elections),mobile text + landline interviews
+gov202the033a69e6,The New York Times/Siena University,mi-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202cygf2c3fb04,Cygnal/Beacon Research,mi-gov,composition,200,https://enjoyer.com/michigan-poll-fall-2026/,,,,,,,,,,,37.0,35.0,23.0,party id,43.0,79.0,31.0,11.0,Known registered voters weighted to a likely 2026 general election voter universe,live phone + text
+gov202suf29857b9c,Suffolk University,mi-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202surc75475e0,SurveyUSA,mn-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202mas1d81609c,Mason-Dixon,mn-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202ech6a54009b,Echelon Insights,ne-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202natbac56f44,National Public Affairs,ne-gov,recall,200,https://backend.natpublicaffairs.com/media/NE_Tracker_R2_Trend_Memo_102226.7.pdf,36.0,56.0,4.0,4.0,,,,,,,28.0,55.0,16.0,party registration,41.0,88.0,37.0,,likely 2026 general election voters from a voter-file-based sample (definition not given),live phone + text-to-web
+gov202nat5491ccc1,National Public Affairs,ne-gov,recall,200,https://backend.natpublicaffairs.com/media/Nebraska_General_Election_Memo_100926.pdf,37.0,56.0,3.0,4.0,,,,,,,26.0,53.0,15.0,party registration,41.0,88.0,38.0,,likely 2026 general election voters from voter-file sample,live phone + text-to-web
+gov202harb5888037,Hart Research Associates,nv-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202nob7ac2c1a0,Noble Predictive Insights,nv-gov,recall_xtab,200,https://7453540.fs1.hubspotusercontent-na1.net/hubfs/7453540/NVPOP/2026/Sept%202026%20NVPOP/260921_NVPOP_%20Election%20PR%20poll%20report.xlsx,44.0,42.0,3.0,10.0,71.0,11.0,8.0,73.0,8.0,18.0,29.0,29.0,42.0,party registration,36.0,62.0,28.0,13.0,screening questions (708 LV of 800 RV),opt-in online panel
+gov202sai9af52140,Saint Anselm,nh-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202the5a3a4173,The New York Times/Siena University,nh-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202uni4f540392,University of New Hampshire,nh-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202quie8567b62,Quinnipiac University,ny-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202bea0915f96a,Beacon Research,ny-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202eme388a5e9b,Emerson College,ny-gov,composition,200,https://docs.google.com/spreadsheets/d/1j4VyoZ-g2NeWjEiadGokZKv9U1AV_u_d/edit?gid=2117277901#gid=2117277901,,,,,,,,,,,48.0,22.3,29.7,party registration,,,,,All 900 respondents said 'very likely' to vote in Nov 2026 midterm (100%),MMS text-to-web (Aristotle voter file) + online panel (PureSpectrum)
+gov202co/7ac95f4a,co/efficient,ny-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202quie0227b77,Quinnipiac University,ny-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202ech0acb366e,Echelon Insights,oh-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202vot834ec374,VoteHub/Verasight,oh-gov,recall_xtab,200,https://cdn.votehub.com/pdfs/VoteHub_Verasight_Oct_2026_Ohio_Report_D1CB7735.pdf,40.7,48.1,1.7,4.1,94.2,3.0,8.1,84.9,52.0,40.9,30.8,39.7,27.4,party id,40.0,83.5,34.6,9.1,Likely voter model applied to 623 RVs (weighted by turnout likelihood); effective LV n=531,online (text-to-web from voter file 45% + Verasight online panel email 55%)
+gov202acta3742c7f,ActiVote,oh-gov,composition,200,https://www.activote.net/polls/2026/oh-governor/,,,,,,,,,,,,,,,,84.0,40.0,11.0,,
+gov202beafcf8ece3,Beacon Research/Shaw & Co. Research,oh-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202mar01928469,Marist University,oh-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202new6f646827,New River Strategies/GS Strategy Group,oh-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202bow8bc2f1b8,Bowling Green State University/YouGov,oh-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202co/1800419d,co/efficient,oh-gov,composition,200,https://battlegrounds.coefficient.org/oh,,,,,,,,,,,37.0,48.0,15.0,party registration,31.0,88.0,42.0,,"likely 2026 general electorate; vote-history field 'Last 4 General Elections' shown, but its breakdown is cut off",mobile text + landline interviews
+gov202cnn61f54c15,CNN/SSRS,oh-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202the240fb48b,The New York Times/Siena University,oh-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202marb1c4f938,Marist University,oh-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202sufa08bfacb,Suffolk University,oh-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202big5e3239e4,Big Data Poll,oh-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202dhm2140107e,DHM Research,or-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202actd3490ce4,ActiVote,pa-gov,composition,200,https://www.activote.net/polls/2026/pa-governor/2026-10-21/,,,,,,,,,,,45.0,,,party registration,,80.0,36.0,14.0,likely midterm voters (definition not given),online via ActiVote app
+gov202z tf14c971d,Z to A Research,pa-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202the361d1d72,The New York Times/Siena University,pa-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202braa171de62,Bravo Group,pa-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202emb9c9911ab,Embold Research,ri-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202uni522f4e6c,University of New Hampshire,ri-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202tarb23f26cd,Targoz Market Research,sc-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202tra179819af,Trafalgar Group,sc-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202emec97d67d1,Emerson College,sd-gov,composition,200,https://docs.google.com/spreadsheets/d/1kfhlQBsLM1twe1sUidx_mtSLTlyEaHoM/edit?gid=1657685209#gid=1657685209,,,,,,,,,,,24.1,52.9,23.0,party registration,,,,,"Self-reported very/somewhat likely to vote or already voted (very 80.2%, somewhat 8.1%, already voted 11.7%)",MMS text-to-web (Aristotle voter file) + probability-based panel (Consensus Strategies) via text-to-web
+gov202spra0828d65,Spry Strategies,tn-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202act0a641407,ActiVote,tx-gov,composition,200,https://www.activote.net/polls/2026/tx-governor/,,,,,,,,,,,,,,,,60.0,30.0,17.0,likely midterm voters (definition not printed),app-based (ActiVote app)
+gov202you88baa506,YouGov,tx-gov,recall,200,https://st1.uvnimg.com/f0/3a/9fe2c0c445b7bd44b43fb9236c8e/n-univision-texas-october-poll-crosstabs-base-final.pdf,35.4,47.3,1.1,16.3,,,,,,,39.7,48.6,11.7,party id,39.5,58.5,22.3,,none (registered voters),online panel (YouGov)
+gov202votbd451aa9,VoteHub/Verasight,tx-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202beaa47eb5a6,Beacon Research/Shaw & Co. Research,tx-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202emecde651c6,Emerson College,tx-gov,recall,200,https://docs.google.com/spreadsheets/d/15mO22Uo80CA1-Wj1IKJYtPG-yFtacOmr/edit?usp=sharing&ouid=107857247170786005927&rtpof=true&sd=true,41.6,53.0,,,,,,,,,32.9,44.4,22.8,party id,,,,,Very likely to vote (98%) or already voted (2%),MMS text-to-web (Consensus Strategies panel) + landline IVR + online panel (PureSpectrum); English/Spanish
+gov202pol037842f6,Pollfinity,tx-gov,recall,200,https://pollfinity.com/assets/polls/tx-governor-senate-2026-oct-topline.pdf,38.0,51.0,2.0,2.0,98.0,,,81.0,,,,,,,,,35.0,,"None — registered voters, no turnout filter",text-to-web (SMS-to-web)
+gov202sli1a6f1e50,Slingshot Strategies,tx-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202actb83eec7b,ActiVote,tx-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202new8a5ba190,New River Strategies/GS Strategy Group,tx-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202rec101a5410,ReconMR/Siena University,tx-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202theafe06bf1,The New York Times/Siena University,tx-gov,blocked,403,,,,,,,,,,,,,,,,,,,,,
+gov202bea2d2ef4cb,Beacon Research/Shaw & Co. Research,tx-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202gui28bc9b4e,Guidant Polling and Strategy,tx-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202uni25b4833e,University of Massachusetts Lowell Center for Public Opinion/YouGov,tx-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202slieae997f0,Slingshot Strategies,tx-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202texdb645b2d,Texas Southern University Barbara Jordan Public Policy Research and Survey Center,tx-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202sta2b5cca98,State Navigate,vt-gov,recall_xtab,200,https://docs.google.com/spreadsheets/d/1A_0QZmYGFi5vTS-yXuRAcmwc-HNFL5Nz/export?format=xlsx,62.0,27.0,6.0,4.0,67.0,29.0,3.0,89.0,36.0,56.0,58.0,31.0,11.0,party id,47.0,,41.0,7.3,Likely voters from L2 voter file; includes already voted/definitely/probably voting,text-to-web (SMS to online survey)
+gov202uni39c6b60e,University of New Hampshire,vt-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,
+gov202z t813ce1f2,Z to A Research,wi-gov,robots,robots,,,,,,,,,,,,,,,,,,,,,
+gov202mar6e84a0e7,Marquette University Law School,wi-gov,no_crosstabs,200,,,,,,,,,,,,,,,,,,,,,

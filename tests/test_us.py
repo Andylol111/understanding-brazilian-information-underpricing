@@ -1210,7 +1210,7 @@ def test_poll_sd_bins_pool_and_lookup():
 HUB = ROOT / "site" / "data" / "us2026" / "hub"
 
 
-@pytest.mark.parametrize("name", ["polls", "pollsters", "markets", "backtest", "census"])
+@pytest.mark.parametrize("name", ["polls", "pollsters", "markets", "backtest", "census", "crosstabs"])
 def test_hub_file_size_and_sources(name):
     f = HUB / f"{name}.json"
     assert f.exists() and f.stat().st_size < 1.5e6
@@ -1251,6 +1251,69 @@ def test_hub_pollsters_backtest_markets_census_schemas():
     nj = c["counties"]["us-nj-34005"]
     assert {"pop2020", "pop2025", "change_pct", "age65_pct", "ba_plus_pct", "hispanic_pct", "black_pct",
             "median_income"} == set(nj)
+
+
+def _crosstabs_mod():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("us_crosstabs", ROOT / "analysis" / "us_crosstabs.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_recall_reweight_equals_explicit_post_stratification():
+    m = _crosstabs_mod()
+    shares, mh, mt, mo = {"harris": 50.0, "trump": 40.0, "other": 10.0}, 80.0, -80.0, 10.0
+    # explicit cell weights: Harris+Trump keep 90 %, split 45/55 like the certified result
+    raw = 0.5 * mh + 0.4 * mt + 0.1 * mo
+    explicit = 0.9 * 0.45 * mh + 0.9 * 0.55 * mt + 0.1 * mo
+    assert m.reweight_shift(shares, 45, 55, mh, mt) == pytest.approx(explicit - raw)
+    assert m.reweight_shift(shares, 50, 40, mh, mt) == pytest.approx(0.0)        # recall already right: no change
+    assert m.reweight_shift({"harris": 40.0, "trump": 50.0, "other": 10.0}, 45, 55, mh, mt) > 0   # R-heavy recall
+    assert m.recall_gap(50, 40, 45, 55) == pytest.approx(100 / 9 + 10)          # +11.1 recalled vs -10 actual
+
+
+def test_lean_test_finds_a_persistent_house_effect():
+    m = _crosstabs_mod()
+    rng = np.random.default_rng(0)
+    rows = []
+    for cycle in (2016, 2018):
+        for race in range(12):
+            miss = rng.normal(0, 3)                                         # race-level miss shared by all polls
+            for p in range(6):
+                rows.append({"cycle": cycle, "race_id": f"{cycle}-{race}", "pollster_rating_id": p,
+                             "err": miss + (4.0 if p == 0 else 0.0) + rng.normal(0, 1)})
+    d = pd.DataFrame(rows)
+    d["rel"] = d["err"] - d.groupby("race_id")["err"].transform("mean")
+    h = m.lean_test(d, 2018)["relative"]
+    assert h["by_prior_lean"]["d_lean"]["polls"] == 12 and h["corr_lean_house"] > 0.5
+    assert h["mse_removed_pct"] > 0 and h["rmse_corrected"] < h["rmse_raw"]
+
+
+def test_hub_crosstabs_schema_and_consistency():
+    d = json.loads((HUB / "crosstabs.json").read_text())
+    polls = json.loads((HUB / "polls.json").read_text())
+    used = {p["id"]: p for r in polls["races"].values() for p in r["polls"] if p["weight"]}
+    cov = d["coverage"]
+    assert cov["polls"] == len(d["polls"]) == len(used) and sum(cov["status"].values()) == cov["polls"]
+    assert cov["with_recall"] == sum(cov["status"].get(k, 0) for k in ("recall", "recall_xtab"))
+    assert "known biases" in d["method"]["caveat"] and len(d["history"]["cycles"]) == 3
+    for p in d["polls"]:
+        assert p["id"] in used and p["raw"] == pytest.approx(100 * (2 * used[p["id"]]["dem2"] - 1), abs=0.02)
+        if p["status"] in ("recall", "recall_xtab"):
+            assert p["source_url"].startswith("http") and p["adj_method"] in ("cells", "approx")
+            assert 50 < p["recall"]["harris"] + p["recall"]["trump"] <= 100.5
+            assert p["adj"] == pytest.approx(p["raw"] + p["shift"], abs=0.02)
+            if abs(p["gap"]) > 0.5:                     # D-heavy recall pulls the margin towards R, and vice versa
+                assert np.sign(p["shift"]) == -np.sign(p["gap"])
+        else:
+            assert p["adj"] is None and p["recall"] is None
+    for r in d["races"]:
+        avg = polls["races"][r["race"]]["average"]["avg"]
+        assert r["raw"] == pytest.approx(100 * (2 * avg - 1), abs=0.5), r["race"]
+        if r["n_recall"] == 0:
+            assert r["adj"] == r["raw"] and r["adj_recall_polls"] is None
+        assert r["n_recall"] <= r["n_crosstabs"] <= r["n_polls"]
 
 
 # ------------------------------------------------------------------ turnout display fields

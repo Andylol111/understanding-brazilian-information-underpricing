@@ -411,6 +411,19 @@ Files are in `site/data/us2026/hub/`, each under 1.5 MB. Rebuild them with
 - **Redistricting:** Senate and governor races are statewide, so district maps, including mid-decade House
   redistricting, do not affect them. There has been no reapportionment since 2020.
 
+## Poll crosstabs and recalled 2024 vote (`analysis/us_crosstabs.py`; display only)
+
+Full write-up: [`docs/us_crosstabs.md`](us_crosstabs.md). The output is `site/data/us2026/hub/crosstabs.json`, built from
+the per-poll values in `data_public/us2026_crosstabs.csv`. For every poll in our averages it records whether the
+pollster's public release prints crosstabs. Where it does, it gives the recalled 2024 vote, party / education / race / age
+mix, LV screen and mode, plus the gap between recalled vote and the certified 2024 result. Each topline is shown raw and
+reweighted to the certified result. Per race, the raw and adjusted averages are shown side by side, and a 2018-2022 test
+checks whether D-leaning pollsters missed more.
+
+- **Sources:** pollster/sponsor release pages and their linked files (robots.txt honoured; 4xx answers were not
+  retried); VoteHub (CC BY 4.0); MEDSL 2024 president by state (CC0); 538 raw_polls (CC BY 4.0).
+- **Registered models:** unchanged.
+
 ## Before the count (`brunder us preelection`)
 
 ```
