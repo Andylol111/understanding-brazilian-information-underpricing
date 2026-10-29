@@ -9,7 +9,8 @@ import * as d3 from "./vendor/d3.js";
 import { C, esc, num, fmtDate, marginText, probit } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", NORACE = "#e6e4dd";
-const OFFICES = [["governor", "Governor"], ["senate", "Senate"]];
+// House: the page draws it (dash-house.js); this module only offers the button and steps aside
+const OFFICES = [["senate", "Senate"], ["governor", "Governor"], ["house", "House"]];
 const STATE_NAMES = new Map(Object.entries({
   al: "Alabama", ak: "Alaska", az: "Arizona", ar: "Arkansas", ca: "California", co: "Colorado", ct: "Connecticut", de: "Delaware", dc: "District of Columbia",
   fl: "Florida", ga: "Georgia", hi: "Hawaii", id: "Idaho", il: "Illinois", in: "Indiana", ia: "Iowa", ks: "Kansas", ky: "Kentucky", la: "Louisiana", me: "Maine",
@@ -25,15 +26,17 @@ const ramp = d3.range(201).map((j) => {
 });
 export const colourOf = (p) => (p == null ? NORACE : ramp[Math.round(Math.max(0, Math.min(1, p)) * 200)]);
 
-// office: "senate" | "governor"; summary: the element for the office summary beside the map;
+// office: "senate" | "governor" | "house"; summary: the element for the office summary beside the map;
 // onColours(Map region -> colour, rings): the state layer for the map; onHighlight(region | null):
 // outline a state on the map (summary row hover); onDrill(race_id): open a modelled state's county view.
-export function createNational(root, { overview, office = "senate", summary = null, onDrill, onOffice, onColours, onHighlight }) {
+// layers: [[key, label]] extra map modes (census) offered in a select; onLayer(key | "races").
+export function createNational(root, { overview, office = "senate", summary = null, onDrill, onOffice, onColours, onHighlight, layers = [], onLayer }) {
   const st = { office, overview, live: new Map(), model: new Map(), panel: null, sort: { key: "state", dir: 1 } };
 
   root.innerHTML = `
     <div class="nat-top">
       <div class="toggle nat-office" role="group" aria-label="Office">${OFFICES.map(([k, l]) => `<button type="button" data-office="${k}" aria-pressed="${k === office}">${l}</button>`).join("")}</div>
+      ${layers.length ? `<label class="select nat-layer"><span>Map</span> <select aria-label="Map colour"><option value="races">Races</option>${layers.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join("")}</select></label>` : ""}
       <div class="nat-control" hidden></div>
     </div>
     <div class="nat-legend map-legend"></div>
@@ -48,6 +51,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
     draw();
     onOffice?.(st.office);
   }));
+  root.querySelector(".nat-layer select")?.addEventListener("change", (ev) => onLayer?.(ev.target.value));
 
   const races = () => st.overview?.offices?.[st.office]?.races ?? [];
   // P(Democratic side): live Polymarket price, else the file's Polymarket price, else Kalshi's
@@ -63,6 +67,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
   const raceIn = (s) => races().filter((r) => r.state === s);
 
   function draw() {
+    if (st.office === "house") { root.querySelector(".nat-control").hidden = true; root.querySelector(".nat-legend").innerHTML = ""; closePanel(); return; }
     const colours = new Map(), rings = [];
     for (const r of races()) {
       // states without a race or a price: left out, the map hatches them (no data)
@@ -260,6 +265,8 @@ export function createNational(root, { overview, office = "senate", summary = nu
     // a modelled state's race for the current office (for prefetching its county file)
     raceFor: (s) => raceIn(s)[0] ?? null,
     get office() { return st.office; },
+    // switch office as a click on its button would (the page's ?office= and tab links)
+    setOffice(o) { root.querySelector(`.nat-office [data-office="${o}"]`)?.click(); },
     update({ overview, live, model } = {}) {
       if (overview) st.overview = overview;
       if (live) st.live = live;

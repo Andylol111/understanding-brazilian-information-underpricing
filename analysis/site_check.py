@@ -73,6 +73,9 @@ def cases() -> list[Case]:
     out.extend(Case(eid, f"election.html?{urlencode({'id': eid})}", "election") for eid in ELECTIONS)
     # Exercise the US county map as well as its default national state map.
     out.append(Case("us2026-ca-gov", f"election.html?{urlencode({'id': 'us2026', 'race': 'ca-gov'})}", "election"))
+    # The US page's House office (the district layer) and an old hub address, now a redirect.
+    out.append(Case("us2026-house", f"election.html?{urlencode({'id': 'us2026', 'office': 'house'})}", "election"))
+    out.append(Case("us-hub-redirect", "us.html?tab=markets&race=tx-sen", "election"))
     # Map checks (desktop only): the homepage's maps, then every election's map
     out.append(Case("maps-home", "", "maps"))
     out.extend(Case(f"maps-{e['id']}", e["id"], "maps") for e in map_audit.elections())

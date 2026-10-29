@@ -593,6 +593,38 @@ table.nat-races .ring { display: inline-block; width: 8px; height: 8px; border: 
   .p-summary, .p-readout, .p-timeline, .p-tabs { animation: none; }
   .national, .national.off, .map-ui { transition: none; }
 }
+/* the US page's House / census layer over the county map (dash-house.js) */
+.ov { position: absolute; inset: 0; z-index: 2; background: var(--paper); overflow: hidden; }
+.ov-svg { display: block; width: 100%; height: 100%; }
+.ov-svg path.f { cursor: pointer; }
+.ov-ctl { position: absolute; left: 10px; top: 52px; display: flex; flex-direction: column; gap: 4px; max-width: calc(100% - 20px); }
+.ov-ctl .toggle { margin: 0; flex-wrap: wrap; }
+.ov-ctl .toggle button { font-size: 12.5px; padding: 3px 8px; }
+.ov-legend { position: absolute; left: 10px; bottom: 8px; max-width: min(520px, calc(100% - 20px)); }
+.ov-ramp { display: inline-block; width: 80px; height: 8px; margin-right: 4px; vertical-align: 0; }
+.ov-card { position: absolute; z-index: 6; max-width: 320px; pointer-events: none; }
+.ov-card .kv td.n { padding-left: 12px; text-align: right; }
+.ov-strip { display: block; max-width: 100%; height: auto; }
+#map.ov-on .nat-legend, #map.ov-on .nat-panel, #map.ov-on .nat-card { display: none; }
+.nat-layer { font: 13px var(--sans); }
+.dash.ov-on .region-picker { display: none; }
+.dash.ov-on #map-level { visibility: hidden; }
+/* seven tabs on the US page: the row scrolls sideways on narrow screens, never the page */
+.p-tabs .tabs { overflow-x: auto; scrollbar-width: none; }
+.p-tabs .tabs button { flex: none; }
+@media (max-width: 700px) {
+  /* the office summary's race table scrolls inside its column */
+  .p-summary table.nat-races { display: block; overflow-x: auto; }
+}
+/* the US page shows its tabs (polls, pollsters, markets, track record) under the office summary */
+.dash.nat-on.us-on .p-tabs { display: flex; }
+@media (min-width: 1100px) {
+  .dash.nat-on.us-on .p-summary { grid-row: 2 / 4; max-height: 52vh; }
+  .dash.nat-on.us-on .p-tabs { grid-area: tabs; border-top: 1px solid var(--ink); }
+}
+@media (max-width: 1099.98px) {
+  .dash.nat-on.us-on .p-tabs { grid-area: tabs; }
+}
 @media (min-width: 1100px) {
   /* one line, so the map below never changes height when the crumbs change (no jump mid-zoom) */
   .map-head { height: 36px; min-height: 0; }
@@ -644,23 +676,17 @@ body.leaving main { opacity: 0; transition: opacity 0.22s ease; }
 body.dash-page { animation: page-in 0.25s ease-out; }
 @media (prefers-reduced-motion: reduce) { body.dash-page { animation: none; } }
 .world { position: relative; }
-/* ---------- US midterms hub (us.html, us-hub.js) ---------- */
-.hub { max-width: 1280px; margin: 0 auto; padding: 0 18px 48px; font: 14px/1.45 var(--sans); }
-.hub > .tabs { margin: 0 -18px 10px; }
-.hub-race { margin: 6px 0 4px; }
-.hub-race input { font: 14px var(--sans); padding: 4px 6px; border: 1px solid var(--rule); border-radius: 3px; background: var(--paper); width: 12em; }
+/* ---------- US page tabs: polls, pollsters, markets, track record (dash-us-tabs.js) ---------- */
 .hub-lede { font: 15px/1.5 var(--serif); margin: 10px 0 8px; max-width: 80ch; }
 .hub-chart { margin: 4px 0 6px; min-height: 40px; }
 .hub-scroll { overflow-x: auto; }
 .hub-table { font-size: 13.5px; }
-.hub-pair { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; align-items: start; }
-.hub-map svg { display: block; width: 100%; height: auto; }
+.hub-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: start; }
 .hub-src { margin-top: 14px; }
-.hub .toggle { flex-wrap: wrap; margin: 6px 0 10px; }
 .wbar { display: inline-block; width: 70px; height: 7px; background: #f1efe9; vertical-align: middle; }
 .wbar i { display: block; height: 100%; background: var(--model); }
 .badge { display: inline-block; font: 600 10.5px/1.4 var(--sans); padding: 0 5px; border: 1px solid var(--model); color: var(--model); border-radius: 3px; vertical-align: 1px; }
-/* recalled vote (us-hub.js drawCrosstabs): coverage bar, key, the caveat, race names as buttons */
+/* recalled vote (dash-us-tabs.js): coverage bar, key, the caveat, race names as buttons */
 .cov-bar { display: flex; height: 12px; max-width: 640px; border: 1px solid var(--rule); }
 .cov-bar i { display: block; height: 100%; }
 .cov-key { display: flex; flex-wrap: wrap; gap: 2px 14px; font: 12px/1.5 var(--sans); color: var(--muted); margin: 6px 0; max-width: 640px; }
@@ -670,20 +696,5 @@ body.dash-page { animation: page-in 0.25s ease-out; }
 .linkish { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; text-decoration-color: var(--rule); cursor: pointer; text-align: left; }
 .linkish:hover { text-decoration-color: var(--ink); }
 .xt-sub { font: 600 13px/1.4 var(--sans); margin: 14px 0 4px; }
-/* House tab (us-house.js): map with its hover card, legend swatches */
-.hx-wrap { position: relative; }
-.hx-wrap svg { display: block; max-width: 100%; height: auto; }
-.hx-card { position: absolute; z-index: 5; max-width: 320px; background: var(--paper); border: 1px solid var(--rule); padding: 6px 9px; font: 12.5px/1.4 var(--sans); pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-.hx-card .kv td { padding: 1px 0; }
-.hx-card .kv td.n { padding-left: 12px; text-align: right; }
-.hx-ramp { display: inline-block; width: 90px; height: 8px; vertical-align: 0; margin-right: 4px; }
-.hx-arr { font-weight: 600; margin-left: 6px; }
-.hx-lines { margin-top: -6px; }
-.hx-modes, .hx-states { flex-wrap: wrap; }
-/* the hub's six tabs: one row that scrolls sideways on narrow screens (never the page) */
-.hub .tabs { overflow-x: auto; scrollbar-width: none; }
-.hub .tabs button { flex: none; }
-@media (max-width: 900px) { .hub-pair { grid-template-columns: minmax(0, 1fr); } }
 .home-links { font: 15px/1.4 var(--sans); margin: 8px 0 0; }
-.tb-hub { font: 13px var(--sans); color: var(--ink); }
 .tl-turnout { font: 13px/1.4 var(--sans); margin: 2px 0 0; }

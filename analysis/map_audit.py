@@ -234,6 +234,65 @@ async def audit_election(page: Page, base: str, e: dict[str, Any], shots: Path |
         rows.append(Row(eid, check, not items, "; ".join(items[:3]) + (f" (+{len(items) - 3})" if len(items) > 3 else "") if items else ok_detail))
     if shots and thumbs:
         grid(thumbs, shots / f"{tag}-{eid}.png")
+    if eid == "us2026":
+        rows += await audit_house(page, shots, tag)
+    return rows
+
+
+async def audit_house(page: Page, shots: Path | None, tag: str) -> list[Row]:
+    """The US page's House office (dash-house.js): all 435 districts filled (a colour or the hatch,
+    each mode), named cards, a legend with the hatch key, and back to the country from a state."""
+    A = "window.__dashAudit"
+    name = "us2026 House"
+    rows: list[Row] = []
+    await page.evaluate(f"{A}.setOffice('house')")
+    try:
+        await page.wait_for_function(f"(() => {{ const l = {A}.layer(); return l && l.kind === 'house' && l.n > 0; }})()", timeout=20000)
+    except Exception:
+        return [Row(name, "load", False, "the House layer did not draw")]
+    bad = []
+    for mode in ("best", "market", "polls", "baseline", "pres24", "house24", "ev", "swing"):
+        await page.evaluate(f"{A}.layer() && document.querySelector('.ov-modes button[data-mode={mode}]').click()")
+        await settle(page, 1500 if mode == "swing" else 400)
+        L = await page.evaluate(f"{A}.layer()")
+        if L["n"] != 435 or L["colour"] + L["hatch"] != 435 or (mode in ("best", "baseline", "pres24") and L["hatch"] > 2):
+            bad.append(f"{mode}: {L['n']} districts, {L['colour']} coloured, {L['hatch']} hatched")
+    rows.append(Row(name, "a fills", not bad, "; ".join(bad) or "435 districts, every mode"))
+    await page.evaluate(f"document.querySelector('.ov-modes button[data-mode=best]').click()")
+    await settle(page, 400)
+    L = await page.evaluate(f"{A}.layer()")
+    raw = []
+    for i in sorted({0, len(L["ids"]) // 2, len(L["ids"]) - 1}):
+        t = await page.evaluate(f"{A}.layerCard({json.dumps(L['ids'][i])})")
+        if not t.strip() or BAD_TEXT.search(t) or RAW_CODE.match(t.splitlines()[0]):
+            raw.append(f"{L['ids'][i]}: {t[:60]!r}")
+    rows.append(Row(name, "c cards", not raw, "; ".join(raw) or "district cards named"))
+    legend = await page.evaluate("document.querySelector('.ov-legend')?.innerText ?? ''")
+    rows.append(Row(name, "e legend", bool(legend.strip()) and "no data" in legend and not BAD_TEXT.search(legend), legend[:60]))
+    png = await page.locator("#map").screenshot()
+    if shots:
+        (shots / f"{tag}-us2026-house.png").write_bytes(png)
+    d = dark_share(png)
+    rows.append(Row(name, "d outlines", d < DARK_SHARE, f"dark {d:.4f}"))
+    # f: into Texas (and a district), back by Esc and by the breadcrumb
+    back = []
+    for how in ("escape", "crumb"):
+        await page.evaluate(f"{A}.layerFocus('tx')")
+        await settle(page, 900)
+        await page.evaluate("document.querySelector('#nat-summary tbody tr')?.click()")
+        await settle(page, 900)
+        if how == "escape":
+            await page.keyboard.press("Escape")
+        else:
+            await page.click("#crumb-top")
+        await settle(page, 1000)
+        L = await page.evaluate(f"{A}.layer()")
+        v, h = L["view"], L["home"]
+        if L["state"] or L["sel"] or abs(v["k"] - h["k"]) > 1e-6 or abs(v["x"] - h["x"]) > 0.5 or abs(v["y"] - h["y"]) > 0.5:
+            back.append(f"{how}: state {L['state']}, view {v}")
+    rows.append(Row(name, "f back", not back, "; ".join(back) or "2 returns to the whole country"))
+    await page.evaluate(f"{A}.setOffice('senate')")
+    await settle(page, 600)
     return rows
 
 

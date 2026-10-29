@@ -3,40 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>US midterms 2026: polls, pollsters, markets, track record, census</title>
-<link rel="stylesheet" href="style.css">
+<title>US midterms 2026</title>
+<!-- The US hub is part of the US midterms page now: this address forwards to it, keeping the old
+     tab (polls, pollsters, crosstabs, markets, house, track, census) and race. -->
+<script>
+(() => {
+  const q = new URLSearchParams(location.search), to = new URLSearchParams({ id: "us2026" });
+  const tab = q.get("tab"), race = q.get("race");
+  const TAB = { polls: "polls", crosstabs: "polls", pollsters: "pollsters", markets: "markets", track: "track" };
+  if (TAB[tab]) to.set("tab", TAB[tab]);
+  if (tab === "house") to.set("office", "house");
+  if (tab === "census") to.set("layer", "change_pct");
+  if (race && tab !== "house" && tab !== "census") to.set("race", race);
+  location.replace(`election.html?${to}`);
+})();
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=election.html?id=us2026"></noscript>
 </head>
-<body class="hub-page">
-
-<header class="topbar">
-  <a class="tb-home" href="./">All elections</a>
-  <h1 class="tb-name">US midterms 2026</h1>
-  <a class="tb-date" href="election.html?id=us2026">Election-night dashboard</a>
-</header>
-
-<main class="hub" id="hub">
-  <div class="tabs" role="tablist" aria-label="Hub sections">
-    <button type="button" role="tab" id="tab-polls" aria-controls="pane-polls" data-tab="polls" aria-selected="true">Polls</button>
-    <button type="button" role="tab" id="tab-pollsters" aria-controls="pane-pollsters" data-tab="pollsters" aria-selected="false">Pollsters</button>
-    <button type="button" role="tab" id="tab-crosstabs" aria-controls="pane-crosstabs" data-tab="crosstabs" aria-selected="false">Recalled vote</button>
-    <button type="button" role="tab" id="tab-markets" aria-controls="pane-markets" data-tab="markets" aria-selected="false">Markets</button>
-    <button type="button" role="tab" id="tab-house" aria-controls="pane-house" data-tab="house" aria-selected="false">House</button>
-    <button type="button" role="tab" id="tab-track" aria-controls="pane-track" data-tab="track" aria-selected="false">Track record</button>
-    <button type="button" role="tab" id="tab-census" aria-controls="pane-census" data-tab="census" aria-selected="false">Census</button>
-  </div>
-  <div class="hub-race" id="hub-race" hidden>
-    <label class="select"><span>Race</span> <input id="race-filter" type="search" placeholder="Filter races" aria-label="Filter races"> <select id="race-select" aria-label="Race"></select></label>
-  </div>
-  <section role="tabpanel" id="pane-polls" aria-labelledby="tab-polls"></section>
-  <section role="tabpanel" id="pane-pollsters" aria-labelledby="tab-pollsters" hidden></section>
-  <section role="tabpanel" id="pane-crosstabs" aria-labelledby="tab-crosstabs" hidden></section>
-  <section role="tabpanel" id="pane-markets" aria-labelledby="tab-markets" hidden></section>
-  <section role="tabpanel" id="pane-house" aria-labelledby="tab-house" hidden></section>
-  <section role="tabpanel" id="pane-track" aria-labelledby="tab-track" hidden></section>
-  <section role="tabpanel" id="pane-census" aria-labelledby="tab-census" hidden></section>
-</main>
-
-<script src="load-error.js"></script>
-<script type="module">import("./us-hub.js").catch(window.__showLoadError);</script>
-</body>
+<body><p><a href="election.html?id=us2026">US midterms 2026</a></p></body>
 </html>

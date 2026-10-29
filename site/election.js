@@ -13,6 +13,8 @@ import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
+import { createOverlay, houseList, districtReadout, districtChart, CENSUS } from "./dash-house.js";
+import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { regionAgg, regionWinner, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
 
 const EID = param("id");
@@ -401,6 +403,7 @@ function syncUrl(push) {
   if (S.race) url.searchParams.set("race", S.race.race_id);
   if (S.region) url.searchParams.set("region", S.region); else url.searchParams.delete("region");
   if (levelsOn()) url.searchParams.set("level", S.level); else url.searchParams.delete("level");
+  if (S.office === "house") url.searchParams.set("office", "house"); else url.searchParams.delete("office");
   if (url.href === location.href) return;
   if (push) history.pushState(null, "", url); else history.replaceState(null, "", url);
 }
@@ -661,7 +664,7 @@ function render() {
   $("scrub-time").innerHTML = S.preview != null
     ? `<b>${clock(S.preview, S.tz)}</b> preview · scrubber at ${clock(S.t, S.tz)}`
     : `${PRE() ? `${esc(dayOf(S.t))} ` : ""}<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing && !PRE() ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
-  if (S.race) {
+  if (S.race && !houseShown()) {
     const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
     const row = rowAt(S.race.race_id, tt) ?? extraRow(S.race);
     if (pre && S.race.estimate) pre.basis = S.race.estimate.note;
@@ -1035,12 +1038,16 @@ function renderCrumbs() {
   const el = $("crumbs");
   const top = countryName();
   const world = `<a class="crumb-link" href="./?from=${encodeURIComponent(EID)}" id="crumb-world">World</a> <span aria-hidden="true">›</span>`;
-  const back = `<button type="button" class="crumb-back" id="crumb-back" title="${S.region ? "Esc" : "Back to the world map"}">‹ Back</button>`;
-  el.innerHTML = S.region
-    ? `${back} ${world} <button type="button" class="crumb-link" id="crumb-top">${esc(top)}</button> <span aria-hidden="true">›</span> <b>${esc(regionName(S.region))}</b>`
+  // the House or census layer zoomed to a state: back to the whole country on that layer
+  const ovState = S.ov?.kind ? S.ov.state : null;
+  const inside = S.region ?? ovState;
+  const up = () => (ovState ? S.ov.focus(null) : backToNational());
+  const back = `<button type="button" class="crumb-back" id="crumb-back" title="${inside ? "Esc" : "Back to the world map"}">‹ Back</button>`;
+  el.innerHTML = inside
+    ? `${back} ${world} <button type="button" class="crumb-link" id="crumb-top">${esc(top)}</button> <span aria-hidden="true">›</span> <b>${esc(regionName(inside))}</b>${S.houseSel ? ` <span aria-hidden="true">›</span> <b>${esc(S.houseSel)}</b>` : ""}`
     : `${back} ${world} <b>${esc(top)}</b>`;
-  $("crumb-top")?.addEventListener("click", backToNational);
-  $("crumb-back").addEventListener("click", () => (S.region ? backToNational() : toWorld()));
+  $("crumb-top")?.addEventListener("click", up);
+  $("crumb-back").addEventListener("click", () => (inside ? up() : toWorld()));
   $("crumb-world").addEventListener("click", (ev) => { if (!ev.metaKey && !ev.ctrlKey && !ev.shiftKey) { ev.preventDefault(); toWorld(); } });
 }
 
@@ -1167,6 +1174,10 @@ async function reloadUnitsIfNeeded() {
 // keepRegion: a race without a region (national) stays on the open region (its units there).
 async function selectRace(r, { keepRegion = false } = {}) {
   if (!r) return;
+  // a Senate or governor race chosen while the House layer shows: back to that office first
+  if (S.ov?.kind) { S.censusLayer = null; const sel = document.querySelector(".nat-layer select"); if (sel) sel.value = "races"; }
+  if (S.office === "house") S.nat.setOffice(office(r) === "gov" ? "governor" : "senate");
+  else if (S.ov?.kind) { S.ov.hide(); showNational(); }
   const sameRace = r === S.race;
   S.race = r;
   const reg = r.region ?? (keepRegion ? S.region : null);
@@ -1228,6 +1239,7 @@ function turnoutChip(row) {
 // One chart with a Margin | Chance (| Turnout) toggle (Margin by default where the race has a
 // model share or margin); the explanation sits behind the "?" button.
 function drawChart() {
+  if (houseShown()) { districtChart($("timeline"), S.houseSel); return; } // a House district: its chances
   const rows = S.rows.get(S.race.race_id) ?? [];
   const tv = turnoutView();
   const views = [...timelineViews(rows), ...(tv ? ["turnout"] : [])];
@@ -1340,6 +1352,8 @@ function stepFrame(dir) {
 document.addEventListener("keydown", (e) => {
   const tag = e.target.tagName;
   if (e.key === "Escape") {
+    // the House or census layer zoomed to a state: back to the country
+    if (S.ov?.kind && S.ov.state) { S.ov.focus(null); return; }
     // a pinned unit is released; inside a region the same press also returns to the whole country
     if (S.pinned >= 0) { S.pinned = -1; S.map?.pin(-1); placeCard(); }
     backToNational();
@@ -1385,16 +1399,18 @@ function renderTopbar() {
     location.href = u.toString();
   });
   if (LIVE) $("home").href = `./?live=${encodeURIComponent(LIVE)}`;
-  // the US midterms hub: polls, pollsters, markets, track record, census
-  if (countryCode() === "US" && !document.querySelector(".tb-hub")) $("date").insertAdjacentHTML("afterend", ` <a class="tb-hub" href="us.html?tab=polls${S.race?.region ? `&race=${encodeURIComponent(S.race.race_id)}` : ""}">Polls, pollsters &amp; markets</a>`);
   if (!S.countTimeline) {
     $("dash-note").hidden = false;
     $("dash-note").textContent = m.count_note ?? "No minute-by-minute count is published for this election. The map shows final results (or the comparison election while they are pending) and the chart shows market prices only.";
   }
 }
 
+// The tab set under the chart. For the US the polls, pollsters, markets and track-record tabs
+// (dash-us-tabs.js) join it, drawn for the selected race or state (all races at the country level).
+const US_TABS = ["polls", "pollsters", "markets", "track"];
 function initTabs() {
-  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  if (S.nat) for (const t of US_TABS) $(`tab-${t}`).hidden = false;
+  const tabs = [...document.querySelectorAll('[role="tab"]')].filter((t) => !t.hidden);
   const show = (t) => {
     tabs.forEach((x) => {
       const on = x === t;
@@ -1402,6 +1418,8 @@ function initTabs() {
       x.tabIndex = on ? 0 : -1;
       $(x.getAttribute("aria-controls")).hidden = !on;
     });
+    S.tab = t.id.replace(/^tab-/, "");
+    refreshUsTab();
   };
   tabs.forEach((t, i) => {
     t.addEventListener("click", () => show(t));
@@ -1412,7 +1430,30 @@ function initTabs() {
       show(n);
     });
   });
-  show(tabs[0]);
+  show(tabs.find((t) => t.id === `tab-${param("tab")}`) ?? tabs[0]);
+}
+
+// the open US tab, for the selected House district, race or state (null: the whole country)
+function refreshUsTab() {
+  if (!S.nat || !US_TABS.includes(S.tab)) return;
+  const el = $(`pane-${S.tab}`);
+  const house = S.office === "house";
+  const state = house ? S.ov?.state ?? null : S.region;
+  const race = house ? (S.houseSel ? `house:${S.houseSel}` : null) : S.region && S.race ? S.race.ov?.race_key ?? S.race.race_id : null;
+  const key = `${S.tab}|${race}|${state}`;
+  if (key === S.usTabKey && el.childElementCount) return;
+  S.usTabKey = key;
+  (S.hub ??= loadUsHub()).then((H) => {
+    if (S.usTabKey !== key) return;
+    el.innerHTML = "";
+    renderUsTab(H, S.tab, el, { race, state, onRace: (k) => openUsRace(k) });
+  }).catch((err) => { el.innerHTML = `<p class="note">Could not load: ${esc(err.message)}</p>`; });
+}
+// a race clicked in a US tab: a House district ("house:TX-07"), else a Senate/governor race
+function openUsRace(k) {
+  if (k.startsWith("house:")) { const id = k.slice(6); if (S.office !== "house") S.nat.setOffice("house"); S.ov.focus(id.slice(0, 2).toLowerCase()); selectDistrict(id); return; }
+  const r = raceById(k) ?? races().find((x) => x.ov?.race_key === k) ?? [...(S.extra?.values() ?? [])].find((x) => x.race_id === k);
+  if (r) { if (S.office === "house") S.nat.setOffice(office(r) === "gov" ? "governor" : "senate"); selectRace(r); }
 }
 
 // The race's entry in stats.profit_model_limit.by_race: keyed by race_id, or (Hungary) by market id,
@@ -1649,9 +1690,17 @@ async function initNational() {
   S.nat = createNational($("national"), {
     overview, office: "senate", summary: $("nat-summary"),
     onDrill: (id) => { const r = raceById(id); if (r) selectRace(r); },
-    onOffice: (o) => syncOffice(o),
+    onOffice: (o) => setOffice(o),
     onColours: (colours, rings) => { S.natLayer = [colours, rings]; S.map?.setNational(colours, rings); },
     onHighlight: (r) => S.map?.highlightRegion(r),
+    layers: CENSUS.map(([k, l]) => [k, l]), onLayer: (k) => setLayer(k),
+  });
+  // the House office and the census map modes: a layer over the county map, in the same map box
+  S.office = "senate";
+  S.ov = createOverlay($("map"), {
+    onSelect: (id) => showDistrict(id), onState: () => houseState(),
+    // the layer's controls go under the office toggle and map select
+    top: () => { const n = document.querySelector("#national .nat-top"); return n ? n.getBoundingClientRect().bottom - $("map").getBoundingClientRect().top + 2 : 52; },
   });
   // the overview's other races with a county file (an estimate: past results shifted by polls) open
   // like the modelled ones; they are not in the race list
@@ -1672,6 +1721,9 @@ async function initNational() {
   // the merged county layer under the state map follows the office shown
   if (!param("race")) syncOffice("senate", false);
   S.nat.draw(); // the state layer is ready before the map's first frame
+  if (param("office") === "house") S.nat.setOffice("house");
+  const lay = CENSUS.find(([k]) => k === param("layer"));
+  if (lay) { const sel = document.querySelector(".nat-layer select"); if (sel) sel.value = lay[0]; setLayer(lay[0]); }
 }
 
 // Keep the selected race on the office the national map shows, so the counties that fade in on
@@ -1683,15 +1735,77 @@ function syncOffice(o, reload = true) {
   $("race").value = r.race_id;
   if (reload) reloadUnitsIfNeeded();
 }
+// The office shown: Senate or governor (the county map with its state layer), or the House (the
+// district layer). Census map modes replace either until "Races" is chosen again.
+function setOffice(o) {
+  S.office = o;
+  S.houseSel = null;
+  if (o === "house") {
+    if (S.region) backToNational();
+    S.censusLayer = null;
+    const sel = document.querySelector(".nat-layer select");
+    if (sel) sel.value = "races";
+    S.ov.show("house").then(houseSummary);
+  } else {
+    if (!S.censusLayer) S.ov.hide();
+    syncOffice(o);
+  }
+  showNational();
+  renderCrumbs();
+  refreshUsTab();
+  syncUrl(false);
+}
+function setLayer(k) {
+  S.censusLayer = k === "races" ? null : k;
+  if (S.censusLayer) { if (S.region) backToNational(); S.ov.show("census", { census: k, state: null }); }
+  else if (S.office === "house") S.ov.show("house");
+  else S.ov.hide();
+  showNational();
+  renderCrumbs();
+}
+// House: the district list beside the map (the whole country, or the open state)
+function houseSummary() {
+  if (S.office !== "house") return;
+  houseList($("nat-summary"), { state: S.ov.state, onPick: (id) => selectDistrict(id) });
+}
+// pick a district from a list or a tab: open its state, then select it
+function selectDistrict(id) {
+  const st = id.slice(0, 2).toLowerCase();
+  if (S.ov.state !== st) S.ov.focus(st);
+  S.ov.select(id);
+}
+// a district selected on the House layer: the readout and chart show it
+function showDistrict(id) {
+  if (S.ov.kind !== "house") return;
+  S.houseSel = id;
+  $("readout").innerHTML = districtReadout(id);
+  $("tl-view").hidden = true;
+  districtChart($("timeline"), id);
+  showNational();
+  renderCrumbs();
+  refreshUsTab();
+}
+// the House layer zoomed to a state or back to the country
+function houseState() {
+  if (!S.ov.state) S.houseSel = null;
+  houseSummary();
+  showNational();
+  renderCrumbs();
+  refreshUsTab();
+}
+const houseShown = () => S.ov?.kind === "house" && !!S.houseSel;
 
 // While no state is open, the right column shows the office summary instead of one race; at the
 // state level the national controls (office toggle, legend) replace the county map's (both fade;
-// see style.css). At the county level the county map's modes and legend show.
+// see style.css). At the county level the county map's modes and legend show. A selected House
+// district shows like a race.
 function showNational() {
-  const on = !!S.nat && !S.region, map = natShown();
+  const on = !!S.nat && !S.region && !houseShown(), map = natShown();
   $("national").classList.toggle("off", !map);
   $("dash").classList.toggle("nat-on", on);
-  for (const id of ["map-mode", "legend", "frame-label"]) $(id).classList.toggle("nat-hidden", map);
+  $("dash").classList.toggle("us-on", !!S.nat);
+  $("dash").classList.toggle("ov-on", !!S.ov?.kind);
+  for (const id of ["map-mode", "legend", "frame-label"]) $(id).classList.toggle("nat-hidden", map || !!S.ov?.kind);
   if (map) afterZoom(() => { if (natShown()) S.nat.draw(); });
   else S.nat?.hover(null);
 }
@@ -1809,7 +1923,12 @@ async function main() {
   window.addEventListener("popstate", onPopState);
   // for the map checks (analysis/site_check.py): the modes and levels, setting them, the time
   // domain, what the engine painted, and the hover card of one unit or region
+  if (S.ov) new ResizeObserver(() => S.ov.resize()).observe($("map"));
   window.__dashAudit = {
+    // the House / census layer (dash-house.js): office, what it drew, a card, zoom to a state
+    setOffice: (o) => S.nat?.setOffice(o), office: () => S.office ?? null, layer: () => S.ov?.audit() ?? null,
+    layerCard: (id) => S.ov?.cardText(id) ?? "", layerFocus: (s) => S.ov?.focus(s), setLayer: (k) => setLayer(k),
+    readout: () => $("readout").innerText,
     modes, levels: () => (levelsOn() ? ["regions", "units"] : []), level: () => S.level, region: () => S.region,
     domain: () => S.domain, frameTimes: () => S.frameTimes ?? [],
     setMode: (m) => { S.mode = m; S.modeChosen = true; S.shownKey = null; setupModes(); render(); },
