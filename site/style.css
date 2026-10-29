@@ -660,6 +660,29 @@ body.dash-page { animation: page-in 0.25s ease-out; }
 .wbar { display: inline-block; width: 70px; height: 7px; background: #f1efe9; vertical-align: middle; }
 .wbar i { display: block; height: 100%; background: var(--model); }
 .badge { display: inline-block; font: 600 10.5px/1.4 var(--sans); padding: 0 5px; border: 1px solid var(--model); color: var(--model); border-radius: 3px; vertical-align: 1px; }
+/* recalled vote (us-hub.js drawCrosstabs): coverage bar, key, the caveat, race names as buttons */
+.cov-bar { display: flex; height: 12px; max-width: 640px; border: 1px solid var(--rule); }
+.cov-bar i { display: block; height: 100%; }
+.cov-key { display: flex; flex-wrap: wrap; gap: 2px 14px; font: 12px/1.5 var(--sans); color: var(--muted); margin: 6px 0; max-width: 640px; }
+.cov-key i { display: inline-block; width: 10px; height: 10px; margin-right: 4px; border: 1px solid var(--rule); vertical-align: -1px; }
+.cov-key b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.hub-caveat { max-width: 80ch; border-left: 2px solid var(--rule); padding-left: 10px; }
+.linkish { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; text-decoration-color: var(--rule); cursor: pointer; text-align: left; }
+.linkish:hover { text-decoration-color: var(--ink); }
+.xt-sub { font: 600 13px/1.4 var(--sans); margin: 14px 0 4px; }
+/* House tab (us-house.js): map with its hover card, legend swatches */
+.hx-wrap { position: relative; }
+.hx-wrap svg { display: block; max-width: 100%; height: auto; }
+.hx-card { position: absolute; z-index: 5; max-width: 320px; background: var(--paper); border: 1px solid var(--rule); padding: 6px 9px; font: 12.5px/1.4 var(--sans); pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.hx-card .kv td { padding: 1px 0; }
+.hx-card .kv td.n { padding-left: 12px; text-align: right; }
+.hx-ramp { display: inline-block; width: 90px; height: 8px; vertical-align: 0; margin-right: 4px; }
+.hx-arr { font-weight: 600; margin-left: 6px; }
+.hx-lines { margin-top: -6px; }
+.hx-modes, .hx-states { flex-wrap: wrap; }
+/* the hub's six tabs: one row that scrolls sideways on narrow screens (never the page) */
+.hub .tabs { overflow-x: auto; scrollbar-width: none; }
+.hub .tabs button { flex: none; }
 @media (max-width: 900px) { .hub-pair { grid-template-columns: minmax(0, 1fr); } }
 .home-links { font: 15px/1.4 var(--sans); margin: 8px 0 0; }
 .tb-hub { font: 13px var(--sans); color: var(--ink); }

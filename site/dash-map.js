@@ -376,6 +376,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     },
     pin(i) { st.pinned = i; drawOverlay(); },
     get extent() { return st.extent; },
+    get view() { return { ...st.view }; }, // for the map checks
     hasPopulatedView: populatedFirst,
     setExtent(ext) {
       st.extent = ext;
