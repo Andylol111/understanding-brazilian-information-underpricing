@@ -424,6 +424,80 @@ checks whether D-leaning pollsters missed more.
   retried); VoteHub (CC BY 4.0); MEDSL 2024 president by state (CC0); 538 raw_polls (CC BY 4.0).
 - **Registered models:** unchanged.
 
+## US House districts (`analysis/us_house.py`; display and analysis only, nothing registered)
+
+Files are in `site/data/us2026/house/`, each under 2 MB. Rebuild with
+`BRUNDER_DATA=~/brunder-data-local uv run python analysis/us_house.py [geo] [data] [markets]` (default: all, in
+that order; `markets` re-reads the `data` output). Downloads are cached under `raw/us/house` and `raw/us/medsl24`.
+
+**Maps in force on 2026-11-03.** Nine states vote on lines that differ from the 119th Congress (2024) lines: AL
+(2023 legislative map, reinstated by the Supreme Court), CA (Prop 50), FL (May 2026), LA (May 2026, after
+*Louisiana v. Callais*), NC (Oct 2025), OH (commission, Oct 2025), TN (May 2026), TX (2025, upheld for 2026) and
+UT (court-adopted map). Missouri's 2025 map is not used: the 2022 map applies on 2026-11-03 (Supreme Court stay of
+2026-09-25). Virginia's map was struck down; SC and IN did not pass maps. Status from Ballotpedia and NCSL
+(2026-10-28); the code checks it against the Census Bureau's 120th Congressional District block equivalency file
+(version of 2026-10-07): exactly these nine states differ from the 119th file, and Missouri's 120th lines equal
+its 2022 lines.
+
+| file | content |
+|---|---|
+| `districts_2026.topo.json`, `districts_2024.topo.json` | object `districts`; properties `id` ("TX-07", at-large "AK-AL"), `st`, `redrawn`. 2024: Census cartographic boundary cd119 1:500k. 2026: the same, with the nine redrawn states from TIGER/Line 2026 `cd120` clipped to the 1:500k state outlines. Both simplified with one distance tolerance (250 m) |
+| `districts.json` | per 2026 district: `pres24`/`pres20` {d2, margin, dv, rv, tv, method}, `swing_pres`, `redrawn`; unchanged lines: `house24`, `house22`, `swing_house`; redrawn: `pop2020`, `core_2024` (2024 district that gave it most people), `core_share`, `house24_core`; `ev` (TX/FL/NC); `market_p_d` {pm, kalshi}; `poll_avg`; `baseline` (model only). Plus `national`, `state_check`, `notes` |
+| `districts_2024.json` | per 2024 district: `pres24`, `pres20`, `house24` {winner, winner_party, d_cand, r_cand, dv, rv, tv, d2, margin, uncontested, d_vs_r, incumbent, incumbent_party}, `house22` (FEC), `swing_pres`, `swing_house` |
+| `flows.json` | per redrawn state: `flows` [2024 district, 2026 district, 2020 population, share of old, share of new, Harris votes, Trump votes]; per new district `lean_change` vs its core 2024 district; `old_seats`/`new_seats` {districts, harris_won, expected_d}; `house24_won_d` |
+| `swing.json` | per county (`us-<st>-<fips>`, the ids of `geo/us_counties.topo.json`): [2020 margin, 2024 margin], president |
+| `earlyvote.json` | per 2026 district in TX, FL, NC: ev_total, baseline_2022, share_of_2022_total, by_party (FL, NC), approx |
+| `markets.json` | per district: Polymarket and Kalshi P(Democratic party wins), spreads, volume, candidate names; VoteHub district polls with our average; the baseline; the generic-ballot average |
+
+Margins are D − R as a percentage of all votes for the office; `d2` is the two-party Democratic share.
+
+- **2024 president, 2024 lines (`method`: county / precinct / population).** Each county's total (MEDSL county
+  file) is split over its districts by MEDSL's 2024 precinct returns: every precinct goes to the House district on
+  its ballot (split by House votes if a precinct lists several). Counties inside one district (from the Census
+  block equivalency file) are exact. Precincts with no House contest are given to a county's districts that have
+  no precinct data (uncontested races), by block count. Checks: Trump carried 230 of 435 districts (the published
+  count); NE-02 Harris +4.6, AK Trump +13.1, TX-28 Trump +7.3, TX-34 Trump +4.4. District sums equal the county
+  file within 0.5 % in every state but NY, whose 2 % statewide-only ballots (county code 36000) carry no county.
+- **2020 president (approximation):** each county's 2020 Democratic, Republican and total votes are split like the
+  county's 2024 votes of the same kind. The district swing is therefore a weighted mix of county swings; it misses
+  any within-county change in pattern.
+- **2026 lines in the redrawn states (`method` crosswalk; approximation):** the (county × 2024 district) pieces
+  above are split to 2026 districts by 2020 census block population (P.L. 94-171 block counts joined to the 119th
+  and 120th block equivalency files). This assumes uniform vote within each piece. Votes are conserved per state
+  (tested). No open precinct file was used: VEST and MEDSL's district-level House file sit behind a Dataverse
+  guestbook, and the Census API now needs a key. Checks against reported numbers: TX map 30 Trump / 8 Harris seats;
+  new NC-01 Trump +11; Utah's court map gives one Harris district. California's Prop 50 map comes out at 45 Harris
+  / 7 Trump districts here, about two fewer Harris seats than reported, so in redrawn cities the error is a few
+  points.
+- **House results:** 2024 = MEDSL precinct returns summed by district (FEC has not published 2024 House results;
+  only the ballot list, which gives the incumbent flag). Fusion lines count for the candidate's party. Specials are
+  dropped unless a district has no regular race (MEDSL flags TX-18's regular race as special). 2022 = FEC
+  *Federal Elections 2022*, official. `swing_house` is only set where the lines did not change (not AL, GA, LA,
+  NC, NY) and both races were D vs R: 305 districts on 2024 lines.
+- **Redistricting flows, seats at the 2024 vote (old → new map; Harris-won districts):** AL 2→1, CA 41→45,
+  FL 8→5, LA 2→1, NC 3→3, OH 4→2, TN 1→0, TX 11→8, UT 0→1. Net −6 Democratic: 199 Harris-won districts of 435 on
+  2026 lines (205 on 2024 lines). `expected_d` = Σ Φ((d2 − 0.5) / 0.0294), where 0.0294 is the sd of 2024 House
+  vs president two-party shares over 395 D-vs-R districts.
+- **Early vote:** county counts from `site/data/us2026/earlyvote.json`, split by 2020 population where a county
+  is split (`approx` true). District totals add up to the county file.
+- **Markets:** Polymarket events tagged `house-elections` (`<st>-<nn>-house-election-winner`): 434 districts.
+  Kalshi `HOUSE<st><n>` series (contract terms HOUSEPARTY), events ending `-26`: 424. p = midpoint of best bid and
+  ask where both exist, else the last price, for "Democratic party wins the seat".
+- **District polls:** VoteHub `poll_type=us-representative` (CC BY 4.0), by `seat_name`; 177 polls, 141 matched
+  to a D and an R candidate. Parties come from the market candidate names, else from FEC 2026 candidates of the
+  state with the same surname (unique party only). Averaged with our Senate/governor rule (45-day window, same
+  weights and cap); sd = poll-error bin by number of polls. 47 districts have an average in the window.
+- **Baseline (MODEL-ONLY, display only, not registered):** share = district 2024 two-party Harris share on 2026
+  lines + (generic-ballot average − 0.4925, the national 2024 two-party Harris share). sd = √(bin² + 0.0294²),
+  bin from `POLL_SD_BINS` by the number of generic-ballot polls. p_d = Φ((share − 0.5) / sd). Generic ballot as
+  of 2026-11-02 by our rule: 54.8 % D two-party, from only 2 polls with a sample size in the 45-day window (VoteHub
+  has few recent generic-ballot polls), so sd 0.043 and swing +5.5 points. One national swing: errors are
+  correlated across districts, and incumbency is ignored. Sum of p_d: 254.7 D seats.
+- **Sources and licences:** Census block equivalency files, P.L. 94-171, TIGER/Line and cartographic boundaries
+  (public domain); MEDSL 2024 precinct returns (github.com/MEDSL/2024-elections-official, CC0 1.0) and County
+  Presidential Returns 2000–2024 (CC0 1.0); FEC (public domain); VoteHub (CC BY 4.0); Polymarket public data;
+  © Kalshi.
+
 ## Before the count (`brunder us preelection`)
 
 ```
