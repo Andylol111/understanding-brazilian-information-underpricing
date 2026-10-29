@@ -125,6 +125,58 @@ def next_versions() -> None:
         print(q.name, f"from {base.name}: swing_prior_sd {cb['model']['swing_prior_sd']} -> {sd}")
 
 
+V4_EXPECTED = "data_public/us2026_expected_votes_v4.csv"     # analysis/us_model_analysis.py write_expected_v4
+
+
+def next_v4() -> None:
+    """Secondary model v4 (Ohio v5): the latest registered poll model with count_scaled_terms (v3; Ohio v4) plus
+    exactly one change, the expected vote per county = 2024 president two-party votes × the county's own 2022/2020
+    midterm drop-off ([count] expected_votes, level from the file). Registered files are never written; idempotent."""
+    frozen = registered_ids()
+    for p in sorted((us.ROOT_DIR / "configs").glob(f"{us.EID}_*_v1.toml")):
+        c1 = us.load_config(p)
+        vs = {v: q for v, q in us._sibling_versions(c1).items() if q.stem in frozen}
+        cfgs = {v: us.load_config(q) for v, q in vs.items()}
+        base_v = [v for v, c in cfgs.items() if c["model"].get("count_scaled_terms")]
+        if not base_v:
+            print(p.name, "no registered v3-type poll model: no v4")
+            continue
+        cb = cfgs[base_v[-1]]
+        if cb["count"].get("expected_votes"):
+            print(vs[base_v[-1]].name, "already has an expected-vote file: nothing to do")
+            continue
+        n = max(int(v[1:]) for v in vs) + 1
+        q = p.with_name(p.name.replace("_v1.toml", f"_v{n}.toml"))
+        if q.stem in frozen:
+            print(q.name, "registered: not regenerated")
+            continue
+        base = vs[base_v[-1]]
+        text = base.read_text()
+        body = text[text.index("\nid = ") + 1:].replace(f'id = "{cb["id"]}"', f'id = "{q.stem}"\nrole = "secondary"', 1)
+        body = _after_block(body, "count", [
+            f'expected_votes = "{V4_EXPECTED}"   # 2024 president x own 2022/2020 drop-off (secondary model)',
+            'expected_votes_level = "file"'])
+        # the v2 definition of the swing prior (poll average minus the prior's statewide share weighted by the model's
+        # expected votes) applied with v4's expected votes, so that before the count v4 also centres on the poll average
+        pri = us.race_prior(cb, us.load_priors())
+        if pri is not None and not pri.empty and cb["prior"].get("poll_avg") is not None:
+            ev = pd.read_csv(us.ROOT_DIR / V4_EXPECTED, comment="#").set_index("unit_id")["exp_votes"]
+            w = pri["unit_id"].map(ev).fillna(pri["V"] * us.rules(cb).turnout_ratio).to_numpy()
+            base_w = float(np.average(pri["s0"], weights=w))
+            body = re.sub(r"^swing_prior_mean = .*$",
+                          f"swing_prior_mean = {cb['prior']['poll_avg'] - base_w:.4f}   # poll_avg - prior statewide "
+                          f"share {base_w:.4f} weighted by v4's expected votes", body, count=1, flags=re.M)
+        sha = hashlib.sha256(base.read_bytes()).hexdigest()
+        head = [f"# US midterms 2026-11-03, {c1['election']['name']}: model v{n} (SECONDARY; the primary stays "
+                f"{base.stem}).",
+                f"# Identical to {base.name} (sha256 {sha}) except the expected vote per county:",
+                "# 2024 president two-party votes x the county's own 2022/2020 midterm drop-off (relative to its state,",
+                "# capped x0.61-x1.65; state flat ratio where missing), with swing_prior_mean re-centred on those",
+                "# weights (the v2 definition, so v4 still starts at the poll average). docs/us_model_analysis.md."]
+        q.write_text("\n".join(head) + "\n" + body)
+        print(q.name, f"from {base.name}")
+
+
 def build(day: str | None) -> None:
     out = us.build_polls(us.fetch_polls(day))
     n = sum(v is not None for v in out["races"].values())
@@ -340,8 +392,8 @@ def effect(n_sim: int = 30) -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("step", choices=["error", "errorbins", "build", "configs", "next", "effect", "calib"])
+    ap.add_argument("step", choices=["error", "errorbins", "build", "configs", "next", "next_v4", "effect", "calib"])
     ap.add_argument("--day", help="VoteHub cache day YYYYmmdd (default today)")
     a = ap.parse_args()
     {"error": error, "errorbins": errorbins, "build": lambda: build(a.day), "configs": configs,
-     "next": next_versions, "effect": effect, "calib": calib}[a.step]()
+     "next": next_versions, "next_v4": next_v4, "effect": effect, "calib": calib}[a.step]()

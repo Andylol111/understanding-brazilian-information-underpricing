@@ -1,0 +1,56 @@
+# US midterms 2026-11-03, Ohio Senate (special): model v5 (SECONDARY; the primary stays us2026_oh_sen_v4).
+# Identical to us2026_oh_sen_v4.toml (sha256 7ca6d6840c8c9e28ce4c38b4617eede9159967f6eaf232f4c4a8e7042b36c85d) except the expected vote per county:
+# 2024 president two-party votes x the county's own 2022/2020 midterm drop-off (relative to its state,
+# capped x0.61-x1.65; state flat ratio where missing), with swing_prior_mean re-centred on those
+# weights (the v2 definition, so v4 still starts at the poll average). docs/us_model_analysis.md.
+id = "us2026_oh_sen_v5"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "oh-sen"
+name = "Ohio Senate (special)"
+state = "oh"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "oh"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T00:30:00Z"
+a = { party = "DEM", name = "Sherrod Brown", color = "#1f5fbf" }
+b = { party = "REP", name = "Jon Husted", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "oh_pres_2024"        # 2024 president (MEDSL county returns, CC0); Ohio SoS files are not reachable by script (403)
+votes = "oh_pres_2024"        # 2024 president two-party votes × 0.72 (mean 2022/2024 two-party ratio in CA, TX, GA official data)
+poll_avg = 0.5196           # two-party Dem share, weighted average of 13 polls
+poll_sd = 0.0393            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 13
+poll_last = "2026-10-23"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.6908        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays, no vote-type split (OH feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0787   # poll_avg - prior statewide share 0.4409 weighted by v4's expected votes
+swing_prior_sd = 0.0228      # historical RMSE of a poll average with 13 polls (brunder.us.POLL_SD_BINS)
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+
+[count]                    # brunder.us.CountRules
+# OH reports, per county, ballots counted and ballots still outstanding (UOCAVA absentee +
+# provisional): once Election Day precincts are all in, remaining = outstanding ballots.
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.0
+use_outstanding = true
+learn_turnout = true
+expected_votes = "data_public/us2026_expected_votes_v4.csv"   # 2024 president x own 2022/2020 drop-off (secondary model)
+expected_votes_level = "file"
+
+[markets.polymarket]
+event = "ohio-senate-election-winner"
+market = "will-the-democrats-win-the-ohio-senate-race-in-2026"
+question = "Will the Democrats win the Ohio Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

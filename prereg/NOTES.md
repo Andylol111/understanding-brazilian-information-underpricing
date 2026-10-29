@@ -74,6 +74,11 @@ votes posted first, poll priors from the same averaging rule on 538's 2022 polls
 100% at 1, 5, 10, 25, 50 and 75% counted; mean margin error (points) v1/v2/v3: 6.3/3.6/2.0 at 5% counted,
 7.0/4.9/3.5 at 25%, 5.8/4.6/3.6 at 50%. Two races only, so coverage is coarse; v3's mean |z| rises to 1.09 at
 50% counted. The primary stays v3 (Ohio v4).
+Secondary v4 (Ohio v5), written 2026-10-29 before any 2026 result: v3 with expected vote per county from each
+county's own 2022/2020 midterm drop-off (the one change that won forward in time in `docs/us_model_analysis.md`).
+On the Georgia 2022 replays it was not better than v3 (margin error 2.12 vs 1.98 at 5% counted, 3.24 vs 3.59 at 50%,
+1.10 vs 0.23 at 75%; turnout error +21.5% vs +1.5%, because Georgia's 2018 midterm turnout was unusually high),
+so v3 (Ohio v4) stays primary; v4 runs and is scored as a secondary model.
 
 ## Hungary 2026 (`configs/hu2026_v1.toml`): not pre-registered
 

@@ -1,0 +1,57 @@
+# US midterms 2026-11-03, Vermont governor: model v4 (SECONDARY; the primary stays us2026_vt_gov_v3).
+# Identical to us2026_vt_gov_v3.toml (sha256 a207ccdadf93c018a67dd0908b4fb32b99cef7a2275f67084a2a7d9bf1e519fe) except the expected vote per county:
+# 2024 president two-party votes x the county's own 2022/2020 midterm drop-off (relative to its state,
+# capped x0.61-x1.65; state flat ratio where missing), with swing_prior_mean re-centred on those
+# weights (the v2 definition, so v4 still starts at the poll average). docs/us_model_analysis.md.
+id = "us2026_vt_gov_v4"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "vt-gov"
+name = "Vermont governor"
+state = "vt"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "vt"                    # brunder.us.FEEDS (Vermont SoS static JSON; towns summed to the 14 counties)
+poll_close_utc = "2026-11-04T00:00:00Z"
+a = { party = "DEM", name = "Amanda Janoo", color = "#1f5fbf" }
+b = { party = "REP", name = "Phil Scott", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "vt_gov_2024"        # 2024 governor (Charlestin v Scott): same office and incumbent (Vermont SoS; VT elects governors every 2 years)
+votes = "vt_gov_2024"        # 2024 governor two-party votes × 0.72 (midterm / presidential-year ratio, below)
+poll_avg = 0.5084           # two-party Dem share, weighted average of 2 polls
+poll_sd = 0.0405            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 2
+poll_last = "2026-10-25"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.5823        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays without a vote-type split (the VT feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.2788   # poll_avg - prior statewide share 0.2296 weighted by v4's expected votes
+swing_prior_sd = 0.0429      # historical RMSE of a poll average with 2 polls (brunder.us.POLL_SD_BINS)
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+
+[count]                    # brunder.us.CountRules
+# Vermont towns count all ballots, absentee included, on election night: a county is complete when all its towns
+# reported (98% of its vote assumed in); complete counties re-scale the rest. turnout_ratio 0.72 = mean 2022/2024
+# two-party vote ratio in the CA, TX and GA official data of this project (0.69, 0.71, 0.75).
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+expected_votes = "data_public/us2026_expected_votes_v4.csv"   # 2024 president x own 2022/2020 drop-off (secondary model)
+expected_votes_level = "file"
+
+[markets.polymarket]
+event = "vermont-governor-winner-2026"
+market = "will-the-democrats-win-the-vermont-governor-race-in-2026"
+question = "Will the Democrats win the Vermont governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

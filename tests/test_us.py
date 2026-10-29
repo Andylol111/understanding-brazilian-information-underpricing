@@ -960,8 +960,12 @@ def test_v2_configs_only_change_the_prior():
         head = "".join(line for line in p2.read_text().splitlines() if line.startswith("#"))
         assert hashlib.sha256(prev.read_bytes()).hexdigest()[:16] in head        # cites the version it extends
         assert c2["id"] == c1["id"][:-3] + p2.stem[-3:]
-        for k in ("election", "count", "markets"):
+        for k in ("election", "markets"):
             assert c2[k] == c1[k], (p2.name, k)
+        assert {k: c2["count"][k] for k in c1["count"]} == c1["count"]
+        assert set(c2["count"]) - set(c1["count"]) <= {"expected_votes", "expected_votes_level"}
+        if c2["count"].get("expected_votes"):                       # v4 / Ohio v5: secondary, file in the repo
+            assert c2.get("role") == "secondary" and (ROOT / c2["count"]["expected_votes"]).exists()
         assert {k: c2["model"][k] for k in c1["model"]} == c1["model"]
         assert set(c2["model"]) - set(c1["model"]) <= {"swing_prior_mean", "swing_prior_sd", "count_scaled_terms"}
         extra = set(c2["prior"]) - set(c1["prior"])
@@ -971,8 +975,12 @@ def test_v2_configs_only_change_the_prior():
             assert c2["model"]["swing_prior_sd"] == (us.poll_sd_by_n(c2["prior"]["poll_n"])
                                                      if c2["model"].get("count_scaled_terms") else c2["prior"]["poll_sd"])
             pri = us.race_prior(c1, us.load_priors(us.PUBLIC_PRIORS))
-            assert c2["model"]["swing_prior_mean"] == pytest.approx(c2["prior"]["poll_avg"] - us.baseline_share(pri),
-                                                                    abs=6e-5)
+            w = pri["V"]
+            if c2["count"].get("expected_votes"):                   # v4: centred with its own expected-vote weights
+                ev = pd.read_csv(ROOT / c2["count"]["expected_votes"], comment="#").set_index("unit_id")["exp_votes"]
+                w = pri["unit_id"].map(ev).fillna(pri["V"] * c1["count"].get("turnout_ratio", 1.0))
+            base = float(np.average(pri["s0"], weights=w))
+            assert c2["model"]["swing_prior_mean"] == pytest.approx(c2["prior"]["poll_avg"] - base, abs=6e-5), p2.name
         if extra:
             assert 0.2 < c2["prior"]["poll_avg"] < 0.8 and _re.fullmatch(r"\d{4}-\d\d-\d\d", c2["prior"]["poll_last"])
     cfgs, v2 = us.load_races([ROOT / "configs" / "us2026_ga_sen_v1.toml", ROOT / "configs" / "us2026_ga_sen_v2.toml"])
@@ -1121,9 +1129,9 @@ def test_scores_are_separate():
 def test_load_races_attaches_every_version_and_picks_poll_model():
     cfgs, vs = us.load_races([ROOT / "configs" / "us2026_oh_sen_v1.toml"])
     assert [c["id"] for c in cfgs] == ["us2026_oh_sen_v1"]
-    assert list(vs["oh-sen"]) == ["v2", "v3", "v4"] and us.poll_model(vs["oh-sen"]) == "v4"   # v2: no prior
+    assert list(vs["oh-sen"]) == ["v2", "v3", "v4", "v5"] and us.poll_model(vs["oh-sen"]) == "v4"  # v5 secondary
     _, vs = us.load_races([ROOT / "configs" / "us2026_ga_sen_v1.toml"])
-    assert list(vs["ga-sen"]) == ["v2", "v3"] and us.poll_model(vs["ga-sen"]) == "v3"
+    assert list(vs["ga-sen"]) == ["v2", "v3", "v4"] and us.poll_model(vs["ga-sen"]) == "v3"         # v4 secondary
 
 
 def test_preelection_runs_ohio_v1_v2_v3(tmp_path, monkeypatch):
@@ -1134,12 +1142,12 @@ def test_preelection_runs_ohio_v1_v2_v3(tmp_path, monkeypatch):
     pairs.write_text(PAIRS_PRE)
     d = us.preelection(paths, tmp_path / "site", days=1, now=NOW, priors=priors, pairs_path=pairs)
     race = json.loads((d / "meta.json").read_text())["races"][0]
-    assert race["poll_model"] == "v4" and race["versions"] == {f"v{n}": f"us2026_oh_sen_v{n}.toml" for n in (2, 3, 4)}
+    assert race["poll_model"] == "v4" and race["versions"] == {f"v{n}": f"us2026_oh_sen_v{n}.toml" for n in (2, 3, 4, 5)}
     pc = race["precount"]
     assert pc["P_v2"] == pytest.approx(pc["P"]) and pc["P_v3"] != pytest.approx(pc["P"])   # v2 = v1 (no swing prior)
     assert pc["share_v4"] == pytest.approx(pc["share_v3"]) and pc["sd_v4"] < pc["sd_v3"]     # v4: narrower, same mean
     row = json.loads((d / "timeline.json").read_text())["oh-sen"][-1]
-    assert row["P_v4"] == pc["P_v4"] and row["share_v3"] == pc["share_v3"]
+    assert row["P_v4"] == pc["P_v4"] and row["share_v3"] == pc["share_v3"] and row["P_v5"] == pc["P_v5"]
 
 
 def test_config_generator_never_touches_registered_files():

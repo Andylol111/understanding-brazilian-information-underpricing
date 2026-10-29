@@ -129,7 +129,40 @@ between elections to correct reliably.
 - **Demographics:** no stable out-of-sample value, so no change.
 - **Turnout:** the county's own previous midterm drop-off wins out of time (6.1 % vs 7.2 %). It is the candidate for a future version's expected vote.
 
-No v4 was written: this pass was analysis only, and nothing was evaluated on the count replays. v3 stays.
+The analysis pass wrote no v4; on user decision v4 was then built as a secondary model (next section).
+
+## Model v4 (Ohio v5): secondary model with the county's own midterm drop-off
+
+By user decision, v4 was built as a secondary model with `analysis/us_polls.py next_v4`, which never writes
+registered files. The primary stays v3 (Ohio v4). `meta.races[].poll_model` names the primary and
+`secondary_models` lists v4; the configs carry `role = "secondary"`.
+
+- **The change:** expected two-party votes per county = 2024 president two-party votes × the county's own 2022
+  top-race ÷ 2020 president ratio. The ratio is taken relative to the state's and capped ×0.61–×1.65, with the state's
+  flat ratio where a county has no 2022 result (`data_public/us2026_expected_votes_v4.csv`;
+  `[count] expected_votes`, level from the file).
+- **Swing prior re-centred:** `swing_prior_mean` is re-centred on these weights, which is v2's definition of the
+  prior. Before the count v4 therefore also starts at the poll average; its pre-count P is within 0.002 of v3's in
+  every race.
+- **Swing rule:** unchanged (uniform).
+
+**GA 2022 count replays** (governor and Senate, 40 nights each, early votes first). The 2022 analogue of v4's rule is
+2020 president × own 2018/2016 drop-off. Margin error is in points; turnout error is the projected two-party total vs
+the final.
+
+| % counted | 90 % coverage v3 / v4 | margin MAE v3 / v4 | margin bias v3 / v4 | turnout error v3 / v4 |
+|---|---|---|---|---|
+| 1 | 1.00 / 1.00 | 1.19 / 1.31 | +1.1 / +1.3 | +1.5 % / +21.5 % |
+| 5 | 1.00 / 1.00 | 1.98 / 2.12 | +2.0 / +2.1 | +1.5 % / +21.5 % |
+| 10 | 1.00 / 1.00 | 2.44 / 2.53 | +2.4 / +2.5 | +1.5 % / +21.5 % |
+| 25 | 1.00 / 1.00 | 3.47 / 3.51 | +3.5 / +3.5 | +1.5 % / +21.5 % |
+| 50 | 1.00 / 1.00 | 3.59 / 3.24 | +3.6 / +3.2 | +1.5 % / +21.5 % |
+| 75 | 1.00 / 1.00 | 0.23 / 1.10 | +0.1 / −1.1 | +1.9 % / +18.0 % |
+
+- **Turnout level:** the level variant shown is the one in the configs. Georgia's 2018 midterm turnout was unusually high, so the 2018/2016 ratio overstates 2022's level by 21.5 %.
+- **Distribution only:** taking only the county distribution and keeping v3's statewide total scored worse on margin: MAE 3.96 at 50 %, coverage 0.95 (`results/us_model_analysis/v4_validation.csv`).
+- **Before the count:** v4 is identical to v3 in the 2018/2022 pre-count backtest, because the statewide pre-count prior is the poll average either way.
+- **Conclusion:** on this replay v4 is no better than v3; it is slightly worse early and late and better at 50 %. Its expected 2026 level comes from the 2022/2020 ratio, which is the main risk. It is kept as the secondary model.
 
 ## New display fields from the turnout model (no model change)
 

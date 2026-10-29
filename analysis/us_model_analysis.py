@@ -457,3 +457,84 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# ------------------------------------------------------------------ model v4 (secondary): expected vote per county
+
+EXPECTED_V4 = "data_public/us2026_expected_votes_v4.csv"
+
+
+def expected_votes(base2: pd.Series, num: pd.Series, den: pd.Series, state: pd.Series) -> pd.Series:
+    """Expected two-party votes = base (two-party presidential votes) × the county's own midterm drop-off
+    (num/den = midterm top-race votes ÷ previous presidential votes), relative to its state's drop-off capped at
+    ×0.61-×1.65; counties without their own ratio get the state's flat ratio (no demographics)."""
+    ok = num.gt(0) & den.gt(0)
+    R = num[ok].groupby(state[ok]).sum() / den[ok].groupby(state[ok]).sum()
+    Rs = state.map(R)
+    rel = (num / den).where(ok) / Rs
+    r = (Rs * rel.clip(0.61, 1.65)).fillna(Rs)
+    return base2 * r
+
+
+def write_expected_v4(t: pd.DataFrame) -> Path:
+    """data_public/us2026_expected_votes_v4.csv: 2024 president two-party votes × the county's own 2022/2020
+    drop-off (model v4)."""
+    b = us.load_county_baseline().set_index("unit_id")
+    base2 = (b["pres24_dem"] + b["pres24_rep"])
+    tt = t.reindex(base2.index)
+    ev = expected_votes(base2, tt["v_top22"], tt["v_pres20"], b["state"])
+    out = pd.DataFrame({"unit_id": ev.index, "exp_votes": ev.round(0)}).dropna()
+    f = us.ROOT_DIR / EXPECTED_V4
+    with open(f, "w") as fh:
+        fh.write("# Model v4 expected two-party votes per county: 2024 president two-party votes x the county's own "
+                 "2022 top-race / 2020 president vote ratio (relative to its state, capped x0.61-x1.65; state flat ratio "
+                 "where missing). MEDSL 2020/2022/2024 (CC0). analysis/us_model_analysis.py\n")
+        out.to_csv(fh, index=False)
+    return f
+
+
+def validate_v4(t: pd.DataFrame, n_sim: int = 40) -> pd.DataFrame:
+    """GA 2022 governor and Senate count replays (early votes first), v3 vs v4 with the 2022 analogue of v4's
+    expected vote (2020 president two-party votes x own 2018/2016 drop-off: no look-ahead). Coverage of the final
+    share, margin error (points) and turnout error (projected two-party total vs final, %)."""
+    import us_calibrate as cal
+    priors = us.load_priors()
+    g20 = priors[priors["source"] == "ga_pres_2020"].set_index("unit_id")
+    tg = t[t["state"] == "ga"].reindex(g20.index)
+    ev = expected_votes(g20["dem"] + g20["rep"], tg["v_top18"], tg["v_pres16"], pd.Series("ga", index=g20.index))
+    rel = "results/us_model_analysis/ga2022_expected_votes_v4.csv"
+    pd.DataFrame({"unit_id": ev.index, "exp_votes": ev.round(0)}).to_csv(us.ROOT_DIR / rel, index=False)
+    us._EXPECTED.pop(rel, None)
+    rng = np.random.default_rng(20261101)
+    ga = us.load_config(us.ROOT_DIR / "configs" / "us2026_ga_sen_v1.toml")
+    rows = []
+    for name, race, r538 in (("GA 2022 gov", "gov", "2022_Gov-G_GA"), ("GA 2022 sen", "sen", "2022_Sen-G_GA")):
+        bt = cal.by_type("2022NovGen", race)
+        cfg = {**ga, "election": {**ga["election"], "race": "x"}, "prior": {"share": "ga_pres_2020", "votes": "ga_pres_2020"},
+               "count": {**ga["count"], "turnout_ratio": 0.80}}
+        pri = us.race_prior(cfg, priors)
+        pa = us_polls._poll_prior_538(r538)
+        v2 = us_polls._v2(cfg, pri, pa["avg"], pa["sd"])
+        v3 = {**v2, "model": {**v2["model"], "swing_prior_sd": us.poll_sd_by_n(pa["n_polls"]), "count_scaled_terms": True}}
+        w = pri["unit_id"].map(ev).fillna(pri["V"] * 0.80).to_numpy()          # v4: prior re-centred on its weights
+        m4 = {**v3["model"], "swing_prior_mean": pa["avg"] - float(np.average(pri["s0"], weights=w))}
+        v4 = {**v3, "model": m4, "count": {**v3["count"], "expected_votes": rel}}
+        v4f = {**v3, "model": m4, "count": {**v3["count"], "expected_votes": rel, "expected_votes_level": "file"}}
+        total = bt[["early_d", "early_r", "late_d", "late_r"]].sum().sum()
+        final = (bt["early_d"] + bt["late_d"]).sum() / total
+        for s in range(n_sim):
+            evs = cal.events(bt, rng)
+            cum = ((evs["d"] + evs["r"]).cumsum() / total).to_numpy()
+            for c in us_polls.CAL_CHECK:
+                rows_ = cal.rows_at(evs, int(np.searchsorted(cum, c)) + 1)
+                for m, cm in (("v3", v3), ("v4 (distribution)", v4), ("v4 (distribution + level)", v4f)):
+                    r, u = us.project(rows_, cm, pri)
+                    rows.append({"race": name, "model": m, "check": c, "z": (r["share_hat"] - final) / r["share_sd"],
+                                 "margin_err": 200 * (r["share_hat"] - final),
+                                 "turnout_err_pct": 100 * ((u["n"].sum() + r["rem_total"]) / total - 1)})
+    df = pd.DataFrame(rows)
+    return df.groupby(["model", "check"]).agg(
+        cover90=("z", lambda z: np.mean(np.abs(z) < 1.645)), mean_abs_z=("z", lambda z: np.abs(z).mean()),
+        margin_mae=("margin_err", lambda e: np.abs(e).mean()), margin_bias=("margin_err", "mean"),
+        turnout_err_pct=("turnout_err_pct", "mean"), turnout_mae_pct=("turnout_err_pct", lambda e: np.abs(e).mean())
+    ).round(3).reset_index()

@@ -935,9 +935,22 @@ def load_races(cfg_paths: list[Path]) -> tuple[list[dict], dict[str, dict[str, d
 
 
 def poll_model(versions: dict[str, dict]) -> str | None:
-    """The race's active poll model: the latest version with a swing prior (e.g. Ohio: v3; its v2 has none)."""
-    act = [v for v, c in versions.items() if c.get("model", {}).get("swing_prior_sd") is not None]
+    """The race's primary poll model: the latest version with a swing prior that is not marked role = "secondary"
+    (e.g. Ohio: v4; its v2 has no prior and v5 is secondary)."""
+    act = [v for v, c in versions.items() if c.get("model", {}).get("swing_prior_sd") is not None
+           and c.get("role") != "secondary"]
     return act[-1] if act else None
+
+
+_EXPECTED: dict[str, pd.Series] = {}
+
+
+def _expected_votes(path: str) -> pd.Series:
+    """unit_id -> expected two-party votes from a repo-relative CSV (cached)."""
+    if path not in _EXPECTED:
+        d = pd.read_csv(ROOT_DIR / path, comment="#")
+        _EXPECTED[path] = d.set_index("unit_id")["exp_votes"].astype(float)
+    return _EXPECTED[path]
 
 
 @dataclass(frozen=True)
@@ -951,6 +964,12 @@ class CountRules:
     turnout_prior_votes: float = 200_000.0   # pseudo-votes holding the learned ratio at 1
     vote_type: bool = False            # split counties into early+mail / rest units (feeds reporting early votes)
     early_share: float = 0.6           # expected early+mail share of a county's vote before it posts any
+    # Model v4: expected two-party votes per county from a file (unit_id, exp_votes; repo-relative path) instead of
+    # turnout_ratio × the prior race's votes; counties missing from the file keep turnout_ratio × V. Empty = off.
+    expected_votes: str = ""
+    # "prior": the file only redistributes the statewide expected total of turnout_ratio × V across counties;
+    # "file": the file's own totals (statewide level from the previous midterm's drop-off).
+    expected_votes_level: str = "prior"
 
 
 def rules(cfg: dict) -> CountRules:
@@ -1006,6 +1025,12 @@ def count_state(rows: pd.DataFrame, cfg: dict, pri: pd.DataFrame) -> pd.DataFram
     df[["a", "b", "ea", "eb"]] = df[["a", "b", "ea", "eb"]].astype(float).fillna(0.0)
     df["n"] = df["a"] + df["b"]
     E0 = df["V"] * R.turnout_ratio
+    if R.expected_votes:
+        ev = df["unit_id"].map(_expected_votes(R.expected_votes))
+        m = ev.notna() & (ev > 0)
+        if m.any():
+            scale = E0[m].sum() / ev[m].sum() if R.expected_votes_level == "prior" else 1.0
+            E0 = E0.where(~m, ev * scale)
     complete = (df["n"] > 0) & (df["units"] > 0) & (df["reporting"] >= df["units"])
     E_done = pd.Series(np.nan, index=df.index)
     if R.use_outstanding:
@@ -1214,7 +1239,9 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
                 "poll_close_utc": POLL_CLOSE.get(E["state"]), "config": Path(c["_path"]).name,
                 "config_v2": (_sibling_versions(c).get("v2") or Path("")).name or None,
                 "versions": {v: q.name for v, q in _sibling_versions(c).items()},
-                "poll_model": poll_model({v: load_config(q) for v, q in _sibling_versions(c).items()})}
+                "poll_model": poll_model({v: load_config(q) for v, q in _sibling_versions(c).items()}),
+                "secondary_models": [v for v, q in _sibling_versions(c).items()
+                                     if load_config(q).get("role") == "secondary"]}
         if phase == "pre-count":
             race["precount"] = precount.get(rid)
         if not priors_ok[rid]:

@@ -1,0 +1,55 @@
+# US midterms 2026-11-03, South Carolina governor: model v4 (SECONDARY; the primary stays us2026_sc_gov_v3).
+# Identical to us2026_sc_gov_v3.toml (sha256 71f15fefff101cbf0daa2e869e504f9caddcb09207c8dc038c73b5234fb9ad56) except the expected vote per county:
+# 2024 president two-party votes x the county's own 2022/2020 midterm drop-off (relative to its state,
+# capped x0.61-x1.65; state flat ratio where missing), with swing_prior_mean re-centred on those
+# weights (the v2 definition, so v4 still starts at the poll average). docs/us_model_analysis.md.
+id = "us2026_sc_gov_v4"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "sc-gov"
+name = "South Carolina governor"
+state = "sc"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "sc"                    # brunder.us.FEEDS (Clarity ENR, eid resolved on the day)
+poll_close_utc = "2026-11-04T00:00:00Z"
+a = { party = "DEM", name = "Jermaine Johnson", color = "#1f5fbf" }
+b = { party = "REP", name = "Alan Wilson", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "sc_gov_2022"        # 2022 governor (Cunningham v McMaster): same office, last midterm (SC Election Commission)
+votes = "sc_gov_2022"        # 2022 governor two-party votes
+poll_avg = 0.4279           # two-party Dem share, weighted average of 2 polls
+poll_sd = 0.0407            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 2
+poll_last = "2026-10-25"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.0383        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays without a vote-type split (the SC feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0208   # poll_avg - prior statewide share 0.4071 weighted by v4's expected votes
+swing_prior_sd = 0.0429      # historical RMSE of a poll average with 2 polls (brunder.us.POLL_SD_BINS)
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+
+[count]                    # brunder.us.CountRules
+# As sc-sen.
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+expected_votes = "data_public/us2026_expected_votes_v4.csv"   # 2024 president x own 2022/2020 drop-off (secondary model)
+expected_votes_level = "file"
+
+[markets.polymarket]
+event = "south-carolina-governor-winner-2026"
+market = "will-the-democrats-win-the-south-carolina-governor-race-in-2026"
+question = "Will the Democrats win the South Carolina governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""
