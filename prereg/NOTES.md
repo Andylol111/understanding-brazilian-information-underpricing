@@ -54,6 +54,21 @@ scripts) is input data, not a setting; if it is not in place before polls close,
 reported as not run rather than scored later. Parser fixes forced by the live feed format on the night are
 allowed and will be listed here; model settings cannot change.
 
+### US model versions and which one is primary (written 2026-10-29, before any 2026 result)
+
+Four versions per race are registered: v1 (past results only), v2 (polling average as a prior on the
+statewide swing), v3 (v2 with poll error set by the number of polls, from 538 history 2016–2022, and the
+count-model uncertainty terms scaling in with the count instead of stacking on the poll prior), and for
+Ohio v3/v4 (the same steps one version later, because Ohio's baseline arrived after v2).
+**Primary test: v3 (Ohio: v4).** v1 and v2 are reported alongside as secondary results and will not be
+substituted for the primary after the outcome. Moving from v2 to v3 changed only the size of the
+uncertainty, not its centre (the polling average); win chances moved away from 0.5 toward the side the
+polls favour, in some races away from the market. Known risks, uncorrected by design: polls overstated
+Democrats by about 1.4 points on average in 2016–2022; polling errors are correlated across states; the
+error model was checked on one held-out year (2022: 70% within 1 sd, 92% within the 90% band).
+Also added to the US forward test after the first registration: SC Senate, SC governor and VT governor
+(registered at `57b2e50`, before any 2026 result).
+
 ## Hungary 2026 (`configs/hu2026_v1.toml`): not pre-registered
 
 Settings chosen on the 2022 count only (9 official night publications kept by the Internet Archive) and
