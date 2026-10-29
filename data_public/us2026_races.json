@@ -1,5 +1,5 @@
 {
- "built": "2026-10-28T22:14:11Z",
+ "built": "2026-10-29T23:55:11Z",
  "holdovers": {
   "senate": {
    "D": 32,
@@ -219,8 +219,8 @@
     "R": "Ashley Moody",
     "D": "Angie Nixon"
    },
-   "modeled": false,
-   "race_id": null,
+   "modeled": true,
+   "race_id": "fl-sen",
    "pm": {
     "event": "florida-senate-election-winner",
     "slug": "will-the-democrats-win-the-florida-senate-race-in-2026",
@@ -402,31 +402,6 @@
    "special": false,
    "incumbent": "Mitch McConnell",
    "incumbent_party": "R",
-   "open": null,
-   "dem_side": {
-    "name": null,
-    "party": "D",
-    "aligned": null
-   },
-   "candidates": null,
-   "modeled": false,
-   "race_id": null,
-   "pm": {
-    "event": "kentucky-senate-election-winner",
-    "slug": "will-the-democrats-win-the-kentucky-senate-race-in-2026",
-    "token_id": "37649267567982889592011384409533519112993266261975620703097847510820818713285",
-    "yes_is": "dem_side"
-   },
-   "kalshi": null
-  },
-  {
-   "race_key": "la-sen",
-   "state": "la",
-   "state_name": "Louisiana",
-   "office": "senate",
-   "special": false,
-   "incumbent": "Bill Cassidy",
-   "incumbent_party": "R",
    "open": true,
    "dem_side": {
     "name": "Charles Booker",
@@ -440,9 +415,9 @@
    "modeled": false,
    "race_id": null,
    "pm": {
-    "event": "louisiana-senate-election-winner",
-    "slug": "will-the-democrats-win-the-louisiana-senate-race-in-2026",
-    "token_id": "80536528552003281640741026890878925456783654983296822683495274364289350034456",
+    "event": "kentucky-senate-election-winner",
+    "slug": "will-the-democrats-win-the-kentucky-senate-race-in-2026",
+    "token_id": "37649267567982889592011384409533519112993266261975620703097847510820818713285",
     "yes_is": "dem_side"
    },
    "kalshi": {
@@ -450,6 +425,31 @@
     "series": "SENATELA",
     "yes_is": "dem_side"
    }
+  },
+  {
+   "race_key": "la-sen",
+   "state": "la",
+   "state_name": "Louisiana",
+   "office": "senate",
+   "special": false,
+   "incumbent": "Bill Cassidy",
+   "incumbent_party": "R",
+   "open": null,
+   "dem_side": {
+    "name": null,
+    "party": "D",
+    "aligned": null
+   },
+   "candidates": null,
+   "modeled": false,
+   "race_id": null,
+   "pm": {
+    "event": "louisiana-senate-election-winner",
+    "slug": "will-the-democrats-win-the-louisiana-senate-race-in-2026",
+    "token_id": "80536528552003281640741026890878925456783654983296822683495274364289350034456",
+    "yes_is": "dem_side"
+   },
+   "kalshi": null
   },
   {
    "race_key": "ma-sen",
@@ -662,8 +662,8 @@
     "R": "Michael Whatley",
     "D": "Roy Cooper"
    },
-   "modeled": false,
-   "race_id": null,
+   "modeled": true,
+   "race_id": "nc-sen",
    "pm": {
     "event": "north-carolina-senate-election-winner",
     "slug": "will-the-democrats-win-the-north-carolina-senate-race-in-2026",
@@ -951,8 +951,8 @@
     "R": "Darline Graham",
     "D": "Annie Andrews"
    },
-   "modeled": false,
-   "race_id": null,
+   "modeled": true,
+   "race_id": "sc-sen",
    "pm": {
     "event": "south-carolina-senate-election-winner",
     "slug": "will-the-democrats-win-the-south-carolina-senate-race-in-2026",
@@ -1397,8 +1397,8 @@
     "D": "David Jolly",
     "R": "Byron Donalds"
    },
-   "modeled": false,
-   "race_id": null,
+   "modeled": true,
+   "race_id": "fl-gov",
    "pm": {
     "event": "florida-governor-winner-2026",
     "slug": "will-the-democrats-win-the-florida-governor-race-in-2026",
@@ -2104,8 +2104,8 @@
     "D": "Jermaine Johnson",
     "R": "Alan Wilson"
    },
-   "modeled": false,
-   "race_id": null,
+   "modeled": true,
+   "race_id": "sc-gov",
    "pm": {
     "event": "south-carolina-governor-winner-2026",
     "slug": "will-the-democrats-win-the-south-carolina-governor-race-in-2026",
@@ -2233,8 +2233,8 @@
     "D": "Amanda Janoo",
     "R": "Phil Scott"
    },
-   "modeled": false,
-   "race_id": null,
+   "modeled": true,
+   "race_id": "vt-gov",
    "pm": {
     "event": "vermont-governor-winner-2026",
     "slug": "will-the-democrats-win-the-vermont-governor-race-in-2026",

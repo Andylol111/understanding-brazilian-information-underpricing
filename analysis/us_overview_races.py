@@ -104,14 +104,23 @@ def _price(m: dict) -> float:
         return 0.0
 
 
+# Kalshi files some events under another state's series: SENATELA-26's markets are titled "Senate race in
+# Kentucky" (checked 2026-10-29). An event counts for a state only if its market titles name that state.
+KALSHI_MISFILED = {("ky", "senate"): "SENATELA-26"}
+
+
 def kalshi_event(st: str, office: str) -> dict | None:
-    for p in KALSHI_EVENTS[office]:
+    tickers = [p.format(ST=st.upper()) for p in KALSHI_EVENTS[office]]
+    if (st, office) in KALSHI_MISFILED:
+        tickers.append(KALSHI_MISFILED[(st, office)])
+    for t in tickers:
         try:
-            ev = kalshi.event(p.format(ST=st.upper()))
-            if ev.get("markets"):
-                return ev
+            ev = kalshi.event(t)
         except Exception:
-            pass
+            continue
+        mk = ev.get("markets") or []
+        if mk and all(NAMES[st] in (m.get("title") or "") for m in mk):
+            return ev
     return None
 
 

@@ -32,7 +32,7 @@ date = "2026-11-03"
 "fl-sen" = { a = "Angie Nixon", b = "" }
 "id-sen" = { a = "David Roth", b = "" }
 "il-sen" = { a = "Juliana Stratton", b = "" }
-"la-sen" = { a = "Charles Booker", b = "" }
+"ky-sen" = { a = "Charles Booker", b = "Andy Barr" }
 "ma-sen" = { a = "Ed Markey", b = "" }
 "mn-sen" = { a = "Peggy Flanagan", b = "" }
 "ms-sen" = { a = "Scott Colom", b = "" }
@@ -1989,18 +1989,20 @@ kalshi_url = "https://kalshi.com/markets/senateil"
 kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
 
 [[pair]]
-id = "la-sen:will-the-democrats-win-the-louisiana-senate-race-in-2026~SENATELA-26-D"
-race_id = "la-sen"
-proposition = "Will the Democrats win the Louisiana Senate race in 2026?"
-pm_market = "will-the-democrats-win-the-louisiana-senate-race-in-2026"
+# Kalshi files this event under its Louisiana series (SENATELA), but every market is titled "Senate race in
+# Kentucky" and names the Kentucky nominees (checked 2026-10-29), so it is paired with Polymarket's Kentucky market.
+id = "ky-sen:will-the-democrats-win-the-kentucky-senate-race-in-2026~SENATELA-26-D"
+race_id = "ky-sen"
+proposition = "Will the Democrats win the Kentucky Senate race in 2026?"
+pm_market = "will-the-democrats-win-the-kentucky-senate-race-in-2026"
 kalshi_ticker = "SENATELA-26-D"
 same_side = true
-pm_event = "louisiana-senate-election-winner"
+pm_event = "kentucky-senate-election-winner"
 kalshi_event = "SENATELA-26"
 kalshi_series = "SENATELA"
-pm_question = "Will the Democrats win the Louisiana Senate race in 2026?"
-pm_yes_token = "80536528552003281640741026890878925456783654983296822683495274364289350034456"
-pm_condition_id = "0x1bf5eb603d6bd74a11ba051d2cd8d7fff85100d0af19d6e9d91b29cef01f2c91"
+pm_question = "Will the Democrats win the Kentucky Senate race in 2026?"
+pm_yes_token = "37649267567982889592011384409533519112993266261975620703097847510820818713285"
+pm_condition_id = "0xf27ea17046f54cfa5e7dda5c58f06a3f391f3ae6a3cfaddcda8c432c5afcf2dd"
 pm_yes_is = "a"
 kalshi_yes_is = "a"
 pm_fee_rate = 0.0
@@ -2012,7 +2014,7 @@ resolution_differences = [
   "Sources differ: Polymarket: “The resolution source for this market is the Associated Press, Fox News, and NBC.” Kalshi: its contract's Source Agencies (United States Congress) under the SENATELA contract terms.",
   "Kalshi pays on who is sworn in/inaugurated (or earlier on a media consensus); Polymarket on the election result — a winner who is not seated (death, disqualification, contest) splits the legs.",
 ]
-pm_rules = "This market will resolve according to the winner of the 2026 midterm Louisiana U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
+pm_rules = "This market will resolve according to the winner of the 2026 midterm Kentucky U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe candidates may be named in the contract for the convenience of traders. In the event that any named candidate is replaced as the nominee of their respective party prior to election day, the name in the contract will be updated and the market will resolve based on the replacement nominee of the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification."
 kalshi_resolution = "Yes if the party of the listed nominee (Charles Booker) wins this seat, judged by who is sworn in for the term starting 2027; can settle early on a media projection."
 kalshi_url = "https://kalshi.com/markets/senatela"
 kalshi_contract_terms = "https://assets.kalshi.com/contract_terms/SENATEPARTY.pdf"
