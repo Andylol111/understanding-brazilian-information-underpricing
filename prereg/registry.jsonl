@@ -67,3 +67,4 @@
 {"id": "us2026_fl_gov_v1", "sha256": "2cd34a5a9bf09f53bfac7484d25e268027180aee521cefa4f07559d99a8198ce", "commit": "7f6b8bcc0d624e84595852c921645cda1e75f3d9", "registered_utc": "2026-10-29T18:43:58.841001+00:00"}
 {"id": "us2026_fl_gov_v2", "sha256": "0d566d8793e9de01fc08b310c73b40d9f43b4e1bd6d35fb29bf67518e50a2394", "commit": "7f6b8bcc0d624e84595852c921645cda1e75f3d9", "registered_utc": "2026-10-29T18:43:59.976029+00:00"}
 {"id": "us2026_fl_gov_v3", "sha256": "0084feeae361696a545bbd99bbdfeca041620ebb356ae9ceba748524e8981b1d", "commit": "7f6b8bcc0d624e84595852c921645cda1e75f3d9", "registered_utc": "2026-10-29T18:44:01.827420+00:00"}
+{"id": "reddit_us2026_v1", "sha256": "650c1d04bd2ff80fbb0384dc6afcbcfcf8bcb4fde7544b471d768c0632a48294", "commit": "71a6d8c1e066df9f0e0121b0d09e9a195a9ec039", "registered_utc": "2026-10-29T23:59:30.566062+00:00"}
