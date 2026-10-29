@@ -79,6 +79,9 @@ county's own 2022/2020 midterm drop-off (the one change that won forward in time
 On the Georgia 2022 replays it was not better than v3 (margin error 2.12 vs 1.98 at 5% counted, 3.24 vs 3.59 at 50%,
 1.10 vs 0.23 at 75%; turnout error +21.5% vs +1.5%, because Georgia's 2018 midterm turnout was unusually high),
 so v3 (Ohio v4) stays primary; v4 runs and is scored as a secondary model.
+Added 2026-10-29, before any 2026 result: NC Senate, FL Senate and FL governor (v1–v3; official NCSBE and
+Florida DOS election-night feeds, parsers tested against 2022 certified totals). Same rules as the other races;
+v3 is their primary. PA, WI, NH and ME were left out because their official feeds block automated access.
 
 ## Hungary 2026 (`configs/hu2026_v1.toml`): not pre-registered
 
