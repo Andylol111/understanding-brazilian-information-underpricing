@@ -287,9 +287,19 @@ function frameIndex(t) {
 
 const REM_MODES = new Set(["rem", "remlean"]);
 const REM_GROUND = "#f1efe9", REM_R = 22; // largest circle radius, CSS px
+// "ev": ballots cast before election day as a share of the 2022 total vote, per feature (R.ev,
+// sent by the page; NaN = no figure), 0 to 100% on one sequential scale. Any county with a
+// figure is coloured, whether or not the race has units there.
+const EV_LUT = d3.range(101).map((i) => d3.interpolateLab("#ece9e1", "#3d5a40")(i / 100)); // same ramp in election.js
+function evColours() {
+  const ev = R.ev, out = new Array(R.n);
+  for (let i = 0; i < R.n; i++) out[i] = ev && Number.isFinite(ev[i]) ? EV_LUT[Math.max(0, Math.min(100, Math.round(ev[i] * 100)))] : NONE;
+  return (R.lastCols = out);
+}
 // Per-feature colours for the current mode and time. Between a new units file and its "bind" (the
 // feature index arrives a moment later) the last colours stay on screen, so nothing blinks.
 function colours() {
+  if (R.mode === "ev") return evColours();
   const U = R.units, idx = R.featIdx, nf = R.n;
   if (!U || !idx || idx.length !== nf) return R.lastCols;
   const k = frameIndex(R.t);
@@ -457,7 +467,7 @@ function paint(ctx) {
   };
   const nat = R.natColours;
   // a region layer: the national map's state colours (nat) or the units' region totals (aggregate)
-  const regionCols = nat ?? (R.aggregate ? aggColours() : null);
+  const regionCols = R.mode === "ev" ? null : nat ?? (R.aggregate ? aggColours() : null);
   const unitW = Math.min(1, 0.3 + 0.12 * k) * px; // unit borders: up to 1 CSS px, thinner zoomed out
   if (regionCols) {
     // state level under the units: the focus region's units show at natMix (or the level's mix),

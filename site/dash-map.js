@@ -379,6 +379,8 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     },
     // hover picks whole regions (the state level) instead of units
     setNatHover(on) { if (st.natHover === !!on) return; st.natHover = !!on; drawOverlay(); },
+    // early vote share per feature (NaN: none), for the "ev" mode
+    setEarlyVote(values) { post({ type: "state", state: { ev: values } }); },
     highlightRegion(r) {
       if (r === st.hoverRegion) return;
       st.hoverRegion = r;

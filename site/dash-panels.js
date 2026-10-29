@@ -10,7 +10,8 @@ const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−"
 
 // pre: before the count (meta.phase "pre-count"): { day } for the date in the heading, { note } when
 // the model has no pre-count figure for the race, { live } "Polymarket live · 12 s ago" for the latest row.
-export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null }) {
+// ev: the early-vote line for the race's state (HTML, built by the controller), or null.
+export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null, ev = null }) {
   const a = esc(race.a.name);
   const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)} · figures for ${a}</span></p>`;
   if (!row) { el.innerHTML = `${head}<p class="note">No data for this race at this time.</p>`; return; }
@@ -51,7 +52,7 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
     const side = lean >= 0 ? race.a.name : race.b.name;
     rem = `<p class="ro-rem">≈ ${votesShort(row.rem_total)} votes left${lean != null ? `; they lean ${esc(side)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)} pt` : ""} <small>(model estimate)</small></p>`;
   }
-  el.innerHTML = `${head}<dl class="ro-figs">${figs.join("")}</dl>${gap || frame || live ? `<p class="ro-gap">${gap}${frame}${live}</p>` : ""}${rem}`;
+  el.innerHTML = `${head}<dl class="ro-figs">${figs.join("")}</dl>${gap || frame || live ? `<p class="ro-gap">${gap}${frame}${live}</p>` : ""}${rem}${ev ? `<p class="ro-rem ro-ev">${ev}</p>` : ""}`;
 }
 
 /* ---------------------------------------------------------------- races tab */

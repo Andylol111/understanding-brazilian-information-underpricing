@@ -12,7 +12,7 @@ import { drawTimeline } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
-import { createNational } from "./dash-national.js";
+import { createNational, stateName as usStateName } from "./dash-national.js";
 import { regionAgg, regionWinner } from "./dash-agg.js";
 
 const EID = param("id");
@@ -170,6 +170,7 @@ async function loadLiveSeries() {
   S.perf.timelineHeld = Object.fromEntries([...S.rows].map(([id, rows]) => [id, [rows.length, rows[rows.length - 1]?.t ?? null]]));
   S.stats = stats;
   S.arb = arb;
+  if (S.ev) await loadEarlyVote();
   if (S.nat) {
     const overview = await getJSON(`${EID}/${S.meta.overview}`, opt);
     if (overview) { S.overview = overview; updateNational(); }
@@ -510,14 +511,45 @@ function winnerAt(k, j) {
 
 function modes() {
   if (!S.units) return [];
-  if (PRE()) return [...(hasWinner() ? ["winner"] : []), "margin", ...remModes(), "counted"];
+  if (PRE()) return [...(hasWinner() ? ["winner"] : []), "margin", ...remModes(), "counted", ...evModes()];
   const w = hasWinner() ? ["winner"] : [];
-  if (!S.units.K) return [...w, "prior"];
-  return [...w, ...(S.countTimeline ? ["margin", "swing", ...remModes(), "counted"] : ["margin", "swing"])];
+  if (!S.units.K) return [...w, "prior", ...evModes()];
+  return [...w, ...(S.countTimeline ? ["margin", "swing", ...remModes(), "counted"] : ["margin", "swing"]), ...evModes()];
 }
 // outstanding-vote modes, when the units carry rem / rem_margin
 const remModes = () => (S.units?.rem ? ["rem", "remlean"] : []);
-const modeLabel = (m) => ({ winner: "Winning party", margin: PRE() ? "Before any votes" : S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", rem: "Votes left", remlean: "Where the remaining votes lean", counted: "Counted", prior: "Comparison election" })[m];
+// early vote by county (earlyvote.json): display only, not used by the model
+const evModes = () => (S.ev?.counties ? ["ev"] : []);
+const modeLabel = (m) => ({ winner: "Winning party", margin: PRE() ? "Before any votes" : S.countTimeline ? "Projected margin" : "Final margin", swing: "Swing from prior", rem: "Votes left", remlean: "Where the remaining votes lean", counted: "Counted", prior: "Comparison election", ev: "Early vote" })[m];
+
+/* ---------------------------------------------------------------- early vote (earlyvote.json) */
+
+const stateName = (st) => S.meta.regions?.find((r) => r.id === st)?.name ?? usStateName(st);
+// The file is published for the US only (other elections would only log a 404).
+async function loadEarlyVote() {
+  if (countryCode() !== "US") return;
+  S.ev = await getJSON(`${EID}/earlyvote.json`, { optional: true }).catch(() => null);
+  if (S.map) sendEarlyVote();
+}
+// per-feature shares for the engine's "ev" colours
+function sendEarlyVote() {
+  if (!S.ev?.counties || !S.map) return;
+  S.map.setEarlyVote(Float32Array.from(S.map.ids, (id) => S.ev.counties[id]?.share_of_2022_total ?? NaN));
+}
+const evDay = (d) => (d ? fmtDate(d).replace(/ \d{4}$/, "") : "");
+// "5.7M ballots, 70% of the 2022 total; by party registration D 39% · R 40% · other 21%"
+function evText(x) {
+  const bp = x.by_party, tot = bp ? (bp.D ?? 0) + (bp.R ?? 0) + (bp.O ?? 0) : 0;
+  return `${votesShort(x.ev_total)} ballots, ${pct(x.share_of_2022_total, 0)} of the 2022 total${tot ? `; by party registration D ${pct(bp.D / tot, 0)} · R ${pct(bp.R / tot, 0)} · other ${pct(bp.O / tot, 0)}` : ""}`;
+}
+// The readout line for a race's state; null where the file says nothing about it.
+function evLine(reg) {
+  if (!S.ev || !reg) return null;
+  const s = S.ev.states?.[reg];
+  if (s?.totals) return `Early vote so far in ${esc(stateName(reg))} (as of ${esc(evDay(s.as_of))}${s.stale ? ", not updated" : ""}): ${evText(s.totals)}. <small>Display only; not used by the model.</small>`;
+  if (S.ev.not_available?.[reg]) return `Early vote in ${esc(stateName(reg))}: not available. <small>${esc(S.ev.not_available[reg])}</small>`;
+  return null;
+}
 
 const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is at full strength (dash-worker.js)
 
@@ -532,7 +564,7 @@ function render() {
   if (S.map && S.units) {
     // the worker paints: every animation frame while playing (colours tweened between map
     // frames), otherwise only when the frame or the mode changes
-    const tween = S.playing && S.preview == null && S.mode !== "winner" && k >= 0 && k + 1 < S.units.K;
+    const tween = S.playing && S.preview == null && S.mode !== "winner" && S.mode !== "ev" && k >= 0 && k + 1 < S.units.K;
     const key = `${S.mode}|${k}`;
     if (tween || key !== S.shownKey) {
       S.map.paint(S.mode, tt, tween);
@@ -543,7 +575,8 @@ function render() {
     legendCount();
     const nb = PRE() ? noBaseline().filter((reg) => !S.region || reg === S.region).map(regionName) : [];
     const remNote = remModes().includes(S.mode) ? `Circles: the model's estimate of the votes still to count${PRE() ? " (before the count: the whole expected vote)" : ""}.` : "";
-    $("frame-label").textContent = PRE()
+    $("frame-label").textContent = S.mode === "ev" ? "Early vote: ballots cast before election day, from the states' daily reports. Display only; not used by the model."
+      : PRE()
       ? remNote || (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}` : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county baseline yet; prices shown.` : ""}`)
       : k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
         : `${remNote ? `${remNote} ` : ""}${tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames` : `Map frame ${clock(S.units.times[k], S.tz)}`}`;
@@ -557,7 +590,7 @@ function render() {
     : `${PRE() ? `${esc(dayOf(S.t))} ` : ""}<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing && !PRE() ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
   if (S.race) {
     const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
-    renderReadout($("readout"), { race: S.race, row: rowAt(S.race.race_id, tt), t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre });
+    renderReadout($("readout"), { race: S.race, row: rowAt(S.race.race_id, tt), t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region) });
   }
   // race list and region picker: at most every 200 ms while playing
   const now = performance.now();
@@ -584,6 +617,7 @@ function renderLegend() {
   if (PRE() && S.region && noBaseline().includes(S.region)) return; // nothing coloured there yet
   if (S.mode === "winner") { partyLegend(root); return; }
   if (S.mode === "rem" || S.mode === "remlean") { remLegend(root); return; }
+  if (S.mode === "ev") { evLegend(root); return; }
   const w = 200, h = 8;
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
   const svg = root.append("svg").attr("viewBox", `0 0 ${w} 24`).attr("width", w).attr("height", 24);
@@ -623,6 +657,17 @@ function remLegend(root) {
   root.append("p").attr("class", "legend-note").html(lean
     ? `Projected margin of the votes still to count: <span style="color:${esc(r.a.color)}">${esc(r.a.name)}</span> / <span style="color:${esc(r.b.color)}">${esc(r.b.name)}</span> ahead. Model estimate.`
     : "Votes still to count, a model estimate (not an official count of outstanding ballots).");
+}
+// Early vote: the share scale and, per state, the source and its date; states without figures.
+function evLegend(root) {
+  const w = 200, ramp = d3.interpolateLab("#ece9e1", "#3d5a40"); // as EV_LUT in dash-engine.js
+  root.append("svg").attr("viewBox", `0 0 ${w} 24`).attr("width", w).attr("height", 24).html(
+    `<defs><linearGradient id="lg-ev">${d3.range(0, 11).map((i) => `<stop offset="${i / 10}" stop-color="${ramp(i / 10)}"/>`).join("")}</linearGradient></defs>
+    <rect width="${w}" height="8" fill="url(#lg-ev)"/><text class="legend-text" x="0" y="20">0%</text><text class="legend-text" x="${w}" y="20" text-anchor="end">100% of 2022 votes</text>`);
+  const credits = Object.entries(S.ev.states ?? {}).map(([st, s]) =>
+    `${esc(stateName(st))}: <a href="${esc(s.source?.url ?? "#")}">${esc((s.source?.name ?? "").split(",")[0])}</a>, ${esc(evDay(s.as_of))}${s.stale ? " (not updated)" : ""}`);
+  const na = Object.keys(S.ev.not_available ?? {}).map(stateName);
+  root.append("p").attr("class", "legend-note").html(`Ballots cast before election day as a share of the county's 2022 total. ${credits.join("; ")}.${na.length ? ` Not available: ${esc(na.join(", "))}.` : ""}`);
 }
 function partyLegend(root) {
   const k = frameIndex(S.preview ?? S.t);
@@ -727,6 +772,7 @@ function initMap(geo) {
     onFrame: (ms) => S.perf.transitionFrames.push(ms),
   });
   if (S.natLayer) S.map.setNational(...S.natLayer);
+  sendEarlyVote();
   if (S.units) bindUnits();
 }
 
@@ -813,7 +859,12 @@ function placeCard() {
   const j = S.featIdx?.[i] ?? -1;
   let body;
   const U = S.units;
-  if (j < 0 || !U) body = `<p class="note">Not part of this election's results.</p>`;
+  if (S.mode === "ev" && S.ev) {
+    const x = S.ev.counties?.[S.map.ids[i]], st = S.map.regionOf(i);
+    const bp = x?.by_party, tot = bp ? (bp.D ?? 0) + (bp.R ?? 0) + (bp.O ?? 0) : 0;
+    body = x ? `<table class="kv"><tbody><tr><td>Early vote so far</td><td class="n">${votesShort(x.ev_total)}</td></tr><tr><td>Share of the 2022 total</td><td class="n">${pct(x.share_of_2022_total, 0)}</td></tr>${x.mail_returned != null ? `<tr><td>By mail / in person</td><td class="n">${votesShort(x.mail_returned)} / ${votesShort(x.in_person)}</td></tr>` : ""}${tot ? `<tr><td>By party registration</td><td class="n">D ${pct(bp.D / tot, 0)} · R ${pct(bp.R / tot, 0)} · other ${pct(bp.O / tot, 0)}</td></tr>` : ""}</tbody></table><p class="pc-hint">As of ${esc(evDay(S.ev.states?.[st]?.as_of))}; display only, not used by the model.</p>`
+      : `<p class="note">${S.ev.not_available?.[st] ? "Early vote: not available for this state." : "No early-vote figures for this county."}</p>`;
+  } else if (j < 0 || !U) body = `<p class="note">Not part of this election's results.</p>`;
   else {
     const r = S.unitRace[j];
     const k = frameIndex(S.preview ?? S.t);
@@ -1536,7 +1587,7 @@ async function main() {
   if (engine === "page" || !startWorker()) await startMain();
   await initNational(); // before the map: it sets the state layer and the office's county files
   S.mapDone = buildMap();
-  await loadSeries();
+  await Promise.all([loadSeries(), loadEarlyVote()]);
   computeDomain();
   S.t = defaultTime();
   S.followLatest = S.t >= S.domain[1];
