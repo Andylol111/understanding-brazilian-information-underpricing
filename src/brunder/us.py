@@ -1291,6 +1291,8 @@ class Exporter:
         self.pri = {c["election"]["race_id"]: race_prior(c, pr) for c in self.cfgs}
         self.pri_v = {rid: {v: race_prior(cv, pr) for v, cv in vs.items()} for rid, vs in self.versions.items()}
         self.polls = load_polls()
+        self.turnout = {rid: turnout_profile(c, self.pri[rid]) for c in self.cfgs
+                        if (rid := c["election"]["race_id"]) and self.pri[rid] is not None and not self.pri[rid].empty}
         self.step, self.frame_every = pd.Timedelta(step), pd.Timedelta(frame_every)
         rids = [c["election"]["race_id"] for c in self.cfgs]
         self.timeline: dict[str, list[dict]] = {r: [] for r in rids}
@@ -1375,7 +1377,8 @@ class Exporter:
                "rem_margin_total": _tens(res.get("rem_margin_total")),
                "votes_proj": _tens(units["n"].sum() + res["rem_total"]) if units is not None else None,
                **margin_fields(res.get("share_hat"), res.get("share_sd"), res.get("share_v2"), p_a, k_a,
-                               self.polls.get(rid))}
+                               self.polls.get(rid)),
+               **turnout_row(units, self.turnout.get(rid), res.get("rem_total"))}
         if not has_model:                             # prices only (e.g. Ohio without its county prior)
             self.timeline[rid].append(row)
             self.cursor[rid] = t
@@ -1389,7 +1392,7 @@ class Exporter:
                                    .fillna(-1), -1).round().astype(int).tolist(),
                      "proj": (units["proj"].fillna(units["s0"]) * 1000).round().astype(int).tolist(),
                      "rem": _tens_list(units["rem"]), "rem_margin": _tens_list(units["rem_margin"]),
-                     **poll_frame_cols(units, upoll)}
+                     **poll_frame_cols(units, upoll), **turnout_frame(units, self.turnout[rid])}
         self.timeline[rid].append(row)                # only after everything for this minute succeeded
         if frame:
             fr.append(frame)
@@ -1550,15 +1553,82 @@ def precount_frame(c: dict, pri: pd.DataFrame, t: str, cpoll: dict | None = None
         else None
     n = len(pri)
     return {"t": t, "f": [0] * n, "a": [-1] * n, "proj": (u["proj"].fillna(u["s0"]) * 1000).round().astype(int).tolist(),
-            "rem": _tens_list(u["rem"]), "rem_margin": _tens_list(u["rem_margin"]), **poll_frame_cols(u, up)}
+            "rem": _tens_list(u["rem"]), "rem_margin": _tens_list(u["rem_margin"]), **poll_frame_cols(u, up),
+            **turnout_frame(u, turnout_profile(c, pri))}
+
+
+TURNOUT_INDEX = ROOT_DIR / "data_public" / "us2026_turnout_index.csv"   # analysis/us_model_analysis.py
+
+
+def turnout_profile(c: dict, pri: pd.DataFrame) -> pd.DataFrame:
+    """Per county (aligned to pri): turnout_exp = the race's expected two-party votes (V × turnout_ratio) spread
+    across counties by the turnout model's relative midterm propensity (statewide total unchanged; display only),
+    and lowprop_index (standardised predicted drop-off; NaN where the model has no covariates)."""
+    v0 = (pri["V"] * rules(c).turnout_ratio).to_numpy()
+    ti = pd.read_csv(TURNOUT_INDEX, comment="#").set_index("unit_id") if TURNOUT_INDEX.exists() else pd.DataFrame(
+        columns=["adj", "lowprop_index"])
+    adj = ti["adj"].reindex(pri["unit_id"]).fillna(1.0).to_numpy()
+    exp = v0 * adj
+    exp = exp * v0.sum() / exp.sum() if exp.sum() > 0 else exp
+    return pd.DataFrame({"unit_id": pri["unit_id"].to_numpy(), "turnout_exp": exp,
+                         "lowprop": ti["lowprop_index"].reindex(pri["unit_id"]).to_numpy()})
+
+
+def _turnout_ratio(units: pd.DataFrame, prof: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """(ratio, reported): counted ÷ expected where a county is ≥ 95 % in, else projected total ÷ expected."""
+    n, rem, exp = units["n"].to_numpy(float), units["rem"].to_numpy(float), prof["turnout_exp"].to_numpy(float)
+    rep = ((units["f"].to_numpy(float) >= 0.95) | units["complete"].to_numpy(bool)) & (n > 0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(rep, n, n + np.nan_to_num(rem)) / np.where(exp > 0, exp, np.nan)
+    return ratio, rep
+
+
+def turnout_frame(units: pd.DataFrame, prof: pd.DataFrame) -> dict:
+    ratio, _ = _turnout_ratio(units, prof)
+    return {"turnout_so_far": _tens_list(units["n"]),
+            "turnout_ratio_live": np.where(np.isfinite(ratio), np.round(ratio * 1000), -1).astype(int).tolist()}
+
+
+def turnout_row(units: pd.DataFrame | None, prof: pd.DataFrame | None, rem_total: float | None) -> dict:
+    """Race-level turnout columns: expected and projected two-party totals, projected ÷ expected (%), and across
+    counties ≥ 95 % reported the correlation and slope of turnout surprise (log counted ÷ expected) on the
+    low-propensity index, plus the D − R margin (points) of counties running above / below expected turnout."""
+    keys = ("turnout_exp_total", "turnout_proj_total", "turnout_vs_expected", "turnout_surprise_corr",
+            "turnout_surprise_slope", "margin_hot", "margin_cold", "counties_reported")
+    if units is None or prof is None:
+        return dict.fromkeys(keys)
+    exp_total = float(prof["turnout_exp"].sum())
+    proj = float(units["n"].sum() + (rem_total or 0.0))
+    out = dict.fromkeys(keys)
+    out.update(turnout_exp_total=_tens(exp_total), turnout_proj_total=_tens(proj),
+               turnout_vs_expected=_r(100 * proj / exp_total, 2) if exp_total else None)
+    ratio, rep = _turnout_ratio(units, prof)
+    ok = rep & np.isfinite(ratio) & (ratio > 0)
+    out["counties_reported"] = int(ok.sum())
+    if ok.sum() >= 3:
+        s = np.log(ratio[ok])
+        a, n = units["a"].to_numpy(float)[ok], units["n"].to_numpy(float)[ok]
+        hot, cold = s > 0, s <= 0
+        out["margin_hot"] = _r(100 * (2 * a[hot].sum() - n[hot].sum()) / n[hot].sum(), 2) if hot.any() else None
+        out["margin_cold"] = _r(100 * (2 * a[cold].sum() - n[cold].sum()) / n[cold].sum(), 2) if cold.any() else None
+        x = prof["lowprop"].to_numpy(float)[ok]
+        m = np.isfinite(x)
+        if m.sum() >= 3 and np.std(x[m]) > 0 and np.std(s[m]) > 0:
+            out["turnout_surprise_corr"] = _r(float(np.corrcoef(x[m], s[m])[0, 1]))
+            out["turnout_surprise_slope"] = _r(float(np.polyfit(x[m], s[m], 1)[0]))
+    return out
 
 
 def units_object(c: dict, pri: pd.DataFrame, frames: list[dict]) -> dict:
+    prof = turnout_profile(c, pri)
     return {"race_id": c["election"]["race_id"], "unit_ids": pri["unit_id"].tolist(),
             "region": [c["election"]["state"]] * len(pri), "names": pri["name"].tolist(),
             "prior": (pri["s0"] * 1000).round().astype(int).tolist(),
             "prior_margin": ((2 * pri["s0"] - 1) * 1000).round().astype(int).tolist(),
-            "V0": (pri["V"] * rules(c).turnout_ratio).round().astype(int).tolist(), "frames": frames}
+            "V0": (pri["V"] * rules(c).turnout_ratio).round().astype(int).tolist(),
+            "turnout_exp": _tens_list(prof["turnout_exp"]),
+            "lowprop_index": [None if not np.isfinite(x) else round(float(x), 2) for x in prof["lowprop"]],
+            "frames": frames}
 
 
 def export(cfg_paths: list[Path], out: Path, snap_root: Path | None = None, until: str | None = None) -> Path:
@@ -1618,11 +1688,12 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
         rid = c["election"]["race_id"]
         pre[rid] = None
         if ok[rid]:
-            res, _ = project(_frame([]), c, pri[rid])
+            res, u0 = project(_frame([]), c, pri[rid])
             pre[rid] = {"P": _r(res["p_win"]), "share": _r(res["share_hat"]), "sd": _r(res["share_sd"]),
                         "rem_total": _tens(res["rem_total"]), "rem_margin_total": _tens(res["rem_margin_total"]),
                         "P_v2": None, "share_v2": None, "sd_v2": None,
-                        "poll_model": poll_model(versions.get(rid, {}))}
+                        "poll_model": poll_model(versions.get(rid, {})),
+                        "turnout": turnout_row(u0, turnout_profile(c, pri[rid]), res["rem_total"])}
             for v, cv in versions.get(rid, {}).items():
                 if pri_v[rid][v] is not None and not pri_v[rid][v].empty:
                     rv, _ = project(_frame([]), cv, pri_v[rid][v])
@@ -1656,7 +1727,8 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
                              for k in ("P", "share", "sd")},
                           "rem_total": m.get("rem_total"),
                           "rem_margin_total": m.get("rem_margin_total"), "votes_proj": m.get("rem_total"),
-                          **margin_fields(m.get("share"), m.get("sd"), m.get("share_v2"), pv, kv, polls.get(rid))}
+                          **margin_fields(m.get("share"), m.get("sd"), m.get("share_v2"), pv, kv, polls.get(rid)),
+                          **(m.get("turnout") or turnout_row(None, None, None))}
                          for t, pv, kv in zip(grid, pm_vals, k_vals)]
     _write_json(d / "meta.json", meta(cfgs, ok, kmk, phase="pre-count", precount=pre, tokens=tokens,
                                       overview="overview.json" if RACES_REGISTRY.exists() else None))

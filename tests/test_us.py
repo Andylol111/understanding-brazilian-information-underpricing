@@ -287,7 +287,9 @@ def test_export_dry_run_writes_valid_contract(tmp_path):
         later = {f"{k}_{v}" for v in ex.versions.get(rid, {}) if v != "v2" for k in ("P", "share", "sd")}
         assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "P_v2", "share_v2", "sd_v2", "pm", "kalshi",
                             "rem_total", "rem_margin_total", "votes_proj", "margin_model", "margin_model_sd",
-                            "margin_v2", "margin_polls", "margin_market", "margin_market_kalshi"} | later
+                            "margin_v2", "margin_polls", "margin_market", "margin_market_kalshi", "turnout_exp_total",
+                            "turnout_proj_total", "turnout_vs_expected", "turnout_surprise_corr",
+                            "turnout_surprise_slope", "margin_hot", "margin_cold", "counties_reported"} | later
         assert row["margin_model"] == pytest.approx((2 * row["share"] - 1) * 100, abs=0.02)
         assert row["votes_proj"] >= row["rem_total"] and row["margin_market_kalshi"] is None
         assert 0 <= row["P_v2"] <= 1 and 0 < row["share_v2"] < 1 and row["sd_v2"] > 0   # v2 runs alongside v1
@@ -300,8 +302,10 @@ def test_export_dry_run_writes_valid_contract(tmp_path):
     assert 1 <= len(units["frames"]) <= 60
     for fr in units["frames"]:
         assert all(len(fr[k]) == n and all(isinstance(x, int) for x in fr[k])
-                   for k in ("f", "a", "proj", "proj_poll", "rem_margin_poll"))
+                   for k in ("f", "a", "proj", "proj_poll", "rem_margin_poll", "turnout_so_far", "turnout_ratio_live"))
         assert all(0 <= x <= 1000 for x in fr["f"])
+    assert len(units["turnout_exp"]) == n and len(units["lowprop_index"]) == n
+    assert sum(units["turnout_exp"]) == pytest.approx(sum(units["V0"]), rel=1e-3)   # same statewide expectation
     assert json.loads((d / "units.json").read_text())["race_id"] == rid
 
 
@@ -1239,3 +1243,25 @@ def test_hub_pollsters_backtest_markets_census_schemas():
     nj = c["counties"]["us-nj-34005"]
     assert {"pop2020", "pop2025", "change_pct", "age65_pct", "ba_plus_pct", "hispanic_pct", "black_pct",
             "median_income"} == set(nj)
+
+
+# ------------------------------------------------------------------ turnout display fields
+
+def test_turnout_row_surprise_and_hot_cold():
+    pri = _pri()
+    cfg = _cfg(f_complete=1.0)
+    prof = us.turnout_profile(cfg, pri).assign(lowprop=np.linspace(-2, 2, len(pri)))
+    exp = prof["turnout_exp"].to_numpy()
+    surprise = np.exp(-0.1 * prof["lowprop"].to_numpy())                # high-propensity counties run hot
+    share = np.where(prof["lowprop"] < 0, 0.6, 0.4)
+    rows = _rows(pri.assign(V=exp * surprise), share, 1.0, complete=True)
+    res, units = us.project(rows, cfg, pri)
+    r = us.turnout_row(units, prof, res["rem_total"])
+    assert r["counties_reported"] == len(pri) and r["turnout_surprise_corr"] < -0.95
+    assert r["turnout_surprise_slope"] == pytest.approx(-0.1, abs=0.01)
+    assert r["margin_hot"] > 0 > r["margin_cold"]                        # D counties hot, R counties cold
+    assert r["turnout_vs_expected"] == pytest.approx(100 * (exp * surprise).sum() / exp.sum(), rel=1e-3)
+    fr = us.turnout_frame(units, prof)
+    assert fr["turnout_ratio_live"][0] == round(1000 * surprise[0])
+    none = us.turnout_row(None, None, None)
+    assert all(v is None for v in none.values())
