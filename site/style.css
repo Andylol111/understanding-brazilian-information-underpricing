@@ -627,6 +627,7 @@ table.nat-races .ring { display: inline-block; width: 8px; height: 8px; border: 
 .wm-chooser li a:hover, .wm-chooser li a:focus { background: #f4f2ec; outline: none; }
 .wm-chooser .wm-el li a .wm-meta { display: block; }
 .wm-races li a { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.wm-rn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wm-lead { text-align: right; color: var(--muted); white-space: nowrap; }
 .wm-lead b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .wm-ch-sub { margin: 12px 0 0; font: 600 12px var(--sans); color: var(--muted); }

@@ -10,14 +10,17 @@
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
 import { C, esc, fmtDate, getJSON, modelP, num } from "./common.js";
-import { bandColours, bandColour } from "./dash-agg.js";
+import { bandColours, bandColour, bandOf } from "./dash-agg.js";
 
 const LAND = "#e6e4dd", ACCENT = "#e3b8a0", ACCENT_ON = C.model, NO_RACE = "#efede7";
 const DEM = "#1f5fbf", REP = "#c8102e";
 const STATUS_LABEL = { live: "Live", scheduled: "Before the count", replay: "Replay" };
 const RANK = { live: 0, scheduled: 1, replay: 2 };
 const ZOOM_MS = 700;
-const REGION_MAPS = new Set(["US", "BR", "CA", "MX", "HU"]); // geo/<cc>_regions.topo.json
+const REGION_MAPS = new Set(["US", "BR", "CA", "MX", "HU", "NZ", "IL"]); // geo/<cc>_regions.topo.json
+// a race's short label: long market questions ("Will the National Party win fewer than 25 seats
+// in…") read by their first side's name ("National fewer than 25")
+const shortName = (r) => r.short ?? (/^most-/.test(r.race_id) && r.a?.name ? `Most seats: ${r.a.name}` : r.name.length <= 40 ? r.name : r.a?.name ?? r.name);
 const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 const fold = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 // a chance as a pseudo-margin for the bands where a race has no projected share
@@ -93,12 +96,22 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
   // the label point: the largest polygon's centroid (France's mainland, not its overseas parts)
   const mainPart = (f) => (f.geometry.type === "MultiPolygon" ? { type: "Polygon", coordinates: d3.greatest(f.geometry.coordinates, (c) => d3.geoArea({ type: "Polygon", coordinates: c })) } : f.geometry);
   const centre = (f) => st.path.centroid(mainPart(f));
+  // the country's extent without its far-flung parts (Alaska, Hawaii): every polygon at least a
+  // quarter of the largest
+  function extent(f) {
+    if (f.geometry.type !== "MultiPolygon") return st.path.bounds(f);
+    const parts = f.geometry.coordinates.map((c) => [c, d3.geoArea({ type: "Polygon", coordinates: c })]);
+    const big = d3.max(parts, (p) => p[1]);
+    return st.path.bounds({ type: "MultiPolygon", coordinates: parts.filter((p) => p[1] >= 0.25 * big).map((p) => p[0]) });
+  }
+  // fit into the part of the map the side panel leaves free (the panel sits on the right, over the
+  // map, from 700 px wide), with padding
   function fit(code) {
-    const [[x0, y0], [x1, y1]] = st.path.bounds(mainPart(featureOf(code)));
-    const panel = st.w > 900 ? 360 : 0; // the side panel covers the right of the map
-    const pad = Math.min(st.w, st.h) * 0.08;
+    const [[x0, y0], [x1, y1]] = extent(featureOf(code));
+    const panel = st.w > 700 ? Math.min(380, st.w * 0.45) : 0;
+    const pad = Math.min(st.w, st.h) * 0.07;
     const w = st.w - panel;
-    const k = Math.min(14, Math.min((w - 2 * pad) / Math.max(1, x1 - x0), (st.h - 2 * pad) / Math.max(1, y1 - y0)));
+    const k = Math.min(40, Math.min((w - 2 * pad) / Math.max(1, x1 - x0), (st.h - 2 * pad) / Math.max(1, y1 - y0)));
     return { k, x: w / 2 - k * (x0 + x1) / 2, y: st.h / 2 - k * (y0 + y1) / 2 };
   }
   function apply() {
@@ -169,19 +182,40 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
       }
     } else if (meta) {
       // other countries: each region's race (the main race's office first), at its last row
-      const tl = await getJSON(`${e.id}/timeline.json`, opt);
+      // the last rows: the tail file where there is one (small), else the whole timeline
+      const tl = (await getJSON(`${e.id}/timeline_tail.json`, opt)) ?? (await getJSON(`${e.id}/timeline.json`, opt));
       const last = (id) => tl?.[id]?.at?.(-1) ?? null;
       for (const r of meta.races ?? []) {
         const row = last(r.race_id), P = modelP(row) ?? row?.pm ?? row?.kalshi ?? null;
         const lead = P == null ? null : P >= 0.5 ? r.a.name : r.b.name;
         const q = `&race=${encodeURIComponent(r.race_id)}${r.region ? `&region=${r.region}&level=units` : ""}`;
-        races.push({ name: r.name, lead, chance: P == null ? null : Math.max(P, 1 - P), href: link(q), region: r.region, colour: P == null ? null : P >= 0.5 ? r.a.color : r.b.color });
+        races.push({ name: shortName(r), full: r.name, lead, chance: P == null ? null : Math.max(P, 1 - P), href: link(q), region: r.region, colour: P == null ? null : P >= 0.5 ? r.a.color : r.b.color });
         if (r.region && !colours.has(r.region) && P != null) {
           const pt = row?.share != null ? (2 * row.share - 1) * 100 : pseudo(P);
           colours.set(r.region, bandColour(pt, bandColours(r.a.color), bandColours(r.b.color)));
           regionLink.set(r.region, link(q));
           regionInfo.set(r.region, `${esc(r.name)}: ${esc(lead)} ${num(Math.max(P, 1 - P))}`);
         }
+      }
+      // no regional races (New Zealand, Israel): colour each unit of the map by the comparison
+      // election, by the party that won it (with its margin) or the side ahead
+      if (!colours.size) {
+        const U = await getJSON(`${e.id}/units.json`, opt);
+        (U?.unit_ids ?? []).forEach((id, j) => {
+          const nm = U.names?.[j] ?? id;
+          if (U.winner && meta.parties) {
+            const p = meta.parties.find((x) => x.id === U.winner[j]);
+            if (!p) return;
+            const pt = (U.margin?.[j] ?? 0) / 10; // tenths of a point
+            colours.set(id, bandColours(p.color)[bandOf(pt || 1)]);
+            regionInfo.set(id, `${esc(nm)}: won by ${esc(p.name)} last time (by ${pt.toFixed(1)} pt)`);
+          } else if (U.a && U.b && U.prior?.[j] >= 0) {
+            const pt = (2 * U.prior[j] / 1000 - 1) * 100;
+            colours.set(id, bandColour(pt, bandColours(U.a.color), bandColours(U.b.color)));
+            regionInfo.set(id, `${esc(nm)}: ${esc(pt >= 0 ? U.a.name : U.b.name)} ahead by ${Math.abs(pt).toFixed(1)} pt last time`);
+          } else return;
+          regionLink.set(id, link(""));
+        });
       }
     }
     return { e, meta, races, colours, regionLink, regionInfo };
@@ -200,10 +234,12 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
     // the country's figures and outlines load during the zoom
     const data = countryData(code).catch(() => null);
     const shapes = REGION_MAPS.has(code) ? getJSON(`geo/${code.toLowerCase()}_regions.topo.json`, { optional: true }).catch(() => null) : Promise.resolve(null);
+    // the country's own map fades in over the coarse outline as soon as it is here, during the
+    // zoom where possible (the same vector layer, scaled with the world)
+    Promise.all([data, shapes]).then(([d, t]) => { if (st.token === token && t && d) drawRegions(t, d); });
     zoomTo(fit(code), async () => {
-      const [d, t] = await Promise.all([data, shapes]);
+      const d = await data;
       if (st.token !== token) return;
-      if (t && d) drawRegions(t, d);
       panel(code, d);
     });
   }
@@ -231,7 +267,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
     chooser.innerHTML = `<p class="wm-ch-head"><b>${esc(countryName(code))}</b> <button type="button" class="crumb-back">‹ All countries</button></p>
       <ul class="wm-el">${list.map((e, i) => `<li><a href="${href(e.id)}"><b>${esc(e.name)}</b><span class="wm-meta">${esc(fmtDate(e.date))} · ${esc(STATUS_LABEL[e.status] ?? e.status)}${i === 0 && races.length ? " · races below" : ""}</span></a></li>`).join("")}</ul>
       ${races.length ? groups.map(([o, rs]) => `<p class="wm-ch-sub">${esc(officeName(o) || d.e.name)}: chance the leader wins</p>
-        <ul class="wm-races">${rs.map((r) => `<li><a href="${r.href}"><span>${esc(r.name)}</span><span class="wm-lead">${r.lead ? `${esc(r.lead)} <b>${num(r.chance)}</b>` : "<small>no price</small>"}</span></a></li>`).join("")}</ul>`).join("") : ""}`;
+        <ul class="wm-races">${rs.map((r) => `<li><a href="${r.href}" title="${esc(r.full ?? r.name)}"><span class="wm-rn">${esc(r.name)}</span><span class="wm-lead">${r.lead ? `${esc(r.lead)} <b>${num(r.chance)}</b>` : "<small>no price</small>"}</span></a></li>`).join("")}</ul>`).join("") : ""}`;
     chooser.hidden = false;
     chooser.querySelector(".crumb-back").addEventListener("click", back);
     chooser.querySelectorAll("a").forEach((a) => a.addEventListener("click", (ev) => { if (!ev.metaKey && !ev.ctrlKey && !ev.shiftKey) { ev.preventDefault(); leave(a.href); } }));

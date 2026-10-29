@@ -70,7 +70,7 @@ AK_HOUSE = "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_02_sldl_500k.
 IBGE_MESH = ("https://geoftp.ibge.gov.br/organizacao_do_territorio/malhas_territoriais/malhas_municipais/"
              "municipio_2025/Brasil/BR_Municipios_2025.zip")
 TSE_IBGE = "https://cdn.tse.jus.br/estatistica/sead/odsele/municipio_tse_ibge/municipio_tse_ibge.zip"
-NE_COUNTRIES = "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip"
+NE_COUNTRIES_50 = "https://naciscdn.org/naturalearth/50m/cultural/ne_50m_admin_0_countries.zip"
 
 # 50 states + DC by Census state FIPS (01-56 minus the unused codes); territories are not mapped.
 US_STATE_FIPS = sorted({f"{i:02d}" for i in range(1, 57)} - {"03", "07", "14", "43", "52"})
@@ -170,7 +170,8 @@ def build_br(cache: Path, tmp: Path) -> None:
 
 
 def build_world(cache: Path, tmp: Path) -> None:
-    shp = unzip_shp(fetch(NE_COUNTRIES, cache), tmp / "world")
+    # 1:50m, so a zoom onto a country starts from a reasonable outline (its own map fades in over it)
+    shp = unzip_shp(fetch(NE_COUNTRIES_50, cache), tmp / "world")
     out = OUT / "world.topo.json"
     mapshaper(
         "-i", str(shp), "encoding=utf8",
@@ -178,6 +179,7 @@ def build_world(cache: Path, tmp: Path) -> None:
         "-each", "iso2 = ISO_A2_EH, name = NAME",
         "-filter-fields", "iso2,name",
         "-rename-layers", "countries",
+        "-simplify", "weighted", "35%", "keep-shapes",
         "-o", str(out), "format=topojson", "quantization=100000",
     )
     doc = json.loads(out.read_text())
@@ -199,19 +201,28 @@ REGION_SOURCES = {"us": ("us_counties", "counties"), "br": ("br_municipalities",
                   "ca": ("ca_districts", "districts"), "mx": ("mx_districts", "districts"), "hu": ("hu_districts", "districts")}
 
 
+# Unit maps shown as they are (no dissolve): New Zealand's general electorates (the Chatham
+# Islands clipped off: across the antimeridian they would span the world map) and Israel's
+# sub-district regions. id = unit_id.
+UNIT_SOURCES = {"nz": ("nz_electorates", "electorates", "layer == 'general'", "bbox=160,-48,179.99,-33"),
+                "il": ("il_localities", "localities", "layer == 'regions'", None)}
+
+
 def build_regions(cache: Path, tmp: Path) -> None:
-    for cc, (name, obj) in REGION_SOURCES.items():
+    jobs = [(cc, name, obj, ["-each", "region=unit_id.split('-')[1]", f"target={obj}", "-dissolve", "region", f"target={obj}"], "region")
+            for cc, (name, obj) in REGION_SOURCES.items()]
+    jobs += [(cc, name, obj, ["-filter", flt, f"target={obj}", *(["-clip", clip] if clip else []), "-filter-fields", "unit_id"], "unit_id")
+             for cc, (name, obj, flt, clip) in UNIT_SOURCES.items()]
+    for cc, name, obj, ops, idf in jobs:
         src = OUT / f"{name}.topo.json"
         if not src.exists():
             sys.exit(f"{src}: missing; build the unit map first")
         out = OUT / f"{cc}_regions.topo.json"
         mapshaper(
-            "-i", str(src), "encoding=utf8",
-            "-each", "region=unit_id.split('-')[1]", f"target={obj}",
-            "-dissolve", "region", f"target={obj}",
+            "-i", str(src), "encoding=utf8", *ops,
             "-rename-layers", "regions",
             "-simplify", "weighted", "40%", "keep-shapes",
-            "-o", str(out), "format=topojson", "quantization=100000", "id-field=region",
+            "-o", str(out), "format=topojson", "quantization=100000", f"id-field={idf}",
         )
         doc = json.loads(out.read_text())
         n = len(doc["objects"]["regions"]["geometries"])
