@@ -49,6 +49,9 @@ export const votesShort = (v) => {
 // The model's chance in a timeline row: the version with polls (P_v2) where an election has one,
 // else the count-only model (P). Rows with both also show P as "model without polls".
 export const modelP = (row) => row?.P_v2 ?? row?.P ?? null;
+// Cross-document view transitions (style.css @view-transition): where the browser has them, page
+// links navigate at once and the map box and header carry over; elsewhere a short fade-out first.
+export const crossDocTransitions = () => typeof window !== "undefined" && "CSSViewTransitionRule" in window;
 // A race's short label (homepage panel, table and search), with the question's context where the
 // first side's name alone would be ambiguous: "Alberta: most seats — Conservative", "Most seats:
 // National", "Next PM: Poilievre", "Popular vote: Liberals by 0-3", "Seat margin: Liberals by 25-49";

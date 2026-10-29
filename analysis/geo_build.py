@@ -242,15 +242,37 @@ def build_regions(cache: Path, tmp: Path) -> None:
             sys.exit(f"{out}: {size} bytes, over the 150 kB budget for the homepage")
 
 
+# The US page's House layer (site/dash-house.js) draws every district at once and morphs between
+# the 2024 and 2026 lines: a simplified copy of the district maps built from
+# site/data/us2026/house/districts_<lines>.topo.json (Census block equivalency files, public domain).
+HOUSE_SRC = OUT.parent / "us2026" / "house"
+
+
+def build_house(cache: Path, tmp: Path) -> None:
+    for lines in ("2026", "2024"):
+        src = HOUSE_SRC / f"districts_{lines}.topo.json"
+        if not src.exists():
+            sys.exit(f"{src}: missing (built by the US House pipeline)")
+        out = OUT / f"us_house_{lines}.topo.json"
+        mapshaper("-i", str(src), "-simplify", "weighted", "18%", "keep-shapes",
+                  "-o", str(out), "format=topojson", "quantization=100000")
+        doc = json.loads(out.read_text())
+        n = len(doc["objects"]["districts"]["geometries"])
+        size = out.stat().st_size
+        print(f"{out.name}: {n} districts, {size / 1e3:.0f} kB", file=sys.stderr)
+        if n != 435:
+            sys.exit(f"{out}: {n} districts, expected 435")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("which", nargs="*", choices=["us", "br", "world", "regions"], help="default: all")
+    ap.add_argument("which", nargs="*", choices=["us", "br", "world", "regions", "house"], help="default: all")
     ap.add_argument("--cache", type=Path, default=Path.home() / ".cache" / "brunder-geo")
     a = ap.parse_args()
     a.cache.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
-        for w in a.which or ["us", "br", "world", "regions"]:
-            {"us": build_us, "br": build_br, "world": build_world, "regions": build_regions}[w](a.cache, Path(tmp))
+        for w in a.which or ["us", "br", "world", "regions", "house"]:
+            {"us": build_us, "br": build_br, "world": build_world, "regions": build_regions, "house": build_house}[w](a.cache, Path(tmp))
 
 
 if __name__ == "__main__":

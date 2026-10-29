@@ -10,7 +10,7 @@
 // Margins: Democratic minus Republican, points; chances: P(Democratic party wins the seat).
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { getJSON, esc, num, pct, fmtDate, marginText } from "./common.js";
+import { getJSON, esc, num, pct, fmtDate, marginText, probit } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", ROOT = "us2026/house/";
 const ramp = (v) => d3.interpolateLab(NEUTRAL, v >= 0 ? DEM : REP)(Math.min(1, Math.abs(v)) ** 0.8); // v in [-1, 1]
@@ -18,7 +18,10 @@ const byP = (p) => (p == null ? null : ramp((p - 0.5) * 2));
 const byMargin = (m, full = 30) => (m == null ? null : ramp(m / full));
 const EV = d3.interpolateLab("#ece9e1", "#3d5a40");
 const day = (d) => (d ? fmtDate(d).replace(/ \d{4}$/, "") : "–");
-const ZOOM_MS = 700;
+const ZOOM_MS = 700, FADE_MS = 300;
+// swing arrows: what each arrow compares
+export const ARROWS = [["proj", "2026 projected vs 2024"], ["past", "2020→2024 (past)"], ["live", "Counted vs 2024"]];
+const ARROW_FULL = 15, ARROW_L = 22; // points of shift for the longest arrow, its length in px
 
 // House colour modes: [key, label, lines ("2026" only or "both"), value(district) -> fill | null, legend]
 const MODES = [
@@ -29,7 +32,7 @@ const MODES = [
   ["pres24", "Harris 2024", "both", (d) => byMargin(d.pres24?.margin), "Harris minus Trump, % of all votes (full colour at ±30); split counties approximated."],
   ["house24", "House 2024", "both", (d) => byMargin(h24(d)?.margin), "2024 House result, D minus R (full colour at ±30); redrawn districts: their core 2024 district."],
   ["ev", "Early vote", "2026", (d) => { const e = H.ev?.districts?.[d.id]; return e ? EV(Math.min(1, e.share_of_2022_total)) : null; }, "Early votes so far as a share of the 2022 total (Texas, Florida, North Carolina)."],
-  ["swing", "Swing arrows", "both", () => "#f4f2ec", "Each county's shift from 2020 to 2024 (president): right and red, towards Trump; left and blue, towards Harris; length by the shift."],
+  ["swing", "Arrows", "both", () => "#f4f2ec", ""],
 ];
 // census map modes: [key, label, format, diverging]
 export const CENSUS = [
@@ -55,6 +58,42 @@ export function best(d) {
   if (d.baseline?.p_d != null) return { p: d.baseline.p_d, src: "baseline (model only)" };
   return null;
 }
+// A district's projected 2026 margin (two-party, D minus R, points) and its source: the market price
+// read as a margin (Φ⁻¹(p) × the baseline's sd), else the district poll average, else the baseline
+// (model only)
+export function projMargin(d) {
+  const m = mkt(d.id), sd = 200 * (d.baseline?.sd ?? 0.052);
+  const p = m?.pm?.p ?? m?.kalshi?.p;
+  if (p != null) return { v: probit(Math.min(0.99, Math.max(0.01, p))) * sd, src: `${m?.pm?.p != null ? "Polymarket" : "Kalshi"} price read as a margin` };
+  const a = m?.polls?.average?.avg;
+  if (a != null) return { v: (2 * a - 1) * 100, src: "district polls" };
+  if (d.baseline?.share != null) return { v: (2 * d.baseline.share - 1) * 100, src: "baseline (model only)" };
+  return null;
+}
+// Harris 2024 two-party margin on the district's lines
+const pres2p = (d) => (d.pres24?.d2 != null ? (2 * d.pres24.d2 - 1) * 100 : null);
+// County figures of an office's races (overview → units files), as shifts from the county's
+// baseline (the file's prior: the 2024 two-party share the model shifts): the latest projection
+// (with polls) and, once counting, the counted share; two-party margins, points
+async function countyRaces(office) {
+  H.cproj ??= {};
+  if (H.cproj[office]) return H.cproj[office];
+  H.overview ??= await getJSON("us2026/overview.json", { optional: true });
+  const proj = new Map(), counted = new Map();
+  await Promise.all((H.overview?.offices?.[office]?.races ?? []).filter((r) => r.units).map(async (r) => {
+    const U = await getJSON(`us2026/${r.units}`, { optional: true }).catch(() => null);
+    const fl = U?.frames?.at?.(-1);
+    if (!fl) return;
+    U.unit_ids.forEach((id, j) => {
+      const v = fl.proj_poll?.[j] ?? fl.proj?.[j];
+      const b = U.prior?.[j];
+      if (!(b >= 0)) return;
+      if (v >= 0) proj.set(id, (v - b) / 5); // ‰ of the two-party vote → margin points: × 2 / 10
+      if (fl.f?.[j] > 0 && fl.a?.[j] >= 0) counted.set(id, (fl.a[j] - b) / 5);
+    });
+  }));
+  return (H.cproj[office] = { proj, counted });
+}
 
 export function loadHouse() {
   H.loading ??= (async () => {
@@ -68,110 +107,178 @@ export function loadHouse() {
   return H.loading;
 }
 export const houseDistrict = (id) => (H.files?.districts?.districts?.[id] ? { id, ...H.files.districts.districts[id] } : null);
+export const houseDistrictIds = () => Object.keys(H.files?.districts?.districts ?? {}).sort();
 
 // container: the map box. onSelect(id | null): a district picked; onState(st | null): the view
-// zoomed to a state or back to the country.
-// top(): where the layer's controls start (below the page's own controls over the map), px
+// zoomed to a state or back to the country. top(): where the layer's controls start (below the
+// page's own controls over the map), px.
+// kind: "house" (districts), "census" (counties by a census figure) or "arrows" (counties as a
+// ground for swing arrows; office "senate" | "governor" for the projected and counted arrows).
 export function createOverlay(container, { onSelect, onState, top = () => 52 } = {}) {
-  const st = { kind: null, mode: "best", lines: "2026", census: CENSUS[0][0], state: null, sel: null, k: { k: 1, x: 0, y: 0 }, w: 0, h: 0, home: null };
+  const st = { kind: null, mode: "best", lines: "2026", census: CENSUS[0][0], arrows: "proj", office: "senate", state: null, sel: null, k: { k: 1, x: 0, y: 0 }, w: 0, h: 0, home: null, geom: null };
   const box = document.createElement("div");
   box.className = "ov";
   box.hidden = true;
   box.innerHTML = `<svg class="ov-svg" role="img"></svg>
-    <div class="ov-ctl"><div class="toggle ov-modes" role="group" aria-label="Map colour"></div><div class="toggle ov-lines" role="group" aria-label="District lines"></div></div>
+    <div class="ov-ctl"><div class="toggle ov-modes" role="group" aria-label="Map colour"></div><div class="toggle ov-lines" role="group" aria-label="District lines"></div><div class="toggle ov-arrsel" role="group" aria-label="Arrows compare"></div></div>
     <div class="ov-legend map-legend"></div><div class="place-card ov-card" hidden></div>`;
   container.appendChild(box);
   const svg = d3.select(box.querySelector("svg"));
   const card = box.querySelector(".ov-card");
-  let g = null, path = null, proj = null, features = [];
+  let g = null, path = null, proj = null, features = [], arrowData = new Map();
+  const reduce = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const arrowsOn = () => st.kind === "arrows" || (st.kind === "house" && st.mode === "swing");
 
+  // the layer fades in over the county map once drawn, and fades out (CSS opacity, FADE_MS)
   async function show(kind, opts = {}) {
     Object.assign(st, opts);
     st.kind = kind;
-    box.hidden = false;
-    container.classList.add("ov-on");
     if (kind === "house") await loadHouse();
     await draw();
+    if (st.kind !== kind) return;
+    box.hidden = false;
+    container.classList.add("ov-on");
+    requestAnimationFrame(() => box.classList.add("in"));
   }
   function hide() {
     st.kind = null;
-    box.hidden = true;
     card.hidden = true;
+    box.classList.remove("in");
     container.classList.remove("ov-on");
+    setTimeout(() => { if (!st.kind) box.hidden = true; }, reduce() ? 0 : FADE_MS + 20);
   }
 
   // the controls of the layer shown
   function controls() {
-    const modes = box.querySelector(".ov-modes"), lines = box.querySelector(".ov-lines");
+    const modes = box.querySelector(".ov-modes"), lines = box.querySelector(".ov-lines"), arr = box.querySelector(".ov-arrsel");
     if (st.kind === "house") {
       const mode = MODES.find((m) => m[0] === st.mode);
+      const only26 = mode[2] === "2026" || (st.mode === "swing" && st.arrows === "proj");
       modes.innerHTML = MODES.map(([k, l]) => `<button type="button" data-mode="${k}" aria-pressed="${k === st.mode}">${l}</button>`).join("");
-      lines.innerHTML = ["2026", "2024"].map((l) => `<button type="button" data-lines="${l}" aria-pressed="${l === st.lines}"${mode[2] === "2026" && l === "2024" ? " disabled" : ""}>${l} lines</button>`).join("");
+      lines.innerHTML = ["2026", "2024"].map((l) => `<button type="button" data-lines="${l}" aria-pressed="${l === st.lines}"${only26 && l === "2024" ? " disabled" : ""}>${l} lines</button>`).join("");
       lines.hidden = false;
-      modes.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { st.mode = b.dataset.mode; if (MODES.find((m) => m[0] === st.mode)[2] === "2026") st.lines = "2026"; draw(); }));
+      modes.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { st.mode = b.dataset.mode; if (MODES.find((m) => m[0] === st.mode)[2] === "2026" || (st.mode === "swing" && st.arrows === "proj")) st.lines = "2026"; draw(); }));
       lines.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { st.lines = b.dataset.lines; st.sel = null; draw(); }));
     } else {
       modes.innerHTML = "";
       lines.hidden = true;
     }
+    arr.hidden = !arrowsOn();
+    if (arrowsOn()) {
+      const live = st.kind === "arrows" && (H.cproj?.[st.office]?.counted.size ?? 0) > 0;
+      arr.innerHTML = ARROWS.map(([k, l]) => `<button type="button" data-arr="${k}" aria-pressed="${k === st.arrows}"${k === "live" && !live ? ` disabled title="Once counting starts${st.kind === "house" ? " (counties of the Senate and governor races; no district count is published)" : ""}"` : ""}>${l}</button>`).join("");
+      arr.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { st.arrows = b.dataset.arr; if (st.arrows === "proj") st.lines = "2026"; draw(); }));
+    }
   }
 
+  // The geometry of a layer kind: the districts on the given lines, or the counties.
+  async function geometry(kind, lines) {
+    if (kind === "house") {
+      await loadHouse();
+      if (!H.topo[lines]) {
+        // the 2026 lines' figures are districts.json (loaded with the House files); the 2024 lines' districts_2024.json
+        const [t, d] = await Promise.all([getJSON(`geo/us_house_${lines}.topo.json`), H.data[lines] ? Promise.resolve(H.data[lines]) : getJSON(`${ROOT}districts_2024.json`)]);
+        H.topo[lines] = t; H.data[lines] = d;
+      }
+      const topo = H.topo[lines];
+      return { topo, obj: topo.objects.districts, geom: `districts${lines}`, idOf: (f) => f.properties.id, stOf: (f) => f.properties.st.toLowerCase() };
+    }
+    H.counties ??= await getJSON("geo/us_counties.topo.json");
+    const idOf = (f) => f.properties?.unit_id ?? f.id;
+    return { topo: H.counties, obj: H.counties.objects.counties, geom: "counties", idOf, stOf: (f) => idOf(f).split("-")[1] };
+  }
+  // the map's top edge: room for the page's controls and this layer's own. A fixed share of the box
+  // (not the controls' measured height, which changes with the office) so a layer built ahead of
+  // use still fits when shown
+  const fitTop = () => Math.round(Math.min(130, 0.22 * container.getBoundingClientRect().height));
+  function place() {
+    box.querySelector(".ov-ctl").style.top = `${Math.round(top())}px`;
+    st.top = fitTop();
+    const r = container.getBoundingClientRect();
+    return [Math.max(320, r.width), Math.max(240, r.height)];
+  }
+
+  // Draw the layer. Each geometry (districts on a set of lines, counties) is built once per size and
+  // kept: switching between them cross-fades one built layer over the other, and a new colouring of
+  // the same layer cross-fades its fills (no rebuild, no blank frame); the arrows fade likewise.
   async function draw() {
     const token = (st.token = (st.token ?? 0) + 1); // a newer draw (resize, mode) supersedes this one
+    if (st.kind === "arrows" && st.arrows !== "past") await countyRaces(st.office);
+    const G = await geometry(st.kind, st.lines);
     controls();
-    const ctl = box.querySelector(".ov-ctl");
-    ctl.style.top = `${Math.round(top())}px`;
-    st.top = ctl.offsetTop + ctl.offsetHeight + 6;
-    const r = container.getBoundingClientRect();
-    st.w = Math.max(320, r.width); st.h = Math.max(240, r.height);
-    let topo, obj, fill, idOf, stOf;
+    const [w, h] = place();
+    let fill;
     if (st.kind === "house") {
-      await loadHouse(); // a resize can redraw before show() has the files
-      if (!H.topo[st.lines]) {
-        // the 2026 lines' figures are districts.json (loaded above); the 2024 lines' districts_2024.json
-        const [t, d] = await Promise.all([getJSON(`${ROOT}districts_${st.lines}.topo.json`), H.data[st.lines] ? Promise.resolve(H.data[st.lines]) : getJSON(`${ROOT}districts_2024.json`)]);
-        H.topo[st.lines] = t; H.data[st.lines] = d;
-      }
-      topo = H.topo[st.lines]; obj = topo.objects.districts;
       const data = H.data[st.lines].districts, mode = MODES.find((m) => m[0] === st.mode);
-      idOf = (f) => f.properties.id; stOf = (f) => f.properties.st.toLowerCase();
-      fill = (f) => { const d = data[idOf(f)]; return d ? mode[3]({ id: idOf(f), ...d }) : null; };
+      fill = (f) => { const d = data[G.idOf(f)]; return d ? mode[3]({ id: G.idOf(f), ...d }) : null; };
       svg.attr("aria-label", `US House districts, ${mode[1]}`);
-    } else {
+    } else if (st.kind === "census") {
       H.census ??= await getJSON("us2026/hub/census.json", { optional: true });
-      H.counties ??= await getJSON("geo/us_counties.topo.json");
-      topo = H.counties; obj = topo.objects.counties;
       const [k, label, , div] = CENSUS.find((c) => c[0] === st.census);
       const vals = Object.values(H.census?.counties ?? {}).map((c) => c[k]).filter((v) => v != null);
       const colour = div ? d3.scaleDiverging([-10, 0, 10], d3.interpolateBrBG).clamp(true) : d3.scaleSequentialQuantile(vals, d3.interpolate("#ece9e1", "#3d5a40"));
-      idOf = (f) => f.properties?.unit_id ?? f.id; stOf = (f) => idOf(f).split("-")[1];
-      fill = (f) => { const v = H.census?.counties?.[idOf(f)]?.[k]; return v == null ? null : colour(v); };
+      fill = (f) => { const v = H.census?.counties?.[G.idOf(f)]?.[k]; return v == null ? null : colour(v); };
       svg.attr("aria-label", `Counties, ${label}`);
+    } else {
+      fill = () => NEUTRAL;
+      svg.attr("aria-label", "Counties, swing arrows");
     }
+    if (arrowsOn()) await arrowValues();
     if (token !== st.token || !st.kind) return;
-    svg.attr("viewBox", `0 0 ${st.w} ${st.h}`).attr("width", st.w).attr("height", st.h);
-    svg.selectAll("*").remove();
-    svg.append("defs").html(`<pattern id="ov-hatch" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#efede7"/><path d="M0 6L6 0M-1 1L1 -1M5 7L7 5" stroke="#c9c6bd" stroke-width="1"/></pattern>`);
-    const fc = topojson.feature(topo, obj);
-    features = fc.features;
-    proj = d3.geoAlbersUsa().fitExtent([[10, st.top], [st.w - 10, st.h - 40]], fc);
-    path = d3.geoPath(proj);
-    st.home = { k: 1, x: 0, y: 0 };
-    g = svg.append("g").attr("class", "ov-g");
-    g.selectAll("path.f").data(features).join("path").attr("class", "f").attr("d", path)
-      .attr("fill", (f) => fill(f) ?? "url(#ov-hatch)").attr("data-id", idOf).attr("data-fill", (f) => (fill(f) ? "colour" : "hatch"))
-      .attr("stroke", "#fff").attr("stroke-width", st.kind === "house" ? 0.5 : 0.2).attr("vector-effect", "non-scaling-stroke")
-      .on("pointermove", (ev, f) => hover(ev, idOf(f), stOf(f))).on("pointerleave", () => { card.hidden = true; g.select(".hl").remove(); })
-      .on("click", (ev, f) => click(idOf(f), stOf(f)));
-    g.append("path").attr("class", "ov-states").datum(topojson.mesh(topo, obj, (a, b) => a !== b && stOf(a) !== stOf(b))).attr("d", path)
-      .attr("fill", "none").attr("stroke", "#fff").attr("stroke-width", 1.6).attr("vector-effect", "non-scaling-stroke").attr("pointer-events", "none");
-    if (st.kind === "house" && st.mode === "swing") await arrows();
+    st.w = w; st.h = h;
+    const L = layer(G, w, h);
+    const prev = g, switched = prev !== L.g;
+    g = L.g; features = L.features; proj = L.proj; path = L.path; st.geom = G.geom;
+    // the fills: cross-fade on the layer already shown, set at once on a layer coming in
+    const sel = g.selectAll("path.f").attr("data-fill", (f) => (fill(f) ? "colour" : "hatch"));
+    (switched || reduce() || box.hidden ? sel : sel.transition().duration(FADE_MS)).attr("fill", (f) => fill(f) ?? "url(#ov-hatch)");
+    if (switched) {
+      st.k = st.state ? fitState(st.state) : st.home;
+      g.attr("transform", tf(st.k)).style("display", null).attr("pointer-events", null);
+      if (prev && !reduce() && !box.hidden) {
+        g.attr("opacity", 0).transition().duration(FADE_MS).attr("opacity", 1);
+        prev.attr("pointer-events", "none").transition().duration(FADE_MS).attr("opacity", 0).on("end", () => prev.style("display", "none").attr("opacity", 1));
+      } else {
+        g.attr("opacity", 1);
+        prev?.style("display", "none");
+      }
+    }
+    drawArrows(switched);
     if (st.kind === "house" && st.sel) outline(st.sel, "ov-sel");
     legend();
-    // keep the zoomed state after a redraw (mode or lines changed)
-    st.k = st.state ? fitState(st.state) : st.home;
-    g.attr("transform", tf(st.k));
-    g.selectAll(".ov-arrows path").attr("stroke-width", 1 / st.k.k);
+  }
+  // a built layer for a geometry at this size (from the cache, or built now, hidden)
+  const layers = new Map();
+  function layer(G, w, h) {
+    let L = layers.get(G.geom);
+    if (L && L.w === w && L.h === h && L.top === st.top) return L;
+    if (L) { if (L.g === g) g = null; L.g.remove(); }
+    svg.attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h);
+    if (svg.select("defs").empty()) svg.append("defs").html(`<pattern id="ov-hatch" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#efede7"/><path d="M0 6L6 0M-1 1L1 -1M5 7L7 5" stroke="#c9c6bd" stroke-width="1"/></pattern>`);
+    const fc = topojson.feature(G.topo, G.obj);
+    const pr = d3.geoAlbersUsa().fitExtent([[10, st.top], [w - 10, h - 40]], fc), pa = d3.geoPath(pr);
+    const lg = svg.append("g").attr("class", "ov-g").style("display", "none");
+    lg.selectAll("path.f").data(fc.features).join("path").attr("class", "f").attr("d", pa).attr("fill", NEUTRAL).attr("data-id", G.idOf)
+      .attr("stroke", "#fff").attr("stroke-width", G.geom === "counties" ? 0.2 : 0.5).attr("vector-effect", "non-scaling-stroke")
+      .on("pointermove", (ev, f) => hover(ev, G.idOf(f), G.stOf(f))).on("pointerleave", () => { card.hidden = true; g?.select(".hl").remove(); })
+      .on("click", (ev, f) => click(G.idOf(f), G.stOf(f)));
+    lg.append("path").attr("class", "ov-states").datum(topojson.mesh(G.topo, G.obj, (a, b) => a !== b && G.stOf(a) !== G.stOf(b))).attr("d", pa)
+      .attr("fill", "none").attr("stroke", "#fff").attr("stroke-width", 1.6).attr("vector-effect", "non-scaling-stroke").attr("pointer-events", "none");
+    // centroids for the arrows: districts by id, in this layer's coordinates
+    const centroids = G.geom.startsWith("districts") ? new Map(fc.features.map((f) => [G.idOf(f), pa.centroid(f)])) : null;
+    L = { g: lg, features: fc.features, proj: pr, path: pa, w, h, top: st.top, centroids };
+    layers.set(G.geom, L);
+    st.home = { k: 1, x: 0, y: 0 };
+    return L;
+  }
+  // Build a layer ahead of use (when the page is idle), so switching to it is only a cross-fade.
+  async function prepare(kind) {
+    const G = await geometry(kind, "2026");
+    const r = container.getBoundingClientRect();
+    if (r.width < 10 || st.kind) return;
+    st.top = fitTop();
+    layer(G, Math.max(320, r.width), Math.max(240, r.height));
+    if (kind !== "house") H.centroids ??= topojson.feature(H.counties, H.counties.objects.counties).features.map((f) => [f.properties?.unit_id ?? f.id, d3.geoCentroid(f)]);
   }
   const tf = (v) => `translate(${v.x},${v.y}) scale(${v.k})`;
   function outline(id, cls) {
@@ -180,34 +287,73 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     if (f) g.append("path").attr("class", cls).datum(f).attr("d", path).attr("fill", "none").attr("stroke", "#5f6368").attr("stroke-width", 1.4).attr("vector-effect", "non-scaling-stroke").attr("pointer-events", "none");
   }
 
-  // NYT-style arrows: one per county at its centroid, horizontal, length by |shift| (full length at
-  // 15 points), red to the right (towards Trump), blue to the left (towards Harris)
-  async function arrows() {
+  // The value behind each arrow, by district or county id: { shift (points, + = towards the
+  // Democrats), src, at }. proj: House districts, the projected 2026 margin minus Harris 2024 on the
+  // same lines; counties, the race's county projection minus the 2024 president margin. past: 2020
+  // → 2024 president by county. live: the counted share so far minus the 2024 president margin.
+  async function arrowValues() {
+    arrowData = new Map();
+    if (st.kind === "house" && st.arrows === "proj") {
+      for (const [id, d] of Object.entries(H.data[2026]?.districts ?? {})) {
+        const pm = projMargin({ id, ...d }), p24 = pres2p(d);
+        if (pm && p24 != null) arrowData.set(id, { shift: pm.v - p24, src: `${pm.src} vs Harris 2024`, at: "district" });
+      }
+      return;
+    }
     H.swing ??= await getJSON(`${ROOT}swing.json`, { optional: true });
-    H.counties ??= await getJSON("geo/us_counties.topo.json", { optional: true });
-    if (!H.swing || !H.counties) return;
-    H.centroids ??= topojson.feature(H.counties, H.counties.objects.counties).features.map((f) => [f.properties?.unit_id ?? f.id, d3.geoCentroid(f)]);
-    const L = 22, items = [];
-    for (const [id, ll] of H.centroids) {
-      const s = H.swing.counties[id];
-      if (!s || s[0] == null || s[1] == null) continue;
-      const c = proj(ll);
-      if (!c) continue;
-      const shift = s[1] - s[0]; // + = towards Harris
-      if (Math.abs(shift) < 0.25) continue;
-      const len = Math.max(2, L * Math.min(1, Math.abs(shift) / 15)), dir = shift > 0 ? -1 : 1;
+    H.counties ??= await getJSON("geo/us_counties.topo.json"); // county centroids for the arrows
+    if (st.arrows === "past") {
+      for (const [id, s] of Object.entries(H.swing?.counties ?? {})) if (s?.[0] != null && s?.[1] != null) arrowData.set(id, { shift: s[1] - s[0], src: "2020 → 2024 president", at: "county" });
+      return;
+    }
+    if (st.kind === "house") return; // live: no district count is published
+    const c = await countyRaces(st.office);
+    for (const [id, shift] of st.arrows === "live" ? c.counted : c.proj) {
+      arrowData.set(id, { shift, src: `${st.arrows === "live" ? "counted so far" : "projected (model estimate)"} vs 2024, two-party`, at: "county" });
+    }
+  }
+  // NYT-style arrows, horizontal: length by |shift| (full at ARROW_FULL points), blue to the left
+  // (towards the Democrats), red to the right (towards the Republicans), at each district's or
+  // county's centroid. The old set fades out as the new one fades in.
+  function drawArrows(fresh) {
+    const old = g.selectAll(".ov-arrows");
+    if (reduce() || fresh) old.remove(); else old.transition().duration(FADE_MS).attr("opacity", 0).remove();
+    if (!arrowsOn() || !arrowData.size) return;
+    const pts = [];
+    if ([...arrowData.values()][0].at === "district") {
+      const cs = layers.get(st.geom)?.centroids;
+      for (const [id, a] of arrowData) { const c = cs?.get(id); if (c) pts.push([c, a.shift]); }
+    } else {
+      H.centroids ??= topojson.feature(H.counties, H.counties.objects.counties).features.map((f) => [f.properties?.unit_id ?? f.id, d3.geoCentroid(f)]);
+      for (const [id, ll] of H.centroids) { const a = arrowData.get(id); if (a) pts.push([proj(ll), a.shift]); }
+    }
+    const items = [];
+    for (const [c, shift] of pts) {
+      if (!c || !Number.isFinite(c[0]) || Math.abs(shift) < 0.25) continue;
+      const len = Math.max(2, ARROW_L * Math.min(1, Math.abs(shift) / ARROW_FULL)), dir = shift > 0 ? -1 : 1;
       items.push(`<path d="M${c[0].toFixed(1)},${c[1].toFixed(1)}h${(dir * len).toFixed(1)}m${(-dir * 3).toFixed(1)},-2l${(dir * 3).toFixed(1)},2l${(-dir * 3).toFixed(1)},2" stroke="${shift > 0 ? DEM : REP}"/>`);
     }
-    g.append("g").attr("class", "ov-arrows").attr("fill", "none").attr("stroke-opacity", 0.75).attr("pointer-events", "none").html(items.join(""));
+    const a = g.append("g").attr("class", "ov-arrows").attr("fill", "none").attr("stroke-opacity", 0.8).attr("pointer-events", "none")
+      .attr("stroke-width", 1 / st.k.k).attr("opacity", reduce() || fresh ? 1 : 0).html(items.join(""));
+    if (!reduce() && !fresh) a.transition().duration(FADE_MS).attr("opacity", 1);
   }
 
   function legend() {
     const el = box.querySelector(".ov-legend");
     const hatch = `<span class="lg-none"></span> no data`;
-    if (st.kind === "house") {
+    if (arrowsOn()) {
+      const len = ARROW_L * 10 / ARROW_FULL;
+      const scale = `<svg width="${Math.ceil(len + 6)}" height="10" class="ov-scale" aria-hidden="true"><path d="M2,5h${len.toFixed(1)}m-3,-2l3,2l-3,2" stroke="#1b1b1b" fill="none"/></svg> 10 points (full length at ${ARROW_FULL} or more)`;
+      const what = st.kind === "house" && st.arrows === "proj"
+        ? "Each district: its projected 2026 margin (a model estimate, not a result: the market price read as a margin, else district polls, else the baseline) minus Harris 2024, two-party, on the same 2026 lines; the card says which."
+        : st.kind === "house" && st.arrows === "live" ? "No district count is published; counted arrows show for the Senate and governor counties."
+        : st.arrows === "past" ? "Each county: the shift from 2020 to 2024 (president), D minus R as a share of all votes in both years."
+        : st.arrows === "live" ? "Each county counting: the counted two-party margin so far minus the county's 2024 two-party margin (the model's baseline)."
+        : `Each county with a ${st.office === "governor" ? "governor" : "Senate"} race: its projected two-party margin (a model estimate, not a result: the race's model with polls) minus the county's 2024 two-party margin, the baseline the model shifts. Within a state the model moves every county by one uniform swing, so the arrows there are equal. No arrow: no county file.`;
+      el.innerHTML = `<p class="legend-note">${esc(what)} <span style="color:${DEM}">← towards the Democrats</span> · <span style="color:${REP}">towards the Republicans →</span> · ${scale}</p>`;
+    } else if (st.kind === "house") {
       const mode = MODES.find((m) => m[0] === st.mode);
-      el.innerHTML = st.mode === "swing" ? `<p class="legend-note">${esc(mode[4])} <span style="color:${REP}">→ Trump</span> <span style="color:${DEM}">← Harris</span></p>`
-        : `<p class="legend-note"><span class="ov-ramp" style="background:linear-gradient(90deg,${st.mode === "ev" ? `${EV(0)},${EV(1)}` : `${REP},${NEUTRAL},${DEM}`})"></span> ${esc(mode[4])} ${hatch}</p>`;
+      el.innerHTML = `<p class="legend-note"><span class="ov-ramp" style="background:linear-gradient(90deg,${st.mode === "ev" ? `${EV(0)},${EV(1)}` : `${REP},${NEUTRAL},${DEM}`})"></span> ${esc(mode[4])} ${hatch}</p>`;
     } else {
       const [, label, , div] = CENSUS.find((c) => c[0] === st.census);
       el.innerHTML = `<p class="legend-note"><span class="ov-ramp" style="background:linear-gradient(90deg,${div ? "#8c510a,#f5f5f5,#01665e" : "#ece9e1,#3d5a40"})"></span> ${esc(label)}: ${div ? "brown, shrinking; teal, growing (full colour at ±10%)" : "darker is higher (by county rank)"}. ${hatch}. ${esc(H.census?.fields?.[st.census] ?? "")}</p>`;
@@ -215,16 +361,19 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
   }
 
   function cardHTML(id) {
-    if (st.kind === "census") {
-      const c = H.census?.counties?.[id];
+    if (st.kind !== "house") {
       const f = features.find((x) => (x.properties?.unit_id ?? x.id) === id);
+      const name = `<p class="pc-name"><b>${esc(f?.properties?.name ?? id)}</b></p>`;
+      if (st.kind === "arrows") { const a = arrowData.get(id); return `${name}<p>${a ? `${marginText(a.shift)} <small>${esc(a.src)}</small>` : "No figure for this county."}</p>`; }
+      const c = H.census?.counties?.[id];
       const [k, label, fmt] = CENSUS.find((x) => x[0] === st.census);
-      return `<p class="pc-name"><b>${esc(f?.properties?.name ?? id)}</b></p><p>${esc(label)}: ${c?.[k] != null ? fmt(c[k]) : "no data"}</p>`;
+      return `${name}<p>${esc(label)}: ${c?.[k] != null ? fmt(c[k]) : "no data"}</p>`;
     }
     const d = H.data[st.lines]?.districts?.[id], m = st.lines === "2026" ? mkt(id) : null, e = st.lines === "2026" ? H.ev?.districts?.[id] : null;
     if (!d) return "";
-    const h = h24(d), b = st.lines === "2026" ? best({ id, ...d }) : null;
+    const h = h24(d), b = st.lines === "2026" ? best({ id, ...d }) : null, arrow = arrowsOn() ? arrowData.get(id) : null;
     const rows = [
+      arrow && ["Arrow", `${marginText(arrow.shift)} <small>${esc(arrow.src)}</small>`],
       b && ["Chance (D)", `${num(b.p)} <small>${esc(b.src)}</small>`],
       m?.pm && ["Polymarket", `${num(m.pm.p)}${m.pm.cands?.D ? ` <small>${esc(m.pm.cands.D)} (D) v ${esc(m.pm.cands.R ?? "–")} (R)</small>` : ""}`],
       m?.kalshi && ["Kalshi", num(m.kalshi.p)],
@@ -238,7 +387,7 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     ].filter(Boolean);
     return `<p class="pc-name"><b>${esc(id)}</b>${d.redrawn ? " <small>new lines</small>" : ""}</p><table class="kv"><tbody>${rows.map(([k, v]) => `<tr><td>${k}</td><td class="n">${v}</td></tr>`).join("")}</tbody></table><p class="pc-hint">${st.state ? "Click to select." : "Click for the state's districts."}</p>`;
   }
-  function hover(ev, id, s) {
+  function hover(ev, id) {
     const html = cardHTML(id);
     if (!html) { card.hidden = true; return; }
     card.innerHTML = html;
@@ -269,7 +418,7 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     const k = Math.min(40, 0.9 * Math.min(st.w / Math.max(1, x1 - x0), (st.h - 40 - st.top) / Math.max(1, y1 - y0)));
     return { k, x: st.w / 2 - k * (x0 + x1) / 2, y: (st.top + st.h - 40) / 2 - k * (y0 + y1) / 2 };
   }
-  // zoom to a state, or back to the whole country (null), animated
+  // zoom to a state, or back to the whole country (null), animated; the arrows keep their width
   function focus(s, animate = true) {
     st.state = s || null;
     if (!s) { st.sel = null; g?.select(".ov-sel").remove(); }
@@ -277,23 +426,27 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
     if (!g) return;
     const from = st.k, ip = d3.interpolateObject(from, to);
     st.k = to;
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (!animate || reduce) g.attr("transform", tf(to));
+    g.selectAll(".ov-arrows").attr("stroke-width", 1 / to.k);
+    if (!animate || reduce()) g.attr("transform", tf(to));
     else g.transition().duration(ZOOM_MS).ease(d3.easeCubicInOut).attrTween("transform", () => (t) => tf(ip(t)));
     onState?.(st.state);
   }
 
   return {
-    show, hide, focus, select,
+    show, hide, focus, select, prepare,
+    // end a district selection (its outline goes; the page has moved to a race)
+    deselect() { st.sel = null; g?.select(".ov-sel").remove(); },
     get kind() { return st.kind; },
     get state() { return st.state; },
     get selected() { return st.sel; },
     setCensus(k) { st.census = k; if (st.kind === "census") draw(); },
+    setArrows(k) { st.arrows = k; return st.kind ? draw() : null; },
     resize() { if (st.kind) draw(); },
     // for the map checks: what is drawn, the view and a card's text
     audit: () => ({
-      kind: st.kind, mode: st.mode, lines: st.lines, state: st.state, sel: st.sel, view: { ...st.k }, home: { ...st.home },
+      kind: st.kind, mode: st.mode, lines: st.lines, arrows: arrowsOn() ? st.arrows : null, state: st.state, sel: st.sel, view: { ...st.k }, home: { ...st.home },
       n: features.length, colour: g ? g.selectAll("path.f[data-fill=colour]").size() : 0, hatch: g ? g.selectAll("path.f[data-fill=hatch]").size() : 0,
+      nArrows: g ? g.selectAll(".ov-arrows path").size() : 0, built: [...layers].map(([k, L]) => `${k} ${L.w}x${L.h}@${L.top}`),
       ids: features.map((f) => f.properties?.id ?? f.properties?.unit_id ?? f.id),
     }),
     cardText: (id) => { const d = document.createElement("div"); d.innerHTML = cardHTML(id); return [...d.children].map((c) => c.textContent).join("\n"); },

@@ -291,6 +291,24 @@ async def audit_house(page: Page, shots: Path | None, tag: str) -> list[Row]:
         if L["state"] or L["sel"] or abs(v["k"] - h["k"]) > 1e-6 or abs(v["x"] - h["x"]) > 0.5 or abs(v["y"] - h["y"]) > 0.5:
             back.append(f"{how}: state {L['state']}, view {v}")
     rows.append(Row(name, "f back", not back, "; ".join(back) or "2 returns to the whole country"))
+    # g: one selection. A district, then Georgia Senate from the selector: the selector, readout,
+    # chart, the polls tab and the address all show Georgia Senate; then back to the district.
+    sel_bad = []
+    await page.click("#tab-polls")
+    await page.evaluate(f"{A}.selectKey('house:MT-01')")
+    await settle(page, 1500)
+    await page.select_option("#race", "ga-sen")
+    await settle(page, 2500)
+    s = await page.evaluate(f"{A}.selection()")
+    if s["selector"] != "ga-sen" or "MT-01" in s["chart"] or "MT-01" in s["readout"] or "Georgia" not in s["tab"] or "race=ga-sen" not in s["url"]:
+        sel_bad.append(f"district → Georgia Senate: selector {s['selector']}, chart {s['chart'][:40]!r}, tab {s['tab'][:40]!r}, url {s['url']}")
+    await page.select_option("#race", "house:MT-01")
+    await settle(page, 2500)
+    s = await page.evaluate(f"{A}.selection()")
+    if s["selector"] != "house:MT-01" or "MT-01" not in s["chart"] or "MT-01" not in s["readout"] or "MT-01" not in s["tab"] or "race=house%3AMT-01" not in s["url"]:
+        sel_bad.append(f"Georgia Senate → MT-01: selector {s['selector']}, chart {s['chart'][:40]!r}, tab {s['tab'][:40]!r}, url {s['url']}")
+    await page.click("#tab-races")
+    rows.append(Row(name, "g selection", not sel_bad, "; ".join(sel_bad) or "district ⇄ Georgia Senate: selector, readout, chart, tab and address agree"))
     await page.evaluate(f"{A}.setOffice('senate')")
     await settle(page, 600)
     return rows

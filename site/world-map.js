@@ -11,7 +11,7 @@
 // geo/<cc>_regions.topo.json from analysis/geo_build.py.
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { C, esc, fmtDate, getJSON, modelP, num, shortName, genericNo } from "./common.js";
+import { C, esc, fmtDate, getJSON, modelP, num, shortName, genericNo, crossDocTransitions } from "./common.js";
 import { bandColours, bandColour, bandOf } from "./dash-agg.js";
 import { stateName as usStateName } from "./dash-national.js";
 
@@ -554,7 +554,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
   // a short fade before the dashboard loads (its map opens framed on the same country)
   function leave(url) {
     if (!url) return;
-    if (reducedMotion()) { location.href = url; return; }
+    if (reducedMotion() || crossDocTransitions()) { location.href = url; return; }
     document.body.classList.add("leaving");
     setTimeout(() => { location.href = url; }, 220);
   }

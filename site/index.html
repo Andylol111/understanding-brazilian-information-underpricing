@@ -6,6 +6,12 @@
 <title>Election-night counts and market prices</title>
 <meta name="description" content="How well a model that projects the final result from the public count did on election night, compared minute by minute with Polymarket prices, and what money its signals could have made.">
 <link rel="stylesheet" href="style.css">
+<!-- a cross-document view transition into this page: its modules load once it is over (window.__afterReveal) -->
+<script>
+addEventListener("pagereveal", (e) => { window.__vtDone = e.viewTransition ? e.viewTransition.finished.catch(() => {}) : null; }, { once: true });
+// the page's modules load once a view transition into it is over (at most 700 ms), so its frames run free
+window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtDone ? Promise.race([window.__vtDone, new Promise((s) => setTimeout(s, 700))]).then(r) : r()); if (window.__vtDone !== undefined) go(); else { addEventListener("pagereveal", go, { once: true }); setTimeout(r, 200); } });
+</script>
 </head>
 <body class="home">
 <main>
@@ -108,6 +114,6 @@
 
 </main>
 <script src="load-error.js"></script>
-<script type="module">import("./landing.js").catch(window.__showLoadError);</script>
+<script type="module">window.__afterReveal().then(() => import("./landing.js")).catch(window.__showLoadError);</script>
 </body>
 </html>

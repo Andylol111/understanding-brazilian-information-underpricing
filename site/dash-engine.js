@@ -16,6 +16,7 @@ const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4, turnout: 0.2 }; // value at
 // turnout vs expected: brown below, teal above (not the parties' red and blue)
 const TURN_LUT = d3.range(201).map((j) => d3.interpolateBrBG(j / 200));
 const NONE = "#efede7", NEUTRAL = "#f4f2ec";
+const XFADE_MS = 300; // a change of map colouring (mode) cross-fades over this long
 const WIN_FULL = 0.3; // margin (share points / 100) at which a party's colour is full
 // leader colour of unit j for a margin in points (side a minus side b). A projection that reads
 // exactly even (stored in thousandths) takes the side of the unit's finer figures (tieBreak) when
@@ -356,7 +357,11 @@ export function control(msg) {
       R.cache.clear();
       break;
     }
-    case "paint": Object.assign(R, { mode: msg.mode, t: msg.t, tween: msg.tween }); break;
+    case "paint":
+      // a new colouring (mode): the old fills fade out over the new ones for XFADE_MS
+      if (msg.mode !== R.mode && R.drawn && !msg.tween) R.xfade = { units: R.drawn, regions: R.drawnRegion, t0: performance.now() };
+      Object.assign(R, { mode: msg.mode, t: msg.t, tween: msg.tween });
+      break;
     default: return;
   }
   schedule();
@@ -524,6 +529,8 @@ function draw() {
   if (!ctx || !R.w || !R.n) return;
   const t0 = performance.now();
   paint(ctx);
+  // a cross-fade in progress: the next frame in ~16 ms until it ends
+  if (R.xfade && !R.xfadeTimer) R.xfadeTimer = setTimeout(() => { R.xfadeTimer = 0; R.scheduled = false; draw(); }, 16);
   R.drawMs.push(performance.now() - t0);
   if (R.lastCols && !R.painted++) emit({ type: "painted", at: performance.timeOrigin + performance.now() });
   if (R.drawMs.length >= 30) { emit({ type: "drawStats", ms: R.drawMs }); R.drawMs = []; }
@@ -541,6 +548,11 @@ function paint(ctx) {
   const hatch = R.hatch?.size ? hatchPattern(ctx, px) : null;
   let hatchFill = null; // the same hatch for units and regions without data, made on first use
   const noDataFill = () => hatch ?? (hatchFill ??= hatchPattern(ctx, px));
+  // the cross-fade from the previous colouring: its fills over the new ones at 1 - progress
+  const xf = R.xfade ? Math.min(1, (performance.now() - R.xfade.t0) / XFADE_MS) : 1;
+  const old = xf < 1 ? R.xfade : null;
+  if (xf >= 1) R.xfade = null;
+  const styleOf = (s) => (s === "hatch" ? noDataFill() : s === "ground" ? NONE : s);
   const hidden = R.hidden;
   // what each unit and region was last filled with ("hatch", "ground" or a colour), for audit()
   const drawn = (R.drawn = new Array(R.n)), drawnRegion = (R.drawnRegion = new Map());
@@ -563,6 +575,13 @@ function paint(ctx) {
       ctx.fillStyle = s;
       for (const i of g) ctx.fill(paths[i]);
     }
+    if (old) {
+      const ga = ctx.globalAlpha, prev = new Map();
+      for (const i of list) { const s = old.units[i]; if (s !== undefined && s !== drawn[i]) { const g = prev.get(s); if (g) g.push(i); else prev.set(s, [i]); } }
+      ctx.globalAlpha = ga * (1 - xf);
+      for (const [s, g] of prev) { ctx.fillStyle = styleOf(s); for (const i of g) ctx.fill(paths[i]); }
+      ctx.globalAlpha = ga;
+    }
   };
   const nat = R.natColours;
   // a region layer: the national map's state colours (nat) or the units' region totals (aggregate)
@@ -580,6 +599,8 @@ function paint(ctx) {
         ctx.fillStyle = r == null ? NONE : noData ? noDataFill() : c;
         drawnRegion.set(r, r == null ? "ground" : noData ? "hatch" : c);
         ctx.fill(p);
+        const was = old?.regions?.get(r);
+        if (was !== undefined && was !== drawnRegion.get(r)) { const ga = ctx.globalAlpha; ctx.globalAlpha = ga * (1 - xf); ctx.fillStyle = styleOf(was); ctx.fill(p); ctx.globalAlpha = ga; }
       }
     }
     const others = [];
