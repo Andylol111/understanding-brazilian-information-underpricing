@@ -395,7 +395,7 @@ async function load() {
       getJSON("geo/world.topo.json", { root: STATIC })
         .then((topo) => {
           window.__worldFrames = [];
-          const wm = createWorldMap($("world"), { topo, elections, href, countryName, frames: window.__worldFrames });
+          const wm = createWorldMap($("world"), { topo, elections, href, countryName, dataRoot: rootOf, frames: window.__worldFrames });
           // back from an election's breadcrumb: open on its country and zoom out to the world
           const from = elections.find((e) => e.id === new URLSearchParams(location.search).get("from"));
           if (from?.country) wm.arrive(from.country.toUpperCase());

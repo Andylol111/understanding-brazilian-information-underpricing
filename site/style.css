@@ -596,20 +596,26 @@ table.nat-races .ring { display: inline-block; width: 8px; height: 8px; border: 
 /* layer buttons (overlapping unit sets, e.g. NZ general / Māori electorates), under the mode buttons */
 .map-layers { top: 48px; left: 10px; margin: 0; flex-wrap: wrap; max-width: calc(100% - 150px); }
 .map-layers[hidden] { display: none; }
-/* ---------- homepage world map (world-map.js) ---------- */
+/* ---------- homepage world map (world-map.js): drawn like the election maps ---------- */
 .world { max-width: 1280px; margin: 8px auto 32px; }
+.wm-stage { position: relative; }
 .wm-box { position: relative; height: 70vh; min-height: 360px; max-height: 760px; overflow: hidden; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .wm-svg { display: block; touch-action: manipulation; }
-.wm-c { stroke: none; }
+.wm-c { stroke: none; transition: opacity 0.4s ease, fill 0.3s ease; }
 .wm-c.on { cursor: pointer; }
-.wm-c.on:hover, .wm-c.on:focus { stroke: var(--ink); stroke-width: 1.4; vector-effect: non-scaling-stroke; outline: none; }
-.wm-c { transition: opacity 0.4s ease; }
-.wm-c.dim { opacity: 0.35; }
-.wm-border { fill: none; stroke: #fcfbf8; stroke-width: 0.6; vector-effect: non-scaling-stroke; pointer-events: none; }
+.wm-c.on:focus { outline: none; }
+.wm-c.sel { fill: #c4501b; }
+.wm-c.sel.under { fill: #f4f2ec; } /* under the country's own regions (lakes, coastal slivers) */
+.wm-c.dim { opacity: 0.45; }
+.wm-border { fill: none; stroke: #fff; stroke-width: 0.8; vector-effect: non-scaling-stroke; pointer-events: none; }
+/* hover: a light wash and a dark outline, as on the election maps */
+.wm-hover { fill: rgba(255, 255, 255, 0.25); stroke: var(--ink); stroke-width: 1.4; vector-effect: non-scaling-stroke; pointer-events: none; }
+.wm-r { stroke: none; cursor: pointer; }
+.wm-r:focus { outline: none; }
+.wm-rborder { fill: none; stroke: #fff; stroke-width: 1.2; vector-effect: non-scaling-stroke; pointer-events: none; }
 .wm-hit { fill: transparent; cursor: pointer; }
-.wm-count { fill: #fcfbf8; font: 600 11px var(--sans); text-anchor: middle; pointer-events: none; }
-.wm-legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 14px; font: 12.5px var(--sans); color: var(--muted); background: rgba(252, 251, 248, 0.92); padding: 4px 8px; }
-.wm-legend i, .wm-list i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+.wm-count { fill: #fff; font: 600 11px var(--sans); text-anchor: middle; pointer-events: none; }
+.wm-zoomed .wm-mark { display: none; }
 .wm-card { width: 320px; }
 .wm-elections { list-style: none; margin: 4px 0 0; padding: 0; }
 .wm-elections li { margin: 0 0 6px; }
@@ -617,17 +623,28 @@ table.nat-races .ring { display: inline-block; width: 8px; height: 8px; border: 
 .wm-sum { color: var(--muted); font-size: 12px; }
 .wm-chooser { position: absolute; right: 16px; top: 16px; width: 340px; max-width: calc(100% - 32px); max-height: calc(100% - 32px); overflow-y: auto; background: var(--paper); border: 1px solid var(--ink); padding: 10px 12px; font: 14px/1.4 var(--sans); }
 .wm-chooser ul { list-style: none; margin: 6px 0 0; padding: 0; }
-.wm-chooser li a { display: block; padding: 7px 0; border-top: 1px solid var(--rule); text-decoration: none; color: var(--ink); }
+.wm-chooser li a { display: block; padding: 6px 0; border-top: 1px solid var(--rule); text-decoration: none; color: var(--ink); }
 .wm-chooser li a:hover, .wm-chooser li a:focus { background: #f4f2ec; outline: none; }
-.wm-chooser li a .wm-meta { display: block; }
+.wm-chooser .wm-el li a .wm-meta { display: block; }
+.wm-races li a { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.wm-lead { text-align: right; color: var(--muted); white-space: nowrap; }
+.wm-lead b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.wm-ch-sub { margin: 12px 0 0; font: 600 12px var(--sans); color: var(--muted); }
 .wm-ch-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0; }
-.wm-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; font: 13px var(--sans); }
+.wm-search { position: relative; margin: 0 0 8px; }
+.wm-search input { font: 15px var(--sans); padding: 7px 10px; width: min(460px, 100%); border: 1px solid var(--rule); border-radius: 3px; background: var(--paper); color: var(--ink); }
+.wm-hits { position: absolute; z-index: 6; left: 0; top: 100%; width: min(460px, 100%); list-style: none; margin: 2px 0 0; padding: 0; background: var(--paper); border: 1px solid var(--ink); font: 14px/1.35 var(--sans); }
+.wm-hits li { padding: 6px 10px; cursor: pointer; border-top: 1px solid var(--rule); }
+.wm-hits li:first-child { border-top: 0; }
+.wm-hits li[aria-selected="true"] { background: #f4f2ec; }
+.wm-hits .wm-none { color: var(--muted); cursor: default; }
+.wm-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; font: 13px var(--sans); }
 .wm-list button { font: inherit; padding: 5px 10px; border: 1px solid var(--rule); background: var(--paper); border-radius: 3px; cursor: pointer; color: var(--ink); }
 .wm-list button span { color: var(--muted); }
+/* phones: the search and the country list first, a smaller map, the panel under it */
 @media (max-width: 700px) {
-  .wm-box { height: 46vh; min-height: 240px; }
+  .wm-box { height: 42vh; min-height: 220px; }
   .wm-chooser { position: static; width: auto; max-width: none; max-height: none; margin-top: 8px; }
-  .wm-legend { position: static; background: none; padding: 6px 0 0; }
 }
 /* page cross-fade: out on the homepage when an election is chosen, in on the dashboard */
 body.leaving main { opacity: 0; transition: opacity 0.22s ease; }

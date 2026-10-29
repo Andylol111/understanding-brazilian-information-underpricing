@@ -192,15 +192,44 @@ def build_world(cache: Path, tmp: Path) -> None:
             sys.exit(f"{out}: no country with iso2 {need}")
 
 
+# Region outlines for the homepage's country view (one shape per state / province), dissolved
+# from the unit maps above: <country>_regions.topo.json, object "regions", id = the region code
+# in the unit ids ("us-tx-48001" -> "tx").
+REGION_SOURCES = {"us": ("us_counties", "counties"), "br": ("br_municipalities", "municipalities"),
+                  "ca": ("ca_districts", "districts"), "mx": ("mx_districts", "districts"), "hu": ("hu_districts", "districts")}
+
+
+def build_regions(cache: Path, tmp: Path) -> None:
+    for cc, (name, obj) in REGION_SOURCES.items():
+        src = OUT / f"{name}.topo.json"
+        if not src.exists():
+            sys.exit(f"{src}: missing; build the unit map first")
+        out = OUT / f"{cc}_regions.topo.json"
+        mapshaper(
+            "-i", str(src), "encoding=utf8",
+            "-each", "region=unit_id.split('-')[1]", f"target={obj}",
+            "-dissolve", "region", f"target={obj}",
+            "-rename-layers", "regions",
+            "-simplify", "weighted", "40%", "keep-shapes",
+            "-o", str(out), "format=topojson", "quantization=100000", "id-field=region",
+        )
+        doc = json.loads(out.read_text())
+        n = len(doc["objects"]["regions"]["geometries"])
+        size = out.stat().st_size
+        print(f"{out.name}: {n} regions, {size / 1e3:.0f} kB", file=sys.stderr)
+        if size > 500_000:
+            sys.exit(f"{out}: {size} bytes, over the 500 kB budget for the homepage")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("which", nargs="*", choices=["us", "br", "world"], help="default: all")
+    ap.add_argument("which", nargs="*", choices=["us", "br", "world", "regions"], help="default: all")
     ap.add_argument("--cache", type=Path, default=Path.home() / ".cache" / "brunder-geo")
     a = ap.parse_args()
     a.cache.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
-        for w in a.which or ["us", "br", "world"]:
-            {"us": build_us, "br": build_br, "world": build_world}[w](a.cache, Path(tmp))
+        for w in a.which or ["us", "br", "world", "regions"]:
+            {"us": build_us, "br": build_br, "world": build_world, "regions": build_regions}[w](a.cache, Path(tmp))
 
 
 if __name__ == "__main__":
