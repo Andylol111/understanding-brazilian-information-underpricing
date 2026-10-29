@@ -49,9 +49,22 @@ export const votesShort = (v) => {
 // The model's chance in a timeline row: the version with polls (P_v2) where an election has one,
 // else the count-only model (P). Rows with both also show P as "model without polls".
 export const modelP = (row) => row?.P_v2 ?? row?.P ?? null;
-// A race's short label (homepage panel and table): long market questions ("Will the National Party
-// win fewer than 25 seats in…") read by their first side's name ("National fewer than 25").
-export const shortName = (r) => r.short ?? (/^most-/.test(r.race_id) && r.a?.name ? `Most seats: ${r.a.name}` : r.name.length <= 40 ? r.name : r.a?.name ?? r.name);
+// A race's short label (homepage panel, table and search), with the question's context where the
+// first side's name alone would be ambiguous: "Alberta: most seats — Conservative", "Most seats:
+// National", "Next PM: Poilievre", "Popular vote: Liberals by 0-3", "Seat margin: Liberals by 25-49";
+// other long market questions read by their first side's name ("National 25–29").
+// regionName: the race's region by name, where it has one.
+export const shortName = (r, regionName = null) => {
+  if (r.short) return r.short;
+  const id = r.race_id ?? "", a = r.a?.name;
+  if (a && /^(?:[a-z]{2}-)?most-/.test(id)) return r.region ? `${regionName ?? r.region.toUpperCase()}: most seats — ${a}` : `Most seats: ${a}`;
+  if (a && /^pm-/.test(id)) return `Next PM: ${a}`;
+  if (a && /^(?:vote)?margin-/.test(id)) return `Popular vote: ${a}`;
+  if (a && /^seatmargin-/.test(id)) return `Seat margin: ${a}`;
+  return r.name.length <= 40 ? r.name : a ?? r.name;
+};
+// a yes/no market's "no" side ("No", "Not Carney", "Another party", "Other margin"): not a party
+export const genericNo = (side) => side?.id === "no" && /^(no\b|not |another |other )/i.test(side.name ?? "");
 // A US margin (Democratic minus Republican, points of the two-party vote): "D+2.5", "R+8.3", "even".
 export const marginText = (v) => (v == null || !Number.isFinite(v) ? "–" : Math.abs(v) < 0.05 ? "even" : `${v > 0 ? "D" : "R"}+${Math.abs(v).toFixed(1)}`);
 // Inverse of the standard normal distribution (Acklam's approximation; |error| < 1.2e-9): the

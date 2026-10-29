@@ -254,7 +254,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     if (best >= 0) return best;
     for (let j = cand.length - 1; j >= 0; j--) {
       const i = cand[j];
-      if (isPoint[i] || st.hidden?.[i]) continue;
+      if (isPoint[i] || st.hidden?.[i] || !ids[i]) continue; // a base layer (no unit id) is ground, not a unit
       if (bx < bounds[4 * i] || bx > bounds[4 * i + 2] || by < bounds[4 * i + 1] || by > bounds[4 * i + 3]) continue;
       if (hit.isPointInPath(hitPath(i), bx, by)) return i;
     }

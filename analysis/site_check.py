@@ -3,6 +3,10 @@
 The script serves site/ itself unless --base is supplied. It treats JavaScript page errors,
 permanent loading text, empty race/readout UI, and an undrawn map as failures. Console errors,
 failed requests, and HTTP errors are captured and printed with the affected page.
+
+At the desktop size it also runs the map checks of analysis/map_audit.py on the homepage's world
+map and country views and on every election's map (each level, mode, first and final frame):
+fills, final-frame winners, hover-card names, stray outlines and the legend.
 """
 
 from __future__ import annotations
@@ -21,6 +25,8 @@ from typing import Any
 from urllib.parse import urlencode
 
 from playwright.async_api import Browser, Page, async_playwright
+
+import map_audit
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
@@ -67,6 +73,9 @@ def cases() -> list[Case]:
     out.extend(Case(eid, f"election.html?{urlencode({'id': eid})}", "election") for eid in ELECTIONS)
     # Exercise the US county map as well as its default national state map.
     out.append(Case("us2026-ca-gov", f"election.html?{urlencode({'id': 'us2026', 'race': 'ca-gov'})}", "election"))
+    # Map checks (desktop only): the homepage's maps, then every election's map
+    out.append(Case("maps-home", "", "maps"))
+    out.extend(Case(f"maps-{e['id']}", e["id"], "maps") for e in map_audit.elections())
     return out
 
 
@@ -175,6 +184,11 @@ async def check_page(
         page.on("requestfailed", lambda request: result.diagnostics.append(f"request failed: {request.url} ({request.failure})"))
         page.on("response", lambda response: result.diagnostics.append(f"HTTP {response.status}: {response.url}") if response.status >= 400 else None)
         try:
+            if case.kind == "maps":
+                entry = next((e for e in map_audit.elections() if e["id"] == case.path), None)
+                rows = await (map_audit.audit_home(page, base, None, engine) if entry is None else map_audit.audit_election(page, base, entry, None, engine))
+                result.failures.extend(f"{r.map} {r.check}: {r.detail}" for r in rows if not r.ok)
+                return result
             await page.goto(base + case.path, wait_until="load", timeout=timeout * 1000)
             deadline = time.monotonic() + timeout
             current = await state(page, case.kind)
@@ -229,6 +243,7 @@ async def run(args: argparse.Namespace, base: str) -> int:
                 check_page(browser, engine, viewport_name, viewport, case, base, args.timeout, screenshots, semaphore)
                 for viewport_name, viewport in chosen_viewports.items()
                 for case in cases()
+                if case.kind != "maps" or viewport_name == "desktop"
             ]
             results = await asyncio.gather(*tasks)
             await browser.close()

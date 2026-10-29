@@ -11,8 +11,9 @@
 // geo/<cc>_regions.topo.json from analysis/geo_build.py.
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { C, esc, fmtDate, getJSON, modelP, num, shortName } from "./common.js";
+import { C, esc, fmtDate, getJSON, modelP, num, shortName, genericNo } from "./common.js";
 import { bandColours, bandColour, bandOf } from "./dash-agg.js";
+import { stateName as usStateName } from "./dash-national.js";
 
 const LAND = "#e6e4dd", ACCENT = "#e3b8a0", UNDER = "#f4f2ec", NO_RACE = "#efede7";
 const DEM = "#1f5fbf", REP = "#c8102e";
@@ -20,11 +21,40 @@ const STATUS_LABEL = { live: "Live", scheduled: "Before the count", replay: "Rep
 const RANK = { live: 0, scheduled: 1, replay: 2 };
 const ZOOM_MS = 900, FADE_MS = 350;
 const REGION_MAPS = new Set(["US", "BR", "CA", "MX", "HU", "NZ", "IL"]); // geo/<cc>_regions.topo.json
+const UNIT_MAPS = new Set(["NZ", "IL"]); // whose region file is the unit map itself (ids = unit ids)
 const RAD = Math.PI / 180;
 const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 const fold = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 // a chance as a pseudo-margin for the bands where a race has no projected share
 const pseudo = (p) => { const a = Math.abs(p - 0.5); return Math.sign(p - 0.5) * (a < 0.1 ? 0.5 : a < 0.25 ? 3 : a < 0.4 ? 10 : 20); };
+// yes/no markets that answer one question between them (one per party or person, or a margin's
+// bins): a family key and its label; null for a race of its own (two named sides)
+function familyOf(r) {
+  if (!genericNo(r.b)) return null;
+  const id = r.race_id ?? "";
+  let m;
+  if ((m = id.match(/^(?:([a-z]{2})-)?most-/))) return { key: `${m[1] ?? ""}most`, label: "Most seats" };
+  if (/^second-/.test(id)) return { key: "second", label: "Second-most seats" };
+  if (/^third-/.test(id)) return { key: "third", label: "Third-most seats" };
+  if (/^pm-/.test(id)) return { key: "pm", label: "Next prime minister" };
+  if (/^seatmargin-/.test(id)) return { key: "seatmargin", label: "Seat margin" };
+  if (/^(?:vote)?margin-/.test(id)) return { key: "votemargin", label: "Popular-vote margin" };
+  if ((m = id.match(/^(.+)-seats-/))) return { key: `${m[1]}-seats`, label: `${(r.a?.name ?? m[1]).split(/ (?=fewer|\d)/)[0]} seats` };
+  return null;
+}
+// regions without a market: the election maps' light diagonal hatch (dash-engine.js hatchPattern)
+let hatchTile = null;
+function hatchFor(ctx) {
+  if (!hatchTile) {
+    hatchTile = document.createElement("canvas");
+    hatchTile.width = hatchTile.height = 6;
+    const g = hatchTile.getContext("2d");
+    g.fillStyle = NO_RACE; g.fillRect(0, 0, 6, 6);
+    g.strokeStyle = "#c9c6bd"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(0, 6); g.lineTo(6, 0); g.moveTo(-1, 1); g.lineTo(1, -1); g.moveTo(5, 7); g.lineTo(7, 5); g.stroke();
+  }
+  return ctx.createPattern(hatchTile, "repeat");
+}
 
 // The projection a country's election map uses (dash-engine.js projectionFor), as a raw projection
 // and rotation (to blend from the world's) and as a full d3 projection (for the settled view).
@@ -214,11 +244,11 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
       ctx.globalAlpha = st.regionMix;
       const rg = new Map();
       for (const f of st.regions.features) {
-        const c = st.data?.colours.get(f.id) ?? NO_RACE;
+        const c = st.data?.colours.get(f.id) ?? "hatch";
         if (!rg.has(c)) rg.set(c, []);
         rg.get(c).push(f);
       }
-      for (const [c, list] of rg) { ctx.beginPath(); for (const f of list) path(f); ctx.fillStyle = c; ctx.fill(); }
+      for (const [c, list] of rg) { ctx.beginPath(); for (const f of list) path(f); ctx.fillStyle = c === "hatch" ? hatchFor(ctx) : c; ctx.fill(); }
       ctx.beginPath(); path(st.regions.mesh);
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.2; ctx.stroke();
       ctx.globalAlpha = 1;
@@ -227,7 +257,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
     if (st.hover && !st.anim) {
       ctx.beginPath(); path(st.hover);
       ctx.fillStyle = "rgba(255,255,255,0.25)"; ctx.fill();
-      ctx.strokeStyle = "#1b1b1b"; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.strokeStyle = "#5f6368"; ctx.lineWidth = 1; ctx.stroke();
     }
     // election counts on the world view (small countries stay findable)
     if (!chosen && st.t === 0) {
@@ -309,17 +339,23 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
   canvas.addEventListener("pointermove", (ev) => {
     const h = hit(ev);
     const f = h && (h.kind === "region" || h.f.properties.iso2 !== st.code) ? h.f : null;
-    canvas.style.cursor = f ? "pointer" : "default";
+    canvas.style.cursor = f && (h.kind !== "region" || st.data?.regionLink.has(f.id)) ? "pointer" : "default";
     if (f !== st.hover) { st.hover = f; draw(); }
     if (!f) { card.hidden = true; return; }
-    if (h.kind === "region") showCard(`<p class="pc-name"><b>${st.data?.regionInfo.get(f.id) ?? esc(f.id)}</b></p>${st.data?.regionLink.has(f.id) ? `<p class="pc-hint">Click to open its map.</p>` : ""}`, ev);
-    else showCard(cardHTML(f.properties.iso2), ev);
+    showCard(h.kind === "region" ? regionCardHTML(f.id) : cardHTML(f.properties.iso2), ev);
   });
+  // a region's card: its race and leader, or its name and that it has no market
+  function regionCardHTML(id) {
+    const nm = st.data?.names.get(id) ?? (st.code === "US" ? usStateName(id) : id.toUpperCase());
+    const info = st.data?.regionInfo.get(id);
+    return info ? `<p class="pc-name"><b>${info}</b></p>${st.data.regionLink.has(id) ? `<p class="pc-hint">Click to open its map.</p>` : ""}`
+      : `<p class="pc-name"><b>${esc(nm)}</b></p><p class="pc-hint">No market for this region.</p>`;
+  }
   canvas.addEventListener("pointerleave", () => { if (st.hover) { st.hover = null; draw(); } card.hidden = true; });
   canvas.addEventListener("click", (ev) => {
     const h = hit(ev);
     if (!h) return;
-    if (h.kind === "region") leave(st.data?.regionLink.get(h.f.id));
+    if (h.kind === "region") { const url = st.data?.regionLink.get(h.f.id); if (url) leave(url); }
     else if (h.f.properties.iso2 !== st.code) choose(h.f.properties.iso2);
   });
   root.querySelectorAll(".wm-list button").forEach((b) => b.addEventListener("click", () => choose(b.dataset.code)));
@@ -354,6 +390,8 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
     const opt = { optional: true, root: dataRoot(e.id) };
     const link = (q) => `${href(e.id)}${q}`;
     const races = [], colours = new Map(), regionLink = new Map(), regionInfo = new Map();
+    // every region by name (hover cards name regions without a market too)
+    const names = new Map((meta?.regions ?? []).map((r) => [r.id, r.name]));
     if (meta?.overview) {
       // US: every race of the overview (Senate first), coloured by the model's margin (with polls),
       // else the polls, else the market-implied margin
@@ -364,6 +402,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
         const name = `${r.state_name} ${o === "governor" ? "governor" : "Senate"}${r.special ? " (special)" : ""}`;
         const lead = p == null ? null : p >= 0.5 ? r.dem_side?.name ?? "Democratic side" : r.candidates?.R ?? "Republican side";
         const q = `&race=${encodeURIComponent(r.race_id ?? r.race_key)}&region=${r.state}&level=units`;
+        names.set(r.state, r.state_name);
         races.push({ name, office: o, lead, chance: p == null ? null : Math.max(p, 1 - p), href: link(`&race=${encodeURIComponent(r.race_id ?? r.race_key)}`), region: r.state });
         if (o === "senate" || !colours.has(r.state)) {
           if (m != null) colours.set(r.state, bandColour(m, bandColours(DEM), bandColours(REP)));
@@ -372,28 +411,71 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
         }
       }
     } else if (meta) {
-      // other countries: each region's race (the main race's office first), at its last row: the
-      // tail file where there is one (small), else the whole timeline
+      // other countries: each race at its last row (the tail file where there is one, small, else
+      // the whole timeline)
       const tl = (await getJSON(`${e.id}/timeline_tail.json`, opt)) ?? (await getJSON(`${e.id}/timeline.json`, opt));
-      const last = (id) => tl?.[id]?.at?.(-1) ?? null;
-      for (const r of meta.races ?? []) {
-        const row = last(r.race_id), P = modelP(row) ?? row?.pm ?? row?.kalshi ?? null;
-        const lead = P == null ? null : P >= 0.5 ? r.a.name : r.b.name;
-        const q = `&race=${encodeURIComponent(r.race_id)}${r.region ? `&region=${r.region}&level=units` : ""}`;
-        races.push({ name: shortName(r), full: r.name, lead, chance: P == null ? null : Math.max(P, 1 - P), href: link(`&race=${encodeURIComponent(r.race_id)}`), region: r.region });
-        if (r.region && !colours.has(r.region) && P != null) {
-          const pt = row?.share != null ? (2 * row.share - 1) * 100 : pseudo(P);
-          colours.set(r.region, bandColour(pt, bandColours(r.a.color), bandColours(r.b.color)));
-          regionLink.set(r.region, link(q));
-          regionInfo.set(r.region, `${esc(r.name)}: ${esc(lead)} ${num(Math.max(P, 1 - P))}`);
+      const rows = (meta.races ?? []).map((r) => { const row = tl?.[r.race_id]?.at?.(-1) ?? null; return { r, row, P: modelP(row) ?? row?.pm ?? row?.kalshi ?? null }; });
+      // panel: yes/no markets on one question (most seats per party, next PM per person, a margin's
+      // bins) make one row, led by the outcome with the highest chance; other races a row each
+      for (const [, list] of d3.groups(rows, (x) => familyOf(x.r)?.key ?? x.r.race_id)) {
+        const fam = familyOf(list[0].r);
+        if (fam && list.length > 1) {
+          const top = d3.greatest(list.filter((x) => x.P != null), (x) => x.P);
+          const rg = list[0].r.region;
+          races.push({ name: rg ? `${names.get(rg) ?? rg.toUpperCase()}: ${fam.label.toLowerCase()}` : fam.label, full: list.map((x) => x.r.name).join(" · "), lead: top?.r.a.name ?? null, chance: top?.P ?? null, href: link(`&race=${encodeURIComponent((top ?? list[0]).r.race_id)}`), region: rg });
+        } else for (const { r, P } of list) {
+          const lead = P == null ? null : P >= 0.5 ? r.a.name : r.b.name;
+          // one market on its own question ("Seat margin": "Liberals by 25-49"): the question as the
+          // name, the outcome as the leader
+          const name = fam && !r.region ? fam.label : shortName(r, names.get(r.region));
+          races.push({ name, full: r.name, lead, chance: P == null ? null : Math.max(P, 1 - P), href: link(`&race=${encodeURIComponent(r.race_id)}`), region: r.region });
         }
       }
-      // no regional races (New Zealand, Israel): colour each unit of the map by the comparison
-      // election, by the party that won it (with its margin) or the side ahead
-      if (!colours.size) {
-        const U = await getJSON(`${e.id}/units.json`, opt);
+      // map: each region in the colour of the side ahead across its races; a yes/no market's "no"
+      // side ("Another party", "Not X") is not a side, the party markets beside it name the leader
+      for (const [rg, list] of d3.group(rows.filter((x) => x.r.region && x.P != null), (x) => x.r.region)) {
+        const two = list.find((x) => !genericNo(x.r.b) && x.row?.share != null);
+        let side, chance, x0, pt;
+        if (two) {
+          pt = (2 * two.row.share - 1) * 100;
+          side = pt >= 0 ? two.r.a : two.r.b; chance = pt >= 0 ? two.P : 1 - two.P; x0 = two;
+        } else {
+          const cands = list.flatMap((x) => [{ side: x.r.a, p: x.P, x }, ...(genericNo(x.r.b) ? [] : [{ side: x.r.b, p: 1 - x.P, x }])]);
+          const top = d3.greatest(cands, (c) => c.p);
+          side = top.side; chance = top.p; x0 = top.x;
+          pt = Math.max(0.5, pseudo(chance)); // the leader's strength
+        }
+        colours.set(rg, bandColour(Math.abs(pt) || 0.5, bandColours(side.color), bandColours(side.color)));
+        regionLink.set(rg, link(`&race=${encodeURIComponent(x0.r.race_id)}&region=${rg}&level=units`));
+        regionInfo.set(rg, `${esc(names.get(rg) ?? rg.toUpperCase())}: ${esc(side.name)} ${num(chance)}`);
+      }
+      // no regional races: from the units file. Maps by unit (New Zealand, Israel): each unit by the
+      // comparison election, the party that won it (with its margin) or the side ahead. Maps by
+      // region (Mexico, Hungary): each region by the main race's two-way share in its units, the
+      // count's last frame (a finished count: the result), else the comparison election
+      const U = colours.size ? null : await getJSON(`${e.id}/units.json`, opt);
+      if (U && !UNIT_MAPS.has(code) && U.region) {
+        const race = (meta.races ?? []).find((r) => r.race_id === U.race_id) ?? meta.races?.find((r) => !r.region) ?? meta.races?.[0];
+        const last = U.frames?.at?.(-1);
+        const share = (j) => (last?.a?.[j] >= 0 ? last.a[j] : U.prior?.[j] >= 0 ? U.prior[j] : null);
+        const tot = new Map();
+        U.region.forEach((rg, j) => {
+          const s = share(j), w = U.V0?.[j] ?? 1;
+          if (s == null || !(w > 0)) return;
+          const x = tot.get(rg) ?? [0, 0];
+          x[0] += w * s / 1000; x[1] += w;
+          tot.set(rg, x);
+        });
+        for (const [rg, [sw, w]] of tot) {
+          const pt = (2 * sw / w - 1) * 100;
+          colours.set(rg, bandColour(pt, bandColours(race.a.color), bandColours(race.b.color)));
+          regionInfo.set(rg, `${esc(names.get(rg) ?? rg)}: ${esc(pt >= 0 ? race.a.name : race.b.name)} ahead by ${Math.abs(pt).toFixed(1)} pt${last?.a ? "" : " last time"}`);
+          regionLink.set(rg, link(`&region=${rg}&level=units`));
+        }
+      } else if (U) {
         (U?.unit_ids ?? []).forEach((id, j) => {
           const nm = U.names?.[j] ?? id;
+          names.set(id, nm);
           if (U.winner && meta.parties) {
             const p = meta.parties.find((x) => x.id === U.winner[j]);
             if (!p) return;
@@ -409,7 +491,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
         });
       }
     }
-    return { e, meta, races, colours, regionLink, regionInfo };
+    return { e, meta, races, colours, regionLink, regionInfo, names };
   }
 
   function choose(code) {
@@ -449,7 +531,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
     const officeName = (o) => (o === "governor" ? "Governor" : o === "senate" ? "Senate" : "");
     const groups = d3.groups(races, (r) => r.office ?? "");
     chooser.innerHTML = `<p class="wm-ch-head"><b>${esc(countryName(code))}</b> <button type="button" class="crumb-back">‹ All countries</button></p>
-      <ul class="wm-el">${list.map((e, i) => `<li><a href="${href(e.id)}"><b>${esc(e.name)}</b><span class="wm-meta">${esc(fmtDate(e.date))} · ${esc(STATUS_LABEL[e.status] ?? e.status)}${i === 0 && races.length ? " · races below" : ""}</span></a></li>`).join("")}</ul>
+      <ul class="wm-el">${list.map((e) => `<li><a href="${href(e.id)}"><b>${esc(e.name)}</b><span class="wm-meta">${esc(fmtDate(e.date))} · ${esc(STATUS_LABEL[e.status] ?? e.status)}${e.id === d?.e?.id && races.length ? " · races below" : ""}</span></a></li>`).join("")}</ul>
       ${races.length ? groups.map(([o, rs]) => `<p class="wm-ch-sub">${esc(officeName(o) || d.e.name)}: chance the leader wins</p>
         <ul class="wm-races">${rs.map((r) => `<li><a href="${r.href}" title="${esc(r.full ?? r.name)}"><span class="wm-rn">${esc(r.name)}</span><span class="wm-lead">${r.lead ? `${esc(r.lead)} <b>${num(r.chance)}</b>` : "<small>no price</small>"}</span></a></li>`).join("")}</ul>`).join("") : ""}`;
     chooser.hidden = false;
@@ -548,7 +630,14 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
 
   new ResizeObserver(layout).observe(box);
   layout();
-  // state for checks (frame and screenshot scripts)
-  const info = () => ({ t: st.t, code: st.code, regions: st.regions?.features.length ?? 0, coloured: st.regions ? st.regions.features.filter((f) => st.data?.colours.has(f.id)).length : 0, bounds: st.target && st.proj ? d3.geoPath(st.proj).bounds(st.target.g) : null });
+  // state for checks (frame and screenshot scripts; the map checks of analysis/site_check.py): per
+  // region its fill (a colour, or "hatch" for no market) and its hover card's text
+  const textOf = (html) => { const d = document.createElement("div"); d.innerHTML = html; return [...d.children].map((c) => c.textContent).join("\n"); };
+  const info = () => ({
+    t: st.t, code: st.code, election: st.data?.e?.id ?? null, regions: st.regions?.features.length ?? 0,
+    coloured: st.regions ? st.regions.features.filter((f) => st.data?.colours.has(f.id)).length : 0,
+    bounds: st.target && st.proj ? d3.geoPath(st.proj).bounds(st.target.g) : null,
+    fills: st.regions ? st.regions.features.map((f) => ({ id: f.id, fill: st.data?.colours.get(f.id) ?? "hatch", card: textOf(regionCardHTML(f.id)) })) : [],
+  });
   return { choose, back, arrive, info };
 }

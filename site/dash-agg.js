@@ -48,7 +48,8 @@ export function regionAgg(U, k, js) {
     const pr = U.prior[j];
     if (pr >= 0) { wq += v; sq += v * pr; }
     if (k < 0) continue;
-    const i = k * U.n + j, f = U.F[i] / 1000, a = U.A[i], p = U.P[i];
+    const i = k * U.n + j, f = U.F[i] / 1000, a = U.A[i];
+    const p = U.F[i] >= 1000 && a >= 0 ? a : U.P[i]; // a fully counted unit: its count is the projection
     wc += v * f;
     if (a >= 0 && f > 0) { wa += v * f; sa += v * f * a; }
     if (p >= 0) { wp += v; sp += v * p; }

@@ -65,10 +65,12 @@ export function createNational(root, { overview, office = "senate", summary = nu
   function draw() {
     const colours = new Map(), rings = [];
     for (const r of races()) {
-      if (!colours.has(r.state)) colours.set(r.state, colourOf(priceOf(r)));
+      // states without a race or a price: left out, the map hatches them (no data)
+      const p = priceOf(r);
+      if (!colours.has(r.state) && p != null) colours.set(r.state, colourOf(p));
       if (r.modeled) rings.push(r.state);
     }
-    onColours?.(colours, rings, NORACE);
+    onColours?.(colours, rings);
     drawControl();
     drawLegend();
     drawSummary();
@@ -242,7 +244,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
         const d = ps.filter((p) => p > 0.5).length, r = ps.filter((p) => p < 0.5).length;
         return `Favoured: <span style="color:${DEM}">Democratic side</span> in <b>${d}</b> · <span style="color:${REP}">Republican</span> in <b>${r}</b> states`;
       })()}</p>
-      <p class="legend-note"><span class="sw" style="background:${NORACE}"></span> no ${st.office === "senate" ? "Senate" : "governor"} race · <span class="ring"></span> county model</p>
+      <p class="legend-note"><span class="lg-none"></span> no ${st.office === "senate" ? "Senate" : "governor"} race or no price · <span class="ring"></span> county model</p>
       <p class="legend-note">Colour: market chance (Polymarket, else Kalshi).</p>`;
   }
 

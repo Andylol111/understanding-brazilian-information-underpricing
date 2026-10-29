@@ -692,11 +692,13 @@ function renderLegend() {
   const root = d3.select("#legend").html("");
   if (!S.units) return;
   if (PRE() && S.region && noBaseline().includes(S.region)) return; // nothing coloured there yet
-  if (S.mode === "winner") { partyLegend(root); return; }
-  if (S.mode === "rem" || S.mode === "remlean") { remLegend(root); return; }
-  if (S.mode === "ev") { evLegend(root); return; }
-  if (S.mode === "turnout") { turnoutLegend(root); return; }
-  if (S.mode === "margin" || S.mode === "margin1" || S.mode === "prior") { bandLegend(root); return; }
+  // every legend ends with the hatch: units and regions without a figure
+  const noData = () => root.append("p").attr("class", "legend-note").html(`<span class="lg-none"></span> no data: outside the race, or no figure yet`);
+  if (S.mode === "winner") { partyLegend(root); noData(); return; }
+  if (S.mode === "rem" || S.mode === "remlean") { remLegend(root); noData(); return; }
+  if (S.mode === "ev") { evLegend(root); noData(); return; }
+  if (S.mode === "turnout") { turnoutLegend(root); noData(); return; }
+  if (S.mode === "margin" || S.mode === "margin1" || S.mode === "prior") { bandLegend(root); noData(); return; }
   const w = 200, h = 8;
   const r = S.mapRaces?.includes(S.race) ? S.race : S.unitRace[0];
   const svg = root.append("svg").attr("viewBox", `0 0 ${w} 24`).attr("width", w).attr("height", 24);
@@ -715,6 +717,7 @@ function renderLegend() {
     root.append("div").attr("class", "legend-names").html(`<span>${lab(r.a.name)}</span><span>${lab(r.b.name)}</span>`);
     root.append("p").attr("class", "legend-count"); // filled by legendCount()
   }
+  noData();
 }
 
 // Circle sizes (same scale as the engine: radius 22 px at the file's largest value) and, for the
@@ -1797,6 +1800,21 @@ async function main() {
 
   S.uiReady(); // the map (loading in parallel since the top bar) can now attach
   window.addEventListener("popstate", onPopState);
+  // for the map checks (analysis/site_check.py): the modes and levels, setting them, the time
+  // domain, what the engine painted, and the hover card of one unit or region
+  window.__dashAudit = {
+    modes, levels: () => (levelsOn() ? ["regions", "units"] : []), level: () => S.level, region: () => S.region,
+    domain: () => S.domain, frameTimes: () => S.frameTimes ?? [],
+    setMode: (m) => { S.mode = m; S.modeChosen = true; S.shownKey = null; setupModes(); render(); },
+    setTime, setLevel: (l) => setLevel(l, { push: false }),
+    painted: () => work("audit", {}),
+    legend: () => [$("legend"), document.querySelector(".nat-legend")].map((el) => (el?.offsetParent ? el.innerText : "")).join("\n"),
+    card: (i, reg = null) => {
+      S.hover = i; S.hoverReg = reg; S.pinned = -1; placeCard();
+      const t = $("place").innerText; S.hover = -1; S.hoverReg = null; $("place").hidden = true; return t;
+    },
+    units: () => ({ n: S.map?.ids?.length ?? 0, ids: S.map?.ids ?? [], regions: [...new Set((S.map?.ids ?? []).map((id) => id.split("-")[1]))] }),
+  };
   await S.mapDone;
   if (LIVE) startLive();
 }

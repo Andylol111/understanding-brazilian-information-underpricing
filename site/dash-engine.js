@@ -9,7 +9,7 @@
 //    and headless pages throttle or never run), so the first frame appears once data is bound.
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { unitsByRegion, regionAgg, regionWinner, bandColours, bandColour, tieBreak } from "./dash-agg.js";
+import { unitsByRegion, regionAgg, regionWinner, bandColours, bandColour, tieBreak, TIE } from "./dash-agg.js";
 
 const BASE = 1000; // base projection extent, shared with dash-map.js
 const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4, turnout: 0.2 }; // value at which a diverging colour is full
@@ -86,8 +86,9 @@ export async function geo({ url, objectName, unitKey, country }) {
   const fc = { type: "FeatureCollection", features };
   const projection = projectionFor(country, fc).fitSize([BASE, BASE], fc);
   const path = d3.geoPath(projection);
-  const ids = features.map((f) => String(f.properties[unitKey]));
-  const regionOf = (f) => String(f.properties[unitKey]).split("-")[1];
+  // features without a unit id (a base layer of land under the units, as in Israel's map): "" (ground)
+  const ids = features.map((f) => (f.properties[unitKey] == null ? "" : String(f.properties[unitKey])));
+  const regionOf = (f) => (f.properties[unitKey] == null ? undefined : String(f.properties[unitKey]).split("-")[1]);
   const isPoint = new Uint8Array(n);
   const centres = new Float64Array(2 * n).fill(NaN);
   const bounds = new Float64Array(4 * n);
@@ -135,7 +136,7 @@ export async function geo({ url, objectName, unitKey, country }) {
   Object.assign(R, {
     n, isPoint: isPoint.slice(), centres: centres.slice(), paths: paths.map((p, i) => (isPoint[i] ? null : new Path2D(p))),
     unitMesh: new Path2D(result.unitMesh), regionMesh: new Path2D(result.regionMesh), outline: new Path2D(result.outline),
-    regionOf: ids.map((id) => id.split("-")[1]), regionFill, regionCentre, regionFeat, labels,
+    ids, regionOf: ids.map((id) => id.split("-")[1]), regionFill, regionCentre, regionFeat, labels,
     radius: new Float32Array(n).fill(3), pointOrder: Array.from({ length: n }, (_, i) => i).filter((i) => isPoint[i]),
   });
   return { result, transfer: [isPoint.buffer, centres.buffer, bounds.buffer, areas.buffer] };
@@ -145,6 +146,60 @@ export async function geo({ url, objectName, unitKey, country }) {
 export async function prefetch({ urls }) {
   await Promise.all(urls.map((u) => json(u, false).catch(() => null)));
   return { result: null, transfer: [] };
+}
+
+// What the last paint showed, for the map checks (analysis/site_check.py, via the page's
+// window.__dashAudit): how many units (and regions, at the region level) were filled with a data
+// colour, the explicit no-data hatch, or a plain ground ("none": the default ground, which no
+// unit should show; "ground": the outstanding-vote modes' plain ground under their circles), the
+// first few units on the default ground, and per region at the current frame the side its fill
+// shows against the side ahead in its counted votes.
+export async function audit() {
+  const U = R.units, cols = R.lastCols;
+  const atRegions = R.drawnRegion?.size > 0 && R.levelMix < 0.5;
+  const kind = (s) => (s == null || s === NONE ? "none" : s === "hatch" ? "hatch" : s === "ground" ? "base" : /^(#fff(fff)?|white)$/i.test(s) ? "white" : s === REM_GROUND ? "ground" : "colour");
+  const units = { colour: 0, hatch: 0, none: 0, white: 0, ground: 0, base: 0 }, plain = [];
+  for (let i = 0; i < R.n; i++) {
+    if (R.hidden?.[i]) continue;
+    if (atRegions && !(R.focus && R.regionOf[i] === R.focus && R.natMix >= 0.5)) continue;
+    const s = R.isPoint[i] ? cols?.[i] : R.drawn?.[i];
+    if (s === undefined && !R.isPoint[i]) continue; // not drawn (under a region fill)
+    const c = kind(s);
+    units[c]++;
+    if ((c === "none" || c === "white") && plain.length < 12) plain.push(R.ids[i]);
+  }
+  const regions = {};
+  for (const [r, s] of R.drawnRegion ?? []) if (r != null) regions[r] = kind(s);
+  // the side each region's fill shows (margin mode, the units' region totals) and the side ahead
+  // in the counted votes at this frame
+  const sides = {};
+  const k = frameIndex(R.t);
+  if (U && R.aggregate && k >= 0 && R.mode === "margin") {
+    for (const [r, js] of U.byRegion) {
+      const g = regionAgg(U, k, js);
+      const c = R.drawnRegion?.get(r);
+      if (c == null || c === "hatch" || g.raw == null) continue;
+      const [ba, bb] = R.unitBand[js[0]] ?? [[], []];
+      const shown = ba.includes(c) ? "a" : bb.includes(c) ? "b" : c === TIE ? "tie" : "other";
+      sides[r] = { shown, ahead: Math.abs(g.raw - 0.5) < 1e-9 ? "tie" : g.raw > 0.5 ? "a" : "b", counted: g.counted ?? null };
+    }
+  }
+  // the same per unit, for units fully counted at this frame (their fill is the model's projection,
+  // which equals the count once everything is counted)
+  const unitSides = { checked: 0, wrong: [] };
+  if (U && k >= 0 && R.mode === "margin" && R.featIdx) {
+    for (let i = 0; i < R.n; i++) {
+      const j = R.featIdx[i], c = R.drawn?.[i];
+      if (j < 0 || !c || c === "hatch" || U.F[k * U.n + j] < 999 || U.A[k * U.n + j] < 0) continue;
+      const a = U.A[k * U.n + j];
+      if (a === 500) continue;
+      const [ba, bb] = R.unitBand[j] ?? [[], []];
+      const shown = ba.includes(c) ? "a" : bb.includes(c) ? "b" : "other";
+      unitSides.checked++;
+      if (shown !== (a > 500 ? "a" : "b") && unitSides.wrong.length < 12) unitSides.wrong.push(`${R.ids[i]} shows ${shown}`);
+    }
+  }
+  return { result: { mode: R.mode, k, K: U?.K ?? 0, atRegions, units, plain, regions, sides, unitSides }, transfer: [] };
 }
 
 /* ---------------------------------------------------------------- map frames */
@@ -223,9 +278,12 @@ export async function units({ urls, live, countTimeline }) {
       const i = k * n + j, a = A[i], p = prior[j];
       counted[i] = F[i] / 1000;
       swing[i] = a >= 0 && p >= 0 ? clamp((a - p) / 1000 / SCALE.swing) : NaN;
-      const v = countTimeline ? P[i] : a >= 0 ? a : P[i];
+      // a fully counted unit shows its count (the projection can differ from it by rounding or by
+      // votes the model still expected, e.g. Hungary's 49.8% counted, 50.2% projected)
+      const done = F[i] >= 1000 && a >= 0;
+      const v = countTimeline && !done ? P[i] : a >= 0 ? a : P[i];
       margin[i] = v >= 0 ? clamp((2 * v / 1000 - 1) / SCALE.margin) : NaN;
-      if (margin1) { const w = countTimeline ? P1[i] : a >= 0 ? a : P1[i]; margin1[i] = w >= 0 ? clamp((2 * w / 1000 - 1) / SCALE.margin) : NaN; }
+      if (margin1) { const w = countTimeline && !done ? P1[i] : a >= 0 ? a : P1[i]; margin1[i] = w >= 0 ? clamp((2 * w / 1000 - 1) / SCALE.margin) : NaN; }
       if (turnout) turnout[i] = TR[i] >= 0 ? clamp((TR[i] / 1000 - 1) / SCALE.turnout) : NaN;
     }
   }
@@ -379,7 +437,7 @@ function colours() {
         if (Number.isNaN(v0)) v = s >= 0.5 ? v1 : NaN;
         else if (!Number.isNaN(v1)) v = v0 + (v1 - v0) * s;
       }
-      out[i] = counted ? (v > 0 ? COUNTED_LUT[Math.min(100, Math.round(v * 100))] : NONE) : Number.isNaN(v) ? NONE
+      out[i] = counted ? (v >= 0 ? COUNTED_LUT[Math.min(100, Math.round(v * 100))] : NONE) : Number.isNaN(v) ? NONE
         : R.mode === "margin" || R.mode === "margin1" ? band(j, v * SCALE.margin * 100, true)
         : R.mode === "turnout" ? TURN_LUT[Math.round((v + 1) * 100)] : luts[j][Math.round((v + 1) * 100)];
     }
@@ -407,7 +465,7 @@ function aggColours() {
       if (lead) c = partyLUT(lead.party)[Math.round(lead.share * 20)];
     } else {
       const g = regionAgg(R.mode === "margin1" ? { ...U, P: U.P1 } : U, k, js); // margin1: the past-results projection
-      if (R.mode === "counted") c = g.counted > 0 ? COUNTED_LUT[Math.min(100, Math.round(g.counted * 100))] : NONE;
+      if (R.mode === "counted") c = g.counted >= 0 ? COUNTED_LUT[Math.min(100, Math.round(g.counted * 100))] : NONE;
       else if (R.mode === "prior" || k < 0) c = g.prior != null ? band(js[0], (2 * g.prior - 1) * 100) : NONE;
       else if (R.mode === "swing") c = g.raw != null && g.prior != null ? lutAt(lut, (g.raw - g.prior) / SCALE.swing) : NONE;
       else if (R.mode === "turnout") {
@@ -481,16 +539,23 @@ function paint(ctx) {
   const inFocus = focus ? R.regionFeat.get(focus) ?? [] : null;
   const dim = focus ? 1 - 0.7 * R.fadeMix : 1; // other regions dim as the view closes in
   const hatch = R.hatch?.size ? hatchPattern(ctx, px) : null;
-  let hatchFill = null; // the same hatch for units without data, made on first use
+  let hatchFill = null; // the same hatch for units and regions without data, made on first use
+  const noDataFill = () => hatch ?? (hatchFill ??= hatchPattern(ctx, px));
   const hidden = R.hidden;
-  // fills grouped by colour: one fillStyle per colour instead of one per unit (costly in Firefox)
+  // what each unit and region was last filled with ("hatch", "ground" or a colour), for audit()
+  const drawn = (R.drawn = new Array(R.n)), drawnRegion = (R.drawnRegion = new Map());
+  // fills grouped by colour: one fillStyle per colour instead of one per unit (costly in Firefox).
+  // Every unit without a figure (outside the race, not reporting yet, no result) is hatched, so
+  // it never passes for a colour on the map's scale; a base layer (no unit id) is plain ground.
   const fillUnits = (list) => {
     const groups = new Map();
     for (const i of list) {
       if (!paths[i] || hidden?.[i]) continue;
-      // units with no data inside a region that has results: hatched, so they never pass for a tie
-      const noData = R.mode !== "ev" && R.featIdx?.[i] < 0 && R.units?.byRegion.has(R.regionOf[i]);
-      const s = (hatch && R.hatch.has(R.regionOf[i])) || noData ? (hatch ?? (hatchFill ??= hatchPattern(ctx, px))) : cols ? cols[i] : NONE;
+      const c = cols ? cols[i] : NONE;
+      const base = !R.ids[i];
+      const noData = !base && ((hatch && R.hatch.has(R.regionOf[i])) || (R.mode !== "ev" && R.featIdx?.[i] < 0) || c === NONE);
+      const s = base ? NONE : noData ? noDataFill() : c;
+      drawn[i] = base ? "ground" : noData ? "hatch" : c;
       const g = groups.get(s);
       if (g) g.push(i); else groups.set(s, [i]);
     }
@@ -510,7 +575,10 @@ function paint(ctx) {
     if (uO < 1 || uF < 1) {
       for (const [r, p] of R.regionFill) {
         ctx.globalAlpha = r === focus ? 1 : dim;
-        ctx.fillStyle = hatch && R.hatch.has(r) ? hatch : regionCols.get(r) ?? NONE;
+        const c = regionCols.get(r);
+        const noData = r != null && ((hatch && R.hatch.has(r)) || c == null || c === NONE);
+        ctx.fillStyle = r == null ? NONE : noData ? noDataFill() : c;
+        drawnRegion.set(r, r == null ? "ground" : noData ? "hatch" : c);
         ctx.fill(p);
       }
     }

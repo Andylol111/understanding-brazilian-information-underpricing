@@ -351,7 +351,7 @@ async function preCell(td) {
   const regions = new Map((m.regions ?? []).map((r) => [r.id, r.name]));
   // the short name, with its region and the side the chances are for where the name lacks them
   const label = (r) => {
-    let s = shortName(r);
+    let s = shortName(r, regions.get(r.region));
     if (r.region && !s.includes(regions.get(r.region) ?? "")) s = `${regions.get(r.region)} ${s}`;
     return r.a?.name && !s.includes(r.a.name) ? `${esc(s)} <span class="note">${esc(r.a.name)}</span>` : esc(s);
   };
