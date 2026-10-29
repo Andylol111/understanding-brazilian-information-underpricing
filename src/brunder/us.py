@@ -802,6 +802,24 @@ def load_config(path: Path) -> dict:
     return cfg
 
 
+def _v2_path(c: dict) -> Path:
+    p = Path(c["_path"])
+    return p.with_name(p.name.replace("_v1.toml", "_v2.toml"))
+
+
+def load_races(cfg_paths: list[Path]) -> tuple[list[dict], dict[str, dict]]:
+    """(race configs, model v2 config per race_id). v2 configs passed explicitly are attached to their race, not
+    run as races of their own; a v1 config's sibling *_v2.toml is attached when it exists."""
+    loaded = [load_config(Path(p)) for p in cfg_paths]
+    cfgs = [c for c in loaded if not str(c.get("id", "")).endswith("_v2")]
+    v2 = {c["election"]["race_id"]: c for c in loaded if str(c.get("id", "")).endswith("_v2")}
+    for c in cfgs:
+        q = _v2_path(c)
+        if c["election"]["race_id"] not in v2 and q != Path(c["_path"]) and q.exists():
+            v2[c["election"]["race_id"]] = load_config(q)
+    return cfgs, v2
+
+
 @dataclass(frozen=True)
 class CountRules:
     """How much of a county's vote is in (f), given what US feeds report. See docs/us_midterms.md."""
@@ -822,7 +840,7 @@ def rules(cfg: dict) -> CountRules:
 
 def params(cfg: dict) -> nowcast.Params:
     M = cfg.get("model", {})
-    keys = ("kappa", "rho", "tau", "sigma_mun0", "nu_mun", "sigma_uf0", "nu_uf")
+    keys = ("kappa", "rho", "tau", "sigma_mun0", "nu_mun", "sigma_uf0", "nu_uf", "swing_prior_mean", "swing_prior_sd")
     return nowcast.Params(**{k: M[k] for k in keys if k in M})
 
 
@@ -840,6 +858,11 @@ def race_prior(cfg: dict, priors: pd.DataFrame) -> pd.DataFrame | None:
                         "s0": sh["dem"] / (sh["dem"] + sh["rep"]),
                         "V": (vo["dem"] + vo["rep"])}).reindex(c.index)
     return out.dropna().reset_index()
+
+
+def baseline_share(pri: pd.DataFrame) -> float:
+    """The prior's statewide two-party Dem share, weighted like the model's expected votes (V)."""
+    return float(np.average(pri["s0"], weights=pri["V"]))
 
 
 def count_state(rows: pd.DataFrame, cfg: dict, pri: pd.DataFrame) -> pd.DataFrame:
@@ -901,7 +924,9 @@ def _model_units(cs: pd.DataFrame, pri: pd.DataFrame, st: str, R: CountRules) ->
 
 
 def project(rows: pd.DataFrame, cfg: dict, pri: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
-    """Race-level nowcast (brunder.nowcast over all units of the state) + per-county projected final Dem share."""
+    """Race-level nowcast (brunder.nowcast over all units of the state) + per-county projected final Dem share.
+    Model v2 sets [model] swing_prior_mean (poll average − baseline_share) and swing_prior_sd (poll error): the
+    statewide swing is then the poll prior combined with the swing seen in counted votes (brunder.nowcast)."""
     st, R, p = cfg["election"]["state"], rules(cfg), params(cfg)
     cs = count_state(rows, cfg, pri)
     mu = _model_units(cs, pri, st, R)
@@ -912,7 +937,8 @@ def project(rows: pd.DataFrame, cfg: dict, pri: pd.DataFrame) -> tuple[dict, pd.
     w = mu["n"].where(counted, 0.0)
     wd = pd.Series(np.nan_to_num(d) * w).groupby(mu["uf"]).sum()
     W = w.groupby(mu["uf"]).sum()
-    delta_u = ((wd + p.kappa * res["swing_nat"]) / (W + p.kappa)).reindex(mu["uf"]).to_numpy()
+    obs = res.get("swing_obs", res["swing_nat"])                   # = swing_nat unless a swing prior is set
+    delta_u = ((wd + p.kappa * obs) / (W + p.kappa) + (res["swing_nat"] - obs)).reindex(mu["uf"]).to_numpy()
     s_hat = np.clip(mu["s0"] + delta_u + p.rho * (np.nan_to_num(d) - delta_u) * counted, 0, 1)
     Rm = (1 - mu["f"]).clip(lower=0) * mu["V0"] * res["turnout_k"]
     agg = pd.DataFrame({"a": mu["a"], "n": mu["n"], "ra": Rm * s_hat, "r": Rm}).groupby(mu["county"].to_numpy()).sum()
@@ -1064,7 +1090,8 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
                 "a": {"id": E["a"]["party"].lower(), "name": E["a"]["name"], "color": E["a"]["color"]},
                 "b": {"id": E["b"]["party"].lower(), "name": E["b"]["name"], "color": E["b"]["color"]},
                 "markets": mk, "units": f"units/{rid}.json" if priors_ok[rid] else None,
-                "poll_close_utc": POLL_CLOSE.get(E["state"]), "config": Path(c["_path"]).name}
+                "poll_close_utc": POLL_CLOSE.get(E["state"]), "config": Path(c["_path"]).name,
+                "config_v2": _v2_path(c).name if _v2_path(c).exists() else None}
         if phase == "pre-count":
             race["precount"] = precount.get(rid)
         if not priors_ok[rid]:
@@ -1083,6 +1110,8 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
                      "licence": "© Kalshi; shown per the project's decision and pending exception request, "
                                 "see docs/kalshi.md"})
     srcs += POLL_SOURCES
+    srcs.append({"name": "VoteHub Polling API: Senate and governor polls (model v2 prior; our averages only)",
+                 "url": "https://votehub.com/polls/api/", "licence": "CC BY 4.0"})
     notes = [
         "counted = share of the expected two-party vote already counted (model estimate; US feeds report "
         "precincts, not remaining ballots).",
@@ -1092,15 +1121,18 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
         "kalshi = Kalshi P(Democrat): midpoint of the market's order book when the spread is at most 10c, else "
         "empty; market per race from configs/pairs/us2026.toml. Prices © Kalshi.",
         "Model frozen before polls closed (configs/us2026_*_v1.toml); see docs/us_midterms.md.",
+        "P = model v1 (county prior = past certified results); P_v2 = model v2, the same model plus a prior on the "
+        "statewide swing from the poll average frozen in configs/us2026_*_v2.toml (VoteHub polls, CC BY 4.0): the "
+        "polls lead before and early in the count, and the counted votes take over as the count grows.",
         "Polls close (UTC, Nov 4): " + ", ".join(f"{STATES[s]} {POLL_CLOSE[s][11:16]}" for s in states)
         + (" (Texas 02:00 in El Paso and Hudspeth counties)." if "tx" in states else "."),
     ]
     if phase == "pre-count":
-        notes.insert(0, "Before the count the model's estimate is the past certified results by county (the race "
-                        "configs name which) with its uncertainty; it does not use polls.")
+        notes.insert(0, "Before the count model v1's estimate is the past certified results by county (the race "
+                        "configs name which) with its uncertainty; model v2 adds the poll average.")
         notes.insert(1, "Pre-count timeline: every 30 minutes over the last 14 days; pm = Polymarket CLOB price "
                         "history, kalshi = Kalshi 1-minute candles sampled at each point (mid if spread ≤ 10c, else "
-                        "last trade), P = the model's chance before any votes are counted (constant).")
+                        "last trade), P / P_v2 = model v1 / v2 chance before any votes are counted (constant).")
     missing = [c["election"]["name"] for c in cfgs if not priors_ok[c["election"]["race_id"]]]
     if missing:
         notes.append(f"{', '.join(missing)}: {NO_PRIOR}; prices are shown, model fields are empty.")
@@ -1130,10 +1162,11 @@ class Exporter:
         change; replay: use 1, the archive is final)."""
         self.max_retries, self.phase = max_retries, phase
         self._retries: dict[str, tuple[pd.Timestamp, int]] = {}
-        self.cfgs = [load_config(Path(p)) for p in cfg_paths]
+        self.cfgs, self.v2 = load_races(cfg_paths)
         self.arc = Archive(snap_root or SNAP / TAG)
         pr = priors if priors is not None else load_priors()
         self.pri = {c["election"]["race_id"]: race_prior(c, pr) for c in self.cfgs}
+        self.pri2 = {rid: race_prior(c2, pr) for rid, c2 in self.v2.items()}
         self.step, self.frame_every = pd.Timedelta(step), pd.Timedelta(frame_every)
         rids = [c["election"]["race_id"] for c in self.cfgs]
         self.timeline: dict[str, list[dict]] = {r: [] for r in rids}
@@ -1185,6 +1218,13 @@ class Exporter:
                 memo = (sig, project(rows, c, pri))
                 self._memo[rid] = memo
             res, units = memo[1]
+            c2, pri2 = self.v2.get(rid), self.pri2.get(rid)
+            if c2 is not None and pri2 is not None and not pri2.empty:
+                m2 = self._memo.get(rid + "|v2")
+                if m2 is None or m2[0] != sig:
+                    m2 = (sig, project(rows, c2, pri2))
+                    self._memo[rid + "|v2"] = m2
+                res = {**res, "p_win_v2": m2[1][0]["p_win"]}
         pm = _pm_market(c)
         p_yes = prices.get(pm[0]) if pm else None
         p_a = None if p_yes is None else (p_yes if pm[1] == "a" else 1 - p_yes)
@@ -1193,6 +1233,7 @@ class Exporter:
         k_a = None if k_yes is None else (k_yes if km["yes_is"] == "a" else 1 - k_yes)
         row = {"t": _iso(t), "counted": _r(res.get("counted_frac")), "raw": _r(res.get("raw")),
                "share": _r(res.get("share_hat")), "sd": _r(res.get("share_sd")), "P": _r(res.get("p_win")),
+               "P_v2": _r(res.get("p_win_v2")),
                "pm": _r(p_a), "kalshi": _r(k_a), "rem_total": _tens(res.get("rem_total")),
                "rem_margin_total": _tens(res.get("rem_margin_total"))}
         if not has_model:                             # prices only (e.g. Ohio without its county prior)
@@ -1390,7 +1431,7 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
     sampled every `step` over the last `days`, and a map frame = the prior. Network: Polymarket and Kalshi public
     APIs only. Refuses to overwrite files of the live or replay phase unless force."""
     from . import polymarket
-    cfgs = [load_config(Path(p)) for p in cfg_paths]
+    cfgs, v2 = load_races(cfg_paths)
     d = Path(out) / EID
     if (d / "meta.json").exists() and not force:
         phase = json.loads((d / "meta.json").read_text()).get("phase")
@@ -1399,6 +1440,7 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
             return d
     pr = priors if priors is not None else load_priors()
     pri = {c["election"]["race_id"]: race_prior(c, pr) for c in cfgs}
+    pri2 = {rid: race_prior(c2, pr) for rid, c2 in v2.items()}
     ok = {rid: p is not None and not p.empty for rid, p in pri.items()}
     now = (now or pd.Timestamp.now(tz="UTC")).floor(step)
     grid = pd.date_range(now - pd.Timedelta(days=days), now, freq=step)
@@ -1411,7 +1453,11 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
         if ok[rid]:
             res, _ = project(_frame([]), c, pri[rid])
             pre[rid] = {"P": _r(res["p_win"]), "share": _r(res["share_hat"]), "sd": _r(res["share_sd"]),
-                        "rem_total": _tens(res["rem_total"]), "rem_margin_total": _tens(res["rem_margin_total"])}
+                        "rem_total": _tens(res["rem_total"]), "rem_margin_total": _tens(res["rem_margin_total"]),
+                        "P_v2": None, "share_v2": None, "sd_v2": None}
+            if pri2.get(rid) is not None and not pri2[rid].empty:
+                r2, _ = project(_frame([]), v2[rid], pri2[rid])
+                pre[rid].update(P_v2=_r(r2["p_win"]), share_v2=_r(r2["share_hat"]), sd_v2=_r(r2["share_sd"]))
         pm_vals = [None] * len(grid)
         pm = c.get("markets", {}).get("polymarket", {})
         if tokens.get(rid):
@@ -1434,7 +1480,8 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
                 print(f"{rid}: Kalshi history failed: {type(e).__name__}: {e}", flush=True)
         m = pre[rid] or {}
         timeline[rid] = [{"t": _iso(t), "counted": None, "raw": None, "share": m.get("share"), "sd": m.get("sd"),
-                          "P": m.get("P"), "pm": _r(pv), "kalshi": _r(kv), "rem_total": m.get("rem_total"),
+                          "P": m.get("P"), "P_v2": m.get("P_v2"), "pm": _r(pv), "kalshi": _r(kv),
+                          "rem_total": m.get("rem_total"),
                           "rem_margin_total": m.get("rem_margin_total")}
                          for t, pv, kv in zip(grid, pm_vals, k_vals)]
     _write_json(d / "meta.json", meta(cfgs, ok, kmk, phase="pre-count", precount=pre, tokens=tokens,
@@ -1455,6 +1502,140 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
     if RACES_REGISTRY.exists():
         _write_json(d / "overview.json", overview(now, days=days, step=step))
     return d
+
+
+# ------------------------------------------------------------------ polls (model v2 prior; overview display)
+# Fixed rule, written in docs/us_midterms.md before any average was computed. Raw polls are cached under
+# data/raw/us/polls (gitignored); only our averages are published (data_public/us2026_polls.json).
+
+VOTEHUB = "https://api.votehub.com/polls"          # VoteHub Polling API, CC BY 4.0 (votehub.com/polls/api)
+POLLS_ASOF = "2026-11-02"                         # weights and window counted back from this day
+POLL_WINDOW_DAYS = 45                             # field end date within the 45 days up to POLLS_ASOF
+POLL_HALF_LIFE = 14.0                             # weight ∝ sqrt(n) × 0.5^(age_days / 14)
+POLL_CAP = 0.25                                   # no pollster above 25 % of the weight (1/k if only k < 4)
+POLL_SD_HIST = 0.039   # RMSE of final-week poll averages, two-party Dem share, Senate + governor 2016-2022 (167
+#                        races, FiveThirtyEight pollster-ratings raw_polls.csv, CC BY 4.0; analysis/us_polls.py)
+POLLS_PUBLIC = ROOT_DIR / "data_public" / "us2026_polls.json"
+_POP_RANK = {"lv": 0, "rv": 1, "a": 2}
+_POLL_TYPE = {"senate": "us-senator", "sen": "us-senator", "governor": "governor", "gov": "governor"}
+
+
+def fetch_polls(day: str | None = None) -> list[dict]:
+    """VoteHub Senate and governor polls, cached once per day under data/raw/us/polls."""
+    day = day or pd.Timestamp.now(tz="UTC").strftime("%Y%m%d")
+    out = []
+    for t in ("us-senator", "governor"):
+        out += json.loads(_fetch(f"{VOTEHUB}?poll_type={t}", US_RAW / "polls" / f"votehub_{t}_{day}.json"))
+    return out
+
+
+def _person(s: str) -> list[str]:
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower()
+    return [w for w in re.findall(r"[a-z]+", s) if w not in ("jr", "sr", "ii", "iii")]
+
+
+def _same_person(choice: str, name: str) -> bool:
+    """Same surname (last word, suffixes dropped)."""
+    a, b = _person(choice), _person(name)
+    return bool(a and b) and a[-1] == b[-1]
+
+
+def poll_rows(polls: list[dict], state_name: str, office: str, dem: str, opp: str | None = None) -> pd.DataFrame:
+    """One row per poll of the race (subject "2026 <State name>", poll_type of the office) that names the
+    Democratic-side candidate: s = dem / (dem + opponent), opponent = `opp` if named in the poll, else the
+    highest other candidate. One version per poll (same pollster and field dates): likely voters over registered
+    voters over adults, then the version with the most candidates (the full ballot). Polls without a sample size
+    are skipped."""
+    subj, ptype = f"2026 {state_name}", _POLL_TYPE[office]
+    rows = []
+    for p in polls:
+        if p.get("subject") != subj or p.get("poll_type") != ptype or not p.get("sample_size"):
+            continue
+        ans = [(a["choice"], float(a["pct"])) for a in p.get("answers") or [] if a.get("pct") is not None]
+        d = [x for x in ans if _same_person(x[0], dem)]
+        if not d:
+            continue
+        others = [x for x in ans if x is not d[0]]
+        r = [x for x in others if opp and _same_person(x[0], opp)] or sorted(others, key=lambda x: -x[1])[:1]
+        if not r or d[0][1] + r[0][1] <= 0:
+            continue
+        rows.append({"id": p["id"], "pollster": p.get("pollster") or "", "start": p.get("start_date"),
+                     "end": p["end_date"], "pop": _POP_RANK.get(p.get("population"), 3), "k": len(ans),
+                     "n": float(p["sample_size"]), "dem": d[0][1], "opp": r[0][1],
+                     "s": d[0][1] / (d[0][1] + r[0][1])})
+    df = pd.DataFrame(rows, columns=["id", "pollster", "start", "end", "pop", "k", "n", "dem", "opp", "s"])
+    if df.empty:
+        return df
+    df = df.sort_values(["pop", "k", "id"], ascending=[True, False, True])
+    return df.drop_duplicates(["pollster", "start", "end"]).sort_values("end").reset_index(drop=True)
+
+
+def _cap(w: pd.Series, by: pd.Series, cap: float) -> pd.Series:
+    """Scale weights so no group exceeds `cap` of the total (iterated; excess goes to the others pro rata)."""
+    w = w / w.sum()
+    cap = max(cap, 1.0 / by.nunique())
+    for _ in range(50):
+        g = w.groupby(by).transform("sum")
+        over = g > cap + 1e-12
+        if not over.any():
+            break
+        w = w.where(~over, w * cap / g)
+        free = ~over & (g < cap - 1e-12)
+        w[free] *= (1 - w[~free].sum()) / w[free].sum()
+    return w / w.sum()
+
+
+def poll_average(rows: pd.DataFrame, asof: str = POLLS_ASOF) -> dict | None:
+    """Weighted two-party Dem share of the polls ending in the window; None without any. sd = sqrt(POLL_SD_HIST²
+    + sampling variance of the weighted mean, Σ w² s(1-s)/n_2party); p_win = Φ((avg - 0.5) / sd)."""
+    from scipy.stats import norm
+    if rows is None or rows.empty:
+        return None
+    t = pd.Timestamp(asof)
+    age = (t - pd.to_datetime(rows["end"])).dt.days
+    r = rows[(age >= 0) & (age <= POLL_WINDOW_DAYS)].copy()
+    if r.empty:
+        return None
+    r["age"] = age[r.index]
+    w = _cap(np.sqrt(r["n"]) * 0.5 ** (r["age"] / POLL_HALF_LIFE), r["pollster"], POLL_CAP)
+    avg = float((w * r["s"]).sum())
+    n2 = r["n"] * (r["dem"] + r["opp"]) / 100
+    samp = float((w**2 * r["s"] * (1 - r["s"]) / n2).sum())
+    sd = float(np.sqrt(POLL_SD_HIST**2 + samp))
+    return {"avg": round(avg, 4), "sd": round(sd, 4), "p_win": round(float(norm.cdf((avg - 0.5) / sd)), 4),
+            "n_polls": int(len(r)), "n_pollsters": int(r["pollster"].nunique()), "last_date": str(r["end"].max()),
+            "asof": asof}
+
+
+def build_polls(polls: list[dict] | None = None, asof: str = POLLS_ASOF, registry: Path | None = None) -> dict:
+    """Poll average per race of the overview registry (all Senate and governor races), Democratic side vs the
+    modeled configs' Republican where there is one. Writes data_public/us2026_polls.json (averages only)."""
+    polls = fetch_polls() if polls is None else polls
+    reg = json.loads((registry or RACES_REGISTRY).read_text())
+    opp = {}
+    for p in (ROOT_DIR / "configs").glob(f"{EID}_*_v1.toml"):
+        E = load_config(p)["election"]
+        opp[E["race_id"]] = E["b"]["name"]
+    races = {}
+    for r in reg["races"]:
+        dem = (r.get("dem_side") or {}).get("name")
+        a = (poll_average(poll_rows(polls, r["state_name"], r["office"], dem, opp.get(r["race_key"])), asof)
+             if dem else None)
+        races[r["race_key"]] = a
+    out = {"asof": asof, "built": pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
+           "rule": "docs/us_midterms.md#polls", "source": {"name": "VoteHub Polling API", "url": VOTEHUB,
+                                                            "licence": "CC BY 4.0"},
+           "error_source": {"name": "FiveThirtyEight pollster ratings, raw_polls.csv (2016-2022 Senate/governor)",
+                            "url": "https://github.com/fivethirtyeight/data/tree/master/pollster-ratings",
+                            "licence": "CC BY 4.0"},
+           "races": races}
+    _write_json(POLLS_PUBLIC, out)
+    return out
+
+
+def load_polls() -> dict:
+    return json.loads(POLLS_PUBLIC.read_text()).get("races", {}) if POLLS_PUBLIC.exists() else {}
 
 
 # ------------------------------------------------------------------ national overview (all Senate/governor races)
@@ -1498,6 +1679,7 @@ def overview(now: pd.Timestamp, days: float = 14, step: str = "30min", registry:
     markets. Prices only; the county model covers the races in configs/us2026_*_v1.toml (modeled = true)."""
     reg = json.loads((registry or RACES_REGISTRY).read_text())
     modeled = {load_config(p)["election"]["race_id"] for p in (ROOT_DIR / "configs").glob(f"{EID}_*_v1.toml")}
+    polls = load_polls()                                          # brunder us polls (data_public/us2026_polls.json)
     grid = pd.date_range(now - pd.Timedelta(days=days), now, freq=step)
 
     def entry(r: dict) -> dict:
@@ -1505,6 +1687,8 @@ def overview(now: pd.Timestamp, days: float = 14, step: str = "30min", registry:
         out = {k: v for k, v in r.items() if k not in ("pm", "kalshi")}
         out["modeled"] = r["race_key"] in modeled                 # configs with the county model, as of this run
         out["race_id"] = r["race_key"] if out["modeled"] else None
+        pa = polls.get(r["race_key"])
+        out["polls"] = None if not pa else {k: pa[k] for k in ("avg", "sd", "n_polls", "last_date", "p_win")}
         out["pm"] = None if not r.get("pm") else {**r["pm"], "price": _r(_last(pm_v))}
         out["kalshi"] = None if not r.get("kalshi") else {**r["kalshi"], "price": _r(_last(k_v))}
         out["history"] = [[_iso(t), _r(p), _r(k)] for t, p, k in zip(grid, pm_v, k_v)]

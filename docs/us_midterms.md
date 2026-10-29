@@ -180,6 +180,66 @@ Settings: SC and VT feeds report no vote-type split, so they use the Georgia cal
 absentees), so complete counties are taken as 98 % counted, as in GA and TX. SC's `PX`/`PY` were only seen on
 finished elections (equal); that they mean reported/total precincts on the night is an assumption.
 
+## Polls
+
+Main fixed this rule before any average was computed. The code is `brunder.us.poll_rows` / `poll_average`, and
+`analysis/us_polls.py` runs it.
+
+- **Source:** VoteHub Polling API, `api.votehub.com/polls?poll_type=us-senator|governor`. Licence CC BY 4.0
+  ([votehub.com/polls/api](https://votehub.com/polls/api/)). The raw files are cached under `data/raw/us/polls`
+  (gitignored). Only our averages are published, in `data_public/us2026_polls.json`, with credit to VoteHub.
+- **Which polls count:** a poll counts toward a race if its subject is "2026 <State>" and its type is the race's
+  office, if it names the Democratic-side candidate (same surname), and if it has a sample size.
+- **Share:** the two-party Democratic share is D / (D + opponent). The opponent is the modeled config's Republican
+  if the poll names them; otherwise it is the strongest other candidate in the poll.
+- **One version per poll:** a poll is one pollster with the same field dates. Likely voters are preferred over
+  registered voters, and registered voters over adults. After that, the version with the most candidates (the full
+  ballot) is kept.
+- **Window:** field end dates in the 45 days up to 2026-11-02.
+- **Weights:** each poll gets weight ∝ √n × 0.5^(age_days / 14). No pollster may hold more than 25 % of the total
+  weight; when fewer than 4 pollsters are in the window the cap is 1/k for k pollsters. Weight above the cap is
+  given to the other pollsters in proportion to their weights.
+- **Error:** sd = √(0.039² + Σ w² s(1−s) / n₂), where n₂ is a poll's two-party respondents.
+  - 0.039 is the RMSE of final-week poll averages, two-party Democratic share, Senate and governor races 2016–2022.
+    It covers 167 races and 544 polls in FiveThirtyEight's pollster-ratings `raw_polls.csv` (CC BY 4.0; polls
+    with median field date ≤ 7 days before the election). On the margin it is ≈ 7.8 points.
+  - Over the same races the polls overstated the Democrat by 1.4 points on average. That bias is not corrected.
+  - Adding the sampling term on top counts some sampling error twice, so the sd is slightly conservative.
+  - `uv run python analysis/us_polls.py error` reproduces the 0.039.
+- **Chance from polls:** p_win = Φ((avg − 0.5) / sd).
+- **No polls in the window:** the race gets no poll prior and v2 = v1. `polls` is null in the overview.
+
+Model v2 (`configs/us2026_<st>_<race>_v2.toml`) is v1 plus a prior on the statewide swing. That prior is
+`brunder.nowcast.Params.swing_prior_mean / swing_prior_sd`, optional and off by default: Brazil and v1 results are
+bit-identical, tested against golden values.
+
+- **Prior:** the mean is poll_avg − the prior's statewide share (V-weighted, the model's expected-vote weights). The
+  sd is poll_sd. Before the count, the counties therefore aggregate to the poll average.
+- **During the count:** the statewide swing is the precision-weighted mix of this prior and the swing observed in
+  counted votes.
+  - The observed swing's variance is the model's between-county variance of the counted units' weighted mean (σ_mun²
+    Σn²/(Σn)²). With several pooled regions (the GA/TX vote-type split) it also includes the between-region variance.
+  - Early on the polls dominate; as counties report, the count takes over.
+  - Every region's swing moves by the same amount, so per-county deviations work as in v1.
+  - The uncertainty of the remaining-vote projection uses the posterior variance of the swing, with τ unchanged.
+- **Wider before the count:** the pre-count sd is √(τ² + σ_uf0² + poll_sd² + county terms), wider than v1's.
+- **Settings:** everything else (τ, κ, ρ, count rules) is identical to v1. The poll average, its date and the swing
+  prior are frozen into the config; nothing is fetched on the night.
+- **Known bias:** historically the final polls overstated the Democrat by 1.4 points (two-party share; same 538 data).
+  This is not corrected.
+- **Ohio:** it has polls but no county prior, so there is no baseline and v2 = v1 there (P_v2 is empty, as P is).
+- **Effect:** `analysis/us_polls.py effect` tabulates P vs P_v2 at 0/1/5/10/25/50 % counted. It covers Georgia
+  2022 replays (certified vote-type results, simulated count order, v2 prior from our rule on 538's 2022 polls) and
+  synthetic nights for every modeled race.
+
+Commands:
+
+```
+uv run python analysis/us_polls.py build      # VoteHub → data_public/us2026_polls.json (overview polls)
+uv run python analysis/us_polls.py configs    # v2 configs from v1 + averages (then freeze: commit + register)
+uv run python analysis/us_polls.py effect     # P vs P_v2 as the count grows (data/processed/us2026/polls_v2_effect.csv)
+```
+
 ## Before the count (`brunder us preelection`)
 
 ```

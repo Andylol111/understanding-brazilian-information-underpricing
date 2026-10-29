@@ -283,7 +283,9 @@ def test_export_dry_run_writes_valid_contract(tmp_path):
     tl = json.loads((d / "timeline.json").read_text())[rid]
     assert len(tl) == 116                                              # 04:05 … 06:00, one row per minute
     for row in tl:
-        assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "pm", "kalshi", "rem_total", "rem_margin_total"}
+        assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "P_v2", "pm", "kalshi", "rem_total",
+                            "rem_margin_total"}
+        assert 0 <= row["P_v2"] <= 1                                    # v2 (poll swing prior) runs alongside v1
         assert isinstance(row["rem_total"], int) and row["rem_total"] % 10 == 0 and row["rem_total"] >= 0
         assert 0 <= row["counted"] <= 1 and 0 <= row["P"] <= 1 and row["kalshi"] is None
     assert tl[-1]["pm"] == pytest.approx(0.96) and tl[-1]["counted"] > tl[0]["counted"]
@@ -569,7 +571,7 @@ def test_preelection_writes_precount_contract(tmp_path, monkeypatch):
     meta = json.loads((d / "meta.json").read_text())
     assert meta["phase"] == "pre-count" and meta["poll_close_utc"] == "2026-11-04T00:30:00Z"   # ca + oh only here
     assert meta["poll_close_by_region"] == {"ca": "2026-11-04T04:00:00Z", "oh": "2026-11-04T00:30:00Z"}
-    assert any("does not use polls" in n for n in meta["notes"])
+    assert any("model v2 adds the poll average" in n for n in meta["notes"])
     ca, oh = (next(r for r in meta["races"] if r["race_id"] == k) for k in ("ca-gov", "oh-sen"))
     assert ca["precount"]["P"] is not None and 0 < ca["precount"]["sd"] < 0.2 and ca["units"] == "units/ca-gov.json"
     assert oh["precount"] is None and oh["model_note"] == us.NO_PRIOR and oh["units"] is None
@@ -583,6 +585,8 @@ def test_preelection_writes_precount_contract(tmp_path, monkeypatch):
         assert all(r["counted"] is None and r["raw"] is None for r in rows)
         assert rows[-1]["pm"] == pytest.approx(pmv) and rows[-1]["kalshi"] == pytest.approx(kv)
     assert {r["P"] for r in tl["ca-gov"]} == {ca["precount"]["P"]} and all(r["P"] is None for r in tl["oh-sen"])
+    assert ca["config_v2"] == "us2026_ca_gov_v2.toml" and ca["precount"]["share_v2"] is not None
+    assert {r["P_v2"] for r in tl["ca-gov"]} == {ca["precount"]["P_v2"]} and all(r["P_v2"] is None for r in tl["oh-sen"])
     u = json.loads((d / "units" / "ca-gov.json").read_text())
     assert len(u["frames"]) == 1 and set(u["frames"][0]["f"]) == {0} and u["frames"][0]["proj"] == u["prior"]
     assert len(u["prior_margin"]) == len(u["unit_ids"]) == 58
@@ -639,8 +643,13 @@ def test_overview_from_registry(tmp_path, monkeypatch):
     assert {r["state"] for r in sen["races"] + gov["races"]} <= states
     modeled = {r["race_id"] for r in sen["races"] + gov["races"] if r["modeled"]}
     assert modeled == {us.load_config(p)["election"]["race_id"] for p in ROOT.glob("configs/us2026_*_v1.toml")}
+    polls = us.load_polls()
     for r in sen["races"] + gov["races"]:
         assert len(r["history"]) == 49 and r["pm"] is not None
+        pa = polls.get(r["race_key"])
+        assert (r["polls"] is None) == (pa is None)
+        if pa:
+            assert set(r["polls"]) == {"avg", "sd", "n_polls", "last_date", "p_win"} and r["polls"]["avg"] == pa["avg"]
         if r["pm"]["token_id"] == "111":
             assert r["pm"]["price"] == pytest.approx(0.6)
     assert [m["platform"] for m in sen["control_markets"]] == ["polymarket", "kalshi"]
@@ -814,3 +823,139 @@ def test_snap_resolver_clarity_listing_and_vt_static():
     assert out["vt_static_main"] == "https://static.electionresults.vermont.gov/elections/g1.json"
     assert out["vt_static_statewide"] == "https://static.electionresults.vermont.gov/elections/g1-s-20261103230500.json"
     assert snap._CLARITY_EID[spec] == "127500"                          # found once, cached
+
+
+# ------------------------------------------------------------------ polls and model v2
+
+def _poll(pid, pollster, end, n, d, r, pop="lv", start=None, subject="2026 Testland", ptype="governor", extra=()):
+    return {"id": pid, "poll_type": ptype, "subject": subject, "pollster": pollster, "population": pop,
+            "start_date": start or end, "end_date": end, "sample_size": n,
+            "answers": [{"choice": "Dana Demo", "pct": d}, {"choice": "Rex Repp", "pct": r}, *extra]}
+
+
+def test_poll_rows_one_version_per_poll_and_opponent():
+    polls = [_poll("a1", "P1", "2026-10-20", 800, 48, 44, pop="rv"),
+             _poll("a2", "P1", "2026-10-20", 600, 47, 46, pop="lv"),                       # same poll, LV wins
+             _poll("b1", "P2", "2026-10-10", 500, 45, 40, extra=[{"choice": "Ian Indy", "pct": 41}]),
+             _poll("c1", "P3", "2026-10-01", 500, 50, 50, subject="2026 Elsewhere"),
+             _poll("d1", "P4", "2026-10-01", None, 50, 40),                               # no sample size
+             {**_poll("e1", "P5", "2026-10-01", 400, 1, 1), "answers": [{"choice": "Rex Repp", "pct": 50}]}]
+    rows = us.poll_rows(polls, "Testland", "gov", "Dana Q. Demo", "Rex Repp")
+    assert list(rows["id"]) == ["b1", "a2"]
+    assert rows.set_index("id").loc["a2", "s"] == pytest.approx(47 / 93)
+    assert rows.set_index("id").loc["b1", "s"] == pytest.approx(45 / 85)                   # named opponent, not Indy
+    no_opp = us.poll_rows(polls, "Testland", "gov", "Dana Demo")
+    assert no_opp.set_index("id").loc["b1", "s"] == pytest.approx(45 / 86)                 # strongest other
+
+
+def test_poll_average_rule_weights_window_and_cap():
+    polls = [_poll("x1", "Big", "2026-11-01", 900, 52, 48), _poll("x2", "Big", "2026-10-31", 900, 52, 48),
+             _poll("x3", "Big", "2026-10-30", 900, 52, 48), _poll("y1", "S1", "2026-10-19", 400, 45, 55),
+             _poll("y2", "S2", "2026-10-05", 1600, 50, 50), _poll("y3", "S3", "2026-10-20", 900, 48, 52),
+             _poll("old", "S4", "2026-09-10", 5000, 90, 10)]                              # 53 days old: out
+    rows = us.poll_rows(polls, "Testland", "gov", "Dana Demo", "Rex Repp")
+    a = us.poll_average(rows, asof="2026-11-02")
+    r = rows[rows["id"] != "old"].copy()
+    age = (pd.Timestamp("2026-11-02") - pd.to_datetime(r["end"])).dt.days
+    w = np.sqrt(r["n"]) * 0.5 ** (age / 14)
+    w = w / w.sum()
+    big = r["pollster"] == "Big"
+    assert w[big].sum() > 0.25                                                             # cap binds
+    wc = w / w.groupby(r["pollster"]).transform("sum") * 0.25      # 4 pollsters: iterated cap leaves each at 25 %
+    assert a["avg"] == pytest.approx(float((wc * r["s"]).sum()), abs=1e-4)
+    assert a["n_polls"] == 6 and a["last_date"] == "2026-11-01" and a["n_pollsters"] == 4
+    assert us.POLL_SD_HIST < a["sd"] < us.POLL_SD_HIST + 0.01
+    from scipy.stats import norm
+    assert a["p_win"] == pytest.approx(norm.cdf((a["avg"] - 0.5) / a["sd"]), abs=1e-4)
+    assert us.poll_average(rows[rows["id"] == "old"], asof="2026-11-02") is None           # no polls in window
+
+
+def _ga_v2(poll_avg: float, poll_sd: float = 0.04):
+    cfg = us.load_config(ROOT / "configs" / "us2026_ga_sen_v1.toml")
+    priors, _ = _synth_priors([cfg])
+    pri = us.race_prior(cfg, priors)
+    cfg2 = {**cfg, "model": {**cfg["model"], "swing_prior_mean": poll_avg - us.baseline_share(pri),
+                             "swing_prior_sd": poll_sd}}
+    return cfg, cfg2, pri
+
+
+def test_v2_prior_shift_aggregates_to_poll_average():
+    cfg, cfg2, pri = _ga_v2(0.531)
+    res1, _ = us.project(us._frame([]), cfg, pri)
+    res2, u2 = us.project(us._frame([]), cfg2, pri)
+    assert res1["share_hat"] == pytest.approx(us.baseline_share(pri), abs=1e-9)
+    assert res2["share_hat"] == pytest.approx(0.531, abs=1e-9)                # county baseline + shift = poll average
+    shift = 0.531 - us.baseline_share(pri)
+    assert np.allclose(u2["proj"], np.clip(pri["s0"] + shift, 0, 1))
+    assert res2["swing_prior_weight"] == 1.0 and res2["share_sd"] > res1["share_sd"]   # + poll error, tau kept
+
+
+def test_v2_swing_prior_hands_over_to_the_count():
+    """Truth = the prior's baseline (polls wrong by 5 points): v2 starts at the polls and converges to v1 / the truth
+    as counties report; the prior's weight falls monotonically."""
+    cfg, cfg2, pri = _ga_v2(0.0)
+    base = us.baseline_share(pri)
+    cfg2["model"]["swing_prior_mean"] = 0.05                                        # polls say base + 5
+    order = pri.sort_values("V").index[::-1]                                         # big counties first
+    shares, ws = [], []
+    for k in (0, 1, 5, 20, 80, len(pri) - 5):
+        part = pri.loc[order[:k]]
+        rows = _rows(part, part["s0"].to_numpy(), 1.0, complete=True).assign(race="sen") if k else us._frame([])
+        r1, r2 = us.project(rows, cfg, pri)[0], us.project(rows, cfg2, pri)[0]
+        shares.append((r1["share_hat"], r2["share_hat"]))
+        ws.append(r2["swing_prior_weight"])
+    assert shares[0][1] == pytest.approx(base + 0.05, abs=1e-9)
+    assert all(a >= b for a, b in zip(ws, ws[1:])) and ws[0] == 1.0 and ws[-1] < 0.2
+    gaps = [abs(b - a) for a, b in shares]
+    assert all(x >= y - 1e-12 for x, y in zip(gaps, gaps[1:])) and gaps[-1] < 0.002
+
+
+def test_swing_prior_off_is_bit_identical_to_previous_model():
+    """Golden values from brunder.nowcast before the optional swing prior existed (the committed code of 2026-10-28),
+    for a Brazil-style multi-state case and a US v1 race (GA Senate settings, vote-type split)."""
+    from brunder import nowcast
+    rng = np.random.default_rng(11)
+    rows = [{"uf": u, "cd_mun": f"{u}{i}", "s0": rng.uniform(0.3, 0.7), "V0": float(rng.integers(1000, 90000))}
+            for u in ["sp", "mg", "ba", "rs", "zz"] for i in range(30)]
+    prior = pd.DataFrame(rows)
+    f = np.where(rng.uniform(size=len(prior)) < 0.6, rng.uniform(0.1, 1.0, len(prior)), 0.0)
+    n = prior["V0"] * f
+    share = (prior["s0"] - 0.03 + rng.normal(0, 0.02, len(prior))).clip(0, 1)
+    state = pd.DataFrame({"uf": prior["uf"], "cd_mun": prior["cd_mun"], "n": n, "a": n * share, "f": f})
+    for p in (nowcast.Params(), nowcast.Params(swing_prior_mean=None, swing_prior_sd=None)):
+        br = nowcast.nowcast(state, prior, p)
+        assert (br["p_win"], br["margin_sd"], br["share_hat"]) == (8.342211860354956e-12, 95704.73921682102,
+                                                                   0.45119738702190726)
+        assert "swing_obs" not in br
+    cfg = us.load_config(ROOT / "configs" / "us2026_ga_sen_v1.toml")
+    priors, _ = _synth_priors([cfg])
+    pri = us.race_prior(cfg, priors)
+    res, _ = us.project(_rows(pri, np.clip(pri["s0"].to_numpy() - 0.03, 0, 1), 0.3).assign(race="sen"), cfg, pri)
+    assert (res["p_win"], res["margin_sd"], res["share_hat"]) == (0.8983338861717141, 1279060.706500724,
+                                                                  0.5358053444298526)
+
+
+def test_v2_configs_only_change_the_prior():
+    import hashlib
+    import re as _re
+    for p2 in sorted((ROOT / "configs").glob("us2026_*_v2.toml")):
+        p1 = p2.with_name(p2.name.replace("_v2", "_v1"))
+        c1, c2 = us.load_config(p1), us.load_config(p2)
+        assert hashlib.sha256(p1.read_bytes()).hexdigest() in p2.read_text().splitlines()[0]
+        assert c2["id"] == c1["id"][:-3] + "_v2"
+        for k in ("election", "count", "markets"):
+            assert c2[k] == c1[k], (p2.name, k)
+        assert {k: c2["model"][k] for k in c1["model"]} == c1["model"]
+        assert set(c2["model"]) - set(c1["model"]) <= {"swing_prior_mean", "swing_prior_sd"}
+        extra = set(c2["prior"]) - set(c1["prior"])
+        assert {k: c2["prior"][k] for k in c1["prior"]} == c1["prior"] and extra <= {
+            "poll_avg", "poll_sd", "poll_n", "poll_last", "poll_asof", "poll_p_win"}
+        if "swing_prior_sd" in c2["model"]:
+            assert c2["model"]["swing_prior_sd"] == c2["prior"]["poll_sd"]
+            pri = us.race_prior(c1, us.load_priors(us.PUBLIC_PRIORS))
+            assert c2["model"]["swing_prior_mean"] == pytest.approx(c2["prior"]["poll_avg"] - us.baseline_share(pri),
+                                                                    abs=6e-5)
+        if extra:
+            assert 0.2 < c2["prior"]["poll_avg"] < 0.8 and _re.fullmatch(r"\d{4}-\d\d-\d\d", c2["prior"]["poll_last"])
+    cfgs, v2 = us.load_races([ROOT / "configs" / "us2026_ga_sen_v1.toml", ROOT / "configs" / "us2026_ga_sen_v2.toml"])
+    assert [c["id"] for c in cfgs] == ["us2026_ga_sen_v1"] and v2["ga-sen"]["id"] == "us2026_ga_sen_v2"

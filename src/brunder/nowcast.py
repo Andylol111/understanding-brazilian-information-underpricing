@@ -50,6 +50,13 @@ class Params:
     sigma_uf0: float = 0.03     # prior sd of state swing around national swing ...
     nu_uf: float = 5.0          # ... worth this many states
     unpooled: tuple[str, ...] = ("zz",)   # units kept out of the national swing (abroad votes)
+    # Optional prior on the national swing (US model v2: poll average minus the prior's statewide share, and the poll
+    # error). Off (None) by default: results are then exactly those without these fields. When set, the swing is the
+    # precision-weighted combination of this prior and the swing observed in counted votes, whose variance is the
+    # between-unit (and, with several pooled regions, between-region) variance of their weighted mean; every
+    # region's swing moves by the same amount, and the remaining-vote uncertainty uses the posterior variance.
+    swing_prior_mean: float | None = None
+    swing_prior_sd: float | None = None
 
 
 def prior_from_final(final: pd.DataFrame, cand_a: str, cand_b: str | None = None) -> pd.DataFrame:
@@ -134,6 +141,24 @@ def nowcast(state: pd.DataFrame, prior: pd.DataFrame, p: Params = Params(), uf: 
     var_mun = (twoR**2 * sigma_mun2 * np.where(counted, 1 - df["f"], 1.0)).sum()
     var_uf = (twoR_u**2 * by_uf["var_u"]).sum()
     var_nat = twoR.sum() ** 2 * p.tau**2 + (twoR_u * (1 - lam)).sum() ** 2 * var_delta
+    if p.swing_prior_sd is not None:
+        var_obs = np.inf
+        if Wp.sum() > 0:
+            var_obs = sigma_mun2 * W2p.sum() / Wp.sum() ** 2
+            if len(by_uf) > 1:                       # several regions: the observed mean also mixes regions
+                var_obs += sigma_between2 * (Wp**2).sum() / Wp.sum() ** 2
+        s2 = p.swing_prior_sd**2
+        w_obs = s2 / (s2 + var_obs) if np.isfinite(var_obs) else 0.0
+        delta_post = w_obs * delta + (1 - w_obs) * (p.swing_prior_mean or 0.0)
+        var_post = (1 - w_obs) * s2                 # = 1 / (1/s2 + 1/var_obs)
+        df["delta_u"] = df["delta_u"] + (delta_post - delta)
+        resid_post = (df["d"] - df["delta_u"]).fillna(0.0)
+        df["s_hat"] = (df["s0"] + df["delta_u"] + p.rho * resid_post * counted).clip(0, 1)
+        var_nat = twoR.sum() ** 2 * p.tau**2 + twoR_u.sum() ** 2 * var_post
+        extra = {"swing_obs": delta, "swing_prior_weight": float(1 - w_obs)}
+        delta = delta_post
+    else:
+        extra = {}
     sd = float(np.sqrt(var_mun + var_uf + var_nat))
 
     counted_margin = float((2 * df["a"] - df["n"]).sum())
@@ -150,6 +175,7 @@ def nowcast(state: pd.DataFrame, prior: pd.DataFrame, p: Params = Params(), uf: 
         "counted_frac": float(df["n"].sum() / total) if total else np.nan,
         "swing_nat": delta,
         "turnout_k": float(k),
+        **extra,
     }
 
 

@@ -1,0 +1,58 @@
+# US midterms 2026-11-03, Texas Senate: model v2. Identical to us2026_tx_sen_v1.toml (sha256 c6fe11502a9008639d34f2804f87d0744cce643efb23f9fd837de03ae510a0e0)
+# except a prior on the statewide swing from the polls ([model] swing_prior_*; brunder.nowcast): the
+# swing is the precision-weighted mix of the poll prior and the swing in counted votes, so the polls
+# lead early and the count takes over. Poll average frozen here (rule docs/us_midterms.md#polls;
+# VoteHub polls, CC BY 4.0, data built 2026-10-29T00:09:07Z); nothing is fetched on the night. v1 and v2 are both
+# registered and scored.
+id = "us2026_tx_sen_v2"
+
+[election]
+eid = "us2026"
+race_id = "tx-sen"
+name = "Texas Senate"
+state = "tx"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "tx"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "James Talarico", color = "#1f5fbf" }
+b = { party = "REP", name = "Ken Paxton", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "tx_sen_2024"        # 2024 Senate (Allred v Cruz): same office, most recent
+votes = "tx_gov_2022"        # 2022 governor two-party votes (TX had no 2022 Senate race)
+poll_avg = 0.5126           # two-party Dem share, weighted average of 17 polls
+poll_sd = 0.0393            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 17
+poll_last = "2026-10-21"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.6255        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays, vote_type on (analysis/us_calibrate.py)
+tau = 0.04
+rho = 0.6
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0540   # poll_avg - prior statewide share 0.4586 (V-weighted, data_public/us2026_priors.csv)
+swing_prior_sd = 0.0393      # = poll_sd
+
+[count]                    # brunder.us.CountRules
+# TX counts early in-person and mail ballots first and nearly everything on election night: once every
+# polling place in a county reported, 98% of its vote is assumed in; those counties re-scale the
+# expected vote of the rest (learned turnout).
+# vote_type: counties split into early+mail and Election Day units (the feed reports early votes);
+# early_share = 0.6 (assumption: no TX county vote-type history in the sources used).
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = true
+early_share = 0.6
+
+[markets.polymarket]
+event = "texas-senate-election-winner"
+market = "will-the-democrats-win-the-texas-senate-race-in-2026"
+question = "Will the Democrats win the Texas Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

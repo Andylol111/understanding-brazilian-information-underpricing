@@ -1,0 +1,54 @@
+# US midterms 2026-11-03, Vermont governor: model v2. Identical to us2026_vt_gov_v1.toml (sha256 bee64571bad1f26c9a88f8ff23ea161864571c07d6f4d9213bcc3950f3caedfd)
+# except a prior on the statewide swing from the polls ([model] swing_prior_*; brunder.nowcast): the
+# swing is the precision-weighted mix of the poll prior and the swing in counted votes, so the polls
+# lead early and the count takes over. Poll average frozen here (rule docs/us_midterms.md#polls;
+# VoteHub polls, CC BY 4.0, data built 2026-10-29T00:09:07Z); nothing is fetched on the night. v1 and v2 are both
+# registered and scored.
+id = "us2026_vt_gov_v2"
+
+[election]
+eid = "us2026"
+race_id = "vt-gov"
+name = "Vermont governor"
+state = "vt"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "vt"                    # brunder.us.FEEDS (Vermont SoS static JSON; towns summed to the 14 counties)
+poll_close_utc = "2026-11-04T00:00:00Z"
+a = { party = "DEM", name = "Amanda Janoo", color = "#1f5fbf" }
+b = { party = "REP", name = "Phil Scott", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "vt_gov_2024"        # 2024 governor (Charlestin v Scott): same office and incumbent (Vermont SoS; VT elects governors every 2 years)
+votes = "vt_gov_2024"        # 2024 governor two-party votes × 0.72 (midterm / presidential-year ratio, below)
+poll_avg = 0.5084           # two-party Dem share, weighted average of 2 polls
+poll_sd = 0.0405            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 2
+poll_last = "2026-10-25"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.5823        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays without a vote-type split (the VT feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.2792   # poll_avg - prior statewide share 0.2292 (V-weighted, data_public/us2026_priors.csv)
+swing_prior_sd = 0.0405      # = poll_sd
+
+[count]                    # brunder.us.CountRules
+# Vermont towns count all ballots, absentee included, on election night: a county is complete when all its towns
+# reported (98% of its vote assumed in); complete counties re-scale the rest. turnout_ratio 0.72 = mean 2022/2024
+# two-party vote ratio in the CA, TX and GA official data of this project (0.69, 0.71, 0.75).
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "vermont-governor-winner-2026"
+market = "will-the-democrats-win-the-vermont-governor-race-in-2026"
+question = "Will the Democrats win the Vermont governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""
