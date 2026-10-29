@@ -41,6 +41,90 @@ def error() -> None:
           f"sd {r['err'].std():.4f}   [brunder.us.POLL_SD_HIST = {us.POLL_SD_HIST}]")
 
 
+def history_averages() -> pd.DataFrame:
+    """Our averaging rule (brunder.us.poll_average, 45-day window) on every 2016-2022 Senate/governor race of 538's
+    raw_polls.csv (D vs R questions, one per poll; median field date for the end date), as of the day before the
+    election: race, cycle, n_polls, n_pollsters, err = average − certified two-party share."""
+    f = us.US_RAW / "polls" / "538_raw_polls.csv"
+    us._fetch(RAW_538, f)
+    d = pd.read_csv(f)
+    d = d[d["type_simple"].isin(["Sen-G", "Gov-G"]) & d["cycle"].between(2016, 2022) & (d["cand1_party"] == "DEM")
+          & (d["cand2_party"] == "REP")].drop_duplicates("poll_id")
+    out = []
+    for race, g in d.groupby("race"):
+        rows = pd.DataFrame({"pollster": g["pollster"], "end": g["polldate"], "n": g["samplesize"],
+                             "dem": g["cand1_pct"], "opp": g["cand2_pct"],
+                             "s": g["cand1_pct"] / (g["cand1_pct"] + g["cand2_pct"])}).dropna().reset_index(drop=True)
+        a = us.poll_average(rows, (pd.Timestamp(g["electiondate"].iloc[0]) - pd.Timedelta(days=1)).strftime("%Y-%m-%d"))
+        if a:
+            act = g["cand1_actual"].iloc[0] / (g["cand1_actual"].iloc[0] + g["cand2_actual"].iloc[0])
+            out.append({"race": race, "cycle": int(g["cycle"].iloc[0]), "n_polls": a["n_polls"],
+                        "n_pollsters": a["n_pollsters"], "err": a["avg"] - act})
+    return pd.DataFrame(out)
+
+
+def errorbins() -> None:
+    """RMSE of the poll average by number of polls in the window (bins 1-2 / 3-5 / 6-10 / 11+, adjacent bins pooled
+    where a larger bin is not more accurate), all years; and the out-of-sample check: bins fit on 2016-2020,
+    coverage of the 2022 races."""
+    r = history_averages()
+    rmse = lambda e: float(np.sqrt((e**2).mean()))
+    edges, labels = [0, 2, 5, 10, 10**6], ["1-2", "3-5", "6-10", "11+"]
+    r["bin"] = pd.cut(r["n_polls"], edges, labels=labels)
+    print(r.groupby("bin", observed=False)["err"].agg(races="size", rmse=rmse, mean="mean").round(4).to_string())
+    print("by pollsters:", r.assign(b=pd.cut(r["n_pollsters"], edges, labels=labels)).groupby(
+        "b", observed=False)["err"].agg(rmse).round(4).to_dict())
+    tr, te = r[r["cycle"] <= 2020], r[r["cycle"] == 2022]
+    fit = {n: us.poll_sd_by_n(n, us.poll_sd_bins(tr)) for n in te["n_polls"]}
+    z = te["err"] / te["n_polls"].map(fit)
+    print(f"fit 2016-2020 {us.poll_sd_bins(tr)}; 2022 ({len(te)} races): |z|<1 {np.mean(np.abs(z) < 1):.2f} "
+          f"(nominal 0.68), |z|<1.645 {np.mean(np.abs(z) < 1.645):.2f} (0.90), rms z {np.sqrt(np.mean(z**2)):.2f}")
+    print(f"all years: {us.poll_sd_bins(r)}   [brunder.us.POLL_SD_BINS = {us.POLL_SD_BINS}]")
+
+
+def next_versions() -> None:
+    """The next model version of every race with an active poll prior (v3; Ohio v4): its poll model's config with
+    (a) [model] count_scaled_terms = true — before the count the statewide uncertainty is the poll error alone, the
+    reporting-order (tau) and between-region terms grow with the counted votes' weight (brunder.nowcast) — and
+    (b) swing_prior_sd = the historical error of a poll average with that many polls (brunder.us.POLL_SD_BINS),
+    instead of the flat 0.039 + sampling. Registered files are never written."""
+    frozen = registered_ids()
+    for p in sorted((us.ROOT_DIR / "configs").glob(f"{us.EID}_*_v1.toml")):
+        c1 = us.load_config(p)
+        vs = {v: q for v, q in us._sibling_versions(c1).items() if q.stem in frozen}   # registered versions only
+        cfgs = {v: us.load_config(q) for v, q in vs.items()}
+        pm = us.poll_model(cfgs)
+        if pm is None:
+            print(p.name, "no registered poll model: no next version")
+            continue
+        if cfgs[pm]["model"].get("count_scaled_terms"):
+            print(vs[pm].name, "already has the count-scaled poll error: no next version")
+            continue
+        reg = [int(v[1:]) for v in vs if Path(vs[v]).stem in frozen]
+        n = max(reg + [1]) + 1
+        q = p.with_name(p.name.replace("_v1.toml", f"_v{n}.toml"))
+        if q.stem in frozen:
+            print(q.name, "registered: not regenerated")
+            continue
+        base = vs[pm]
+        text, cb = base.read_text(), cfgs[pm]
+        sd = us.poll_sd_by_n(int(cb["prior"]["poll_n"]))
+        body = text[text.index("\nid = ") + 1:].replace(f'id = "{cb["id"]}"', f'id = "{q.stem}"', 1)
+        body = re.sub(r"^swing_prior_sd = .*$",
+                      f"swing_prior_sd = {sd}      # historical RMSE of a poll average with {cb['prior']['poll_n']} "
+                      "polls (brunder.us.POLL_SD_BINS)\ncount_scaled_terms = true   # tau / between-region terms "
+                      "scale in with the counted votes", body, count=1, flags=re.M)
+        sha = hashlib.sha256(base.read_bytes()).hexdigest()
+        head = [f"# US midterms 2026-11-03, {c1['election']['name']}: model v{n}. Identical to {base.name} (sha256 {sha})",
+                "# except the pre-count uncertainty: swing_prior_sd = the historical error of a poll average with this",
+                "# many polls (538 raw_polls 2016-2022, CC BY 4.0; analysis/us_polls.py errorbins), and",
+                "# count_scaled_terms = true, so before any vote the statewide uncertainty is that poll error alone and",
+                "# the reporting-order / between-region terms grow with the counted votes (brunder.nowcast). Earlier",
+                "# versions stay registered and scored."]
+        q.write_text("\n".join(head) + "\n" + body)
+        print(q.name, f"from {base.name}: swing_prior_sd {cb['model']['swing_prior_sd']} -> {sd}")
+
+
 def build(day: str | None) -> None:
     out = us.build_polls(us.fetch_polls(day))
     n = sum(v is not None for v in out["races"].values())
@@ -207,7 +291,8 @@ def effect(n_sim: int = 30) -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("step", choices=["error", "build", "configs", "effect"])
+    ap.add_argument("step", choices=["error", "errorbins", "build", "configs", "next", "effect"])
     ap.add_argument("--day", help="VoteHub cache day YYYYmmdd (default today)")
     a = ap.parse_args()
-    {"error": error, "build": lambda: build(a.day), "configs": configs, "effect": effect}[a.step]()
+    {"error": error, "errorbins": errorbins, "build": lambda: build(a.day), "configs": configs,
+     "next": next_versions, "effect": effect}[a.step]()

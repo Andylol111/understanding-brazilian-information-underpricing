@@ -1,0 +1,53 @@
+# US midterms 2026-11-03, Ohio governor: model v4. Identical to us2026_oh_gov_v3.toml (sha256 04061b8fab32b8c2afe09c00a4a8659d6fc70f7b6dbec2567c6bec138ef9bf85)
+# except the pre-count uncertainty: swing_prior_sd = the historical error of a poll average with this
+# many polls (538 raw_polls 2016-2022, CC BY 4.0; analysis/us_polls.py errorbins), and
+# count_scaled_terms = true, so before any vote the statewide uncertainty is that poll error alone and
+# the reporting-order / between-region terms grow with the counted votes (brunder.nowcast). Earlier
+# versions stay registered and scored.
+id = "us2026_oh_gov_v4"
+
+[election]
+eid = "us2026"
+race_id = "oh-gov"
+name = "Ohio governor"
+state = "oh"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "oh"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T00:30:00Z"
+a = { party = "DEM", name = "Amy Acton", color = "#1f5fbf" }
+b = { party = "REP", name = "Vivek Ramaswamy", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "oh_pres_2024"        # 2024 president (MEDSL, CC0); see oh-sen
+votes = "oh_pres_2024"        # as oh-sen
+poll_avg = 0.5147           # two-party Dem share, weighted average of 13 polls
+poll_sd = 0.0394            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 13
+poll_last = "2026-10-23"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.6452        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays, no vote-type split (OH feed has none)
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0713   # poll_avg - prior statewide share 0.4434 (V-weighted, data_public/us2026_priors.csv)
+swing_prior_sd = 0.0228      # historical RMSE of a poll average with 13 polls (brunder.us.POLL_SD_BINS)
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+
+[count]                    # brunder.us.CountRules
+# As oh-sen.
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.0
+use_outstanding = true
+learn_turnout = true
+
+[markets.polymarket]
+event = "ohio-governor-winner-2026"
+market = "will-the-democrats-win-the-ohio-governor-race-in-2026"
+question = "Will the Democrats win the Ohio governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

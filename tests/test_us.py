@@ -284,9 +284,10 @@ def test_export_dry_run_writes_valid_contract(tmp_path):
     tl = json.loads((d / "timeline.json").read_text())[rid]
     assert len(tl) == 116                                              # 04:05 … 06:00, one row per minute
     for row in tl:
+        later = {f"{k}_{v}" for v in ex.versions.get(rid, {}) if v != "v2" for k in ("P", "share", "sd")}
         assert set(row) == {"t", "counted", "raw", "share", "sd", "P", "P_v2", "share_v2", "sd_v2", "pm", "kalshi",
                             "rem_total", "rem_margin_total", "votes_proj", "margin_model", "margin_model_sd",
-                            "margin_v2", "margin_polls", "margin_market", "margin_market_kalshi"}
+                            "margin_v2", "margin_polls", "margin_market", "margin_market_kalshi"} | later
         assert row["margin_model"] == pytest.approx((2 * row["share"] - 1) * 100, abs=0.02)
         assert row["votes_proj"] >= row["rem_total"] and row["margin_market_kalshi"] is None
         assert 0 <= row["P_v2"] <= 1 and 0 < row["share_v2"] < 1 and row["sd_v2"] > 0   # v2 runs alongside v1
@@ -958,12 +959,13 @@ def test_v2_configs_only_change_the_prior():
         for k in ("election", "count", "markets"):
             assert c2[k] == c1[k], (p2.name, k)
         assert {k: c2["model"][k] for k in c1["model"]} == c1["model"]
-        assert set(c2["model"]) - set(c1["model"]) <= {"swing_prior_mean", "swing_prior_sd"}
+        assert set(c2["model"]) - set(c1["model"]) <= {"swing_prior_mean", "swing_prior_sd", "count_scaled_terms"}
         extra = set(c2["prior"]) - set(c1["prior"])
         assert {k: c2["prior"][k] for k in c1["prior"]} == c1["prior"] and extra <= {
             "poll_avg", "poll_sd", "poll_n", "poll_last", "poll_asof", "poll_p_win"}
         if "swing_prior_sd" in c2["model"]:
-            assert c2["model"]["swing_prior_sd"] == c2["prior"]["poll_sd"]
+            assert c2["model"]["swing_prior_sd"] == (us.poll_sd_by_n(c2["prior"]["poll_n"])
+                                                     if c2["model"].get("count_scaled_terms") else c2["prior"]["poll_sd"])
             pri = us.race_prior(c1, us.load_priors(us.PUBLIC_PRIORS))
             assert c2["model"]["swing_prior_mean"] == pytest.approx(c2["prior"]["poll_avg"] - us.baseline_share(pri),
                                                                     abs=6e-5)
@@ -1090,9 +1092,9 @@ def test_scores_are_separate():
 def test_load_races_attaches_every_version_and_picks_poll_model():
     cfgs, vs = us.load_races([ROOT / "configs" / "us2026_oh_sen_v1.toml"])
     assert [c["id"] for c in cfgs] == ["us2026_oh_sen_v1"]
-    assert list(vs["oh-sen"]) == ["v2", "v3"] and us.poll_model(vs["oh-sen"]) == "v3"   # registered v2: no prior
+    assert list(vs["oh-sen"]) == ["v2", "v3", "v4"] and us.poll_model(vs["oh-sen"]) == "v4"   # v2: no prior
     _, vs = us.load_races([ROOT / "configs" / "us2026_ga_sen_v1.toml"])
-    assert list(vs["ga-sen"]) == ["v2"] and us.poll_model(vs["ga-sen"]) == "v2"
+    assert list(vs["ga-sen"]) == ["v2", "v3"] and us.poll_model(vs["ga-sen"]) == "v3"
 
 
 def test_preelection_runs_ohio_v1_v2_v3(tmp_path, monkeypatch):
@@ -1103,11 +1105,12 @@ def test_preelection_runs_ohio_v1_v2_v3(tmp_path, monkeypatch):
     pairs.write_text(PAIRS_PRE)
     d = us.preelection(paths, tmp_path / "site", days=1, now=NOW, priors=priors, pairs_path=pairs)
     race = json.loads((d / "meta.json").read_text())["races"][0]
-    assert race["poll_model"] == "v3" and race["versions"] == {"v2": "us2026_oh_sen_v2.toml", "v3": "us2026_oh_sen_v3.toml"}
+    assert race["poll_model"] == "v4" and race["versions"] == {f"v{n}": f"us2026_oh_sen_v{n}.toml" for n in (2, 3, 4)}
     pc = race["precount"]
     assert pc["P_v2"] == pytest.approx(pc["P"]) and pc["P_v3"] != pytest.approx(pc["P"])   # v2 = v1 (no swing prior)
+    assert pc["share_v4"] == pytest.approx(pc["share_v3"]) and pc["sd_v4"] < pc["sd_v3"]     # v4: narrower, same mean
     row = json.loads((d / "timeline.json").read_text())["oh-sen"][-1]
-    assert row["P_v3"] == pc["P_v3"] and row["share_v3"] == pc["share_v3"]
+    assert row["P_v4"] == pc["P_v4"] and row["share_v3"] == pc["share_v3"]
 
 
 def test_config_generator_never_touches_registered_files():
@@ -1119,4 +1122,47 @@ def test_config_generator_never_touches_registered_files():
     assert {"us2026_oh_sen_v2", "us2026_oh_sen_v3", "us2026_ga_sen_v2"} <= frozen
     files = {p: p.read_bytes() for p in (ROOT / "configs").glob("us2026_*_v*.toml") if p.stem in frozen}
     mod.configs()
+    mod.next_versions()
     assert all(p.read_bytes() == b for p, b in files.items())
+
+
+# ------------------------------------------------------------------ v3: pre-count uncertainty = poll error alone
+
+def test_count_scaled_terms_precount_sd_is_poll_error_plus_county_noise():
+    from brunder import nowcast
+    rng = np.random.default_rng(4)
+    prior = pd.DataFrame({"uf": "tx", "cd_mun": [f"c{i}" for i in range(40)], "s0": rng.uniform(0.3, 0.7, 40),
+                          "V0": rng.integers(1000, 90000, 40).astype(float)})
+    state = prior[["uf", "cd_mun"]].assign(n=0.0, a=0.0, f=0.0)
+    p = nowcast.Params(tau=0.04, sigma_uf0=0.03, sigma_mun0=0.08, swing_prior_mean=0.02, swing_prior_sd=0.0228,
+                       count_scaled_terms=True)
+    r = nowcast.nowcast(state, prior, p)
+    R = prior["V0"]
+    expect = np.sqrt(0.0228**2 + 0.08**2 * (R**2).sum() / R.sum() ** 2)        # identity: no tau, no between-region
+    assert r["share_sd"] == pytest.approx(expect, rel=1e-9)
+    off = nowcast.nowcast(state, prior, nowcast.Params(**{**p.__dict__, "count_scaled_terms": False}))
+    assert off["share_sd"] == pytest.approx(np.sqrt(expect**2 + 0.04**2 + 0.03**2), rel=1e-9)   # v2 stacks them
+    assert r["share_hat"] == off["share_hat"]
+
+
+def test_count_scaled_terms_grow_with_the_count():
+    cfg, cfg2, pri = _ga_v2(0.53, 0.0334)
+    cfg3 = {**cfg2, "model": {**cfg2["model"], "count_scaled_terms": True}}
+    order = pri.sort_values("V").index[::-1]
+    gaps = []
+    for k in (0, 5, 40, len(pri) - 3):
+        part = pri.loc[order[:k]]
+        rows = _rows(part, part["s0"].to_numpy(), 1.0, complete=True).assign(race="sen") if k else us._frame([])
+        r2, r3 = us.project(rows, cfg2, pri)[0], us.project(rows, cfg3, pri)[0]
+        assert r3["share_sd"] <= r2["share_sd"] + 1e-12 and r3["share_hat"] == pytest.approx(r2["share_hat"])
+        gaps.append(r2["share_sd"] - r3["share_sd"])
+    assert gaps[0] > 0.02 and gaps[-1] < 0.25 * gaps[0]                            # converges as the count grows
+
+
+def test_poll_sd_bins_pool_and_lookup():
+    hist = pd.DataFrame({"n_polls": [1, 2, 4, 4, 8, 8, 12, 15], "err": [0.05, -0.04, 0.02, -0.02, 0.03, -0.03,
+                                                                         0.01, -0.01]})
+    b = us.poll_sd_bins(hist)
+    assert [hi for hi, _ in b] == [2, 10, 10**6]                                    # 6-10 (0.03) > 3-5 (0.02): pooled
+    assert b[1][1] == pytest.approx(np.sqrt((2 * 0.02**2 + 2 * 0.03**2) / 4), abs=1e-4)
+    assert us.poll_sd_by_n(2) == 0.0429 and us.poll_sd_by_n(7) == 0.0334 and us.poll_sd_by_n(17) == 0.0228

@@ -265,6 +265,34 @@ uv run python analysis/us_polls.py configs    # v2 configs from v1 + averages (t
 uv run python analysis/us_polls.py effect     # P vs P_v2 as the count grows (data/processed/us2026/polls_v2_effect.csv)
 ```
 
+## Model v3 (Ohio v4): pre-count uncertainty = poll error only
+
+`analysis/us_polls.py next` writes each race's next version from its registered poll model. It never writes
+registered files and is idempotent. Two changes, nothing else:
+
+1. **`count_scaled_terms = true`** (`brunder.nowcast`, optional, off by default; v1 and v2 are bit-identical).
+   - The reporting-order term (τ) and the between-region term are scaled by the weight the counted votes have in
+     the swing, `w_obs`. That weight is 0 before the count and approaches 1 as counties report.
+   - These terms describe how counted votes misstate the remaining ones. Stacking them on the poll prior at 0 %
+     counted (v2) double-counted.
+   - Identity, tested: before any vote, share sd² = poll sd² + σ_mun0² ΣR²/(ΣR)², the poll error plus county noise.
+2. **`swing_prior_sd` by number of polls.** Our averaging rule was replayed on 538's raw_polls for 2016–2022
+   (192 Senate and governor races, CC BY 4.0; `analysis/us_polls.py errorbins`).
+
+   | polls in window | races | RMSE (two-party share) | used |
+   |---|---|---|---|
+   | 1–2 | 56 | 0.0429 | 0.0429 |
+   | 3–5 | 50 | 0.0331 | 0.0334 (3–10 pooled) |
+   | 6–10 | 29 | 0.0338 | 0.0334 |
+   | 11+ | 57 | 0.0228 | 0.0228 |
+
+   - The 3–5 and 6–10 bins are pooled because 6–10 was not more accurate; the sd never decreases with fewer
+     polls.
+   - The bin RMSE is used as is, never below it, with no extra sampling term since the RMSE already contains it.
+   - Held out: bins fit on 2016–2020 put 70 % of the 2022 races within ±1 sd (nominal 68 %) and 92 % within
+     ±1.645 sd (90 %).
+   - Polls overstated the Democrat by 1.4 points on average; this is not corrected.
+
 ## County baselines and estimates for every race (display only)
 
 - **Baseline:** `data_public/us2026_county_baseline.csv` holds 2024 president and 2024 regular Senate results by

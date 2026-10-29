@@ -57,6 +57,10 @@ class Params:
     # region's swing moves by the same amount, and the remaining-vote uncertainty uses the posterior variance.
     swing_prior_mean: float | None = None
     swing_prior_sd: float | None = None
+    # With a swing prior: scale the reporting-order term (tau) and the between-region term by the weight the counted
+    # votes have in the swing (w_obs, 0 before any count). They describe how counted votes misstate the remaining
+    # ones, so before the count the statewide uncertainty is the prior's alone. Off by default (v2 behaviour).
+    count_scaled_terms: bool = False
 
 
 def prior_from_final(final: pd.DataFrame, cand_a: str, cand_b: str | None = None) -> pd.DataFrame:
@@ -154,7 +158,9 @@ def nowcast(state: pd.DataFrame, prior: pd.DataFrame, p: Params = Params(), uf: 
         df["delta_u"] = df["delta_u"] + (delta_post - delta)
         resid_post = (df["d"] - df["delta_u"]).fillna(0.0)
         df["s_hat"] = (df["s0"] + df["delta_u"] + p.rho * resid_post * counted).clip(0, 1)
-        var_nat = twoR.sum() ** 2 * p.tau**2 + twoR_u.sum() ** 2 * var_post
+        scale = w_obs if p.count_scaled_terms else 1.0
+        var_uf = var_uf * scale
+        var_nat = twoR.sum() ** 2 * p.tau**2 * scale + twoR_u.sum() ** 2 * var_post
         extra = {"swing_obs": delta, "swing_prior_weight": float(1 - w_obs)}
         delta = delta_post
     else:

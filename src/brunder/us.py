@@ -900,7 +900,8 @@ def rules(cfg: dict) -> CountRules:
 
 def params(cfg: dict) -> nowcast.Params:
     M = cfg.get("model", {})
-    keys = ("kappa", "rho", "tau", "sigma_mun0", "nu_mun", "sigma_uf0", "nu_uf", "swing_prior_mean", "swing_prior_sd")
+    keys = ("kappa", "rho", "tau", "sigma_mun0", "nu_mun", "sigma_uf0", "nu_uf", "swing_prior_mean", "swing_prior_sd",
+            "count_scaled_terms")
     return nowcast.Params(**{k: M[k] for k in keys if k in M})
 
 
@@ -1630,6 +1631,39 @@ POLL_HALF_LIFE = 14.0                             # weight ∝ sqrt(n) × 0.5^(a
 POLL_CAP = 0.25                                   # no pollster above 25 % of the weight (1/k if only k < 4)
 POLL_SD_HIST = 0.039   # RMSE of final-week poll averages, two-party Dem share, Senate + governor 2016-2022 (167
 #                        races, FiveThirtyEight pollster-ratings raw_polls.csv, CC BY 4.0; analysis/us_polls.py)
+_SD_EDGES = (2, 5, 10, 10**6)                     # bins of polls in the window: 1-2, 3-5, 6-10, 11+
+
+
+def poll_sd_bins(hist: pd.DataFrame) -> tuple[tuple[int, float], ...]:
+    """((max polls, RMSE), …) of past poll averages (columns n_polls, err) by bin; adjacent bins are pooled while a
+    bin with more polls is not more accurate (monotone: more polls never means a larger sd)."""
+    groups, lo = [], 0
+    for hi in _SD_EDGES:
+        e = hist.loc[(hist["n_polls"] > lo) & (hist["n_polls"] <= hi), "err"].to_numpy()
+        groups.append([hi, float((e**2).sum()), len(e)])
+        lo = hi
+    i = 1
+    while i < len(groups):
+        a, b = groups[i - 1], groups[i]
+        if b[2] and a[2] and b[1] / b[2] >= a[1] / a[2]:
+            groups[i - 1] = [b[0], a[1] + b[1], a[2] + b[2]]
+            del groups[i]
+            i = max(i - 1, 1)
+        else:
+            i += 1
+    return tuple((hi, round(float(np.sqrt(s / n)), 4)) for hi, s, n in groups if n)
+
+
+# analysis/us_polls.py errorbins: our rule on 538 raw_polls 2016-2022, 192 races (CC BY 4.0). Bins 3-5 and 6-10
+# pooled (6-10 was not more accurate). Fit on 2016-2020 only, the 2022 races fell inside ±1 sd 70 % and ±1.645 sd 92 %.
+POLL_SD_BINS = ((2, 0.0429), (10, 0.0334), (10**6, 0.0228))
+
+
+def poll_sd_by_n(n_polls: int, bins: tuple[tuple[int, float], ...] = POLL_SD_BINS) -> float:
+    """Error sd of a poll average with `n_polls` polls in the window (the historical RMSE of its bin)."""
+    return next(sd for hi, sd in bins if n_polls <= hi)
+
+
 POLLS_PUBLIC = ROOT_DIR / "data_public" / "us2026_polls.json"
 _POP_RANK = {"lv": 0, "rv": 1, "a": 2}
 _POLL_TYPE = {"senate": "us-senator", "sen": "us-senator", "governor": "governor", "gov": "governor"}
