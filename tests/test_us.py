@@ -298,7 +298,8 @@ def test_export_dry_run_writes_valid_contract(tmp_path):
     assert n == 58 and all(len(units[k]) == n for k in ("region", "names", "prior", "V0"))
     assert 1 <= len(units["frames"]) <= 60
     for fr in units["frames"]:
-        assert all(len(fr[k]) == n and all(isinstance(x, int) for x in fr[k]) for k in ("f", "a", "proj"))
+        assert all(len(fr[k]) == n and all(isinstance(x, int) for x in fr[k])
+                   for k in ("f", "a", "proj", "proj_poll", "rem_margin_poll"))
         assert all(0 <= x <= 1000 for x in fr["f"])
     assert json.loads((d / "units.json").read_text())["race_id"] == rid
 
@@ -593,6 +594,9 @@ def test_preelection_writes_precount_contract(tmp_path, monkeypatch):
     assert {r["P_v2"] for r in tl["ca-gov"]} == {ca["precount"]["P_v2"]} and all(r["P_v2"] is None for r in tl["oh-sen"])
     u = json.loads((d / "units" / "ca-gov.json").read_text())
     assert len(u["frames"]) == 1 and set(u["frames"][0]["f"]) == {0} and u["frames"][0]["proj"] == u["prior"]
+    pp, V = np.array(u["frames"][0]["proj_poll"]) / 1000, np.array(u["V0"], float)
+    assert np.average(pp, weights=V) == pytest.approx(ca["precount"]["share_v2"], abs=2e-3)   # poll model's map
+    assert pp.mean() > np.array(u["prior"]).mean() / 1000                                      # CA polls above prior
     assert len(u["prior_margin"]) == len(u["unit_ids"]) == 58
     st = json.loads((d / "stats.json").read_text())
     assert all(st[k] is None for k in us.STATS_KEYS) and st["reasons"]["calibration"] == "count has not started"

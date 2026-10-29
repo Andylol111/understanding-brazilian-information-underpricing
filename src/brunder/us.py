@@ -1270,6 +1270,11 @@ class Exporter:
             return _frame([]), ("unparsed",) + sig
         return good[1], good[0]
 
+    def _poll_cfg(self, rid: str) -> tuple[dict | None, pd.DataFrame | None]:
+        """(config, prior) of the race's poll-model version, or (None, None)."""
+        pm = poll_model(self.versions.get(rid, {}))
+        return (self.versions[rid][pm], self.pri_v[rid][pm]) if pm else (None, None)
+
     def _tick(self, c: dict, t: pd.Timestamp, prices: dict[str, float], kprices: dict[str, float]) -> None:
         rid, pri = c["election"]["race_id"], self.pri[c["election"]["race_id"]]
         has_model = pri is not None and not pri.empty
@@ -1281,6 +1286,7 @@ class Exporter:
                 memo = (sig, project(rows, c, pri))
                 self._memo[rid] = memo
             res, units = memo[1]
+            upoll, pmod = None, poll_model(self.versions.get(rid, {}))
             for v, cv in self.versions.get(rid, {}).items():       # every later model version (v2, v3, …)
                 pv = self.pri_v[rid][v]
                 if pv is None or pv.empty:
@@ -1291,6 +1297,8 @@ class Exporter:
                     self._memo[f"{rid}|{v}"] = mv
                 rv = mv[1][0]
                 res = {**res, f"p_win_{v}": rv["p_win"], f"share_{v}": rv["share_hat"], f"sd_{v}": rv["share_sd"]}
+                if v == pmod:
+                    upoll = mv[1][1]
         pm = _pm_market(c)
         p_yes = prices.get(pm[0]) if pm else None
         p_a = None if p_yes is None else (p_yes if pm[1] == "a" else 1 - p_yes)
@@ -1319,7 +1327,8 @@ class Exporter:
                      "a": np.where(units["n"] > 0, (units["a"] / units["n"].where(units["n"] > 0) * 1000)
                                    .fillna(-1), -1).round().astype(int).tolist(),
                      "proj": (units["proj"].fillna(units["s0"]) * 1000).round().astype(int).tolist(),
-                     "rem": _tens_list(units["rem"]), "rem_margin": _tens_list(units["rem_margin"])}
+                     "rem": _tens_list(units["rem"]), "rem_margin": _tens_list(units["rem_margin"]),
+                     **poll_frame_cols(units, upoll)}
         self.timeline[rid].append(row)                # only after everything for this minute succeeded
         if frame:
             fr.append(frame)
@@ -1420,7 +1429,7 @@ class Exporter:
             if not ok[rid]:
                 continue
             try:
-                fr = self.frames[rid] or [precount_frame(c, pri, now)]   # before the first returns: the prior map
+                fr = self.frames[rid] or [precount_frame(c, pri, now, *self._poll_cfg(rid))]   # before the count
                 if len(fr) > 60:                      # keep ~60 frames, always including the latest
                     idx = np.unique(np.linspace(0, len(fr) - 1, 60).round().astype(int))
                     fr = [fr[i] for i in idx]
@@ -1461,12 +1470,26 @@ def empty_stats(reason: str) -> dict:
     return {**{k: None for k in STATS_KEYS}, "reasons": {k: reason for k in STATS_KEYS}}
 
 
-def precount_frame(c: dict, pri: pd.DataFrame, t: str) -> dict:
-    """A units frame before any returns: nothing counted, projection = the prior, remaining = all expected votes."""
+def poll_frame_cols(units: pd.DataFrame, upoll: pd.DataFrame | None) -> dict:
+    """proj_poll / rem_margin_poll: the race's poll-model version per county, aligned to the v1 units (×1000 /
+    tens like proj / rem_margin); null without a poll model."""
+    if upoll is None:
+        return {"proj_poll": None, "rem_margin_poll": None}
+    u = upoll.set_index("unit_id").reindex(units["unit_id"])
+    return {"proj_poll": (u["proj"].fillna(u["s0"]) * 1000).round().fillna(-1).astype(int).tolist(),
+            "rem_margin_poll": _tens_list(u["rem_margin"].fillna(0.0))}
+
+
+def precount_frame(c: dict, pri: pd.DataFrame, t: str, cpoll: dict | None = None,
+                   pri_poll: pd.DataFrame | None = None) -> dict:
+    """A units frame before any returns: nothing counted, projection = the prior, remaining = all expected votes;
+    proj_poll = the poll model's projection (cpoll, its prior) when the race has one."""
     _, u = project(_frame([]), c, pri)
+    up = project(_frame([]), cpoll, pri_poll)[1] if cpoll is not None and pri_poll is not None and not pri_poll.empty \
+        else None
     n = len(pri)
     return {"t": t, "f": [0] * n, "a": [-1] * n, "proj": (u["proj"].fillna(u["s0"]) * 1000).round().astype(int).tolist(),
-            "rem": _tens_list(u["rem"]), "rem_margin": _tens_list(u["rem_margin"])}
+            "rem": _tens_list(u["rem"]), "rem_margin": _tens_list(u["rem_margin"]), **poll_frame_cols(u, up)}
 
 
 def units_object(c: dict, pri: pd.DataFrame, frames: list[dict]) -> dict:
@@ -1584,7 +1607,9 @@ def preelection(cfg_paths: list[Path], out: Path, days: float = 14, step: str = 
     for c in cfgs:
         rid = c["election"]["race_id"]
         if ok[rid]:
-            obj = units_object(c, pri[rid], [precount_frame(c, pri[rid], _iso(now))])
+            pm = poll_model(versions.get(rid, {}))
+            obj = units_object(c, pri[rid], [precount_frame(c, pri[rid], _iso(now), versions[rid][pm] if pm else None,
+                                                             pri_v[rid][pm] if pm else None)])
             _write_json(d / "units" / f"{rid}.json", obj)
             default = default or obj
     if default:
