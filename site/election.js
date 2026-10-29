@@ -157,10 +157,14 @@ function withPollModel(d, v) {
 const withTime = (rows, v = "v2") => rows.map((d) => ({ ...withPollModel(d, v), time: new Date(d.t), tms: Date.parse(d.t) }));
 const timelineRows = (timeline) => new Map(Object.entries(timeline ?? {}).filter(([, rows]) => Array.isArray(rows)).map(([id, rows]) => [id, withTime(rows, pollModel(id))]));
 
+// Cross-venue arbitrage (arb.json) covers the race window: there is none before the count, and the
+// file is not written then (a request would only log a 404).
+const loadArb = (opt) => (S.meta?.phase === "pre-count" ? Promise.resolve(null) : getJSON(`${EID}/arb.json`, opt));
+
 // First load (and every live refresh without a tail file): the whole timeline.
 async function loadSeries() {
   const opt = { optional: true };
-  const [timeline, stats, arb] = await Promise.all([getJSON(`${EID}/timeline.json`, opt), getJSON(`${EID}/stats.json`, opt), getJSON(`${EID}/arb.json`, opt)]);
+  const [timeline, stats, arb] = await Promise.all([getJSON(`${EID}/timeline.json`, opt), getJSON(`${EID}/stats.json`, opt), loadArb(opt)]);
   S.rows = timelineRows(timeline);
   S.stats = stats;
   S.arb = arb;
@@ -172,7 +176,7 @@ async function loadSeries() {
 // row held for some race (a gap longer than the tail window, e.g. after a long disconnect).
 async function loadLiveSeries() {
   const opt = { optional: true };
-  const [tail, stats, arb] = await Promise.all([getJSON(`${EID}/timeline_tail.json`, opt), getJSON(`${EID}/stats.json`, opt), getJSON(`${EID}/arb.json`, opt)]);
+  const [tail, stats, arb] = await Promise.all([getJSON(`${EID}/timeline_tail.json`, opt), getJSON(`${EID}/stats.json`, opt), loadArb(opt)]);
   const merged = tail ? mergeTail(S.rows ?? new Map(), timelineRows(tail)) : null;
   // which file the last refresh used (window.__dashPerf.timelineFetch, for checks)
   S.perf.timelineFetch = merged ? "tail" : tail ? "full: gap longer than the tail" : "full: no tail file";

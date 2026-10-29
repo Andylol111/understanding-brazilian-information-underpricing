@@ -187,7 +187,7 @@ code { font-size: 0.9em; overflow-wrap: anywhere; }
 .overview .country td { cursor: default; background: none; font: 600 12px/1 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-top: 18px; border-bottom: 1px solid var(--ink); }
 .overview .e-name a { font: 700 16px/1.3 var(--serif); text-decoration: none; }
 .overview .e-name a:hover { text-decoration: underline; }
-.overview .e-sum { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; max-width: 46ch; }
+.overview .e-sum { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; color: var(--muted); font-size: 13px; margin-top: 2px; max-width: 46ch; }
 .overview .spark { display: block; }
 .overview .key { font: 12.5px/1.5 var(--sans); color: var(--muted); margin: 8px 0 0; }
 .two-col { max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 0 56px; }
@@ -524,6 +524,12 @@ td.sched.pre { padding-top: 6px; }
   .pre-races th { font-size: 11.5px; }
 }
 .pre-races th { white-space: normal; vertical-align: bottom; }
+/* one line per market; the full question on hover */
+.pre-races td:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pre-races tbody[hidden] { display: none !important; }
+.pre-toggle { font: 12px/1.4 var(--sans); color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 2px 0; margin: 4px 0 0; cursor: pointer; }
+.pre-toggle:hover { border-bottom-color: var(--ink); }
+.pre-note { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; margin: 4px 0 0; }
 .map-frame { max-width: calc(100% - 270px); text-align: right; }
 /* ---------- national view (dash-national.js): controls over the map canvas's state layer ---------- */
 /* the national controls and the county map's controls never show together: the outgoing set hides

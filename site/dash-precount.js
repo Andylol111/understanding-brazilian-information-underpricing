@@ -23,15 +23,19 @@ function yesPrice(m) {
   return Number.isFinite(yes) ? yes : null;
 }
 
-// YES prices for many markets by slug, 20 slugs per request, one request after another.
-export async function polymarketYes(slugs) {
+// YES prices for many markets by slug, 20 slugs per request, one request after another; `volumes`
+// (a Map, optional) receives each market's total traded volume in USD.
+export async function polymarketYes(slugs, volumes = null) {
   const out = new Map();
   const list = [...new Set(slugs.filter(Boolean))];
   for (let i = 0; i < list.length; i += 20) {
     const q = list.slice(i, i + 20).map((s) => `slug=${encodeURIComponent(s)}`).join("&");
     const r = await fetch(`${GAMMA}?${q}`, { cache: "no-store" });
     if (!r.ok) throw new Error(`Polymarket: HTTP ${r.status}`);
-    for (const m of await r.json()) if (!m.closed) out.set(m.slug, yesPrice(m));
+    for (const m of await r.json()) {
+      if (!m.closed) out.set(m.slug, yesPrice(m));
+      if (volumes && Number.isFinite(+m.volumeNum)) volumes.set(m.slug, +m.volumeNum);
+    }
   }
   return out;
 }

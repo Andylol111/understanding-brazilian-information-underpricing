@@ -1,7 +1,7 @@
 // Homepage: the evidence across elections (from site/data/summary.json, written by
 // analysis/edge_audit.py) and the list of elections (elections.json, each election's files).
 import * as d3 from "./vendor/d3.js";
-import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes, modelP } from "./common.js";
+import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes, modelP, shortName } from "./common.js";
 import { polymarketYes } from "./dash-precount.js";
 import { createWorldMap } from "./world-map.js";
 
@@ -328,8 +328,12 @@ function render(elections) {
   });
 }
 
-// A scheduled election in its "pre-count" phase: each race's model chance before any votes against
-// Polymarket's current price (read in the browser) and the last recorded Kalshi price.
+// A scheduled election in its "pre-count" phase: the model's chance before any votes against
+// Polymarket's current price (read in the browser) and the last recorded Kalshi price. Three
+// headline markets (who wins / most seats / control first, then by Polymarket volume) by their short
+// names, the rest behind a toggle.
+const HEADLINE = /^most-|winner|control|^pres|prime-minister|chamber|^win-/;
+const SHOWN = 3;
 async function preCell(td) {
   const id = td.dataset.pre;
   const m = await getJSON(`${id}/meta.json`, { optional: true, root: rootOf(id) }).catch(() => null);
@@ -337,22 +341,43 @@ async function preCell(td) {
   const timeline = await getJSON(`${id}/timeline.json`, { optional: true, root: rootOf(id) }).catch(() => null);
   const lastRow = (rid) => { const rows = (timeline?.[rid] ?? []).filter((d) => d.t); return rows[rows.length - 1] ?? null; };
   const pm = (r) => (r.markets ?? []).find((x) => x.platform === "polymarket" && x.id);
-  const yes = await polymarketYes(m.races.map((r) => pm(r)?.id)).catch(() => new Map());
+  const volume = new Map();
+  const yes = await polymarketYes(m.races.map((r) => pm(r)?.id), volume).catch(() => new Map());
   const live = new Map(m.races.map((r) => {
     const y = pm(r) ? yes.get(pm(r).id) : null;
     return [r.race_id, y == null ? null : pm(r).yes_is === "b" ? 1 - y : y];
   }));
   const f = (x) => (x == null ? "–" : x.toFixed(2));
   const regions = new Map((m.regions ?? []).map((r) => [r.id, r.name]));
-  const label = (r) => (r.region && !r.name.includes(regions.get(r.region) ?? "") ? `${regions.get(r.region)} ${r.name}` : r.name);
+  // the short name, with its region and the side the chances are for where the name lacks them
+  const label = (r) => {
+    let s = shortName(r);
+    if (r.region && !s.includes(regions.get(r.region) ?? "")) s = `${regions.get(r.region)} ${s}`;
+    return r.a?.name && !s.includes(r.a.name) ? `${esc(s)} <span class="note">${esc(r.a.name)}</span>` : esc(s);
+  };
   const anyLive = [...live.values()].some((v) => v != null);
+  const order = m.races.map((r, i) => ({ r, i, head: HEADLINE.test(r.race_id) ? 0 : 1, vol: volume.get(pm(r)?.id) ?? -1 }))
+    .sort((a, b) => a.head - b.head || b.vol - a.vol || a.i - b.i).map((x) => x.r);
+  const row = (r) => {
+    const last = lastRow(r.race_id);
+    const v = r.poll_model ?? "v2"; // the race's "with polls" model version
+    return `<tr><td title="${esc(r.name)}">${label(r)}</td><td class="n m">${f(last?.[`P_${v}`] ?? modelP(last) ?? r.precount?.[`P_${v}`] ?? r.precount?.P)}</td><td class="n">${f(live.get(r.race_id) ?? last?.pm)}</td><td class="n kx">${f(last?.kalshi)}</td></tr>`;
+  };
+  const rest = order.length - SHOWN;
+  const note = `Before the count: the model's chance before any votes (${m.races.some((r) => lastRow(r.race_id)?.P_v2 != null || r.precount?.P_v2 != null) ? "from past certified results shifted toward the recent polls, where a race has them" : "from past certified results, not polls"}), ${anyLive ? "Polymarket's price now" : "the last recorded Polymarket price"} and the last recorded Kalshi price. Counting starts ${fmtDate(m.date)}.`;
   td.classList.add("pre");
-  td.innerHTML = `<table class="pre-races"><thead><tr><th>Chance the first-named candidate wins</th><th class="n">Model</th><th class="n">Poly&shy;market</th><th class="n">Kalshi</th></tr></thead><tbody>${m.races.map((r) => {
-    const row = lastRow(r.race_id);
-    const pm = r.poll_model ?? "v2"; // the race's "with polls" model version
-    return `<tr><td>${esc(label(r))} <span class="note">${esc(r.a.name)}</span></td><td class="n m">${f(row?.[`P_${pm}`] ?? modelP(row) ?? r.precount?.[`P_${pm}`] ?? r.precount?.P)}</td><td class="n">${f(live.get(r.race_id) ?? row?.pm)}</td><td class="n kx">${f(row?.kalshi)}</td></tr>`;
-  }).join("")}</tbody></table>
-    <p class="note">Before the count: the model's chance before any votes (${m.races.some((r) => lastRow(r.race_id)?.P_v2 != null || r.precount?.P_v2 != null) ? "from past certified results shifted toward the recent polls, where a race has them" : "from past certified results, not polls"}), ${anyLive ? "Polymarket's price now" : "the last recorded Polymarket price"} and the last recorded Kalshi price. Counting starts ${esc(fmtDate(m.date))}.</p>`;
+  td.innerHTML = `<table class="pre-races"><thead><tr><th>Chance the named side wins</th><th class="n">Model</th><th class="n">Poly&shy;market</th><th class="n">Kalshi</th></tr></thead>
+    <tbody>${order.slice(0, SHOWN).map(row).join("")}</tbody>${rest > 0 ? `<tbody class="pre-more" hidden>${order.slice(SHOWN).map(row).join("")}</tbody>` : ""}</table>
+    ${rest > 0 ? `<button type="button" class="pre-toggle" aria-expanded="false">+${rest} more market${rest === 1 ? "" : "s"}</button>` : ""}
+    <p class="note pre-note" title="${esc(note)}">${esc(note)}</p>`;
+  const btn = td.querySelector(".pre-toggle");
+  btn?.addEventListener("click", (ev) => {
+    ev.stopPropagation(); // the row itself links to the election
+    const more = td.querySelector(".pre-more"), open = more.hidden;
+    more.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+    btn.textContent = open ? "Fewer markets" : `+${rest} more market${rest === 1 ? "" : "s"}`;
+  });
 }
 
 const mainRace = (m) => m?.races?.find((r) => !r.region) ?? m?.races?.[0];

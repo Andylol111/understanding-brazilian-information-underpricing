@@ -11,7 +11,7 @@
 // geo/<cc>_regions.topo.json from analysis/geo_build.py.
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { C, esc, fmtDate, getJSON, modelP, num } from "./common.js";
+import { C, esc, fmtDate, getJSON, modelP, num, shortName } from "./common.js";
 import { bandColours, bandColour, bandOf } from "./dash-agg.js";
 
 const LAND = "#e6e4dd", ACCENT = "#e3b8a0", UNDER = "#f4f2ec", NO_RACE = "#efede7";
@@ -21,9 +21,6 @@ const RANK = { live: 0, scheduled: 1, replay: 2 };
 const ZOOM_MS = 900, FADE_MS = 350;
 const REGION_MAPS = new Set(["US", "BR", "CA", "MX", "HU", "NZ", "IL"]); // geo/<cc>_regions.topo.json
 const RAD = Math.PI / 180;
-// a race's short label: long market questions ("Will the National Party win fewer than 25 seats
-// in…") read by their first side's name ("National fewer than 25")
-const shortName = (r) => r.short ?? (/^most-/.test(r.race_id) && r.a?.name ? `Most seats: ${r.a.name}` : r.name.length <= 40 ? r.name : r.a?.name ?? r.name);
 const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 const fold = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 // a chance as a pseudo-margin for the bands where a race has no projected share
