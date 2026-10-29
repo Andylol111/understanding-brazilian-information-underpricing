@@ -16,10 +16,19 @@ dependencies = [
     "pyarrow>=26.0.0",
     "scipy>=1.18.1",
     "statsmodels>=0.15.0",
+    "vadersentiment>=3.3.2",
 ]
 
 [project.scripts]
 brunder = "brunder.cli:main"
+
+[project.optional-dependencies]
+absa = [
+    "protobuf>=7.36.2",
+    "sentencepiece>=0.2.2",
+    "torch>=2.5",
+    "transformers>=4.46",
+]
 
 [build-system]
 requires = ["uv_build>=0.11.26,<0.12.0"]

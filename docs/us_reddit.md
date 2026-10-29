@@ -1,92 +1,175 @@
-# State subreddit sentiment vs 2026 polling misses: terms review and status (2026-10-29)
+# State subreddits and the 2026 polling miss (`brunder reddit`)
 
-Planned: a forward-only experiment. Record hourly per-subreddit aggregates (volume, unique-author count,
-VADER and a transformer sentiment score, candidate/party mentions) for each state's main subreddit and up to
-three city subreddits from 2026-10-30 to 2026-11-04 via the Reddit Data API. Then test after certification
-whether the sentiment shift toward a party predicts the sign of the state's poll-average miss. Not a model input.
+This is a forward-only experiment. The question is whether the way a state's own subreddits talk about each
+side of a race in the last days before 2026-11-03 predicts which way that race's final poll average misses
+the certified result.
 
-**Status: not built, not run, no Reddit request made.** The terms below rule out the forward collection,
-the public export and the subreddit verification calls for this use case. Per the project rule ("if any
-planned step conflicts, don't do it"), none of the following exist: `src/brunder/reddit.py`, the
-`brunder reddit collect|export` CLI, `configs/reddit_subs.toml`, `configs/us2026_reddit_v1.toml`,
-`deploy/brunder-reddit.{service,timer}`, `site/data/us2026/hub/reddit.json`.
+- It is research only. It is never an input to any `us2026_*` model config.
+- It was pre-registered in `configs/reddit_us2026_v1.toml`, which holds the hypothesis, keyword sets,
+  selection, metric, sample and tests.
+- Collection runs under the Reddit API approval the user obtained for this use (user-stated 2026-10-29;
+  approval correspondence not in the repo). The Data API Terms and Developer Terms still apply in full.
+- **Nothing Reddit-derived is published.** No site export, no `data_public/` files, no sharing; only
+  findings are published.
+- There is **no user-level inference.** Every score is about an item's text toward a named candidate or
+  party, and only per-hour aggregates are kept.
 
-## Sources read (2026-10-29)
+```sh
+uv run brunder reddit verify                                     # check candidates, select subreddits
+uv run brunder reddit collect                                    # every finished hour not yet recorded
+uv run brunder reddit collect --sub texas --max-hours 1          # smoke test: one subreddit, one hour
+uv run brunder reddit bench [--absa]                             # scorer throughput / peak RSS (synthetic text)
+```
 
-- Data API Terms, effective 2023-06-19, revised 2026-07-20: <https://redditinc.com/policies/data-api-terms>
-- Developer Terms, effective 2024-09-24, revised 2026-03-24: <https://redditinc.com/policies/developer-terms>
-- Responsible Builder Policy, updated 2026-10-05: <https://support.reddithelp.com/hc/articles/42728983564564>
-- Reddit Data API Wiki (rules, rate limits), updated 2026-05-11:
-  <https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki>
-- Reddit for Researchers Program (RFR), updated 2026-10-05:
-  <https://support.reddithelp.com/hc/articles/49381918834964-Reddit-for-Researchers-Program>
+Tests: `tests/test_reddit.py`. They are behavioural and use a mocked Reddit. They cover:
+- keyword matching;
+- aggregation and the per-author cap;
+- pagination stopping at the hour floor;
+- idempotency;
+- the listing-cap floor;
+- selection;
+- pacing, rate-limit headers and 429 backoff;
+- the absence of usernames, text, ids and credentials in every output file and log line.
 
-## Obligations
+## Terms and how the collector complies (read 2026-10-29)
 
-Access and identity
-- Get explicit approval before accessing any Reddit data through the API. Merely registering an OAuth app
-  is not enough (RBP "Approval is required"). Keep contact details accurate (DAT 1.3, DT 1.3).
-- Authenticate with a registered OAuth token; never mask the OAuth identity or User-Agent (DAT 2.8). The
-  User-Agent must be `<platform>:<app ID>:<version> (by /u/<username>)` and must be honest (Wiki).
-- One app per use case; never misrepresent how or why data is accessed (RBP; DT 4.2). Keep credentials
-  secret and never share them (DT 1.4, 7.4).
+Sources:
+- [Data API Terms](https://redditinc.com/policies/data-api-terms) (revised 2026-07-20)
+- [Developer Terms](https://redditinc.com/policies/developer-terms) (revised 2026-03-24)
+- [Responsible Builder Policy](https://support.reddithelp.com/hc/articles/42728983564564) (2026-10-05)
+- [Data API Wiki](https://support.reddithelp.com/hc/en-us/articles/16160319875092-Reddit-Data-API-Wiki) (2026-05-11)
+- [Reddit for Researchers](https://support.reddithelp.com/hc/articles/49381918834964-Reddit-for-Researchers-Program) (2026-10-05)
 
-Rate limits
-- Free tier: 100 queries/min per OAuth client id, averaged over 10 minutes. Watch `X-Ratelimit-Used`,
-  `-Remaining` and `-Reset`. Never circumvent or exceed the limits (Wiki; DAT 3.2). Research beyond the
-  rate limits, or any use the terms do not expressly permit, needs a separate agreement (DAT 3.1; DT 4.1).
-
-Use restrictions
-- No commercial use or monetisation, including of data derived from Reddit data (DT 4.1; DAT 3.2; RBP).
-- No training of ML/AI models on User Content or Reddit data without permission (DAT 2.4, 3.2; DT 4.2, 5.2; RBP).
-- Do not derive or infer sensitive characteristics of users, political affiliation named explicitly.
-  Never re-identify or de-anonymise users (RBP "Zero Tolerance").
-- Do not share Reddit Services and Data with any third party (DT 7.2). "Reddit Services and Data" includes
-  data derived from it (DT 2.2). Do not redistribute or syndicate it (DT 4.2). Do not use it for surveillance (DT 4.2).
-- Retain only what the approved use case needs and delete the rest at once (DAT 3.2; DT 7.3). Delete
-  everything, derived data included, on termination (DAT 6; DT 8.2).
-
-Deletion handling
-- Delete content that was deleted on Reddit, along with related data. Delete user IDs and author references
-  when an account is deleted. Reddit recommends purging stored data within 48 h. Keeping deleted content in
-  any form, even "disassociated, de-identified or anonymized", violates the terms (Wiki; DT 3.3).
-
-Research specifically
-- "Any research that uses Reddit data collected outside of the RFR Program is in violation of this policy"
-  (RBP, Researchers).
-- RFR is open only to sponsored researchers at accredited universities; rare exceptions exist for
-  non-profit or government researchers. Applications need an IRB or ethics approval and a sponsor.
-- RFR access is through BigQuery Analytics Hub. The data are 5 years of history with a 6-month delay, and
-  deleted content is excluded.
-- Under RFR: hold no offline copies beyond what the project strictly needs, and delete all data and
-  derivatives at the end. Do not redistribute data. Make sure findings contain no deleted data before
-  publishing, and send Reddit a preprint.
-
-## Conflicts with the plan
-
-| planned step | conflict | outcome |
+| obligation | source | here |
 |---|---|---|
-| Hourly API collection 10-30→11-04 (and backfill from 10-23) for a research question | RBP: research on data collected outside RFR is a violation; approval is required before any API access. RFR has no live API, so forward collection cannot be done inside it | **Not built** |
-| Verify subreddits exist and are public (`/about`) for `configs/reddit_subs.toml` | Same: these are API calls for the research use case | **Not done**; no list was written, since an unverified list would not meet the brief |
-| `brunder reddit export` → public `site/data/us2026/hub/reddit.json` | DT 7.2/2.2: derived data may not be shared with third parties; RFR forbids redistribution | **Not built** |
-| Per-item party-stance scoring (transformer stance model) | RBP forbids inferring users' political affiliation. Scoring each comment for party stance comes close even if only hourly aggregates are stored | Risk; would need Reddit's explicit sign-off in any approval |
-| Store only aggregates; raw responses never persisted | Consistent with the retention rules. The Wiki still treats retained aggregates of later-deleted items as a gray area ("even if … anonymized") | n/a while not collecting |
-| `configs/us2026_reddit_v1.toml` pre-registration | No conflict in itself, but it would register a sample that cannot be collected | **Not written** |
+| Explicit approval before any API access; one app per use case; never misrepresent how or why data are accessed | RBP; DT 4.2 | User-stated approval for this use. One app, one use case |
+| Registered OAuth token; never mask the OAuth identity or User-Agent | Wiki; DAT 2.8 | App-only OAuth (`client_credentials`). UA `<platform>:org.brunder.us2026reddit:v<version> (by /u/<REDDIT_USERNAME>)`; the version is bumped on every change |
+| Keep credentials secret, never share them | DT 1.4, 7.4 | Credentials live only in `/etc/brunder/reddit.env` (root:brunder 0640) or `~/.config/brunder/reddit.env` (0600). They are never in the repo, unit files, output or logs; error messages name the missing key only |
+| 100 QPM per client id (10-min average); never circumvent or exceed limits | Wiki; DAT 3.2 | ≥ 1 s between requests (≤ 60/min). `X-Ratelimit-Used/-Remaining/-Reset` read on every response; when < 20 % of the window is left, wait for the reset. Exponential backoff on 429/5xx (`Retry-After` honoured). One token reused until 5 min before expiry. A lock file prevents concurrent runs |
+| No ML/AI training on User Content | DAT 2.4, 3.2; DT 4.2, 5.2; RBP | Inference only. VADER is a fixed lexicon; the optional transformer is a published checkpoint, never fine-tuned here |
+| No inferring sensitive characteristics of users (political affiliation is named); no re-identification | RBP | Scores are per item toward a named target. They are reduced at once to subreddit-hour aggregates; nothing is linked to or stored about any account |
+| Retain only what the use needs; delete the rest at once | DAT 3.2; DT 7.3 | Listings are held in memory for one subreddit at a time and dropped after aggregation. No raw cache exists. Stored: counts, unique-author counts, engagement sums, sentiment mean/sd per target, subscriber and active-user counts per day |
+| Remove deleted content; deleted data may not be retained "even if … anonymized" | Wiki; DT 3.3 | No content, ids or authors are stored, so nothing can be re-linked. An hour is aggregated once, from what exists about 2–60 min after it ends. Items deleted later still count in that hour's totals (see Risks) |
+| No commercial use, no monetisation, including of derived data | DT 4.1; DAT 3.2 | Non-commercial research, not monetised |
+| Do not share Reddit Services and Data, which includes data derived from them; do not redistribute | DT 7.2, 2.2, 4.2 | Output stays in the gitignored `data/processed/reddit/us2026/`. No `brunder reddit export`; nothing goes to `site/` |
+| Delete all data, including derived data, on termination or on Reddit's request | DAT 6; DT 8.2 | `rm -r data/processed/reddit/` on the VM and laptop |
+| Reddit trademarks / endorsement | DAT 4 | Findings only state that the data came from the Reddit Data API |
 
-## Routes that stay compliant
+**Reddit for Researchers (future history).** Any longer history will come through Reddit for Researchers
+(RFR), which works through BigQuery. Only aggregates may leave it. RFR-derived data are **never
+published**: only findings are, after the pre-publication deletion check and the preprint to Reddit that
+the programme requires. Any RFR aggregates must use the `hourly.jsonl` schema below so that historical and
+forward series are comparable.
 
-1. **RFR, retrospective.** The 2026-10-30→11-04 window should appear in the RFR dataset about 6 months
-   later (around May 2027), with deletions already removed. The hypothesis could still be pre-registered
-   before anyone looks at those data. This needs an accredited-university PI, an IRB letter and a sponsor.
-   Inside BigQuery, the text-based scores (VADER or a transformer) would have to be computed without
-   exporting text. Whether RFR allows UDFs or model inference there is unverified.
-   - Only findings are published. RFR-derived rows and aggregates never go into `site/` or `data_public/`,
-     or to anyone outside the approved team.
-   - Any aggregates kept offline must use the schema planned for the forward series: subreddit × hour;
-     posts; comments; unique-author count; mean and sd of compound sentiment, overall and per race keyword
-     set; mention counts. Historical and forward series then stay comparable.
-2. **Written approval for this exact use case** (Reddit support form, "researcher" or "developer") that
-   covers live API collection, rate, retention and publication of aggregates. If granted, the collector can
-   be built as specified: app-only OAuth, ≤60 req/min, aggregates only, raw cache deleted after each hour.
-   Under this route the transformer scorer must be inference-only. Use a permissively licensed checkpoint
-   fine-tuned on non-Reddit data, and never train on Reddit content (DAT 2.4).
+## Selection (`brunder reddit verify`)
+
+`configs/reddit_subs.toml` lists 183 candidates for the 45 states with a 2026 Senate or governor race: the
+state subreddit plus city candidates. Names were chosen from knowledge, since no credentials were available
+on 2026-10-29.
+
+For each candidate, `verify` calls `/about` and `/new` (100 posts), which is about 370 requests (~6 min).
+Per state it then selects:
+- the state subreddit, if it is public, not NSFW and not quarantined;
+- the **3 city candidates with the most subscribers** among those that pass the same checks and average
+  **≥ 3 posts/day** over the last 7 days.
+
+The minimum volume is set at 3 posts/day because a city subreddit below that yields almost no race
+mentions in any window. The state subreddit is kept at any volume so that every state has a series.
+Results, including type, subscribers, posts/day and `selected`, are written to `subs.json`. That file
+freezes the selection: `collect` only verifies names missing from it.
+
+## Collection (`brunder reddit collect`, hourly)
+
+For each selected subreddit, `collect` builds every finished, unrecorded hour since 2026-10-23T00:00Z, up to
+2026-11-04T12:00Z. It pages `/r/<sub>/new` and `/r/<sub>/comments` (limit 100) only until it passes the
+oldest hour needed.
+
+- **Idempotent** per subreddit-hour: the keys already in `hourly.jsonl` are skipped.
+- **Backfill is capped.** Reddit listings stop at about 1000 items. For a busy subreddit, the first run
+  reaches back only a few hours, sometimes a day. Hours older than the oldest item returned are not written
+  and are never retried (`state.json` floor). The summary reports them as `hour(s) beyond the listing cap`.
+- **Daily metadata.** Once per UTC day per subreddit, `/about` subscriber and active-user counts go to
+  `subs_daily.jsonl`.
+- **Cost.**
+  - The first run is the whole backfill, about 1 h: on the order of 10 pages × 2 listings for each of
+    ≤ 180 subreddits, at 1 request/s.
+  - After that, a run takes 2–4 requests per subreddit, about 5–8 min per hour.
+
+Row schema, one per subreddit × UTC hour:
+
+```
+hour, subreddit, state, role (state|city), posts, comments, authors (unique, deleted excluded),
+engagement {score_sum, post_comments}, vader_all {n, mean, sd, wmean, amean},
+targets {"party/D"|"party/R"|"<race>/dem"|"<race>/rep"|"<race>/dem_cand"|"<race>/rep_cand":
+         {n, authors, vader {n, mean, sd, wmean, amean}, absa {…} if enabled}},
+scorers, lag_h (hours between the hour's end and collection), spec
+```
+
+- `wmean` is score-weighted, with weight 1 + ln(1 + max(score, 0)). Scores are taken at collection time,
+  so backfilled hours carry older, higher scores; `lag_h` records the lag.
+- `amean` is the mean of per-author means. Each author counts once per subreddit-hour; a deleted author
+  counts as its own author per item. This is the only per-author cap possible without storing identities.
+
+Keyword rules are in `[keywords]` of the pre-registration:
+- full name;
+- first + last name;
+- registered nicknames;
+- last name alone, unless it is a common word or a name shared with another well-known person, in which
+  case only after a title ("Sen. Collins", "Governor Moore");
+- party terms, which count toward the dem side only when that side is a Democrat (not the MT/NE
+  independents).
+
+`overview.json` lists the Kentucky Senate candidates (Booker, Barr) under `la-sen` and McConnell under
+`ky-sen`. The pre-registration assigns them to `ky-sen` and leaves `la-sen` party-only. Neither race is
+polled, so neither is in the sample.
+
+## Sentiment
+
+- **VADER** (vaderSentiment 3.3.2, MIT) is the primary scorer. It scores the whole post (title + body) or
+  comment and is not target-aware, which is why the targets are defined by keyword. It is fast: ~28 k
+  short items/s, ~5.6 k long items/s on one laptop core. Peak RSS of the CLI process is 159 MB.
+- **Target-based transformer (optional, `--absa`).**
+  - Checkpoint: `yangheng/deberta-v3-base-absa-v1.1` at revision 10c9dff3. MIT licence, per the model
+    card and the HF API (checked 2026-10-29). It is fine-tuned with PyABSA on public ABSA benchmarks; the
+    card does not list them, and we have not verified that they contain no Reddit data.
+  - It scores (text, matched term) as P(positive) − P(negative), batched, truncated to 512 tokens.
+  - `HFTarget` takes any sentence-pair checkpoint with positive/negative labels, so a ModernBERT
+    checkpoint can be added later with `--absa <repo>@<rev>`.
+  - `--absa-budget` (default 1200 s per run) stops scoring when spent; rows then carry `absa: null`.
+  - **Not enabled on the VM.** The weights alone are 738 MB (fp32), more than the unit's `MemoryMax=300M`.
+  - It could not be benchmarked locally either, because the laptop disk was full and the download failed.
+  - It falls back to **VADER-only**, as planned. To try it, raise the memory cap on a copy of the unit and
+    first measure it under the VM's caps:
+    `sudo systemd-run --uid=brunder -p CPUQuota=10% -p MemoryMax=1500M --wait --pipe -p WorkingDirectory=/srv/brunder/repo /srv/brunder/.local/bin/uv run --frozen --extra absa brunder reddit bench --absa`.
+    Enable it only if items/s × 3600 comfortably exceeds the target mentions per hour that `collect`
+    reports.
+
+## Risks and limits
+
+- **Deleted items.** Items deleted after their hour was aggregated stay in that hour's counts and means.
+  Nothing traceable is kept, but under a strict reading of the Wiki ("even if … anonymized") Reddit could
+  still ask for deletion. If it does, delete `data/processed/reddit/`.
+- **Backfill floors differ** between busy and quiet subreddits, so the "first week" baseline is short for
+  large subreddits. The pre-registration's shrinkage toward the state mean and its `min_author_hours`
+  exclusion handle this; the `short_window` secondary checks it.
+- **Keyword noise.** "democratic" also matches non-party uses, and names may be mentioned in other
+  states' subreddits; only the state's own subreddits are matched against its races.
+
+## Install on the VM (integrator)
+
+```sh
+sudo install -d -m 0750 -o root -g brunder /etc/brunder
+sudo install -m 0640 -o root -g brunder /dev/stdin /etc/brunder/reddit.env <<'EOF'
+REDDIT_ID=...
+REDDIT_SECRET=...
+REDDIT_USERNAME=...
+EOF
+sudo -u brunder git -C /srv/brunder/repo pull
+sudo -u brunder sh -c 'cd /srv/brunder/repo && ~/.local/bin/uv sync --frozen'
+sudo cp /srv/brunder/repo/deploy/brunder-reddit.service /srv/brunder/repo/deploy/brunder-reddit.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start --no-block brunder-reddit.service   # first run now: verify + backfill (~1 h)
+journalctl -u brunder-reddit -f                  # counts only: rows, requests, "not selected", failed
+sudo systemctl enable --now brunder-reddit.timer # hourly at :05 until 2026-11-04 12:05 UTC
+systemctl list-timers brunder-reddit.timer
+```

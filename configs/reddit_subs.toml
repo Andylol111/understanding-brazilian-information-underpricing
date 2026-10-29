@@ -1,0 +1,58 @@
+# Candidate subreddits for `brunder reddit collect` (docs/us_reddit.md). One entry per state with a 2026
+# Senate or governor race: 45 states, from site/data/us2026/overview.json. The first name in each list is the
+# main state subreddit; the rest are city candidates. Names were chosen from knowledge: no credentials were
+# available on 2026-10-29 to check them.
+#
+# `brunder reddit verify` (also run automatically by the first `collect`) makes two requests per name:
+# /r/<sub>/about and /r/<sub>/new (100 posts). Per state it then selects:
+#   - the state subreddit, if it is public, not NSFW and not quarantined;
+#   - the 3 city candidates with the most subscribers among those that pass the same checks and average
+#     >= 3 posts/day (brunder.reddit.MIN_POSTS_PER_DAY, CITY_MAX).
+# Results go to data/processed/reddit/us2026/subs.json: type, subscribers, posts/day, selected.
+
+[subs]
+ak = ["alaska", "anchorage", "juneau", "fairbanks"]
+al = ["Alabama", "Birmingham", "HuntsvilleAlabama", "Mobile"]
+ar = ["Arkansas", "LittleRock", "fayetteville"]
+az = ["arizona", "phoenix", "Tucson", "flagstaff", "mesaaz"]
+ca = ["California", "LosAngeles", "sanfrancisco", "sandiego", "SanJose", "Sacramento", "oakland"]
+co = ["Colorado", "Denver", "ColoradoSprings", "boulder", "FortCollins"]
+ct = ["Connecticut", "NewHaven", "Hartford", "stamford"]
+de = ["Delaware"]
+fl = ["florida", "Miami", "orlando", "tampa", "jacksonville", "StPetersburgFL"]
+ga = ["Georgia", "Atlanta", "savannah", "athensga", "Augusta"]
+hi = ["Hawaii", "Honolulu", "BigIsland", "maui"]
+ia = ["Iowa", "desmoines", "IowaCity", "cedarrapids"]
+id = ["Idaho", "Boise", "CoeurdAlene"]
+il = ["illinois", "chicago", "champaignurbana", "peoria"]
+ks = ["kansas", "wichita", "lawrence", "topeka"]
+ky = ["Kentucky", "Louisville", "lexington", "BowlingGreen"]
+la = ["Louisiana", "NewOrleans", "batonrouge", "Shreveport", "lafayette"]
+ma = ["massachusetts", "boston", "WorcesterMA", "CambridgeMA"]
+md = ["maryland", "baltimore", "annapolis", "frederickmd"]
+me = ["Maine", "portlandme", "Bangor"]
+mi = ["Michigan", "Detroit", "grandrapids", "AnnArbor", "lansing"]
+mn = ["minnesota", "Minneapolis", "saintpaul", "duluth", "rochestermn"]
+ms = ["mississippi", "jacksonms"]
+mt = ["Montana", "Bozeman", "missoula", "billings"]
+nc = ["NorthCarolina", "raleigh", "Charlotte", "asheville", "gso", "bullcity"]
+ne = ["Nebraska", "Omaha", "lincolnnebraska"]
+nh = ["newhampshire"]
+nj = ["newjersey", "jerseycity", "Newark", "Hoboken"]
+nm = ["NewMexico", "Albuquerque", "SantaFe", "LasCruces"]
+nv = ["Nevada", "vegas", "Reno", "henderson"]
+ny = ["newyork", "nyc", "Buffalo", "Rochester", "Albany", "Syracuse"]
+oh = ["Ohio", "Columbus", "Cleveland", "cincinnati", "Dayton", "toledo"]
+ok = ["oklahoma", "okc", "tulsa", "norman"]
+or = ["oregon", "Portland", "Eugene", "SalemOR"]
+pa = ["Pennsylvania", "philadelphia", "pittsburgh", "harrisburg", "Allentown"]
+ri = ["RhodeIsland", "providence"]
+sc = ["southcarolina", "Charleston", "columbiasc", "greenville"]
+sd = ["SouthDakota", "SiouxFalls", "RapidCity"]
+tn = ["Tennessee", "nashville", "memphis", "Knoxville", "Chattanooga"]
+tx = ["texas", "houston", "Austin", "Dallas", "sanantonio", "FortWorth", "ElPaso"]
+va = ["Virginia", "rva", "norfolk", "Charlottesville"]
+vt = ["vermont", "burlington"]
+wi = ["wisconsin", "milwaukee", "madisonwi", "GreenBay"]
+wv = ["WestVirginia", "Morgantown"]
+wy = ["wyoming", "cheyenne", "laramie", "casper"]

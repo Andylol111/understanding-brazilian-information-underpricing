@@ -1,0 +1,193 @@
+# Pre-registration: state subreddit sentiment toward each side vs the sign of the 2026 polling miss
+# (docs/us_reddit.md). Research and display only: never an input to any us2026_* model config. Written
+# 2026-10-29, before any Reddit data were collected. `brunder reddit collect` reads [keywords] and [races]
+# from this file, so the keyword sets recorded are exactly the ones registered here.
+id = "reddit_us2026_v1"
+kind = "us2026_reddit"
+hypothesis = """
+For each race, look at how the state's own subreddits talk about the two sides, measured against each
+subreddit's own baseline. If that discussion moves toward the Democratic side (or the flagged independent)
+in the last days before the election, the certified dem-side two-party share comes out above the final poll
+average; if it moves toward the Republican side, the share comes out below it.
+"""
+origin = "Specified 2026-10-29, before the recording window opened and before any Reddit request."
+
+[data]
+source = "Reddit Data API under the user's approval; app-only OAuth; /r/<sub>/new and /r/<sub>/comments listings (docs/us_reddit.md)"
+subreddits = """
+configs/reddit_subs.toml candidates. Per state: the state subreddit, plus the 3 city subreddits with the most
+subscribers among those that are public, not NSFW, not quarantined and averaged >= 3 posts/day over the 7 days
+before `brunder reddit verify` ran. The selection is frozen in data/processed/reddit/us2026/subs.json.
+"""
+series = "data/processed/reddit/us2026/hourly.jsonl: one row per subreddit x UTC hour, aggregates only; subs_daily.jsonl: subscribers / active users per subreddit-day"
+recorded = ["2026-10-23T00:00Z", "2026-11-04T12:00Z"]   # before ~2026-10-29 only what the listings still return (Reddit's ~1000-item cap)
+scorer_primary = "vader"   # VADER compound (vaderSentiment 3.3.2) of the whole post (title + body) or comment
+scorer_secondary = "absa"  # yangheng/deberta-v3-base-absa-v1.1 @ 10c9dff3, (text, matched term) -> P(pos) - P(neg); only if it runs on the host (docs/us_reddit.md)
+
+[keywords]
+# Matching: case-insensitive; accents and curly apostrophes are folded; whole words only, so there is no
+# letter, digit or underscore on either side of a match. A candidate matches on:
+#   - the full name, with or without initials' dots;
+#   - first name + last name;
+#   - the aliases registered below (common nicknames and spellings);
+#   - the last name alone, unless it is in surname_stoplist (common words, or names shared with other
+#     well-known people). A stoplisted last name matches only after a title, e.g. "Sen. Collins" or
+#     "Governor Moore" (brunder.reddit.TITLES).
+# The matched term is what a target-based scorer is asked about.
+party_D = ["democrat", "democrats", "democratic", "dem", "dems", "dnc"]
+party_R = ["republican", "republicans", "gop", "rnc", "maga"]
+surname_stoplist = [
+  "abbott", "anderson", "andrews", "bailey", "barr", "bennett", "block", "bottoms", "bradshaw", "brown",
+  "byrd", "charles", "collins", "cooper", "cotton", "cox", "ford", "graham", "green", "hamilton", "hilton",
+  "hull", "jackson", "james", "johnson", "jolly", "jones", "katz", "little", "love", "lujan", "marker",
+  "marshall", "marx", "moody", "moore", "murphy", "nixon", "reed", "rogers", "roth", "rounds", "sand",
+  "sanders", "scott", "smith", "sullivan", "thomas", "tiffany", "tracy", "walz", "warner", "wilson",
+]
+
+[keywords.aliases]   # "<race>/<dem|rep>" -> extra terms for that candidate
+"ar-gov/rep" = ["huckabee sanders", "sarah sanders"]
+"ak-gov/dem" = ["kreiss tomkins"]
+"ga-gov/dem" = ["lance bottoms"]
+"mi-sen/dem" = ["el sayed", "elsayed"]
+"ms-sen/rep" = ["hyde smith"]
+"nm-sen/dem" = ["ben ray"]
+"oh-gov/rep" = ["vivek"]
+"oh-sen/dem" = ["sherrod"]
+"wv-sen/dem" = ["fetty anderson"]
+"wv-sen/rep" = ["moore capito"]
+
+# One entry per 2026 Senate/governor race, from site/data/us2026/overview.json as of 2026-10-29T19:00Z.
+#   dem = the dem-side candidate: the Democrat, or the flagged independent in MT and NE.
+#   rep = the Republican.
+#   An empty name means only party terms count for that side.
+#   polled = the race has a poll average in site/data/us2026/hub/polls.json (built 2026-10-29). Only polled
+#   races enter the sample.
+# Targets recorded per race and hour:
+#   dem = dem name OR party_D (party_D only if dem_party = "D")
+#   rep = rep name OR party_R
+#   dem_cand / rep_cand = the candidate name only
+[races]
+ak-gov = { state = "ak", dem = "Jonathan Kreiss-Tomkins", dem_party = "D", rep = "", polled = true }
+ak-sen = { state = "ak", dem = "Mary Peltola", dem_party = "D", rep = "Dan Sullivan", polled = true }
+al-gov = { state = "al", dem = "Doug Jones", dem_party = "D", rep = "Tommy Tuberville", polled = true }
+al-sen = { state = "al", dem = "Everett Wess", dem_party = "D", rep = "Barry Moore", polled = true }
+ar-gov = { state = "ar", dem = "Fred Love", dem_party = "D", rep = "Sarah Huckabee Sanders", polled = false }
+ar-sen = { state = "ar", dem = "Hallie Shoffner", dem_party = "D", rep = "Tom Cotton", polled = true }
+az-gov = { state = "az", dem = "Katie Hobbs", dem_party = "D", rep = "Andy Biggs", polled = true }
+ca-gov = { state = "ca", dem = "Xavier Becerra", dem_party = "D", rep = "Steve Hilton", polled = true }
+co-gov = { state = "co", dem = "Phil Weiser", dem_party = "D", rep = "Victor Marx", polled = false }
+co-sen = { state = "co", dem = "John Hickenlooper", dem_party = "D", rep = "Mark Baisley", polled = false }
+ct-gov = { state = "ct", dem = "Ned Lamont", dem_party = "D", rep = "Ryan Fazio", polled = true }
+de-sen = { state = "de", dem = "Chris Coons", dem_party = "D", rep = "Michael Katz", polled = false }
+fl-gov = { state = "fl", dem = "David Jolly", dem_party = "D", rep = "Byron Donalds", polled = true }
+fl-sen = { state = "fl", dem = "Angie Nixon", dem_party = "D", rep = "Ashley Moody", polled = true }
+ga-gov = { state = "ga", dem = "Keisha Lance Bottoms", dem_party = "D", rep = "Rick Jackson", polled = true }
+ga-sen = { state = "ga", dem = "Jon Ossoff", dem_party = "D", rep = "Mike Collins", polled = true }
+hi-gov = { state = "hi", dem = "Josh Green", dem_party = "D", rep = "Gary Cordery", polled = false }
+ia-gov = { state = "ia", dem = "Rob Sand", dem_party = "D", rep = "Zach Lahn", polled = true }
+ia-sen = { state = "ia", dem = "Josh Turek", dem_party = "D", rep = "Ashley Hinson", polled = true }
+id-gov = { state = "id", dem = "Terri Pickens", dem_party = "D", rep = "Brad Little", polled = false }
+id-sen = { state = "id", dem = "David Roth", dem_party = "D", rep = "Jim Risch", polled = true }
+il-gov = { state = "il", dem = "JB Pritzker", dem_party = "D", rep = "Darren Bailey", polled = true }
+il-sen = { state = "il", dem = "Juliana Stratton", dem_party = "D", rep = "Don Tracy", polled = true }
+ks-gov = { state = "ks", dem = "Cindy Holscher", dem_party = "D", rep = "Ty Masterson", polled = true }
+ks-sen = { state = "ks", dem = "Adam Hamilton", dem_party = "D", rep = "Roger Marshall", polled = true }
+ky-sen = { state = "ky", dem = "Charles Booker", dem_party = "D", rep = "Andy Barr", polled = false }   # overview.json lists these two under la-sen; McConnell is retiring
+la-sen = { state = "la", dem = "", dem_party = "D", rep = "", polled = false }   # party terms only: overview.json carries the Kentucky names here
+ma-gov = { state = "ma", dem = "Maura Healey", dem_party = "D", rep = "Mike Minogue", polled = true }
+ma-sen = { state = "ma", dem = "Ed Markey", dem_party = "D", rep = "John Deaton", polled = true }
+md-gov = { state = "md", dem = "Wes Moore", dem_party = "D", rep = "Dan Cox", polled = true }
+me-gov = { state = "me", dem = "Hannah Pingree", dem_party = "D", rep = "Robert Charles", polled = true }
+me-sen = { state = "me", dem = "Troy Jackson", dem_party = "D", rep = "Susan Collins", polled = true }
+mi-gov = { state = "mi", dem = "Jocelyn Benson", dem_party = "D", rep = "John James", polled = true }
+mi-sen = { state = "mi", dem = "Abdul El-Sayed", dem_party = "D", rep = "Mike Rogers", polled = true }
+mn-gov = { state = "mn", dem = "Amy Klobuchar", dem_party = "D", rep = "Lisa Demuth", polled = true }
+mn-sen = { state = "mn", dem = "Peggy Flanagan", dem_party = "D", rep = "Michele Tafoya", polled = true }
+ms-sen = { state = "ms", dem = "Scott Colom", dem_party = "D", rep = "Cindy Hyde-Smith", polled = true }
+mt-sen = { state = "mt", dem = "Seth Bodnar", dem_party = "I", rep = "Kurt Alme", polled = true }
+nc-sen = { state = "nc", dem = "Roy Cooper", dem_party = "D", rep = "Michael Whatley", polled = true }
+ne-gov = { state = "ne", dem = "Lynne Walz", dem_party = "D", rep = "Jim Pillen", polled = true }
+ne-sen = { state = "ne", dem = "Dan Osborn", dem_party = "I", rep = "Pete Ricketts", polled = true }
+nh-gov = { state = "nh", dem = "Cinde Warmington", dem_party = "D", rep = "Kelly Ayotte", polled = true }
+nh-sen = { state = "nh", dem = "Chris Pappas", dem_party = "D", rep = "John E. Sununu", polled = true }
+nj-sen = { state = "nj", dem = "Cory Booker", dem_party = "D", rep = "Justin Murphy", polled = false }
+nm-gov = { state = "nm", dem = "Deb Haaland", dem_party = "D", rep = "Greggory D. Hull", polled = true }
+nm-sen = { state = "nm", dem = "Ben Ray Luján", dem_party = "D", rep = "Larry E. Marker", polled = true }
+nv-gov = { state = "nv", dem = "Aaron Ford", dem_party = "D", rep = "Joe Lombardo", polled = true }
+ny-gov = { state = "ny", dem = "Kathy Hochul", dem_party = "D", rep = "Bruce Blakeman", polled = true }
+oh-gov = { state = "oh", dem = "Amy Acton", dem_party = "D", rep = "Vivek Ramaswamy", polled = true }
+oh-sen = { state = "oh", dem = "Sherrod Brown", dem_party = "D", rep = "Jon Husted", polled = true }
+ok-gov = { state = "ok", dem = "Cyndi Munson", dem_party = "D", rep = "Mike Mazzei", polled = false }
+ok-sen = { state = "ok", dem = "N’Kiyla Thomas", dem_party = "D", rep = "Kevin Hern", polled = false }
+or-gov = { state = "or", dem = "Tina Kotek", dem_party = "D", rep = "Christine Drazan", polled = true }
+or-sen = { state = "or", dem = "Jeff Merkley", dem_party = "D", rep = "David Brock Smith", polled = false }
+pa-gov = { state = "pa", dem = "Josh Shapiro", dem_party = "D", rep = "Stacy Garrity", polled = true }
+ri-gov = { state = "ri", dem = "Helena Foulkes", dem_party = "D", rep = "Aaron Guckian", polled = true }
+ri-sen = { state = "ri", dem = "Jack Reed", dem_party = "D", rep = "Raymond McKay", polled = true }
+sc-gov = { state = "sc", dem = "Jermaine Johnson", dem_party = "D", rep = "Alan Wilson", polled = true }
+sc-sen = { state = "sc", dem = "Annie Andrews", dem_party = "D", rep = "Darline Graham", polled = true }
+sd-gov = { state = "sd", dem = "Dan Ahlers", dem_party = "D", rep = "Larry Rhoden", polled = true }
+sd-sen = { state = "sd", dem = "Julian Beaudion", dem_party = "D", rep = "Mike Rounds", polled = true }
+tn-gov = { state = "tn", dem = "Jerri Green", dem_party = "D", rep = "Marsha Blackburn", polled = true }
+tn-sen = { state = "tn", dem = "Marquita Bradshaw", dem_party = "D", rep = "Bill Hagerty", polled = true }
+tx-gov = { state = "tx", dem = "Gina Hinojosa", dem_party = "D", rep = "Greg Abbott", polled = true }
+tx-sen = { state = "tx", dem = "James Talarico", dem_party = "D", rep = "Ken Paxton", polled = true }
+va-sen = { state = "va", dem = "Mark Warner", dem_party = "D", rep = "Bert Mizusawa", polled = true }
+vt-gov = { state = "vt", dem = "Amanda Janoo", dem_party = "D", rep = "Phil Scott", polled = true }
+wi-gov = { state = "wi", dem = "David Crowley", dem_party = "D", rep = "Tom Tiffany", polled = true }
+wv-sen = { state = "wv", dem = "Rachel Fetty Anderson", dem_party = "D", rep = "Shelley Moore Capito", polled = false }
+wy-gov = { state = "wy", dem = "Kenneth Casner", dem_party = "D", rep = "Eric Barlow", polled = false }
+wy-sen = { state = "wy", dem = "James Byrd", dem_party = "D", rep = "Harriet Hageman", polled = false }
+
+[metric]
+# Notation. For subreddit s, target g (a race's "dem" or "rep"), scorer "vader", and a set of hours W, pool
+# the hourly rows of s in W:
+#   A_s,g(W) = sum of hourly target authors (author-hours)
+#   m_s,g(W) = sum(authors * amean) / A_s,g(W)
+# amean is the hourly mean of per-author means, so one author counts at most once per subreddit-hour. That
+# is the per-author cap: no author identities are kept, so no cap across hours is possible.
+baseline = ["2026-10-23T00:00Z", "2026-10-30T00:00Z"]   # the first recorded week, as far as the listings reach
+final = ["2026-11-03T00:00Z", "2026-11-03T23:00Z"]      # election day up to the first poll close
+shrink_k = 20   # author-hours
+shrinkage = """
+In each window, shrink each subreddit's mean toward the state mean of that window, where the state mean
+pools all of the state's selected subreddits the same way:
+  m~_s,g = (A_s,g * m_s,g + k * m_state,g) / (A_s,g + k),  k = shrink_k
+A subreddit with no target items in a window takes the state mean.
+"""
+lean = "lean_s(W) = m~_s,dem(W) - m~_s,rep(W)"
+change = "d_s = lean_s(final) - lean_s(baseline): change against the subreddit's own first-week baseline"
+state_signal = """
+D_race = sum_s w_s d_s / sum_s w_s over the state's selected subreddits, with
+  w_s = A_s,dem(final) + A_s,rep(final)
+Subreddits with w_s = 0 drop out.
+"""
+miss = """
+The certified dem-side two-party share (dem side vs Republican), minus the race's poll-average dem2 for
+2026-11-03 in site/data/us2026/hub/polls.json. The poll average follows docs/us_midterms.md#polls; its
+history uses only polls published by that day.
+"""
+min_author_hours = 10   # a race needs >= 10 author-hours for each of dem and rep in each window, pooled over the state; otherwise it is excluded (and listed)
+
+[sample]
+races = "every [races] entry with polled = true and a certified result; excluded races are listed with the reason"
+scored_after = "after all included races are certified by their states (expected December 2026); outcomes are not looked at before then"
+
+[primary]
+test = "share of included races where sign(D_race) == sign(miss); exact one-sided binomial test against 0.5"
+scorer = "vader"
+alpha = 0.05
+note = "a zero D_race or zero miss (to 4 decimals) counts as a disagreement"
+
+[secondary]
+# Reported, not used to claim the hypothesis.
+absa = "primary with the absa scorer, for races where every hour in both windows was absa-scored"
+spearman = "Spearman rank correlation between D_race and miss across included races"
+by_state = "primary with one observation per state (mean D_race and mean miss of its included races). Senate and governor races in one state share subreddits and party terms, so they are not independent"
+weighted = "primary with wmean (score-weighted: 1 + ln(1 + max(score, 0)) at collection time) in place of amean"
+volume = "sign of the change in dem share of author-hours, A_dem / (A_dem + A_rep), from baseline to final, against sign(miss); binomial as in primary"
+short_window = "primary with baseline = 2026-10-30T00:00Z-2026-10-31T00:00Z (the originally planned start)"
+state_only = "primary using only the state subreddit"
+
+[deviations]
+rule = "any change to keyword sets, selection, windows, sample or tests after the first collection run is a new id; collection gaps are reported, never imputed"

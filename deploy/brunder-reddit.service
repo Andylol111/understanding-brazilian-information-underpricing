@@ -1,0 +1,21 @@
+# Hourly aggregate volume and target sentiment of US state and city subreddits (configs/reddit_subs.toml,
+# selected by `brunder reddit verify`), appended to data/processed/reddit/us2026/hourly.jsonl. App-only OAuth,
+# ≤ 60 requests/min, aggregates only, VADER only (the optional transformer does not fit MemoryMax); see
+# docs/us_reddit.md. Started by brunder-reddit.timer; a run is skipped while the previous one is still going.
+# The first run verifies the candidates and backfills what the listings still return since 2026-10-23 (~1 h).
+[Unit]
+Description=brunder Reddit aggregates: US state/city subreddits, 2026-10-30 to 2026-11-04
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+EnvironmentFile=/etc/brunder/reddit.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder reddit collect --until 2026-11-04T12:00Z
+Nice=10
+IOSchedulingClass=idle
+CPUQuota=10%
+MemoryMax=300M
