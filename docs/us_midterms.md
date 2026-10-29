@@ -232,7 +232,32 @@ bit-identical, tested against golden values.
   2022 replays (certified vote-type results, simulated count order, v2 prior from our rule on 538's 2022 polls) and
   synthetic nights for every modeled race.
 
-Commands:
+## Early vote by county (display only; `brunder us earlyvote`)
+
+`site/data/us2026/earlyvote.json` lists ballots already cast, by county, from official state publications. It is
+not used by any model. `brunder us preelection` also refreshes it, so the 30-minute CI run keeps it current. If a
+state fails, its last section is kept and marked `stale`.
+
+| state | source | fields | cadence |
+|---|---|---|---|
+| TX | Texas SoS Early Voting Turnout (goelect.txelections.civixapps.com `getFile?type=EVR_EARLYVOTING`) | cumulative in person, by mail | daily |
+| FL | Florida Division of Elections `Stats_<n>_VbmVoted.txt` / `_EarlyVoted.txt` | mail voted, early voted, by party registration | daily |
+| NC | NC State Board `absentee_counts_county_20261103.csv` (dl.ncsbe.gov) | early voting (one-stop), mail returned, by party registration | daily ~08:40 UTC |
+
+- **Licence and privacy:** all three sources are public record. Only county counts are written; the Texas statewide
+  roster (voter names) is never fetched.
+- **Baseline:** `share_of_2022_total` divides ev_total by the county's 2022 total votes, listed in
+  `data_public/us2026_ev_baseline.csv`:
+  - TX: 2022 governor (Texas Legislative Council);
+  - FL: 2022 governor (Florida Division of Elections results extract);
+  - NC: 2022 US Senate (NCSBE `results_pct_20221108`).
+- **NC caching:** the 23 MB NC file is cached under `data/raw/us/earlyvote` by its S3 LastModified, so it is
+  downloaded once per publication. CI needs a cache of that directory for this to work there.
+- **Not available:** Georgia (sos.ga.gov) and Arizona (azsos.gov) sit behind a Cloudflare challenge, which is not
+  circumvented.
+- **Not attempted yet:** SC, CA, VT, PA, MI.
+
+Poll commands (section above):
 
 ```
 uv run python analysis/us_polls.py build      # VoteHub → data_public/us2026_polls.json (overview polls)

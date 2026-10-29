@@ -3,6 +3,7 @@
 import base64
 import csv
 import gzip
+import io
 import json
 from pathlib import Path
 
@@ -959,3 +960,60 @@ def test_v2_configs_only_change_the_prior():
             assert 0.2 < c2["prior"]["poll_avg"] < 0.8 and _re.fullmatch(r"\d{4}-\d\d-\d\d", c2["prior"]["poll_last"])
     cfgs, v2 = us.load_races([ROOT / "configs" / "us2026_ga_sen_v1.toml", ROOT / "configs" / "us2026_ga_sen_v2.toml"])
     assert [c["id"] for c in cfgs] == ["us2026_ga_sen_v1"] and v2["ga-sen"]["id"] == "us2026_ga_sen_v2"
+
+
+# ------------------------------------------------------------------ early vote (display only)
+
+def test_parse_ev_tx_county_counts():
+    df, as_of = us.parse_ev_tx(rd("ev_tx_53815_20261027.json.gz"))
+    assert as_of == "2026-10-27" and len(df) == 254 and set(df.index) == set(us.counties("tx")["unit_id"])
+    a = df.loc["us-tx-48001"]                                            # Anderson (raw file: 7814 in person, 319 mail)
+    assert (a["in_person"], a["mail_returned"], a["ev_total"]) == (7814, 319, 8133)
+    assert (df["ev_total"] == df["in_person"] + df["mail_returned"]).all()
+
+
+def test_parse_ev_fl_matches_state_totals_and_party():
+    vbm, ev = rd("ev_fl_49894_VbmVoted.txt.gz"), rd("ev_fl_49894_EarlyVoted.txt.gz")
+    df, as_of = us.parse_ev_fl(vbm, ev)
+    assert len(df) == 67 and as_of == "2026-10-27"                       # older of the two compilations
+    tot = {k: pd.read_csv(io.BytesIO(b), sep="\t", dtype=str).set_index("CountyName").loc["State Totals"]
+           for k, b in (("mail", vbm), ("early", ev))}
+    num = lambda s: float(s.replace(",", ""))
+    assert df["mail_returned"].sum() == num(tot["mail"]["GrandTotal"])
+    assert df["in_person"].sum() == num(tot["early"]["GrandTotal"])
+    assert df["D"].sum() == num(tot["mail"]["TotalDem"]) + num(tot["early"]["TotalDem"])
+    assert (df[["D", "R", "O"]].sum(axis=1) == df["ev_total"]).all()
+
+
+def test_parse_ev_nc_types_and_party():
+    raw = rd("ev_nc_counts_subset.csv.gz")
+    df, _ = us.parse_ev_nc(raw, "2026-10-28")
+    d = pd.read_csv(io.BytesIO(raw))
+    n = d.columns[-1]
+    early = d["abs_request_type"].isin(["EARLY VOTING", "ONE-STOP"])
+    assert set(df.index) == {"us-nc-37001", "us-nc-37173", "us-nc-37183"}             # Alamance, Swain, Wake
+    assert df["in_person"].sum() == d.loc[early, n].sum() and df["mail_returned"].sum() == d.loc[~early, n].sum()
+    assert df.loc["us-nc-37183", "D"] == d.loc[(d["county_name"] == "WAKE") & (d["party_cd"] == "DEM"), n].sum()
+    assert (df[["D", "R", "O"]].sum(axis=1) == df["ev_total"]).all()
+
+
+def test_earlyvote_json_schema_and_stale_state(tmp_path):
+    tx = lambda: us.parse_ev_tx(rd("ev_tx_53815_20261027.json.gz"))
+    nc = lambda: us.parse_ev_nc(rd("ev_nc_counts_subset.csv.gz"), "2026-10-28")
+    now = pd.Timestamp("2026-10-28T12:00Z")
+    f = us.earlyvote(tmp_path, now, {"tx": tx, "nc": nc})
+    e = json.loads(f.read_text())
+    assert set(e["states"]) == {"tx", "nc"} and e["states"]["tx"]["as_of"] == "2026-10-27"
+    c = e["counties"]["us-tx-48001"]
+    base = pd.read_csv(us.EV_BASELINE, comment="#").set_index("unit_id")["total"]
+    assert c["state"] == "tx" and c["ev_total"] == 8133 and c["by_party"] is None
+    assert c["share_of_2022_total"] == round(8133 / base["us-tx-48001"], 4)
+    assert set(e["counties"]["us-nc-37183"]["by_party"]) == {"D", "R", "O"}
+    assert e["states"]["tx"]["totals"]["ev_total"] == sum(v["ev_total"] for v in e["counties"].values() if v["state"] == "tx")
+    assert "ga" in e["not_available"]
+
+    def broken():
+        raise ConnectionError("down")
+    e2 = json.loads(us.earlyvote(tmp_path, now, {"tx": broken, "nc": nc}).read_text())
+    assert e2["states"]["tx"]["stale"] is True and e2["states"]["tx"]["as_of"] == "2026-10-27"
+    assert e2["counties"]["us-tx-48001"]["ev_total"] == 8133 and "stale" not in e2["states"]["nc"]

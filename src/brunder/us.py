@@ -1640,6 +1640,223 @@ def load_polls() -> dict:
     return json.loads(POLLS_PUBLIC.read_text()).get("races", {}) if POLLS_PUBLIC.exists() else {}
 
 
+# ------------------------------------------------------------------ early vote by county (display only)
+# Official state publications of ballots already cast, by county; not used by the model. Raw files are cached under
+# data/raw/us/earlyvote (gitignored); site/data/us2026/earlyvote.json holds county counts only (no voter records).
+
+EV_OUT = "earlyvote.json"
+EV_BASELINE = ROOT_DIR / "data_public" / "us2026_ev_baseline.csv"     # 2022 county totals (official), built once
+_TX_EVR = "https://goelect.txelections.civixapps.com/api-ivis-system/api/v1/getFile"
+_FL_STATS = "https://countyfilesvbm-ev.floridados.gov/VoteByMailEarlyVotingReports/PublicStats"
+_FL_FILES = "https://electionfiles.floridados.gov/countyballotreportfiles"
+_NC_S3 = "https://s3.amazonaws.com/dl.ncsbe.gov"
+EV_SOURCES = {
+    "tx": {"name": "Texas Secretary of State, Early Voting Turnout by county (cumulative in person and by mail)",
+           "url": "https://goelect.txelections.civixapps.com/ivis-evr-ui/evr", "licence": "public record",
+           "cadence": "daily, close of business of each early-voting day"},
+    "fl": {"name": "Florida Division of Elections, vote-by-mail and early voting statistics (voted, by party)",
+           "url": _FL_STATS, "licence": "public record", "cadence": "daily, compiled from county reports"},
+    "nc": {"name": "NC State Board of Elections, absentee counts by county (mail ballots returned and early "
+                   "voting ballots cast, by party)",
+           "url": "https://www.ncsbe.gov/results-data/absentee-and-provisional-data", "licence": "public record",
+           "cadence": "daily, about 08:40 UTC"},
+}
+EV_BASE_SOURCES = {
+    "tx": "2022 governor, total votes (Texas Legislative Council, data_public/us2026_priors.csv tx_gov_2022)",
+    "fl": "2022 governor, total votes (Florida Division of Elections, official results extract)",
+    "nc": "2022 US Senate, total votes (NC State Board of Elections, results_pct_20221108)",
+}
+EV_BLOCKED = {
+    "ga": "Georgia SoS absentee voter file (sos.ga.gov / elections.sos.ga.gov): Cloudflare challenge, not circumvented",
+    "az": "Arizona SoS (azsos.gov): Cloudflare challenge, not circumvented",
+}
+
+
+def geo_units(st: str) -> dict[str, str]:
+    """Normalised county name -> unit_id for any state, from the dashboard's Census county geometry."""
+    g = json.loads((ROOT_DIR / "site" / "data" / "geo" / "us_counties.topo.json").read_text())
+    out = {}
+    for x in g["objects"]["counties"]["geometries"]:
+        uid, name = x["properties"]["unit_id"], x["properties"]["name"]
+        if uid.startswith(f"us-{st}-"):
+            out[_norm(re.sub(r",\s*[A-Z]{2}$", "", name).replace(" Parish", ""))] = uid
+    return out
+
+
+def _ev_frame(df: pd.DataFrame, st: str) -> pd.DataFrame:
+    """name, in_person, mail_returned[, D, R, O] -> unit_id indexed counts (unknown names raise)."""
+    units = geo_units(st)
+    df = df.assign(unit_id=df["name"].map(lambda n: units.get(_norm(n))))
+    if df["unit_id"].isna().any():
+        raise ValueError(f"{st}: unknown counties {sorted(df.loc[df['unit_id'].isna(), 'name'])[:5]}")
+    df = df.drop(columns="name").groupby("unit_id").sum()
+    df["ev_total"] = df["in_person"] + df["mail_returned"]
+    return df
+
+
+def parse_ev_tx(blob: bytes) -> tuple[pd.DataFrame, str]:
+    """Texas EVR_EARLYVOTING getFile response ({"upload": base64 JSON}). Cumulative counts at close of business."""
+    j = json.loads(blob)
+    j = json.loads(base64.b64decode(j["upload"])) if "upload" in j else j
+    rows = [r for r in j["turnout_by_county"] if r["name"] != "TOTAL"]
+    df = pd.DataFrame({"name": [r["name"] for r in rows],
+                       "in_person": [float(r.get("total_in_person_votes_for_election") or 0) for r in rows],
+                       "mail_returned": [float(r.get("total_mail_votes_for_election") or 0) for r in rows]})
+    return _ev_frame(df, "tx"), j["early_voting_date"]
+
+
+def _num(s: pd.Series) -> pd.Series:
+    return pd.to_numeric(s.astype(str).str.replace(",", ""), errors="coerce").fillna(0.0)
+
+
+def parse_ev_fl(vbm_voted: bytes, early_voted: bytes) -> tuple[pd.DataFrame, str]:
+    """Florida Stats_<n>_VbmVoted.txt and Stats_<n>_EarlyVoted.txt (tab-separated, per county, by party)."""
+    parts = []
+    for blob, col in ((vbm_voted, "mail_returned"), (early_voted, "in_person")):
+        d = pd.read_csv(io.BytesIO(blob), sep="\t", dtype=str)
+        d = d[d["CountyName"].str.strip() != "State Totals"]
+        parts.append(pd.DataFrame({"name": d["CountyName"].str.strip(), "in_person": 0.0, "mail_returned": 0.0,
+                                   "D": _num(d["TotalDem"]), "R": _num(d["TotalRep"]),
+                                   "O": _num(d["TotalOth"]) + _num(d["TotalNpa"])}).assign(**{col: _num(d["GrandTotal"])}))
+        stamp = pd.to_datetime(d["CompileDate"].str.split().str[0], format="%m/%d/%Y").max()
+        parts[-1]["_t"] = stamp
+    as_of = min(p["_t"].iloc[0] for p in parts).strftime("%Y-%m-%d")      # the older of the two compilations
+    df = pd.concat([p.drop(columns="_t") for p in parts], ignore_index=True)
+    return _ev_frame(df, "fl"), as_of
+
+
+def parse_ev_nc(counts_csv: bytes, as_of: str) -> tuple[pd.DataFrame, str]:
+    """NCSBE absentee_counts_county_<election>.csv: county_name, abs_request_type, party_cd, …, count. Early
+    voting = EARLY VOTING + ONE-STOP; mail = CIVILIAN + MILITARY + OVERSEAS."""
+    d = pd.read_csv(io.BytesIO(counts_csv), dtype={"county_name": str})
+    n = d.columns[-1]
+    kind = d["abs_request_type"].str.upper()
+    early = kind.isin(["EARLY VOTING", "ONE-STOP"])
+    d = pd.DataFrame({"name": d["county_name"], "in_person": d[n].where(early, 0).astype(float),
+                      "mail_returned": d[n].where(~early, 0).astype(float),
+                      "D": d[n].where(d["party_cd"] == "DEM", 0).astype(float),
+                      "R": d[n].where(d["party_cd"] == "REP", 0).astype(float),
+                      "O": d[n].where(~d["party_cd"].isin(["DEM", "REP"]), 0).astype(float)})
+    return _ev_frame(d, "nc"), as_of
+
+
+def _get(url: str, **kw) -> bytes:
+    with httpx.Client(timeout=120, headers=UA, follow_redirects=True) as c:
+        r = c.get(url, **kw)
+        r.raise_for_status()
+        return r.content
+
+
+def fetch_ev_tx(today: pd.Timestamp) -> tuple[pd.DataFrame, str]:
+    """The latest early-voting day with county counts for the 2026 November general election (a few requests).
+    The file of a day not yet reported repeats the previous cumulative counts with zero votes on that day: skipped."""
+    lst = json.loads(base64.b64decode(json.loads(_get(_TX_EVR, params={"type": "EVR_ELECTION"}))["upload"]))
+    el = next(e for e in lst["elections"] if e["election_date"] == "11/03/2026" and "GENERAL" in e["election_name"])
+    days = sorted((pd.Timestamp(d["date"]) for d in el["early_voting_dates"]), reverse=True)
+    local = today.tz_convert("America/Chicago").tz_localize(None).normalize()
+    for day in [d for d in days if d <= local][:4]:
+        blob = _get(_TX_EVR, params={"type": "EVR_EARLYVOTING", "electionId": el["id"],
+                                      "electionDate": day.strftime("%m/%d/%Y")})
+        j = json.loads(blob)
+        if not j.get("upload"):
+            continue
+        rows = json.loads(base64.b64decode(j["upload"])).get("turnout_by_county") or []
+        if sum(r.get("in_person_votes_on_date") or 0 for r in rows) > 0:
+            return parse_ev_tx(blob)
+    raise ValueError("no Texas early-voting day with county counts yet")
+
+
+def fetch_ev_fl() -> tuple[pd.DataFrame, str]:
+    page = _get(_FL_STATS).decode("utf-8", "replace")
+    n = re.search(r"Stats_(\d+)_VbmVoted\.txt", page).group(1)
+    return parse_ev_fl(_get(f"{_FL_FILES}/Stats_{n}_VbmVoted.txt"), _get(f"{_FL_FILES}/Stats_{n}_EarlyVoted.txt"))
+
+
+def fetch_ev_nc() -> tuple[pd.DataFrame, str]:
+    """The 23 MB daily counts file is downloaded once per publication (cached by its S3 LastModified)."""
+    key = "ENRS/2026_11_03/absentee_counts_county_20261103.csv"
+    lst = _get(_NC_S3, params={"list-type": "2", "prefix": key}).decode()
+    mod = re.search(r"<LastModified>([^<]+)</LastModified>", lst).group(1)
+    f = US_RAW / "earlyvote" / f"nc_counts_{re.sub(r'[^0-9]', '', mod)[:14]}.csv"
+    blob = _fetch(f"{_NC_S3}/{key}", f)
+    return parse_ev_nc(blob, mod[:10])
+
+
+def build_ev_baseline() -> Path:
+    """data_public/us2026_ev_baseline.csv: state, unit_id, total (2022 county total votes, official sources)."""
+    parts = []
+    pr = load_priors()
+    tx = pr[pr["source"] == "tx_gov_2022"]
+    parts.append(pd.DataFrame({"state": "tx", "unit_id": tx["unit_id"], "total": tx["total"]}))
+    fl = pd.read_csv(io.BytesIO(_fetch(
+        "https://results.elections.myflorida.com/ResultsExtract.Asp?ElectionDate=11/8/2022&OfficialResults=Y&DATAMODE=",
+        US_RAW / "earlyvote" / "fl_results_20221108.tsv")), sep="\t", dtype=str, encoding="latin1")
+    fl = fl[fl["RaceCode"] == "GOV"].assign(v=lambda x: _num(x["CanVotes"])).groupby("CountyName")["v"].sum()
+    u = geo_units("fl")
+    parts.append(pd.DataFrame({"state": "fl", "unit_id": [u[_norm(n)] for n in fl.index], "total": fl.to_numpy()}))
+    z = zipfile.ZipFile(io.BytesIO(_fetch(f"{_NC_S3}/ENRS/2022_11_08/results_pct_20221108.zip",
+                                          US_RAW / "earlyvote" / "nc_results_pct_20221108.zip")))
+    nc = pd.read_csv(z.open(z.namelist()[0]), sep="\t", dtype=str)
+    nc = nc[nc["Contest Name"].str.strip() == "US SENATE"].assign(v=lambda x: _num(x["Total Votes"]))
+    nc = nc.groupby("County")["v"].sum()
+    u = geo_units("nc")
+    parts.append(pd.DataFrame({"state": "nc", "unit_id": [u[_norm(n)] for n in nc.index], "total": nc.to_numpy()}))
+    out = pd.concat(parts, ignore_index=True)
+    with open(EV_BASELINE, "w") as fh:
+        fh.write("# 2022 county total votes, the denominator of earlyvote.json share_of_2022_total. Sources (public "
+                 "record): " + "; ".join(f"{k}: {v}" for k, v in EV_BASE_SOURCES.items()) + "\n")
+        out.to_csv(fh, index=False)
+    return EV_BASELINE
+
+
+def _ev_state(df: pd.DataFrame, base: pd.Series, as_of: str, st: str) -> dict:
+    party = {"D", "R", "O"} <= set(df.columns)
+
+    def rec(r: pd.Series, b: float | None) -> dict:
+        o = {"ev_total": int(r["ev_total"]), "mail_returned": int(r["mail_returned"]), "in_person": int(r["in_person"]),
+             "by_party": {k: int(r[k]) for k in ("D", "R", "O")} if party else None,
+             "baseline_2022": None if b is None or not np.isfinite(b) else int(b),
+             "share_of_2022_total": None if not b or not np.isfinite(b) else round(float(r["ev_total"]) / b, 4)}
+        return o
+    counties = {uid: rec(r, base.get(uid)) for uid, r in df.iterrows()}
+    tot = df.sum()
+    return {"as_of": as_of, "source": EV_SOURCES[st], "baseline": EV_BASE_SOURCES[st],
+            "totals": rec(tot, float(base.reindex(df.index).sum())), "counties": counties}
+
+
+def earlyvote(out: Path, today: pd.Timestamp | None = None, fetchers: dict | None = None) -> Path:
+    """site/data/us2026/earlyvote.json. A state that fails keeps its previous section (stale: true)."""
+    today = today or pd.Timestamp.now(tz="UTC")
+    fetchers = fetchers or {"tx": lambda: fetch_ev_tx(today), "fl": fetch_ev_fl, "nc": fetch_ev_nc}
+    if not EV_BASELINE.exists():
+        build_ev_baseline()
+    b = pd.read_csv(EV_BASELINE, comment="#")
+    dest = Path(out) / EID / EV_OUT
+    old = json.loads(dest.read_text()) if dest.exists() else {}
+    prev = {st: {**s, "counties": {u: {k: v for k, v in c.items() if k != "state"}
+                                   for u, c in old.get("counties", {}).items() if c.get("state") == st}}
+            for st, s in old.get("states", {}).items()}
+    states = {}
+    for st, fn in fetchers.items():
+        try:
+            df, as_of = fn()
+            states[st] = _ev_state(df, b[b["state"] == st].set_index("unit_id")["total"], as_of, st)
+        except Exception as e:                       # one state failing must not stop the others
+            print(f"early vote {st}: {type(e).__name__}: {e}", flush=True)
+            if st in prev:
+                states[st] = {**prev[st], "stale": True, "error": f"{type(e).__name__}: {e}"}
+    _write_json(dest, {
+        "built": _iso(today.floor("1min")),
+        "note": "Ballots already cast by county from official state publications (display only; not used by the "
+                "model). share_of_2022_total = ev_total / the county's 2022 total votes (see baseline). by_party = "
+                "party registration of the voters, where the state publishes it (D, R, O = all others).",
+        "states": {st: {k: v for k, v in s.items() if k != "counties"} for st, s in states.items()},
+        "counties": {uid: {"state": st, **c} for st, s in states.items() for uid, c in s["counties"].items()},
+        "not_available": EV_BLOCKED,
+    })
+    return dest
+
+
 # ------------------------------------------------------------------ national overview (all Senate/governor races)
 
 RACES_REGISTRY = ROOT_DIR / "data_public" / "us2026_races.json"   # analysis/us_overview_races.py
@@ -1808,6 +2025,15 @@ def cli(a) -> None:
             print(write_public_priors())
         case "preelection":
             print(preelection(a.configs, a.out, days=a.days, force=a.force))
+            # early-vote files change about daily and NC's is ~23 MB: refresh only when asked (the CI workflow
+            # sets BRUNDER_EARLYVOTE=1 four times a day); `us earlyvote` always refreshes
+            if __import__("os").environ.get("BRUNDER_EARLYVOTE") == "1":
+                try:
+                    print(earlyvote(a.out))
+                except Exception as e:
+                    print(f"early vote not refreshed: {type(e).__name__}: {e}", flush=True)
+        case "earlyvote":
+            print(earlyvote(a.out))
         case "export":
             print(export(a.configs, a.out, a.snap, a.until))
         case "live":

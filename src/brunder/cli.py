@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--interval", type=float, default=30.0)
     s.add_argument("--until", help="UTC stop time, e.g. 2026-11-04T12:00Z")
     s = sub.add_parser("us", help="US midterms 2026: county priors; dashboard files before the count, live, replay")
-    s.add_argument("step", choices=["priors", "preelection", "export", "live"])
+    s.add_argument("step", choices=["priors", "preelection", "export", "live", "earlyvote"])
     s.add_argument("configs", nargs="*", type=Path, help="configs/us2026_*_v1.toml")
     s.add_argument("--source", action="append", default=[], help="priors: only these sources (repeatable)")
     s.add_argument("--out", type=Path, default=Path("site/data"), help="data root; files go to <out>/us2026/")

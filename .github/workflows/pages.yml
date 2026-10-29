@@ -34,6 +34,9 @@ jobs:
           now=$(date -u +%s); close=$(date -u -d "2026-11-04T00:00:00Z" +%s)
           if [ "$now" -lt "$close" ]; then
             curl -LsSf https://astral.sh/uv/install.sh | sh
+            # early vote only at 00, 06, 12, 18 UTC (first run of the hour): its files update about daily
+            h=$(date -u +%H); m=$(date -u +%M)
+            if [ $((10#$h % 6)) -eq 0 ] && [ $((10#$m)) -lt 30 ]; then export BRUNDER_EARLYVOTE=1; fi
             ~/.local/bin/uv run --frozen brunder us preelection configs/us2026_*_v1.toml --out site/data
           else
             echo "polls have closed: not refreshing pre-election data"
