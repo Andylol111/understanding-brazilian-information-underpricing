@@ -1447,3 +1447,13 @@ def test_meta_names_each_race_baseline():
     by = {r["race_id"]: r["baseline"] for r in m["races"]}
     assert by["ga-gov"] == "2022 governor (certified)" and by["tx-sen"] == "2024 Senate (certified)"
     assert m["baseline_estimate"] == "2024 president (certified)"
+
+
+def test_market_margin_only_reads_prices_that_carry_margin_information():
+    """Near 0 or 1 a price says who wins, not by how much: no implied margin there (safe seats once drew false
+    swings and false model-market gaps); inside the range it is the probit times our sd and keeps its sign."""
+    assert us.market_margin(0.97, 10.0) is None and us.market_margin(0.02, 10.0) is None
+    assert us.market_margin(0.5, 10.0) == 0.0
+    lo, hi = us.market_margin(0.3, 10.0), us.market_margin(0.7, 10.0)
+    assert lo == -hi and 5.0 < hi < 5.5
+    assert us.market_margin(None, 10.0) is None and us.market_margin(0.6, None) is None
