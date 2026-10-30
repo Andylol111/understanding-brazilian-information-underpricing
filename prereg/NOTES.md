@@ -97,6 +97,9 @@ Senate and SC governor configs and the SC House district configs therefore have 
 Alaska had no model.
 All other feeds returned data; Georgia's host is reachable and its 2026 general election is picked up once it is
 listed.
+Correction, 2026-10-30, still before any result: Alaska is reachable. The check above ran without the
+recorder's certificate bundle (SSL_CERT_FILE, needed because Alaska's server omits an intermediate certificate);
+with it the server answers normally, so the Alaska feed is recorded again. Only South Carolina is excluded.
 
 ## Hungary 2026 (`configs/hu2026_v1.toml`): not pre-registered
 
