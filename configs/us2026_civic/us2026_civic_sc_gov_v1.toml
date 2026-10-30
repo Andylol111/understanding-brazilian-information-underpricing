@@ -1,0 +1,50 @@
+# US midterms 2026-11-03, South Carolina Governor, results from civicAPI (civicapi.org): model v1. Same model and count rules as the registered
+# official-feed configs; only the feed differs. civicAPI is a SECONDARY source (unofficial aggregator; free, attribution
+# required: civicAPI, https://civicapi.org). Frozen before polls close (first close 2026-11-04 00:00 UTC); the
+# integrator registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence:
+# docs/us_midterms.md. Live/replay: uv run brunder us live|export configs/us2026_civic/us2026_civic_sc_gov_v1.toml
+# SECONDARY SOURCE, LIVE BEHAVIOUR UNREHEARSED: civicAPI's counts were checked against certified results (docs/us_midterms.md,
+# results/us_civic_validation.json) but its update cadence and lag are unknown: GET /race/{id}/history/ is 404 for every past
+# race, so no timed snapshots of a past count exist to replay.
+id = "us2026_civic_sc_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "sc-gov-civic"
+name = "South Carolina Governor"
+state = "sc"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "civic_sc"                # brunder.us.FEEDS: civicAPI race 87410 (brunder.civic)
+source = "civicAPI (civicapi.org)"      # secondary source; shown with its link on every display
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T00:00:00Z"
+a = { party = "DEM", name = "Jermaine Johnson", color = "#1f5fbf" }
+b = { party = "REP", name = "Alan Wilson", color = "#c8102e" }
+
+[prior]                    # data_public/us2026_priors.csv or us2026_civic_priors.csv
+share = "sc_gov_2022"        # 2022 governor: same office, last midterm (SC Election Commission)
+votes = "sc_gov_2022"
+
+[model]                    # brunder.nowcast.Params
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# civicAPI gives each county's votes and its percent reporting (0-100) and nothing else: once a county shows 99 or more
+# (brunder.civic.COMPLETE_AT; its percent stays at 99 or lower in counted primaries), 98% of its vote is assumed in;
+# those counties re-scale the expected vote of the rest. No early/late split, no outstanding-ballot count.
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "south-carolina-governor-winner-2026"
+market = "will-the-democrats-win-the-south-carolina-governor-race-in-2026"
+question = "Will the Democrats win the South Carolina governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

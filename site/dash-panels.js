@@ -16,7 +16,7 @@ const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−"
 // turnout: { text, title } the race's projected turnout against expected.
 export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null, ev = null, turnout = null }) {
   const a = esc(race.a.name);
-  const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)} · figures for ${a}</span></p>`;
+  const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)} · figures for ${a}</span></p>${race.source ? `<p class="note ro-src">Results: <a href="${esc(race.source.url)}">${esc(race.source.name)}</a> (secondary source)</p>` : ""}`;
   if (!row) { el.innerHTML = `${head}<p class="note">No data for this race at this time.</p>`; return; }
   const chip = (label, value, cls = "", sub = "", title = "") => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}><small>${label}</small><b>${value}</b>${sub ? `<i>${sub}</i>` : ""}</span>`;
   const chips = [];

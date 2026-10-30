@@ -48,6 +48,7 @@ from . import kalshi, live, nowcast
 from .paths import PROCESSED, RAW
 from .paths import ROOT as ROOT_DIR
 from . import us_feeds_extra as _extra
+from . import civic as _civic
 from .snap import SNAP, _name
 
 TAG = "us_midterms_2026"
@@ -81,6 +82,8 @@ STATES = {"ca": "California", "tx": "Texas", "oh": "Ohio", "ga": "Georgia", "ak"
           "sc": "South Carolina", "vt": "Vermont", "nc": "North Carolina", "fl": "Florida"}
 FEEDS.update(_extra.FEEDS)       # PA, MN, NE, NM (brunder.us_feeds_extra, added 2026-10-30); parsed there
 STATES.update(_extra.STATES)
+FEEDS.update(_civic.FEEDS)       # civicAPI, secondary source (brunder.civic): civic_<st> kinds, one per state
+STATES.update(_civic.STATES)
 
 
 # ------------------------------------------------------------------ units
@@ -549,6 +552,8 @@ def parse_feed(kind: str, blobs: dict[str, bytes | list[bytes] | None]) -> pd.Da
             return parse_fl(blobs["enight"]) if blobs.get("enight") else _frame([])
     if kind in _extra.FEEDS:                         # PA, MN, NE, NM: brunder.us_feeds_extra
         return _extra.parse_feed(kind, blobs)
+    if kind in _civic.FEEDS:                         # civicAPI (secondary source): brunder.civic
+        return _civic.parse_feed(kind, blobs)
     if kind.endswith("_house"):                      # House districts (brunder.us_house_night); other kinds unchanged
         from .us_house_night import parse_house
         return parse_house(kind.removesuffix("_house"), blobs)
@@ -982,6 +987,7 @@ SOURCE_INFO = {
     "az": ("Arizona Secretary of State, election results (Enhanced Voting)", "https://app.enhancedvoting.com/results/public/Arizona", "public record"),
 }
 SOURCE_INFO.update(_extra.SOURCE_INFO)
+SOURCE_INFO.update(_civic.SOURCE_INFO)
 
 
 def build_priors(sources: list[str] | None = None) -> Path:
@@ -1004,6 +1010,7 @@ def build_priors(sources: list[str] | None = None) -> Path:
 
 PUBLIC_PRIORS = ROOT_DIR / "data_public" / "us2026_priors.csv"
 HOUSE_PRIORS = ROOT_DIR / "data_public" / "us2026_house_priors.csv"
+CIVIC_PRIORS = ROOT_DIR / "data_public" / "us2026_civic_priors.csv"
 
 
 def load_priors(path: Path | None = None, processed: Path | None = None, public: Path | None = None) -> pd.DataFrame:
@@ -1016,6 +1023,8 @@ def load_priors(path: Path | None = None, processed: Path | None = None, public:
     pub = pd.read_csv(public or PUBLIC_PRIORS, comment="#")
     if public is None and HOUSE_PRIORS.exists():    # House district priors (sources "<st>-<nn>_pres_2024"), own file
         pub = pd.concat([pub, pd.read_csv(HOUSE_PRIORS, comment="#")], ignore_index=True)
+    if public is None and CIVIC_PRIORS.exists():    # 2024 president by county of the civicAPI-only states, own file
+        pub = pd.concat([pub, pd.read_csv(CIVIC_PRIORS, comment="#")], ignore_index=True)
     proc_path = processed or US_PROC / "priors.csv"
     if not proc_path.exists():
         return pub
@@ -1354,9 +1363,11 @@ POLL_CLOSE = {"ga": "2026-11-04T00:00:00Z", "oh": "2026-11-04T00:30:00Z", "tx": 
               "vt": "2026-11-04T00:00:00Z", "nc": "2026-11-04T00:30:00Z", "fl": "2026-11-04T00:00:00Z",
               "az": "2026-11-04T02:00:00Z", "pa": "2026-11-04T01:00:00Z", "mn": "2026-11-04T02:00:00Z",
               "ne": "2026-11-04T02:00:00Z", "nm": "2026-11-04T02:00:00Z"}
+POLL_CLOSE.update(_civic.POLL_CLOSE)
 POLL_CLOSE_LAST = {"tx": "2026-11-04T02:00:00Z", "ak": "2026-11-04T06:00:00Z",   # El Paso/Hudspeth (MT); Aleutians
                    "fl": "2026-11-04T01:00:00Z",                                  # FL panhandle (central time)
                    "ne": "2026-11-04T03:00:00Z"}                                  # NE panhandle (mountain time)
+POLL_CLOSE_LAST.update(_civic.POLL_CLOSE_LAST)
 POLL_SOURCES = [
     {"name": "Georgia.gov, Vote in person on Election Day (polls 7 a.m.-7 p.m.)",
      "url": "https://georgia.gov/vote-in-person-election-day", "licence": "public record"},
@@ -1432,15 +1443,23 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
                 "poll_model": poll_model({v: load_config(q) for v, q in _sibling_versions(c).items()}),
                 "secondary_models": [v for v, q in _sibling_versions(c).items()
                                      if load_config(q).get("role") == "secondary"]}
+        if E.get("source"):                          # secondary source (civicAPI): attribution on every display
+            race["source"] = {"name": E["source"], "url": E.get("source_url", _civic.SOURCE_URL), "role": "secondary"}
         if phase == "pre-count":
             race["precount"] = precount.get(rid)
         if not priors_ok[rid]:
             race["model_note"] = NO_PRIOR
         races.append(race)
     states = sorted({c["election"]["state"] for c in cfgs})
-    srcs = [{"name": "Official results feeds: " + ", ".join(STATES[s] for s in states) + " (election night)",
-             "url": "https://www.sos.ca.gov/elections", "licence": "public record"}]
-    srcs += [{"name": SOURCE_INFO[s][0], "url": SOURCE_INFO[s][1], "licence": SOURCE_INFO[s][2]} for s in states]
+    official = sorted({c["election"]["state"] for c in cfgs if not c["election"].get("source")})
+    srcs = [{"name": "Official results feeds: " + ", ".join(STATES[s] for s in official) + " (election night)",
+             "url": "https://www.sos.ca.gov/elections", "licence": "public record"}] if official else []
+    srcs += [{"name": i[0], "url": i[1], "licence": i[2]} for i in dict.fromkeys(SOURCE_INFO[s] for s in states)]
+    civic = sorted({c["election"]["state"] for c in cfgs if c["election"].get("source")})
+    if civic:
+        srcs.append({"name": f"{_civic.SOURCE_NAME}: election-night county results, secondary source ("
+                             + ", ".join(STATES[s] for s in civic) + ")",
+                     "url": _civic.SOURCE_URL, "licence": _civic.SOURCE_LICENCE})
     srcs.append({"name": "US Census Bureau county codes / cartographic boundaries",
                  "url": "https://www.census.gov/geographies/reference-files.html", "licence": "public domain"})
     srcs.append({"name": "Polymarket: market prices (CLOB)", "url": "https://polymarket.com",
@@ -1450,6 +1469,7 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
                      "licence": "© Kalshi; shown per the project's decision and pending exception request, "
                                 "see docs/kalshi.md"})
     srcs += POLL_SOURCES + [_extra.POLL_SOURCES[s] for s in states if s in _extra.POLL_SOURCES]
+    srcs += [_civic.POLL_SOURCES[s] for s in states if s in _civic.POLL_SOURCES]
     srcs.append({"name": "VoteHub Polling API: Senate and governor polls (model v2 prior; our averages only)",
                  "url": "https://votehub.com/polls/api/", "licence": "CC BY 4.0"})
     notes = [
@@ -1468,6 +1488,9 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
         + (" (Texas 02:00 in El Paso and Hudspeth counties)" if "tx" in states else "")
         + (" (Florida 01:00 in the central-time panhandle)" if "fl" in states else "") + ".",
     ]
+    if civic:
+        notes.append(f"Races with a source label use {_civic.SOURCE_NAME}, {_civic.SOURCE_URL}: a secondary, unofficial "
+                     "county feed (its percent reporting is taken as the county's precincts reporting).")
     if phase == "pre-count":
         notes.insert(0, "Before the count model v1's estimate is the past certified results by county (the race "
                         "configs name which) with its uncertainty; model v2 adds the poll average.")

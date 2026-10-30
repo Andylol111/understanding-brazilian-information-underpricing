@@ -1,0 +1,23 @@
+# civicAPI (https://civicapi.org) recorder, SECONDARY source for the US midterms (2026-11-03; brunder.civic): county results of
+# the Senate / governor races of SC, IA, MI, WI, NH, NV, NY, CO, KS, ME (official feeds the recorder cannot reach), of
+# TX, GA, NC, FL, OH, PA, AZ, MN (cross-validation against the official feeds, analysis/us_civic.py compare) and the
+# national US House race (87524, 435 districts). One request per race every 30 s (about 1 request/s in all), one identified
+# User-Agent "brunder/0.1 (research; recorder)", backoff on errors. Snapshots go to the same directory as brunder-snap-us
+# (data/raw/snap/us_midterms_2026/civic_<race id>/). civicAPI: free for any use, attribution required: "civicAPI (civicapi.org)".
+# Started by brunder-civic-us.timer.
+[Unit]
+Description=brunder civicAPI recorder: US midterms 2026-11-03
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder civic record --interval 30 --until 2026-11-20T00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=10
+CPUQuota=10%
+MemoryMax=256M
+IOSchedulingClass=idle
