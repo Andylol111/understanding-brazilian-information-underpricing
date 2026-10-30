@@ -113,6 +113,25 @@ def test_record_writes_snap_layout_only_on_change(monkeypatch, tmp_path):
     assert first == {"K-1": {"yes_dollars": [["0.50", "1"]]}}
 
 
+def test_record_polls_modelled_tickers_faster(monkeypatch, tmp_path):
+    calls = []
+
+    async def fake_books(client, tickers, chunk=50):
+        calls.append(list(tickers))
+        return {t: {"yes_dollars": [[f"0.{len(calls):02d}", "1"]]} for t in tickers}
+
+    monkeypatch.setattr(kalshi, "_books_async", fake_books)
+    monkeypatch.setattr(kalshi, "MIN_FAST", 0.1)
+    until = datetime.now(timezone.utc) + timedelta(seconds=1.0)
+    asyncio.run(kalshi.record("t", ["K-1", "K-2", "K-3"], interval=0.5, until=until, out_root=tmp_path,
+                              fast_tickers=["K-2", "X-9"], fast_interval=0.1))
+    full = [c for c in calls if len(c) == 3]
+    assert 2 <= len(full) <= 3 and len(calls) - len(full) >= 4 and all(c == ["K-2"] for c in calls if len(c) != 3)
+    idx = [json.loads(l) for l in (tmp_path / "t" / "index.jsonl").read_text().splitlines()]
+    last = json.loads((tmp_path / "t" / idx[-1]["file"]).read_text())
+    assert set(last) == {"K-1", "K-2", "K-3"} and "fetched" in idx[-1] and any(r["fast"] for r in idx)
+
+
 def test_pacing_spaces_requests(monkeypatch):
     t = [0.0]
     monkeypatch.setattr(kalshi.time, "monotonic", lambda: t[0])

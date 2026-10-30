@@ -90,6 +90,16 @@ same minutes.
   (`brunder.us.turnout_profile`). Error = 100 × log(predicted / actual), each template scaled to the actual state
   total, vote-weighted RMSE and MAE (the `us_fundamentals.turnout_tests` metric). The statewide turnout of each
   version is in `turnout_at_fractions` above.
+- `latency` (`analysis/us_latency.py`): per race and probability column (`P`, `P_v2`), each time our probability
+  crossed a level (0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99; ≥ L = above) paired with the market's
+  crossing of the same level and direction nearest in time (± 30 min). Our time: the `wall` second the live model
+  wrote that update (`logs/us2026_updates.jsonl`; `resolution: "second"`), or the row's minute without the log
+  (`"minute"`). The market's: the server timestamp, to the second, of the WebSocket event that moved the Polymarket
+  price (mid if spread ≤ 10c, else last trade) across it (`data/raw/snap/us_midterms_2026_ws/ws_crossings.jsonl`,
+  brunder.pm_ws; YES levels mapped to side a through `yes_is`). `crossings[]` = {level, dir, model_t, market_t,
+  lead_s}; `lead_s` = market − model in seconds, positive when our probability crossed first; `pooled_P` summarises
+  `lead_s` of `P` over races (n, median, p25, p75, model_first). Unpaired crossings are counted (`model_only`,
+  `market_only`). `status: "none"` when no WebSocket log exists.
 
 ## Registered look (`--final`)
 

@@ -1576,6 +1576,8 @@ class Exporter:
             self.tokens = {}
             self.errors["tokens"] = f"{type(e).__name__}: {e}"
         self._ks: tuple[Path | None, dict[str, float]] = (None, {})
+        self._pre: dict[str, dict] = {}                                         # race -> its pre-count frame
+        self.feeds: list[dict] | None = None                                    # live: feed_status, into meta.json
 
     def _rows_for(self, kind: str, t: pd.Timestamp) -> tuple[pd.DataFrame, tuple]:
         files = feed_files(self.arc, kind, t)
@@ -1598,6 +1600,12 @@ class Exporter:
         if good is None:                             # nothing parsable yet: same as no returns
             return _frame([]), ("unparsed",) + sig
         return good[1], good[0]
+
+    def _precount(self, rid: str, c: dict, pri: pd.DataFrame, t: str) -> dict:
+        """precount_frame at minute t; its content does not depend on t, so it is computed once per race."""
+        if rid not in self._pre:
+            self._pre[rid] = precount_frame(c, pri, t, *self._poll_cfg(rid))
+        return {**self._pre[rid], "t": t}
 
     def _poll_cfg(self, rid: str) -> tuple[dict | None, pd.DataFrame | None]:
         """(config, prior) of the race's poll-model version, or (None, None)."""
@@ -1738,8 +1746,11 @@ class Exporter:
         d = Path(out) / EID
         ok = {rid: p is not None and not p.empty for rid, p in self.pri.items()}
         ov = refresh_overview(d, self.arc, self.errors)
-        _write_json(d / "meta.json", meta(self.cfgs, ok, self.kalshi_mk, phase=self.phase, tokens=self.tokens,
-                                          overview="overview.json" if ov else None))
+        m = meta(self.cfgs, ok, self.kalshi_mk, phase=self.phase, tokens=self.tokens,
+                 overview="overview.json" if ov else None)
+        if self.feeds is not None:                   # live: the recorders' per-feed status (feed_status)
+            m["feeds"] = self.feeds
+        _write_json(d / "meta.json", m)
         tl = self.merged_timeline(d)
         _write_json(d / "timeline.json", tl)
         _write_json(d / "timeline_tail.json", self.tail(timeline=tl))
@@ -1759,7 +1770,7 @@ class Exporter:
             if not ok[rid]:
                 continue
             try:
-                fr = self.frames[rid] or [precount_frame(c, pri, now, *self._poll_cfg(rid))]   # before the count
+                fr = self.frames[rid] or [self._precount(rid, c, pri, now)]                      # before the count
                 if len(fr) > 60:                      # keep ~60 frames, always including the latest
                     idx = np.unique(np.linspace(0, len(fr) - 1, 60).round().astype(int))
                     fr = [fr[i] for i in idx]
@@ -2658,16 +2669,191 @@ def refresh_overview(d: Path, arc: Archive, errors: dict | None = None) -> bool:
     return True
 
 
-async def run_live(cfg_paths: list[Path], out: Path, snap_root: Path | None = None, interval: float = 30.0,
-                   stop_at: datetime | None = None) -> None:
-    """Live: every `interval` seconds, extend the timeline with what the recorder saved since the last pass and
-    rewrite the contract files. Reads the recorder's archive only."""
-    ex = Exporter(cfg_paths, snap_root)
-    while stop_at is None or datetime.now(timezone.utc) < stop_at:
-        t0 = datetime.now(timezone.utc)
+LIVE_POLL = 0.25          # s between stat() calls of the recorder's index.jsonl and poll markers (no reads unless changed)
+NO_MARKER_GRACE = 5.0     # s after a minute boundary before computing it when no recorder publishes a poll marker
+UPDATES = ROOT_DIR / "logs" / "us2026_updates.jsonl"
+CROSS_LEVELS = (0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99)    # brunder.pm_ws.LEVELS
+
+
+class IndexTail:
+    """New complete lines of the recorder's index.jsonl since the last read (a partial last line waits)."""
+
+    def __init__(self, path: Path):
+        self.path, self.off, self.stamp = Path(path), 0, None
+
+    def changed(self) -> bool:
         try:
-            ex.update(pd.Timestamp(t0))
+            st = self.path.stat()
+        except OSError:
+            return False
+        return (st.st_size, st.st_ino) != self.stamp
+
+    def read(self) -> list[dict]:
+        try:
+            st = self.path.stat()
+            if self.stamp and st.st_ino != self.stamp[1]:
+                self.off = 0                         # replaced file: start over
+            with self.path.open("rb") as fh:
+                fh.seek(self.off)
+                data = fh.read()
+        except OSError:
+            return []
+        end = data.rfind(b"\n") + 1
+        self.off += end
+        self.stamp = (self.off, st.st_ino) if end == len(data) else None
+        out = []
+        for ln in data[:end].splitlines():
+            try:
+                out.append(json.loads(ln))
+            except ValueError:
+                pass
+        return out
+
+
+def poll_markers(root: Path) -> dict[str, dict]:
+    """<archive>/.poll/<recorder>.json, written by brunder.snap / brunder.kalshi before each sleep:
+    {"next": the next poll's start (UTC), "done": when the last poll finished, "interval": s}."""
+    out = {}
+    for f in (Path(root) / ".poll").glob("*.json"):
+        try:
+            out[f.stem] = json.loads(f.read_text())
+        except (OSError, ValueError):
+            pass
+    return out
+
+
+def settled_until(markers: dict[str, dict], now: pd.Timestamp) -> pd.Timestamp | None:
+    """Every snapshot named before this time is on disk: the earliest `next` poll start over the recorders. A marker
+    older than 3 intervals + 60 s (recorder stopped or stuck) is ignored, so a dead recorder never stalls the model."""
+    vals = []
+    for d in markers.values():
+        try:
+            nxt, done = pd.Timestamp(d["next"]), pd.Timestamp(d["done"])
+        except (KeyError, ValueError, TypeError):
+            continue
+        if (now - done).total_seconds() <= 3 * float(d.get("interval", 30)) + 60:
+            vals.append(nxt)
+    return min(vals) if vals else None
+
+
+def feed_status(markers: dict[str, dict], now: pd.Timestamp) -> list[dict]:
+    """meta.json `feeds`: every feed the recorders report (poll markers), sorted by key: {key, recorder, interval_s,
+    last_ok_utc, last_status, stale}; stale = no successful fetch yet, or the last one is older than 3 × its interval
+    (a blocked feed then shows as stale instead of silently holding old counts)."""
+    out = []
+    for rec, d in markers.items():
+        for key, f in (d.get("feeds") or {}).items():
+            ok = f.get("last_ok")
+            iv = float(f.get("interval") or d.get("interval") or 30)
+            stale = ok is None or (now - pd.Timestamp(ok)).total_seconds() > 3 * iv
+            out.append({"key": key, "recorder": rec, "interval_s": iv, "last_ok_utc": _iso(pd.Timestamp(ok)) if ok else None,
+                        "last_status": f.get("last_status"), "stale": bool(stale)})
+    return sorted(out, key=lambda x: x["key"])
+
+
+class UpdateLog:
+    """JSONL log of every live pass (analysis/us_latency.py, analysis/us_night_replay.py ab):
+      {"kind": "pass", "t0", "written", "compute_s", "end", "snaps": [[key, t, fetched, last_modified], …]}
+        snapshots whose minute row was first written by this pass (t = name / poll start, fetched = response
+        received, last_modified = the server's header; null where the recorder did not record it)
+      {"kind": "race", "race", "wall", "rows", "row_t", "P", "P_v2", …, "pm", "kalshi",
+       "cross": [{"v": "P", "level": 0.5, "dir": "up", "row_t"}]}
+        per race with new rows: `wall` = when its files were written, the last row's values, and the levels
+        (CROSS_LEVELS) each probability column crossed between consecutive rows."""
+
+    def __init__(self, path: Path | None):
+        self.path = Path(path) if path else None
+        self.last: dict[tuple[str, str], tuple[bool, ...]] = {}
+        self.seen: dict[str, int] = {}
+        if self.path:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def record(self, ex: "Exporter", t0: datetime, written: datetime, end: pd.Timestamp | None,
+               snaps: list[dict]) -> None:
+        if not self.path:
+            return
+        lines = [{"kind": "pass", "t0": t0.isoformat(), "written": written.isoformat(),
+                  "compute_s": round((written - t0).total_seconds(), 3), "end": _iso(end) if end is not None else None,
+                  "snaps": [[s.get("key"), s.get("t"), s.get("fetched"), s.get("last_modified")] for s in snaps]}]
+        for rid, rows in ex.timeline.items():
+            new = rows[self.seen.get(rid, 0):]
+            self.seen[rid] = len(rows)
+            if not new:
+                continue
+            cross = []
+            for r in new:
+                for col in [k for k in r if k == "P" or (k.startswith("P_") and k[2:3] == "v")]:
+                    p = r.get(col)
+                    if p is None:
+                        continue
+                    side = tuple(p >= L for L in CROSS_LEVELS)
+                    prev = self.last.get((rid, col))
+                    self.last[(rid, col)] = side
+                    if prev is not None:
+                        cross += [{"v": col, "level": L, "dir": "up" if now else "down", "row_t": r["t"]}
+                                  for L, was, now in zip(CROSS_LEVELS, prev, side) if was != now]
+            last = new[-1]
+            lines.append({"kind": "race", "race": rid, "wall": written.isoformat(), "rows": len(new), "row_t": last["t"],
+                          **{k: v for k, v in last.items() if k == "P" or k.startswith("P_") or k in ("pm", "kalshi")},
+                          "cross": cross})
+        with self.path.open("a") as fh:
+            fh.write("".join(json.dumps(x, separators=(",", ":")) + "\n" for x in lines))
+
+
+async def run_live(cfg_paths: list[Path], out: Path, snap_root: Path | None = None, interval: float = 30.0,
+                   stop_at: datetime | None = None, updates: Path | None = UPDATES) -> None:
+    """Live, event-driven: a pass (extend the timeline with what the recorder saved, rewrite the contract files) runs
+    as soon as a new minute row can be computed: its minute has passed, the recorder's index has a snapshot at or
+    after it, and every recorder that publishes a poll marker (<archive>/.poll/) has finished the polls started
+    before it, so a row is computed once, from the same snapshots `brunder us export` would use. Without markers a
+    minute is computed NO_MARKER_GRACE s after it ends. At least one pass every `interval` s regardless (prices,
+    retries). Reads the recorder's archive only."""
+    ex = Exporter(cfg_paths, snap_root)
+    tail = IndexTail(ex.arc.root / "index.jsonl")
+    log = UpdateLog(updates)
+    step = ex.step
+    pending: list[dict] = []                     # index lines whose minute row is not written yet
+    latest: pd.Timestamp | None = None           # newest snapshot name in the index
+    done_end: pd.Timestamp | None = None         # the last minute a pass could compute
+
+    def target() -> tuple[pd.Timestamp, pd.Timestamp]:
+        """(until for Exporter.update, the last minute row it allows)."""
+        now = pd.Timestamp.now(tz="UTC")
+        settled = settled_until(poll_markers(ex.arc.root), now)
+        until = now - pd.Timedelta(seconds=NO_MARKER_GRACE) if settled is None else min(now, settled - pd.Timedelta(1, "us"))
+        end = until if latest is None else min(until, latest + step)
+        return until, end.floor(step)
+
+    def take(lines: list[dict]) -> None:
+        nonlocal latest
+        for x in lines:
+            try:
+                t = pd.Timestamp(x["t"])
+            except (KeyError, ValueError):
+                continue
+            latest = t if latest is None or t > latest else latest
+            pending.append(x)
+
+    take(tail.read())
+    last_pass = 0.0
+    while stop_at is None or datetime.now(timezone.utc) < stop_at:
+        until, end = target()
+        if done_end is not None and end <= done_end and asyncio.get_running_loop().time() - last_pass < interval:
+            await asyncio.sleep(LIVE_POLL)
+            if tail.changed():
+                take(tail.read())
+            continue
+        t0 = datetime.now(timezone.utc)
+        last_pass = asyncio.get_running_loop().time()
+        try:
+            ex.update(until)
+            ex.feeds = feed_status(poll_markers(ex.arc.root), pd.Timestamp.now(tz="UTC"))
             ex.write(out)
+            written = datetime.now(timezone.utc)
+            done_end = end if done_end is None else max(done_end, end)
+            shown = [x for x in pending if pd.Timestamp(x["t"]).ceil(step) <= done_end]
+            pending[:] = [x for x in pending if pd.Timestamp(x["t"]).ceil(step) > done_end]
+            log.record(ex, t0, written, done_end, shown)
             last = {rid: rows[-1] for rid, rows in ex.timeline.items() if rows}
             print(f"{t0:%H:%M:%S} " + "  ".join(f"{rid} c={r['counted']} P={r['P']} pm={r['pm']}"
                                                for rid, r in last.items()), flush=True)
@@ -2675,7 +2861,7 @@ async def run_live(cfg_paths: list[Path], out: Path, snap_root: Path | None = No
                 print(f"{t0:%H:%M:%S} open errors: {ex.errors}", flush=True)
         except Exception as e:                       # never stop on the night
             print(f"{t0:%H:%M:%S} export error, continuing: {type(e).__name__}: {e}", flush=True)
-        await asyncio.sleep(max(0.0, interval - (datetime.now(timezone.utc) - t0).total_seconds()))
+            await asyncio.sleep(1.0)
 
 
 # ------------------------------------------------------------------ county estimates for every race (display only)
@@ -2978,7 +3164,7 @@ def cli(a) -> None:
             print(us_score.run(a.out, a.snap, a.configs or None))
         case "live":
             stop = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
-            asyncio.run(run_live(a.configs, a.out, a.snap, a.interval, stop))
+            asyncio.run(run_live(a.configs, a.out, a.snap, a.interval, stop, a.updates or UPDATES))
 
 
 # ------------------------------------------------------------------ Census 2020 county codes (public domain)

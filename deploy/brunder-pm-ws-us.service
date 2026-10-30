@@ -1,0 +1,23 @@
+# Polymarket market-channel WebSocket recorder for the US midterms (2026-11-03): every book / price change / trade with
+# the server's millisecond timestamp for the same markets brunder-snap-us records (--pm-events-from reads that unit's
+# --pm-event list, so the two never drift apart), plus a second-level threshold-crossing log (ws_crossings.jsonl).
+# Public, no auth; ≤ 250 tokens per connection (~1 500 tokens = 7 connections, opened 1 s apart, reconnect ≥ 10 s apart with
+# backoff). Passive: writes only data/raw/snap/us_midterms_2026_ws/, a directory brunder-us-live never reads.
+# Started by brunder-pm-ws-us.timer with the official-feed recorder; stops 2026-11-07 (disk: ~30 MB/h gzipped at the
+# 2026-10-30 event rate, 10-minute files gzipped in a stream as they close). Format: src/brunder/pm_ws.py docstring.
+[Unit]
+Description=brunder Polymarket WebSocket recorder: US midterms 2026-11-03
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder pm-ws us_midterms_2026_ws --pm-events-from deploy/brunder-snap-us.service --shard 250 --until 2026-11-07T00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=10
+CPUQuota=25%
+MemoryMax=768M
+IOSchedulingClass=idle

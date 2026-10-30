@@ -28,6 +28,10 @@ night (one snapshot per simulated minute) delivered `night / minutes` times fast
 
     uv run python analysis/us_night_replay.py run --work /tmp/brr --live-port 8791 --minutes 15
     uv run --with playwright python analysis/us_night_replay.py page --site-port 8792 --live http://127.0.0.1:8791/ --minutes 15
+    uv run python analysis/us_night_replay.py ab --work /tmp/ab --old-root <worktree at the old commit> --minutes 30 --night 30
+`ab` runs the old checkout's and this checkout's `brunder us live` side by side on one replayed archive (the feed writes
+brunder.snap's poll marker after each simulated minute) and reports latency from a minute's snapshots being on disk to
+its row being written / served, CPU, peak RSS, and row-by-row identity with `brunder us export` of the final archive.
 Firefox fails to start from a home directory whose name ends in "." ("Couldn't load XPCOM"): copy Nightly.app
 elsewhere and set FIREFOX_EXECUTABLE=<copy>/Nightly.app/Contents/MacOS/firefox.
 """
@@ -482,7 +486,13 @@ class Writer:
         os.replace(tmp, f)
         with self.index.open("a") as fh:
             fh.write(json.dumps({"t": t.isoformat(), "key": key, "file": str(f.relative_to(self.out)), "sha256": h,
-                                 "bytes": len(body), "gzip": big}) + "\n")
+                                 "bytes": len(body), "gzip": big,
+                                 "fetched": datetime.now(timezone.utc).isoformat()}) + "\n")
+
+    def mark(self, nxt: datetime) -> None:
+        """brunder.snap.mark: every snapshot named before `nxt` (simulated time) is on disk."""
+        from brunder.snap import mark
+        mark(self.out, "snap", nxt, 60.0)
 
 
 def feed(snap: Path, minutes: float, night: float, seed: int = 20261103, pre: float = 10.0,
@@ -523,6 +533,7 @@ def feed(snap: Path, minutes: float, night: float, seed: int = 20261103, pre: fl
             prog = {r: min(1.0, t / span) for r in Markets.WINNER}
         for k, b in mk.bodies(prog).items():
             w.save(k, b, sim)
+        w.mark(sim + timedelta(minutes=1))                           # the next simulated poll's start
     print(f"feed: done at {datetime.now(timezone.utc):%H:%M:%S}", flush=True)
 
 
@@ -717,6 +728,168 @@ async def page_check(a) -> None:
     print(json.dumps(results, indent=1)[:20000])
 
 
+# ------------------------------------------------------------------ ab: old vs new live model on one replayed archive
+
+def _q(v: list[float], p: float) -> float | None:
+    return round(float(np.percentile(v, p)), 2) if v else None
+
+
+def _observe(port: int, path: Path, stop: threading.Event, seen: list) -> None:
+    """Every 0.25 s: stat timeline_tail.json (write time) and GET it from liveserve with If-None-Match (served time);
+    each new served version -> (served wall s, file mtime s, latest row minute over races)."""
+    import urllib.error
+    import urllib.request
+    etag = None
+    while not stop.is_set():
+        try:
+            mt = path.stat().st_mtime
+            req = urllib.request.Request(f"http://127.0.0.1:{port}/us2026/timeline_tail.json",
+                                         headers={"If-None-Match": etag} if etag else {})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                body, etag = r.read(), r.headers.get("ETag")
+            served = time.time()
+            tl = json.loads(body)
+            last = max((rows[-1]["t"] for k, rows in tl.items() if isinstance(rows, list) and rows
+                        and rows[-1].get("counted") is not None), default=None)
+            seen.append((served, mt, last))
+        except urllib.error.HTTPError as e:
+            if e.code != 304:
+                pass
+        except Exception:
+            pass
+        stop.wait(0.25)
+
+
+def _rows(tl: dict) -> dict[str, dict[str, dict]]:
+    return {rid: {r["t"]: r for r in rows if r.get("counted") is not None} for rid, rows in tl.items()
+            if isinstance(rows, list)}
+
+
+def compare(a: dict, b: dict) -> dict:
+    """Count rows (counted not null) at the minutes both timelines have: how many differ, and in which fields."""
+    ra, rb = _rows(a), _rows(b)
+    n = diff = 0
+    fields: dict[str, int] = {}
+    for rid in ra.keys() & rb.keys():
+        for t in ra[rid].keys() & rb[rid].keys():
+            n += 1
+            x, y = ra[rid][t], rb[rid][t]
+            bad = [k for k in x.keys() | y.keys() if x.get(k) != y.get(k)]
+            if bad:
+                diff += 1
+                for k in bad:
+                    fields[k] = fields.get(k, 0) + 1
+    return {"rows_compared": n, "rows_differing": diff, "fields": dict(sorted(fields.items(), key=lambda kv: -kv[1])[:8])}
+
+
+def ab(a) -> None:
+    """Feed one replayed night; run the old checkout's and this checkout's `brunder us live` on it side by side (each
+    with its own liveserve), observe both, then compare their timelines with `brunder us export` of the final archive.
+    Latency of simulated minute m = time from its snapshots being on disk (the feed's poll marker) until its minute row
+    is first in timeline_tail.json (written: file mtime; served: liveserve answer)."""
+    work = Path(a.work)
+    if work.exists():
+        shutil.rmtree(work)
+    snap = work / "snap" / us.TAG
+    src = ROOT / "site" / "data"
+    sides = {"old": Path(a.old_root).resolve(), "new": ROOT}
+    outs = {k: work / f"site_{k}" for k in sides}
+    for o in outs.values():
+        shutil.copytree(src / "us2026", o / "us2026", dirs_exist_ok=True)
+        for f in ("elections.json", "summary.json"):
+            shutil.copy2(src / f, o / f)
+    marks: list[tuple[float, str]] = []                               # (wall s, simulated next-poll time)
+    ft = threading.Thread(target=feed, args=(snap, a.minutes, a.night), daemon=True)
+    ft.start()
+    time.sleep(3)
+    until = (datetime.now(timezone.utc) + timedelta(minutes=a.minutes + a.tail)).strftime("%Y-%m-%dT%H:%MZ")
+    env = {**{k: v for k, v in os.environ.items() if k != "BRUNDER_DATA"}, "PYTHONUNBUFFERED": "1"}
+    procs, servers, logs = {}, {}, {}
+    for i, (k, root) in enumerate(sides.items()):
+        cfgs = [str(root / Path(c).relative_to(ROOT)) for c in CONFIGS]
+        extra = ["--updates", str(work / f"updates_{k}.jsonl")] if k == "new" else []
+        logs[k] = open(work / f"live_{k}.log", "w")
+        procs[k] = subprocess.Popen([*a.cmd.split(), "brunder", "us", "live", *cfgs, "--out", str(outs[k]), "--snap",
+                                     str(snap), "--interval", "30", "--until", until, *extra],
+                                    cwd=root, stdout=logs[k], stderr=subprocess.STDOUT, env=env, start_new_session=True)
+        servers[k] = subprocess.Popen([sys.executable, "-m", "brunder.liveserve", "--root", str(outs[k]), "--election",
+                                       "us2026", "--host", "127.0.0.1", "--port", str(a.port + i)],
+                                      cwd=ROOT, env={**os.environ, "PYTHONPATH": str(ROOT / "src")},
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+    stop, seen = threading.Event(), {k: [] for k in sides}
+    obs = [threading.Thread(target=_observe, args=(a.port + i, outs[k] / "us2026" / "timeline_tail.json", stop, seen[k]),
+                            daemon=True) for i, k in enumerate(sides)]
+    for t in obs:
+        t.start()
+    marker = snap / ".poll" / "snap.json"
+    samples = {k: [] for k in sides}
+    t_end = time.time() + 60 * (a.minutes + a.tail)
+    last_mark, next_sample = None, 0.0
+    while time.time() < t_end and all(p.poll() is None for p in procs.values()):
+        try:
+            d = json.loads(marker.read_text())
+            if d["next"] != last_mark:                                 # done = when the minute was fully on disk
+                marks.append((datetime.fromisoformat(d["done"]).timestamp(), d["next"]))
+                last_mark = d["next"]
+        except (OSError, ValueError, KeyError):
+            pass
+        if time.time() >= next_sample:
+            next_sample = time.time() + 5
+            for k, p in procs.items():
+                s = _ps(p.pid)
+                if s:
+                    samples[k].append((time.time(), *s))
+        time.sleep(0.25)
+    stop.set()
+    for p in (*procs.values(), *servers.values()):
+        if p.poll() is None:
+            p.terminate()
+    for p in procs.values():
+        p.wait(30)
+    rep: dict = {"minutes": a.minutes, "night": a.night, "speed": round(a.night / a.minutes, 2), "sides": {}}
+    step = pd.Timedelta("1min")
+    for k in sides:
+        lat_w, lat_s = [], []
+        for i, (wall, nxt) in enumerate(marks[:-1]):
+            s_m = pd.Timestamp(nxt) - step                             # the minute's snapshots are named s_m
+            row = us._iso(s_m.ceil(step))
+            v = next(((sv, mt) for sv, mt, last in seen[k] if last and last >= row), None)
+            if v:
+                lat_s.append(v[0] - wall)
+                lat_w.append(v[1] - wall)
+        cpu = samples[k]
+        busy = (cpu[-1][2] - cpu[0][2]) / max(cpu[-1][0] - cpu[0][0], 1e-9) if len(cpu) > 1 else None
+        rep["sides"][k] = {"minutes_measured": len(lat_w),
+                           "written_s": {"median": _q(lat_w, 50), "p95": _q(lat_w, 95), "max": _q(lat_w, 100)},
+                           "served_s": {"median": _q(lat_s, 50), "p95": _q(lat_s, 95), "max": _q(lat_s, 100)},
+                           "cpu_s": round(cpu[-1][2], 1) if cpu else None,
+                           "cpu_pct_mean": round(100 * busy, 1) if busy is not None else None,
+                           "rss_mb_max": round(max(x[1] for x in cpu), 1) if cpu else None,
+                           "versions_served": len(seen[k])}
+    ex_out = work / "site_export"
+    shutil.copytree(src / "us2026", ex_out / "us2026", dirs_exist_ok=True)
+    subprocess.run([*a.cmd.split(), "brunder", "us", "export", *map(str, CONFIGS), "--out", str(ex_out), "--snap",
+                    str(snap)], cwd=ROOT, env=env, check=True, stdout=subprocess.DEVNULL)
+    tls = {k: json.loads((o / "us2026" / "timeline.json").read_text()) for k, o in
+           {**outs, "export": ex_out}.items()}
+    rep["identical"] = {"new_vs_export": compare(tls["new"], tls["export"]),
+                        "old_vs_export": compare(tls["old"], tls["export"]),
+                        "old_vs_new": compare(tls["old"], tls["new"])}
+    def units(o: Path) -> dict[str, dict]:
+        out = {}
+        for f in sorted((o / "us2026" / "units").glob("*.json")):
+            u = json.loads(f.read_text())
+            u["frames"] = [{k: v for k, v in fr.items() if k != "t"} for fr in u.get("frames", [])]
+            out[f.name] = u
+        return out
+    uo, un = units(outs["old"]), units(outs["new"])
+    same = [k for k in uo.keys() & un.keys() if uo[k] == un[k]]
+    rep["identical"]["units_old_vs_new"] = {"files": len(uo.keys() & un.keys()), "identical": len(same),
+                                            "differing": sorted(set(uo) & set(un) - set(same))}
+    (work / "ab_report.json").write_text(json.dumps(rep, indent=1))
+    print(json.dumps(rep, indent=1))
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd_name", required=True)
@@ -741,11 +914,21 @@ def main() -> None:
     p.add_argument("--engines", default="chromium,firefox")
     p.add_argument("--races", default="ga-sen,tx-sen,nc-sen,fl-gov", help="race views checked; the last is tracked")
     p.add_argument("--report", default="/tmp/brr_page.json")
+    b = sub.add_parser("ab", help="old vs new live model on one replayed archive: latency, CPU, memory, identity")
+    b.add_argument("--work", required=True)
+    b.add_argument("--old-root", required=True, help="checkout of the old code (git worktree at the base commit)")
+    b.add_argument("--minutes", type=float, default=30)
+    b.add_argument("--night", type=float, default=30, help="= --minutes for real time; larger to accelerate")
+    b.add_argument("--tail", type=float, default=2)
+    b.add_argument("--port", type=int, default=8871)
+    b.add_argument("--cmd", default="uv run --frozen")
     a = ap.parse_args()
     if a.cmd_name == "feed":
         feed(a.snap, a.minutes, a.night)
     elif a.cmd_name == "run":
         run(a)
+    elif a.cmd_name == "ab":
+        ab(a)
     else:
         asyncio.run(page_check(a))
 

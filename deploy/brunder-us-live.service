@@ -1,6 +1,8 @@
-# Live US midterm model (2026-11-03): re-reads the recorder's archive (brunder-snap-us) every 30 s and
-# rewrites the dashboard files under site/data/us2026/, which brunder-site serves. Never polls the official
-# feeds itself. Started by brunder-election-night.timer together with brunder-site and brunder-tunnel.
+# Live US midterm model (2026-11-03): watches the recorder's archive (brunder-snap-us, brunder-kalshi-us: index.jsonl
+# and .poll/ markers) and rewrites the dashboard files under site/data/us2026/, which brunder-site serves, as soon as
+# each minute's snapshots are in (at the latest every 30 s); logs every update to logs/us2026_updates.jsonl. Never
+# polls the official feeds itself. Mac A/B replay (analysis/us_night_replay.py ab): minute boundary -> served 1.7 s
+# median vs 14.6 s before; same rows as `brunder us export`. Started by brunder-election-night.timer together with brunder-site and brunder-tunnel.
 [Unit]
 Description=brunder live model: US midterms 2026-11-03
 After=brunder-snap-us.service
@@ -18,7 +20,8 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder us live \
   configs/us2026_pa_gov_v1.toml configs/us2026_mn_sen_v1.toml configs/us2026_mn_gov_v1.toml \
   configs/us2026_ne_sen_v1.toml configs/us2026_ne_gov_v1.toml configs/us2026_nm_gov_v1.toml \
   configs/us2026_nm_sen_v1.toml configs/us2026_az_gov_v1.toml \
-  --out /srv/brunder/repo/site/data --interval 30 --until 2026-11-20T00:00Z
+  --out /srv/brunder/repo/site/data --interval 30 \
+  --updates /srv/brunder/repo/logs/us2026_updates.jsonl --until 2026-11-20T00:00Z
 Restart=on-failure
 RestartSec=30
 Nice=10
