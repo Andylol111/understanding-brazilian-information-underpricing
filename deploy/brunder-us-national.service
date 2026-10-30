@@ -1,0 +1,26 @@
+# Live US national picture (2026-11-03; brunder.us_national, docs/us_national.md): its own process, isolated from
+# brunder-us-live and brunder-us-house-live. Every 60 s it reads the files those two processes write (overview.json,
+# house/districts.json, timeline_tail.json, house_live/timeline_tail.json) and the recorder's market books, estimates
+# the national / region / state deviation from the pre-count priors and the Senate and House control probabilities,
+# and writes only site/data/us2026/national_live/, which brunder-site serves. It polls the extra official feeds
+# (brunder.us_national_extra, states without a registered model) itself, one request per feed per cycle, and keeps the
+# raw bytes under data/raw/us_national/. Started by brunder-election-night.target.
+[Unit]
+Description=brunder live national estimate: US midterms 2026-11-03
+After=brunder-us-live.service brunder-us-house-live.service brunder-snap-us.service
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen python -m brunder.us_national live \
+  configs/us2026_national/national_v1.toml --out /srv/brunder/repo/site/data --interval 60 --until 2026-11-20T00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=15
+CPUQuota=15%
+MemoryMax=512M
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=brunder-election-night.target
