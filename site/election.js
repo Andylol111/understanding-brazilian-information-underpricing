@@ -467,7 +467,11 @@ const regionHover = () => levelsOn() && !S.region && S.level === "regions";
 function setRegionState(reg) {
   if (reg && S.overviewDefault) { S.overviewDefault = false; fillRaceSelect(); $("race").value = S.race?.race_id ?? ""; }
   if (reg && !S.region) { S.countryLevel = S.level; S.level = "units"; }
-  else if (!reg && S.region) S.level = S.countryLevel; // back to the country at the level it had
+  else if (!reg && S.region) {
+    S.level = S.countryLevel; // back to the country at the level it had
+    // the US national view has no race chosen: the readout and chart return to the summary
+    if (S.nat && !S.houseSel) { S.overviewDefault = true; fillRaceSelect(); $("readout").replaceChildren(); drawChart(); }
+  }
   S.region = reg ?? null;
   for (const b of $("map-level").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.level === S.level));
 }
@@ -594,6 +598,13 @@ function computeDomain() {
     start = gate.tms - 15 * MIN;
     const before = S.rows.get(mainRace().race_id).filter((d) => d.tms < start);
     S.gateCut = { gate: gate.t, start, maxBefore: d3.max(before, (d) => d.counted) };
+  }
+  // US, once counting has started: the election night (an hour before the first poll close, to now)
+  // or the whole series ("Last 14 days")
+  S.counting = !!S.nat && S.countTimeline && statewide().some((r) => (S.rows.get(r.race_id)?.at(-1)?.counted ?? 0) > 0);
+  if (S.counting && S.range !== "all") {
+    const closes = [S.meta.poll_close_utc, ...Object.values(S.meta.poll_close_by_region ?? {})].map(Date.parse).filter(Number.isFinite);
+    if (closes.length) start = Math.min(end - MIN, Math.min(...closes) - 60 * MIN);
   }
   const old = S.domain;
   S.domain = [start, Math.max(end, start + MIN)];
@@ -742,7 +753,7 @@ function render() {
     ? `<b>${clock(S.preview, S.tz)}</b> preview · scrubber at ${clock(S.t, S.tz)}`
     : `${PRE() ? `${esc(dayOf(S.t))} ` : ""}<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing && !PRE() ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
   if (houseShown() && seriesOf(`house:${S.houseSel}`)) $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel));
-  if (S.race && !houseShown()) {
+  if (S.race && !houseShown() && !S.overviewDefault) {
     const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
     const row = rowAt(S.race.race_id, tt) ?? extraRow(S.race);
     if (pre && S.race.estimate) pre.basis = S.race.estimate.note;
@@ -1278,6 +1289,7 @@ async function reloadUnitsIfNeeded() {
 async function selectRace(r, { keepRegion = false } = {}) {
   if (!r) return;
   if (isHouse(r)) { selectKey(r.race_id); return; } // a district's count model: the district selection
+  const wasDefault = S.overviewDefault;
   if (S.overviewDefault) { S.overviewDefault = false; fillRaceSelect(); $("race").value = r.race_id; } // a race is chosen: the placeholder goes
   // the one selection: a race chosen anywhere (selector, list, map, tab) replaces a selected district
   clearDistrict();
@@ -1285,7 +1297,7 @@ async function selectRace(r, { keepRegion = false } = {}) {
   if (S.ov?.kind) { S.censusLayer = null; const sel = document.querySelector(".nat-layer select"); if (sel) sel.value = "races"; }
   if (S.office === "house") S.nat.setOffice(office(r) === "gov" ? "governor" : "senate");
   else if (S.ov?.kind) { S.ov.hide(); showNational(); }
-  const sameRace = r === S.race;
+  const sameRace = r === S.race && !wasDefault;
   S.race = r;
   const reg = r.region ?? (keepRegion ? S.region : null);
   const moved = reg !== S.region;
@@ -1367,6 +1379,12 @@ function extraSeries(r) {
 // One chart with a Margin | Chance (| Turnout) toggle (Margin by default where the race has a
 // model share or margin); the explanation sits behind the "?" button.
 function drawChart() {
+  if (S.overviewDefault && !houseShown()) { // no race chosen: the national summary shows, no race chart
+    S.tl = null;
+    $("timeline").replaceChildren();
+    $("tl-view").hidden = true; $("tl-feed").hidden = true;
+    return;
+  }
   if (houseShown()) { $("tl-feed").hidden = true; districtChart($("timeline"), S.houseSel, districtModel(S.houseSel)); return; } // a House district: its chances
   const extra = !!S.race.ov && !S.rows.get(S.race.race_id)?.length;
   if (extra && S.nat && !S.hubPolls) {
@@ -1380,6 +1398,18 @@ function drawChart() {
   const tvWait = !tv && LIVE && !PRE() && !!S.race.units;
   const views = [...timelineViews(rows), ...(tv || tvWait ? ["turnout"] : [])];
   if (!views.includes(S.tlView) || (S.tlView === "turnout" && !tv)) S.tlView = views[0];
+  const rb = $("tl-range");
+  rb.hidden = !S.counting;
+  if (S.counting) {
+    rb.innerHTML = [["night", "Night"], ["all", "Last 14 days"]].map(([k, l]) => `<button type="button" data-range="${k}" aria-pressed="${(S.range ?? "night") === k}">${l}</button>`).join("");
+    rb.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      S.range = b.dataset.range;
+      const follow = S.followLatest;
+      computeDomain();
+      S.t = follow ? S.domain[1] : clampT(S.t);
+      drawChart(); updateScrubber(); render();
+    }));
+  }
   const box = $("tl-view");
   box.hidden = views.length < 2;
   box.innerHTML = views.map((v) => `<button type="button" data-view="${v}" aria-pressed="${v === S.tlView}"${v === "turnout" && !tv ? ` disabled title="Fills in at the first refresh"` : ""}>${{ margin: "Margin", chance: "Chance", turnout: "Turnout" }[v]}</button>`).join("");
@@ -1519,13 +1549,22 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------------------------------------------------------------- top bar, tabs */
 
+function usTitle() {
+  if (!S.meta.overview || countryCode() !== "US") return null;
+  const n = new Set(statewide().filter((r) => r.region && r.units).map((r) => r.region)).size;
+  return `US midterms ${S.meta.date?.slice(0, 4) ?? ""}: every Senate and governor race${n ? `, live county models in ${n} state${n === 1 ? "" : "s"}` : ""}, House districts live`.replace("midterms : ", "midterms: ");
+}
 function renderTopbar() {
   const m = S.meta, e = S.entry;
-  document.title = `${m.name}: election night`;
-  $("title").textContent = m.name;
+  // the US title is derived from the data (how many states have a live county model), not from elections.json
+  const title = usTitle() ?? m.name;
+  document.title = `${title}: election night`;
+  $("title").textContent = title;
   $("date").textContent = fmtDate(m.date);
   // the evidence label lives in the Statistics and Method & sources tabs; the bar only says live/scheduled
-  $("evidence").innerHTML = PRE() ? `<span class="status pre">Before the count</span> <span id="countdown"></span>`
+  // the chip follows the meta's phase (elections.json may still say "scheduled")
+  const phase = { "pre-count": ["pre", "Before the count"], live: ["live", "Counting"], final: ["final", "Final"] }[m.phase];
+  $("evidence").innerHTML = phase ? `<span class="status ${phase[0]}">${phase[1]}</span>${m.phase === "pre-count" ? ` <span id="countdown"></span>` : ""}` : PRE() ? `<span class="status pre">Before the count</span> <span id="countdown"></span>`
     : e?.status && e.status !== "replay" ? `<span class="status ${esc(e.status)}">${esc(STATUS[e.status] ?? e.status)}</span>` : "";
   const names = new Intl.DisplayNames(["en"], { type: "region" });
   const groups = d3.groups(S.elections, (x) => x.country ?? "");
@@ -1928,6 +1967,7 @@ async function initNational() {
   // us2026 and its kind open on the national overview with no race chosen: S.race stays a Senate race
   // internally (the county layer under the state map), but the selector shows its placeholder
   S.overviewDefault = !param("race") && !S.region;
+  if (S.overviewDefault) { $("dash").classList.add("nat-on", "us-on"); $("readout").replaceChildren(); } // the summary from the first paint, never a race
   if (!param("race")) syncOffice("senate", false);
   S.nat.draw(); // the state layer is ready before the map's first frame
   if (param("office") === "house") S.nat.setOffice("house");

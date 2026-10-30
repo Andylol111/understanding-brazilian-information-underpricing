@@ -223,6 +223,9 @@ async def check_page(
                           natOn: document.querySelector('#dash').classList.contains('nat-on'),
                           stateMap: !document.querySelector('#national').classList.contains('off'),
                           summary: document.querySelector('#nat-summary').innerText.trim().length,
+                          control: /Control of the Senate/i.test(document.querySelector('#nat-summary').innerText) && /Pick a race/i.test(document.querySelector('#nat-summary').innerText),
+                          readoutShown: document.querySelector('#readout').innerText.trim().length > 0,
+                          chartShown: document.querySelector('#timeline').offsetParent !== null && document.querySelector('#timeline').innerText.trim().length > 0,
                           office: window.__dashAudit?.office?.() ?? null, region: window.__dashAudit?.region?.() ?? null,
                           url: location.search })"""
                     )
@@ -230,6 +233,8 @@ async def check_page(
                         result.failures.append(f"us2026 default preselects a race: {nat}")
                     if not nat["natOn"] or not nat["stateMap"] or not nat["summary"] or nat["region"] or nat["office"] != "senate":
                         result.failures.append(f"us2026 default is not the national Senate overview: {nat}")
+                    if nat["readoutShown"] or nat["chartShown"] or not nat["control"]:
+                        result.failures.append(f"us2026 default shows a race readout/chart or lacks the national summary: {nat}")
                     if "race=" in nat["url"]:
                         result.failures.append(f"us2026 default wrote a race to the address: {nat['url']}")
                     if any("house_live" in d for d in result.diagnostics):
