@@ -6,7 +6,9 @@
 # no statewide night feed), New Hampshire (Akamai 403), Nevada (Incapsula challenge), New York (Cloudflare
 # challenge), Colorado (county Clarity sites answer datacenter IPs with a 202 bot challenge), South Carolina
 # (enr-scvotes.org: empty 202 bot challenge to this server, checked 2026-10-30).
-# Pennsylvania, Minnesota, Nebraska, New Mexico (added 2026-10-30): open data endpoints, brunder.us_feeds_extra.
+# Pennsylvania, Minnesota, Nebraska, New Mexico (added 2026-10-30): open data endpoints, brunder.us_feeds_extra;
+# their U.S. House districts with a competitive market (PA-01/07/08/10/16, NE-01/02, NM-02; MN's are in its county
+# file) one document each, brunder.us_feeds_extra.HOUSE_URLS.
 # SSL_CERT_FILE: certifi + GlobalSign GCC R46 OV TLS CA 2025, which Alaska's server omits from its chain.
 [Unit]
 Description=brunder passive recorder: US midterms 2026-11-03
@@ -37,6 +39,14 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder snap us_midterms_2026 
   --url 'https://neresultswebservice.azurewebsites.us/ResultsAjax.svc/GetMapData?type=SW&category=CTY&raceID=13508&osn=105&county=0&party=0' \
   --url 'https://nmresultswebservice.azurewebsites.us/NMResultsAjax.svc/GetMapData?type=FED&category=CTY&raceID=11185&osn=180&county=0&party=0' \
   --url 'https://nmresultswebservice.azurewebsites.us/NMResultsAjax.svc/GetMapData?type=SW&category=CTY&raceID=11530&osn=202&county=0&party=0' \
+  --url 'https://www.electionreturns.pa.gov/api/ElectionReturn/GetCountyBreak?officeId=11&districtId=2&methodName=GetCountyBreak&electionid=117&electiontype=G&isactive=1' \
+  --url 'https://www.electionreturns.pa.gov/api/ElectionReturn/GetCountyBreak?officeId=11&districtId=8&methodName=GetCountyBreak&electionid=117&electiontype=G&isactive=1' \
+  --url 'https://www.electionreturns.pa.gov/api/ElectionReturn/GetCountyBreak?officeId=11&districtId=9&methodName=GetCountyBreak&electionid=117&electiontype=G&isactive=1' \
+  --url 'https://www.electionreturns.pa.gov/api/ElectionReturn/GetCountyBreak?officeId=11&districtId=11&methodName=GetCountyBreak&electionid=117&electiontype=G&isactive=1' \
+  --url 'https://www.electionreturns.pa.gov/api/ElectionReturn/GetCountyBreak?officeId=11&districtId=17&methodName=GetCountyBreak&electionid=117&electiontype=G&isactive=1' \
+  --url 'https://neresultswebservice.azurewebsites.us/ResultsAjax.svc/GetMapData?type=CG&category=CTY&raceID=13165&osn=103&county=0&party=0' \
+  --url 'https://neresultswebservice.azurewebsites.us/ResultsAjax.svc/GetMapData?type=CG&category=CTY&raceID=13166&osn=103&county=0&party=0' \
+  --url 'https://nmresultswebservice.azurewebsites.us/NMResultsAjax.svc/GetMapData?type=FED&category=CTY&raceID=11187&osn=190&county=0&party=0' \
   --date 2026-11-03 \
   --pm-event alabama-governor-winner-2026 --pm-event alabama-senate-election-winner-154 \
   --pm-event alaska-governor-election-winner --pm-event alaska-senate-election-winner \
@@ -96,6 +106,10 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder snap us_midterms_2026 
   --pm-event tx-10-house-election-winner --pm-event tx-15-house-election-winner --pm-event tx-23-house-election-winner \
   --pm-event tx-24-house-election-winner --pm-event tx-28-house-election-winner --pm-event tx-32-house-election-winner \
   --pm-event tx-34-house-election-winner --pm-event tx-35-house-election-winner --pm-event tx-38-house-election-winner \
+  --pm-event pa-01-house-election-winner --pm-event pa-07-house-election-winner --pm-event pa-08-house-election-winner \
+  --pm-event pa-10-house-election-winner --pm-event pa-16-house-election-winner --pm-event mn-01-house-election-winner \
+  --pm-event mn-02-house-election-winner --pm-event mn-06-house-election-winner --pm-event mn-08-house-election-winner \
+  --pm-event ne-01-house-election-winner --pm-event ne-02-house-election-winner --pm-event nm-02-house-election-winner \
   --interval 30 --until 2026-11-20T00:00Z
 Restart=on-failure
 RestartSec=30

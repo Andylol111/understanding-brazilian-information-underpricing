@@ -47,6 +47,18 @@ FEEDS = {
     "ne": {"sen": _name(NE_SEN), "gov": _name(NE_GOV)},
     "nm": {"sen": _name(NM_SEN), "gov": _name(NM_GOV)},
 }
+# U.S. House districts with a competitive market (brunder.us_house_night; configs/us2026_house), one document per
+# district: PA office 11 (districtId = district + 1), NE type CG / osn 103, NM type FED / osn 190 (race ids from the
+# 2026 results pages); MN's House contests are in its county file above.
+HOUSE_URLS = {
+    "pa": {n: f"{PA_API}/GetCountyBreak?officeId=11&districtId={n + 1}&methodName=GetCountyBreak&electionid=117"
+              "&electiontype=G&isactive=1" for n in (1, 7, 8, 10, 16)},
+    "ne": {n: f"{NE_SVC}/GetMapData?type=CG&category=CTY&raceID={r}&osn=103&county=0&party=0"
+           for n, r in ((1, 13165), (2, 13166))},
+    "nm": {2: f"{NM_SVC}/GetMapData?type=FED&category=CTY&raceID=11187&osn=190&county=0&party=0"},
+}
+HOUSE_FEEDS = {f"{st}_house": {f"d{n:02d}": _name(u) for n, u in urls.items()} for st, urls in HOUSE_URLS.items()}
+HOUSE_FEEDS["mn_house"] = FEEDS["mn"]
 STATES = {"pa": "Pennsylvania", "mn": "Minnesota", "ne": "Nebraska", "nm": "New Mexico"}
 SOURCE_INFO = {
     "pa": ("Pennsylvania Department of State, election returns", "https://www.electionreturns.pa.gov/", "public record"),
@@ -87,6 +99,7 @@ def _check_latin1_text(body: bytes) -> None:
 
 
 CHECKS: dict[str, Callable[[bytes], None]] = {FEEDS["pa"]["gov"]: _check_pa, FEEDS["mn"]["county"]: _check_latin1_text}
+CHECKS.update({k: _check_pa for k in HOUSE_FEEDS["pa_house"].values()})   # same JSON-in-a-string answers
 
 
 # ------------------------------------------------------------------ parsers

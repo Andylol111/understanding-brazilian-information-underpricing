@@ -81,6 +81,7 @@ STATES = {"ca": "California", "tx": "Texas", "oh": "Ohio", "ga": "Georgia", "ak"
           "sc": "South Carolina", "vt": "Vermont", "nc": "North Carolina", "fl": "Florida"}
 FEEDS.update(_extra.FEEDS)       # PA, MN, NE, NM (brunder.us_feeds_extra, added 2026-10-30); parsed there
 STATES.update(_extra.STATES)
+FEEDS.update(_extra.HOUSE_FEEDS)  # PA, MN, NE, NM House districts (brunder.us_house_night; added 2026-10-30)
 
 
 # ------------------------------------------------------------------ units
@@ -1496,6 +1497,11 @@ class Exporter:
     ~30 s. Failures are isolated: a feed whose latest snapshot does not parse falls back to its last parsed state;
     a race that still fails keeps its cursor (retried next pass, no duplicate rows) while the others publish."""
 
+    def project(self, rows: pd.DataFrame, cfg: dict, pri: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
+        """The module's `project` (looked up per call); subclasses may supply an exact faster equivalent
+        (brunder.us_house_night.HouseExporter)."""
+        return project(rows, cfg, pri)
+
     def __init__(self, cfg_paths: list[Path], snap_root: Path | None = None, priors: pd.DataFrame | None = None,
                  step: str = "1min", frame_every: str = "5min", max_retries: int = 3,
                  pairs_path: Path | None = None, phase: str = "live"):
@@ -1564,7 +1570,7 @@ class Exporter:
             rows, sig = self._rows_for(c["election"]["feed"], t)
             memo = self._memo.get(rid)
             if memo is None or memo[0] != sig:
-                memo = (sig, project(rows, c, pri))
+                memo = (sig, self.project(rows, c, pri))
                 self._memo[rid] = memo
             res, units = memo[1]
             upoll, pmod = None, poll_model(self.versions.get(rid, {}))
@@ -1574,7 +1580,7 @@ class Exporter:
                     continue
                 mv = self._memo.get(f"{rid}|{v}")
                 if mv is None or mv[0] != sig:
-                    mv = (sig, project(rows, cv, pv))
+                    mv = (sig, self.project(rows, cv, pv))
                     self._memo[f"{rid}|{v}"] = mv
                 rv = mv[1][0]
                 res = {**res, f"p_win_{v}": rv["p_win"], f"share_{v}": rv["share_hat"], f"sd_{v}": rv["share_sd"]}

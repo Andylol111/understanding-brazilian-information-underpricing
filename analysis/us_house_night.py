@@ -4,7 +4,8 @@
     uv run python analysis/us_house_night.py priors    # data_public/us2026_house_priors.csv (county × 2026 district)
     uv run python analysis/us_house_night.py verify    # parsers on official 2022/2024 files vs certified totals
     uv run python analysis/us_house_night.py replay    # 2024 replay: coverage of the 90 % band at 5/25/50 % counted
-    uv run python analysis/us_house_night.py configs   # configs/us2026_house/<st>-<nn>_v1/v2.toml
+    uv run python analysis/us_house_night.py configs   # configs/us2026_house/<st>-<nn>_v1/v2.toml (never a registered one)
+    uv run python analysis/us_house_night.py configs_new  # only PA, MN, NE, NM (added 2026-10-30, after registration)
 
 Prior: 2024 president (Harris v Trump) per county piece of each 2026 district, the same allocation as
 site/data/us2026/house/districts.json (analysis/us_house.py: each county's official 2024 total split over its 2024
@@ -29,8 +30,11 @@ import us_house as H  # noqa: E402  (analysis/us_house.py: pieces, MEDSL precinc
 
 from brunder import us  # noqa: E402
 from brunder import us_house_night as hn  # noqa: E402
+from brunder import us_feeds_extra as X  # noqa: E402
 
 STATES = hn.HOUSE_STATES
+REPLAYED = ("tx", "fl", "nc", "sc", "oh", "ga", "az")   # the 2024 replay (calibration) states; configs v1/v2 registered
+NEW_STATES = ("pa", "mn", "ne", "nm")                    # added 2026-10-30: same settings by feed group, not replayed
 OUT_PRIORS = us.ROOT_DIR / "data_public" / "us2026_house_priors.csv"
 CACHE = us.US_RAW / "house_night"
 PROC = us.US_PROC / "house_night"
@@ -165,6 +169,32 @@ def _county_sets(rows: pd.DataFrame, st: str) -> dict:
             "no_d_and_r": no_dr}
 
 
+def _mn_file(date: str) -> bytes:
+    """MN SoS allracesbycounty.txt of an election day (official media file; finished elections = certified)."""
+    return us._fetch(f"{X.MN_FILES}/{date}/allracesbycounty.txt", CACHE / "mn" / f"{date}_allracesbycounty.txt")
+
+
+def _pa_house(election: int, active: int, tag: str) -> dict[str, bytes]:
+    """PA DoS GetCountyBreak, office 11 (Representative in Congress), one document per district (districtId = n + 1)."""
+    out = {}
+    for n in range(1, 18):
+        url = (f"{X.PA_API}/GetCountyBreak?officeId=11&districtId={n + 1}&methodName=GetCountyBreak"
+               f"&electionid={election}&electiontype=G&isactive={active}")
+        out[f"d{n:02d}"] = us._fetch(url, CACHE / "pa" / f"{tag}_cd{n:02d}.json")
+    return out
+
+
+def _mapdata(st: str, typ: str, races: dict[int, int], osn: int, tag: str, election: int | None = None) -> dict:
+    """NE / NM results web service, one House district per race id (archive endpoint for a finished election)."""
+    svc = {"ne": X.NE_SVC, "nm": X.NM_SVC}[st]
+    out = {}
+    for n, rid in races.items():
+        q = f"type={typ}&category=CTY&raceID={rid}&osn={osn}&county=0&party=0"
+        url = f"{svc}/GetMapDataArchive?{q}&electionID={election}" if election else f"{svc}/GetMapData?{q}"
+        out[f"d{n:02d}"] = us._fetch(url, CACHE / st / f"{tag}_{rid}.json")
+    return out
+
+
 def verify() -> list[dict]:
     fec22 = H._fec22_house()
     d24 = json.loads((us.ROOT_DIR / "site" / "data" / "us2026" / "house" / "districts_2024.json").read_text())
@@ -209,6 +239,23 @@ def verify() -> list[dict]:
     res.append(_county_sets(hn.parse_oh((CACHE / "oh" / "vssc.xml").read_bytes()), "oh"))
     res.append(_county_sets(hn.parse_ev(_az_house_items_2026(), "az"), "az"))
     res.append(_county_sets(hn.parse_fl((us.US_RAW / "fl" / "20261103_ElecResultsFL.txt").read_bytes()), "fl"))
+    # Added 2026-10-30: Minnesota (SoS media file), Pennsylvania (DoS API, office 11), New Mexico (SoS web service
+    # archive), all official; Nebraska's archive endpoint serves no past general, so only its 2026 file is checked
+    res.append(_cmp("MN 2022 SoS county file vs FEC 2022", hn.district_totals(hn.parse_mn(_mn_file("20221108"))),
+                    fec22, "mn"))
+    res.append(_cmp("MN 2024 SoS county file vs MEDSL 2024", hn.district_totals(hn.parse_mn(_mn_file("20241105"))),
+                    m24, "mn"))
+    res.append(_cmp("PA 2024 DoS API (election 105) vs MEDSL 2024",
+                    hn.district_totals(hn.parse_pa(_pa_house(105, 0, "2024"))), m24, "pa"))
+    res.append(_cmp("NM 2024 SoS archive (election 2882) vs MEDSL 2024",
+                    hn.district_totals(hn.parse_map_house(_mapdata("nm", "FED", {1: 9793, 2: 9794, 3: 9795}, 190,
+                                                                   "2024", 2882), "nm")), m24, "nm"))
+    res.append(_county_sets(hn.parse_mn(_mn_file("20261103")), "mn"))
+    res.append(_county_sets(hn.parse_pa(_pa_house(117, 1, "2026")), "pa"))
+    res.append(_county_sets(hn.parse_map_house(_mapdata("ne", "CG", {1: 13165, 2: 13166, 3: 13167}, 103, "2026"),
+                                               "ne"), "ne"))
+    res.append(_county_sets(hn.parse_map_house(_mapdata("nm", "FED", {1: 11186, 2: 11187, 3: 11188}, 190, "2026"),
+                                               "nm"), "nm"))
     PROC.mkdir(parents=True, exist_ok=True)
     (PROC / "verify.json").write_text(json.dumps(res, indent=1, default=str))
     return res
@@ -226,7 +273,8 @@ def verify() -> list[dict]:
 # House/president ratio × exp(N(0, 0.08)) (turnout error). v2 gets swing_prior_mean = g + N(0, GB_SD) and
 # swing_prior_sd = V2_SD (generic-ballot error and House-vs-president spread). 90 % band = share ± 1.645 sd.
 
-SPLIT_FEEDS = ("tx", "nc", "ga", "az")        # night feeds with an early-vote split (TX EV, NC evc+avc, GA/AZ groups)
+SPLIT_FEEDS = ("tx", "nc", "ga", "az", "pa")  # night feeds with an early-vote split (TX EV, NC evc+avc, GA/AZ groups,
+                                              # PA mail-in)
 DONORS = ("nc", "sc", "az", "ga")             # certified 2024 data with a vote-type split
 _EARLY_MODE = re.compile(r"EARLY|ABSENTEE|MAIL|ONE ?STOP|ADVANCE", re.I)
 _LATE_MODE = re.compile(r"ELECTION DAY|PROVISIONAL|FAILSAFE", re.I)
@@ -237,7 +285,11 @@ HVP_SD = 0.0294      # sd of 2024 House − president two-party shares, 395 cont
 V2_SD = round(float(np.hypot(GB_SD, HVP_SD)), 4)
 COUNT = {"tx": {"vote_type": True, "early_share": 0.6}, "nc": {"vote_type": True, "early_share": 0.46},
          "ga": {"vote_type": True, "early_share": 0.64}, "az": {"vote_type": True, "early_share": 0.75},
-         "fl": {"vote_type": False}, "sc": {"vote_type": False}, "oh": {"vote_type": False}}
+         "fl": {"vote_type": False}, "sc": {"vote_type": False}, "oh": {"vote_type": False},
+         # not replayed (added 2026-10-30): PA mail-in = early, share of the 2022 midterm (as the registered pa-gov
+         # configs; the 2024 House mail-in share in these districts was 0.30); MN, NE, NM report no vote type
+         "pa": {"vote_type": True, "early_share": 0.23}, "mn": {"vote_type": False}, "ne": {"vote_type": False},
+         "nm": {"vote_type": False}}
 COUNT_BASE = {"turnout_ratio": TURNOUT, "f_max": 0.95, "f_complete": 0.98, "use_outstanding": False,
               "learn_turnout": True}
 CHECK = (0.0, 0.05, 0.25, 0.50)
@@ -288,7 +340,7 @@ def replay_data() -> dict[str, pd.DataFrame]:
     pp = PROC / "pieces_pres24.csv"
     pcs = pd.read_csv(pp, dtype={"county": str}) if pp.exists() else county_pieces()
     out = {}
-    for st in STATES:
+    for st in REPLAYED:
         pres = pcs[pcs["st"] == st.upper()].groupby(["county", "cd"])[["d24", "r24"]].sum().reset_index()
         h = house24(st).merge(pres, on=["county", "cd"], how="inner")
         h["unit_id"] = "us-" + st + "-" + h["county"]
@@ -526,15 +578,26 @@ ticker = ""                # Kalshi {k_txt}
 """
 
 
-def write_configs() -> list[Path]:
+def _registered() -> set[str]:
+    reg = us.ROOT_DIR / "prereg" / "registry.jsonl"
+    return {json.loads(x)["id"] for x in reg.read_text().splitlines() if x.strip()} if reg.exists() else set()
+
+
+def write_configs(states: tuple[str, ...] = STATES) -> list[Path]:
+    """configs/us2026_house/<st>-<nn>_v1/v2.toml for the target districts of `states`. A registered config
+    (prereg/registry.jsonl) is never rewritten."""
     tg, asof, built = targets()
+    tg = tg[tg["st"].isin(states)]
     calj = json.loads(PUBLIC_CAL.read_text())
     cal = calj["chosen"]
     n_grp = {g: sum((d[:2].lower() in SPLIT_FEEDS) == (g == "split") for d in calj["districts"]) for g in GROUP_LABEL}
     feed_c = _feed_candidates()
+    registered = _registered()
     out = []
     for t in tg.itertuples():
         st, nn = t.st, f"{t.n:02d}"
+        if f"us2026_house_{st}-{nn}_v1" in registered or f"us2026_house_{st}-{nn}_v2" in registered:
+            continue
         fc = feed_c.get(t.district, {})
         a, b = _title(t.cand_d) or _title(fc.get("DEM")) or "Democratic candidate", \
             _title(t.cand_r) or _title(fc.get("REP")) or "Republican candidate"
@@ -545,7 +608,9 @@ def write_configs() -> list[Path]:
         for ver in ("v1", "v2"):
             c = cal[f"{grp}|{ver}"]
             bc = c["by_check"]
-            cal_txt = (f"{GROUP_LABEL[grp].format(n=n_grp[grp])}; "
+            cal_txt = (("" if st in REPLAYED else f"{us.STATES[st]}'s feed is not in the replay (added 2026-10-30); "
+                        "settings of the replayed group of ")
+                       + f"{GROUP_LABEL[grp].format(n=n_grp[grp])}; "
                        f"90 % coverage {bc['0.05']['cover90']:.2f}/{bc['0.25']['cover90']:.2f}/{bc['0.5']['cover90']:.2f} "
                        f"at 5/25/50 % counted, mean |error| {bc['0.05']['mae']:.3f}/{bc['0.25']['mae']:.3f}/{bc['0.5']['mae']:.3f}.")
             if ver == "v1":
@@ -581,30 +646,35 @@ def write_configs() -> list[Path]:
 
 # ------------------------------------------------------------------ live cost (the house-live unit's budget)
 
-def by_competitiveness() -> list[Path]:
-    """House v1 configs, most competitive market first (|P(D) − 0.5| of the mean of Polymarket and Kalshi)."""
+def by_competitiveness(states: tuple[str, ...] = STATES) -> list[Path]:
+    """House v1 configs of `states`, most competitive market first (|P(D) − 0.5| of the mean of Polymarket and
+    Kalshi)."""
     tg, _, _ = targets()
+    tg = tg[tg["st"].isin(states)].copy()
     tg["p"] = tg[["pm_p", "kalshi_p"]].mean(axis=1)
     tg = tg.assign(k=(tg["p"] - 0.5).abs()).sort_values(["k", "district"])
     return [HOUSE_CONFIGS / f"{t.st}-{t.n:02d}_v1.toml" for t in tg.itertuples()]
 
 
-def bench(night: float = 240.0, n: int | None = None) -> dict:
+def bench(night: float = 240.0, n: int | None = None, states: tuple[str, ...] = REPLAYED, fresh: bool = True) -> dict:
     """The house-live process on a rehearsal archive (analysis/us_night_replay.feed, House bodies included, written
     by a separate process): one update+write per simulated minute = one live cycle (the recorder saves every 30 s;
     the exporter steps per minute). CPU seconds per cycle, peak RSS, timeline size, non-null output at the end.
-    n: only the n most competitive districts."""
+    n: only the n most competitive districts; states: the rehearsal has House bodies for the replayed states only;
+    fresh=False reuses an existing rehearsal archive."""
     import resource
     import shutil
     import subprocess
     import time
     base = Path.home() / "brunder-data-local" / "tmp"
     w = (base if base.exists() else PROC) / "hn_bench"
-    shutil.rmtree(w, ignore_errors=True)
-    subprocess.run([sys.executable, "-c", "from us_night_replay import feed; from pathlib import Path; "
-                    f"feed(Path({str(w / 'snap')!r}), minutes=0.3, night={night})"],
-                   cwd=Path(__file__).resolve().parent, check=True)
-    cfgs = by_competitiveness()[:n]
+    if fresh or not (w / "snap").exists():
+        shutil.rmtree(w, ignore_errors=True)
+        subprocess.run([sys.executable, "-c", "from us_night_replay import feed; from pathlib import Path; "
+                        f"feed(Path({str(w / 'snap')!r}), minutes=0.3, night={night})"],
+                       cwd=Path(__file__).resolve().parent, check=True)
+    shutil.rmtree(w / "out", ignore_errors=True)
+    cfgs = by_competitiveness(states)[:n]
     ex = hn.HouseExporter(cfgs, w / "snap", max_retries=1)
     arc = us.Archive(w / "snap")
     arc.refresh()
@@ -622,19 +692,19 @@ def bench(night: float = 240.0, n: int | None = None) -> dict:
     tl = json.loads((d / "timeline.json").read_text())
     null = [rid for rid, rows in tl.items() if not rows or any(rows[-1].get(k) is None for k in
                                                                ("counted", "share", "sd", "P", "P_v2"))]
-    out = {"races": len(cfgs), "cycles": len(grid), "cpu_s_median": round(float(np.median(cpu[10:])), 2),
-           "cpu_s_p95": round(float(np.percentile(cpu[10:], 95)), 2), "cpu_s_max": round(float(max(cpu)), 2),
-           "wall_s_median": round(float(np.median(wall[10:])), 2), "peak_rss_mb": round(rss, 0),
+    out = {"races": len(cfgs), "cycles": len(grid), "cpu_s_median": round(float(np.median(cpu[10:])), 3),
+           "cpu_s_p95": round(float(np.percentile(cpu[10:], 95)), 3), "cpu_s_max": round(float(max(cpu)), 3),
+           "wall_s_median": round(float(np.median(wall[10:])), 3), "peak_rss_mb": round(rss, 0),
            "timeline_mb": round((d / "timeline.json").stat().st_size / 1e6, 2), "null_races": null,
            "final_counted_min": min((rows[-1]["counted"] or 0) for rows in tl.values()),
-           "order": [p.name for p in cfgs]}
-    print(json.dumps({k: v for k, v in out.items() if k != "order"}, indent=1))
+           "order": [p.name for p in cfgs], "cpu_s": [round(x, 3) for x in cpu]}
+    print(json.dumps({k: v for k, v in out.items() if k not in ("order", "cpu_s")}, indent=1))
     (PROC / "bench.json").write_text(json.dumps(out, indent=1))
     return out
 
 
 STEPS = {"priors": build_priors, "verify": verify, "replay": replay, "choose": choose, "configs": write_configs,
-         "bench": bench}
+         "configs_new": lambda: write_configs(NEW_STATES), "bench": bench}
 
 if __name__ == "__main__":
     for step in sys.argv[1:] or list(STEPS):
