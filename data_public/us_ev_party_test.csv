@@ -1,0 +1,7 @@
+n,sign_n,sign_k,sign_agreement,sign_ci_low,sign_ci_high,sign_p_one_sided,rmse_none,rmse_adjusted,delta_rmse,slope_mean,delta_rmse_ci_low,delta_rmse_ci_high,slope_mean_ci_low,slope_mean_ci_high,sign_agreement_ci_low,sign_agreement_ci_high,variant,races,states,cycles,state_cycles
+24,23.0,14.0,0.6087,0.4079,0.7784,0.2024,2.5898,3.202,0.6122,-0.1343,-0.326,3.4134,-0.342,0.0695,0.3158,0.8929,primary: EV gap,24,5,4,14
+7,6.0,4.0,0.6667,0.3,0.9032,0.3438,2.7132,2.2578,-0.4554,-0.3378,,,,,,,"primary, Gov-G only",7,5,4,7
+0,,,,,,,,,,,,,,,,,"primary, Pres-G only",8,5,2,8
+9,9.0,7.0,0.7778,0.4526,0.9368,0.0898,3.3608,3.4732,0.1124,-0.2859,,,,,,,"primary, Sen-G only",9,5,3,8
+20,19.0,9.0,0.4737,0.2733,0.6829,0.6762,1.2503,1.4229,0.1726,-0.0015,-0.2077,3.0304,-0.2503,0.1453,0.1765,0.85,turnout-normalised,20,4,4,12
+18,18.0,10.0,0.5556,0.3372,0.7544,0.4073,1.3343,1.471,0.1367,-0.0162,-0.2263,2.1827,-0.1922,0.0709,0.2857,0.8667,same cycle type,18,5,3,11

@@ -1,0 +1,535 @@
+id = "us2026_drift_v1"
+kind = "us_state_polling_miss_drift"
+status = "unregistered"
+origin = "analysis/us_drift.py; docs/us_drift.md. Written 2026-10-30 from data public before 2026-10-30."
+weak_historical_signal = true
+hypothesis = """Polls under-capture long-run state partisan drift: relative to the cycle-wide polling miss,
+races in states whose presidential lean has been moving toward the Democrats have a more Democratic
+certified-minus-poll-average miss, and states moving toward the Republicans a more Republican one."""
+
+[data]
+poll_source = "site/data/us2026/hub/polls.json (VoteHub Polling API, CC BY 4.0), built 2026-10-29"
+poll_average = "v3 rule (sqrt n weight, 14-day half-life, 45-day window, 25 % pollster cap) as of 2026-11-02"
+measure_data_cutoff = "MEDSL state presidential returns 2012, 2016, 2020, 2024 (certified; CC0)"
+historical_fit = "538 raw_polls 2006-2022 + 538 2024 poll files (CC BY 4.0); MEDSL certified results (CC0)"
+race_universe = "the 48 hub Senate/governor races below: a poll in the 45-day window, D + R >= 75 % of the poll"
+
+[measure]
+name = "drift_combo"
+description = "pre-specified combination: mean of d1, d2/2 and d3/3 (points per presidential cycle)"
+formula = "drift = mean(L[p] - L[p-4], (L[p] - L[p-8]) / 2, (L[p] - L[p-12]) / 3), p = last presidential election before the race (2024 for 2026); L = state minus national two-party D share, presidential, points"
+target = "miss = certified two-party D share - poll_avg_d2 (points); relative miss = miss - mean miss of scored races"
+prediction = "historical_beta x (drift - mean drift of the 48 races); cycle-fixed-effects slope, 2006-2024"
+units = "points of two-party Democratic share; positive = polls understated the Democrat"
+historical_beta = 0.338899
+historical_beta_ci95_cycle_bootstrap = [0.198443, 0.458898]
+historical_loco_residual_sd = 2.322852
+historical_races = 710
+historical_cycles = 10
+loco_delta_rmse = -0.0724
+loco_delta_rmse_ci95 = [-0.1349, -0.0054]
+loco_sign_agreement = 0.5761
+cross_era_delta_rmse = -0.0280
+cross_era_delta_rmse_ci95 = [-0.0858, 0.0429]
+era_2006_14_loco_delta_rmse = -0.0158
+era_2016_24_loco_delta_rmse = -0.1635
+delta_rmse_over_lean_level = -0.0176
+delta_rmse_over_lean_level_ci95 = [-0.0509, 0.0145]
+caveat = "Weak: predicted relative misses are +-0.6 points against a 2.3-point race residual sd; the gain is concentrated in 2016-24 and mostly shared with the lean level. Registered as a direction test only."
+
+[primary]
+test = "sign agreement, one-sided exact binomial (H0 p = 0.5, H1 p > 0.5) over scored polled races"
+success = "sign(miss_points) == sign(relative miss)"
+ties = "exclude a race whose relative miss is exactly 0.00 points at two decimals"
+scored_races = "every race below with a certified result. d2 = certified votes of the hub D-side candidate / (D-side + hub opponent), the same pair as poll_avg_d2 (e.g. NE Senate: Osborn vs Ricketts); a race whose pair is not on the certified ballot is dropped and the drop is reported"
+report = "agreements k, signed races n, one-sided binomial p-value P(X >= k | n, 0.5)"
+family = ["us2026_drift_v1", "us2026_lean_v1"]
+family_correction = "Holm"
+family_alpha = 0.05
+scored_after = "certification of every scored race"
+score_command = "uv run python analysis/us_drift.py score certified.csv --measure drift_combo  # columns race, d2"
+dependence_note = "Senate and governor races of one state share drift and about half their error (corr 0.55): the per-race binomial is anti-conservative; the state-collapsed test below is the robustness check."
+
+[secondary]
+tests = ["same sign test with each state counted once (majority of its races; split states dropped)",
+         "RMSE of miss_points versus zero against the relative miss", "coverage of the 90 % intervals"]
+
+[[predictions]]
+race = "ak-sen"
+direction = "D"
+miss_points = 0.329
+lo90 = -3.493
+hi90 = 4.151
+drift = 1.412
+poll_avg_d2 = 50.403
+n_polls = 3
+
+[[predictions]]
+race = "al-sen"
+direction = "R"
+miss_points = -0.102
+lo90 = -3.923
+hi90 = 3.719
+drift = 0.141
+poll_avg_d2 = 39.190
+n_polls = 3
+
+[[predictions]]
+race = "ar-sen"
+direction = "D"
+miss_points = 0.028
+lo90 = -3.793
+hi90 = 3.849
+drift = 0.524
+poll_avg_d2 = 44.505
+n_polls = 2
+
+[[predictions]]
+race = "fl-sen"
+direction = "R"
+miss_points = -0.756
+lo90 = -4.584
+hi90 = 3.072
+drift = -1.790
+poll_avg_d2 = 46.684
+n_polls = 10
+
+[[predictions]]
+race = "ga-sen"
+direction = "D"
+miss_points = 0.460
+lo90 = -3.363
+hi90 = 4.284
+drift = 1.800
+poll_avg_d2 = 55.061
+n_polls = 7
+
+[[predictions]]
+race = "ia-sen"
+direction = "R"
+miss_points = -0.342
+lo90 = -4.164
+hi90 = 3.480
+drift = -0.567
+poll_avg_d2 = 49.992
+n_polls = 11
+
+[[predictions]]
+race = "il-sen"
+direction = "R"
+miss_points = -0.254
+lo90 = -4.076
+hi90 = 3.567
+drift = -0.309
+poll_avg_d2 = 58.035
+n_polls = 2
+
+[[predictions]]
+race = "ks-sen"
+direction = "D"
+miss_points = 0.597
+lo90 = -3.229
+hi90 = 4.422
+drift = 2.201
+poll_avg_d2 = 50.245
+n_polls = 2
+
+[[predictions]]
+race = "ma-sen"
+direction = "R"
+miss_points = -0.118
+lo90 = -3.939
+hi90 = 3.703
+drift = 0.092
+poll_avg_d2 = 65.407
+n_polls = 4
+
+[[predictions]]
+race = "me-sen"
+direction = "D"
+miss_points = 0.224
+lo90 = -3.598
+hi90 = 4.045
+drift = 1.101
+poll_avg_d2 = 51.207
+n_polls = 11
+
+[[predictions]]
+race = "mi-sen"
+direction = "R"
+miss_points = -0.080
+lo90 = -3.901
+hi90 = 3.741
+drift = 0.206
+poll_avg_d2 = 51.556
+n_polls = 14
+
+[[predictions]]
+race = "mn-sen"
+direction = "D"
+miss_points = 0.247
+lo90 = -3.575
+hi90 = 4.068
+drift = 1.169
+poll_avg_d2 = 52.393
+n_polls = 3
+
+[[predictions]]
+race = "ms-sen"
+direction = "R"
+miss_points = -0.314
+lo90 = -4.136
+hi90 = 3.508
+drift = -0.486
+poll_avg_d2 = 48.000
+n_polls = 1
+
+[[predictions]]
+race = "nc-sen"
+direction = "D"
+miss_points = 0.290
+lo90 = -3.532
+hi90 = 4.111
+drift = 1.295
+poll_avg_d2 = 55.780
+n_polls = 8
+
+[[predictions]]
+race = "ne-sen"
+direction = "D"
+miss_points = 0.535
+lo90 = -3.289
+hi90 = 4.359
+drift = 2.019
+poll_avg_d2 = 48.949
+n_polls = 3
+
+[[predictions]]
+race = "nh-sen"
+direction = "D"
+miss_points = 0.154
+lo90 = -3.667
+hi90 = 3.975
+drift = 0.896
+poll_avg_d2 = 53.580
+n_polls = 3
+
+[[predictions]]
+race = "nm-sen"
+direction = "R"
+miss_points = -0.046
+lo90 = -3.867
+hi90 = 3.775
+drift = 0.305
+poll_avg_d2 = 60.000
+n_polls = 1
+
+[[predictions]]
+race = "oh-sen"
+direction = "R"
+miss_points = -0.124
+lo90 = -3.944
+hi90 = 3.697
+drift = 0.077
+poll_avg_d2 = 51.960
+n_polls = 13
+
+[[predictions]]
+race = "ri-sen"
+direction = "R"
+miss_points = -0.325
+lo90 = -4.147
+hi90 = 3.497
+drift = -0.517
+poll_avg_d2 = 62.425
+n_polls = 2
+
+[[predictions]]
+race = "sc-sen"
+direction = "R"
+miss_points = -0.183
+lo90 = -4.004
+hi90 = 3.639
+drift = -0.098
+poll_avg_d2 = 49.455
+n_polls = 2
+
+[[predictions]]
+race = "tx-sen"
+direction = "R"
+miss_points = -0.146
+lo90 = -3.967
+hi90 = 3.675
+drift = 0.010
+poll_avg_d2 = 51.256
+n_polls = 17
+
+[[predictions]]
+race = "al-gov"
+direction = "R"
+miss_points = -0.102
+lo90 = -3.923
+hi90 = 3.719
+drift = 0.141
+poll_avg_d2 = 42.930
+n_polls = 2
+
+[[predictions]]
+race = "ak-gov"
+direction = "D"
+miss_points = 0.329
+lo90 = -3.493
+hi90 = 4.151
+drift = 1.412
+poll_avg_d2 = 55.962
+n_polls = 5
+
+[[predictions]]
+race = "az-gov"
+direction = "D"
+miss_points = 0.087
+lo90 = -3.733
+hi90 = 3.908
+drift = 0.699
+poll_avg_d2 = 53.190
+n_polls = 2
+
+[[predictions]]
+race = "ca-gov"
+direction = "R"
+miss_points = -0.485
+lo90 = -4.309
+hi90 = 3.339
+drift = -0.990
+poll_avg_d2 = 62.899
+n_polls = 5
+
+[[predictions]]
+race = "ct-gov"
+direction = "D"
+miss_points = 0.046
+lo90 = -3.775
+hi90 = 3.867
+drift = 0.577
+poll_avg_d2 = 60.025
+n_polls = 4
+
+[[predictions]]
+race = "fl-gov"
+direction = "R"
+miss_points = -0.756
+lo90 = -4.584
+hi90 = 3.072
+drift = -1.790
+poll_avg_d2 = 47.597
+n_polls = 11
+
+[[predictions]]
+race = "ga-gov"
+direction = "D"
+miss_points = 0.460
+lo90 = -3.363
+hi90 = 4.284
+drift = 1.800
+poll_avg_d2 = 49.339
+n_polls = 8
+
+[[predictions]]
+race = "il-gov"
+direction = "R"
+miss_points = -0.254
+lo90 = -4.076
+hi90 = 3.567
+drift = -0.309
+poll_avg_d2 = 60.030
+n_polls = 2
+
+[[predictions]]
+race = "ia-gov"
+direction = "R"
+miss_points = -0.342
+lo90 = -4.164
+hi90 = 3.480
+drift = -0.567
+poll_avg_d2 = 53.487
+n_polls = 11
+
+[[predictions]]
+race = "ks-gov"
+direction = "D"
+miss_points = 0.597
+lo90 = -3.229
+hi90 = 4.422
+drift = 2.201
+poll_avg_d2 = 47.655
+n_polls = 2
+
+[[predictions]]
+race = "me-gov"
+direction = "D"
+miss_points = 0.224
+lo90 = -3.598
+hi90 = 4.045
+drift = 1.101
+poll_avg_d2 = 55.213
+n_polls = 9
+
+[[predictions]]
+race = "md-gov"
+direction = "D"
+miss_points = 0.242
+lo90 = -3.579
+hi90 = 4.064
+drift = 1.157
+poll_avg_d2 = 68.000
+n_polls = 1
+
+[[predictions]]
+race = "mi-gov"
+direction = "R"
+miss_points = -0.080
+lo90 = -3.901
+hi90 = 3.741
+drift = 0.206
+poll_avg_d2 = 54.308
+n_polls = 9
+
+[[predictions]]
+race = "mn-gov"
+direction = "D"
+miss_points = 0.247
+lo90 = -3.575
+hi90 = 4.068
+drift = 1.169
+poll_avg_d2 = 54.440
+n_polls = 2
+
+[[predictions]]
+race = "ne-gov"
+direction = "D"
+miss_points = 0.535
+lo90 = -3.289
+hi90 = 4.359
+drift = 2.019
+poll_avg_d2 = 46.480
+n_polls = 3
+
+[[predictions]]
+race = "nv-gov"
+direction = "R"
+miss_points = -0.263
+lo90 = -4.085
+hi90 = 3.558
+drift = -0.336
+poll_avg_d2 = 50.730
+n_polls = 2
+
+[[predictions]]
+race = "nh-gov"
+direction = "D"
+miss_points = 0.154
+lo90 = -3.667
+hi90 = 3.975
+drift = 0.896
+poll_avg_d2 = 45.840
+n_polls = 3
+
+[[predictions]]
+race = "ny-gov"
+direction = "R"
+miss_points = -0.968
+lo90 = -4.800
+hi90 = 2.865
+drift = -2.415
+poll_avg_d2 = 57.916
+n_polls = 5
+
+[[predictions]]
+race = "oh-gov"
+direction = "R"
+miss_points = -0.124
+lo90 = -3.944
+hi90 = 3.697
+drift = 0.077
+poll_avg_d2 = 51.466
+n_polls = 13
+
+[[predictions]]
+race = "or-gov"
+direction = "D"
+miss_points = 0.421
+lo90 = -3.402
+hi90 = 4.243
+drift = 1.682
+poll_avg_d2 = 51.110
+n_polls = 1
+
+[[predictions]]
+race = "pa-gov"
+direction = "D"
+miss_points = 0.076
+lo90 = -3.744
+hi90 = 3.897
+drift = 0.667
+poll_avg_d2 = 62.277
+n_polls = 4
+
+[[predictions]]
+race = "sc-gov"
+direction = "R"
+miss_points = -0.183
+lo90 = -4.004
+hi90 = 3.639
+drift = -0.098
+poll_avg_d2 = 42.790
+n_polls = 2
+
+[[predictions]]
+race = "sd-gov"
+direction = "D"
+miss_points = 0.075
+lo90 = -3.746
+hi90 = 3.896
+drift = 0.663
+poll_avg_d2 = 40.590
+n_polls = 1
+
+[[predictions]]
+race = "tn-gov"
+direction = "R"
+miss_points = -0.220
+lo90 = -4.042
+hi90 = 3.601
+drift = -0.209
+poll_avg_d2 = 42.110
+n_polls = 1
+
+[[predictions]]
+race = "tx-gov"
+direction = "R"
+miss_points = -0.146
+lo90 = -3.967
+hi90 = 3.675
+drift = 0.010
+poll_avg_d2 = 48.584
+n_polls = 16
+
+[[predictions]]
+race = "vt-gov"
+direction = "D"
+miss_points = 0.185
+lo90 = -3.636
+hi90 = 4.006
+drift = 0.986
+poll_avg_d2 = 50.840
+n_polls = 2
+
+[[predictions]]
+race = "wi-gov"
+direction = "D"
+miss_points = 0.170
+lo90 = -3.652
+hi90 = 3.991
+drift = 0.941
+poll_avg_d2 = 52.135
+n_polls = 2

@@ -1,0 +1,89 @@
+id = "us2026_ev_gap_v1"
+kind = "hypothesis"
+status = "pre-registered hypothesis; never a model input"
+written = "2026-10-30T20:31:07Z"
+data_cutoff = "EV data through (state: date): co: 2026-10-29, ct: 2026-10-29, fl: 2026-10-28, id: 2026-10-29, la: 2026-10-29, md: 2026-10-30, nc: 2026-10-29, ok: 2026-10-29, or: 2026-10-30, pa: 2026-10-29, sd: 2026-10-23; files read 2026-10-30"
+doc = "docs/us_ev_gap.md"
+code = "analysis/us_ev_gap.py"
+hypothesis = """
+Where the party-registration mix of 2026 early and mail ballots is more Democratic than the state's own earlier
+cycles at the same number of days before Election Day (relative to the other covered states), the statewide
+polls understate the Democrat (poll average minus certified two-party D share is below the 2026 covered-race
+mean), and vice versa."""
+
+[metric]
+ev_margin = "100 * (D - R) / (D + R + O), cumulative ballots returned/accepted/cast by voter registration"
+ev_gap = "ev_margin minus the mean ev_margin of the state's earlier cycles (2016-2024) at the same T"
+timing = "T = 2026-11-03 minus the state's latest 2026 data date; past cycles use the latest data dated in [ED-T-2, ED-T]"
+centering = "ev_gap and miss each minus their mean over the scored races listed below (cycle fixed effect)"
+prediction = "sign(miss_centered) = -sign(ev_gap_centered); size = -max(0, -gamma) * ev_gap_centered"
+gamma = -0.1289
+gamma_unit = "points of two-party share of miss per point of EV D-R margin gap (fitted 2016-2024, cycle-demeaned)"
+outcome = "miss = 100 * (v3 poll average as of 2026-11-02 - certified two-party D share); centered over the scored races"
+
+[primary]
+test = "sign agreement of -ev_gap_centered with miss_centered over the races below (zero values dropped); one-sided exact binomial test against 0.5"
+report = "one-sided binomial p-value"
+power_note = "with 3 races the smallest attainable one-sided p is 0.125"
+confirmatory = false
+family = []
+family_note = "descriptive, outside the confirmatory family: with 3 races the smallest attainable p (0.125) can never reject, and counting it in a Holm family would only lower the bar for the others; its result is reported regardless (decided 2026-10-30, before any 2026 result)"
+scored = "after certification of every covered race"
+secondary = ["sign agreement on the uncentered miss", "Delta RMSE of centered miss after subtracting the predicted size"]
+
+[historical]
+races = 24
+state_cycles = 14
+sign_agreement_loco = 0.6087
+sign_p_one_sided = 0.2024
+delta_rmse_loco = 0.6122
+delta_rmse_ci = [-0.326, 3.4134]
+include_in_model = false
+
+[[race]]
+race = "md-gov"
+state = "md"
+poll_avg = 68.0
+n_polls = 1
+ev_kind = "inperson"
+ev_date = "2026-10-30"
+days_before = 4
+ev_margin = 36.007
+ev_gap = 6.836
+ev_gap_centered = 2.226
+pred_sign = -1
+pred_miss_centered = -0.287
+
+[[race]]
+race = "nc-sen"
+state = "nc"
+poll_avg = 56.03
+n_polls = 9
+ev_kind = "total"
+ev_date = "2026-10-29"
+days_before = 5
+ev_margin = 13.662
+ev_gap = 6.701
+ev_gap_centered = 2.091
+pred_sign = -1
+pred_miss_centered = -0.269
+ev_projection_mean_margin = 12.012
+ev_projection_sd_margin = 8.831
+ev_projection_q10_q90 = [0.802, 23.284]
+
+[[race]]
+race = "pa-gov"
+state = "pa"
+poll_avg = 62.28
+n_polls = 4
+ev_kind = "total"
+ev_date = "2026-10-29"
+days_before = 5
+ev_margin = 39.562
+ev_gap = 0.292
+ev_gap_centered = -4.318
+pred_sign = 1
+pred_miss_centered = 0.556
+ev_projection_mean_margin = 24.53
+ev_projection_sd_margin = 8.177
+ev_projection_q10_q90 = [14.018, 34.928]
