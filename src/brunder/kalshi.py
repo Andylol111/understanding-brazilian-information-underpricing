@@ -17,7 +17,7 @@ import json
 import re
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -29,6 +29,7 @@ from .paths import RAW
 API = "https://api.elections.kalshi.com/trade-api/v2"
 KALSHI = RAW / "kalshi"
 MIN_INTERVAL = 0.1                      # s between requests: ≤ 10 req/s (Basic tier allows 20 reads/s)
+MIN_FAST = 10.0                         # s: no book is polled faster than this
 CANDLE_CHUNK = pd.Timedelta(days=3)     # 4 320 one-minute candles per request
 
 _lock = threading.Lock()
@@ -330,33 +331,59 @@ def expand(tickers: list[str], events_: list[str] = ()) -> list[str]:
 
 
 async def record(tag: str, tickers: list[str], interval: float = 30.0, until: datetime | None = None,
-                 out_root: Path | None = None) -> None:
-    """Poll Kalshi books for `tickers` every `interval` s; save on change into the `brunder snap` layout:
+                 out_root: Path | None = None, fast_tickers: list[str] = (), fast_interval: float = 10.0) -> None:
+    """Poll all `tickers` every `interval` s and `fast_tickers` (a subset) every `fast_interval` s (never < 10);
+    save the merged book set on change into the `brunder snap` layout:
     <SNAP>/<tag>/kalshi_books/<UTC time>.json ({ticker: orderbook_fp}) + a line in <tag>/index.jsonl.
     Can run alongside `brunder snap <tag>` (same index format; appends are line-atomic)."""
-    from .snap import SNAP
+    from .snap import SNAP, mark
     out = (out_root or SNAP) / tag
     d = out / "kalshi_books"
     d.mkdir(parents=True, exist_ok=True)
     index = out / "index.jsonl"
-    print(f"kalshi record {tag}: {len(tickers)} markets, every {interval:.0f}s until {until}", flush=True)
-    last = None
+    tickers = list(dict.fromkeys(tickers))
+    fast = [t for t in dict.fromkeys(fast_tickers) if t in set(tickers)]
+    fast_interval = max(MIN_FAST, fast_interval)
+    tick = min(interval, fast_interval) if fast else interval
+    print(f"kalshi record {tag}: {len(tickers)} markets every {interval:.0f}s, {len(fast)} modelled every "
+          f"{fast_interval:.0f}s until {until}", flush=True)
+    last, books = None, {}
+    full_due = fast_due = 0.0
+    status = {"interval": interval, "last_ok": None, "last_status": None, "fails": 0}
     async with _http.aclient() as client:
         while until is None or datetime.now(timezone.utc) < until:
             t = datetime.now(timezone.utc)
+            now = time.monotonic()
             try:
-                books = await _books_async(client, tickers)
-                if books:
-                    body = json.dumps(books, sort_keys=True).encode()
-                    h = hashlib.sha256(body).hexdigest()
-                    if h != last:
-                        last = h
-                        f = d / f"{t:%Y%m%dT%H%M%S.%fZ}.json"
-                        f.write_bytes(body)
-                        with index.open("a") as fh:
-                            fh.write(json.dumps({"t": t.isoformat(), "key": "kalshi_books",
-                                                 "file": str(f.relative_to(out)), "sha256": h,
-                                                 "bytes": len(body), "gzip": False}) + "\n")
+                fetch = tickers if full_due <= now else fast if fast_due <= now else []
+                if fetch:
+                    got = await _books_async(client, fetch)
+                    books.update(got)
+                    fetched = datetime.now(timezone.utc)
+                    if fetch is tickers:
+                        full_due = now + interval - 0.25 * tick
+                    fast_due = now + fast_interval - 0.25 * tick
+                    if got:
+                        status.update(last_ok=fetched.isoformat(), last_status=200, fails=0)
+                    else:
+                        status.update(last_status="no books", fails=status["fails"] + 1)
+                    if got:
+                        body = json.dumps(books, sort_keys=True).encode()
+                        h = hashlib.sha256(body).hexdigest()
+                        if h != last:
+                            last = h
+                            f = d / f"{t:%Y%m%dT%H%M%S.%fZ}.json"
+                            f.write_bytes(body)
+                            with index.open("a") as fh:
+                                fh.write(json.dumps({"t": t.isoformat(), "fetched": fetched.isoformat(),
+                                                     "key": "kalshi_books", "file": str(f.relative_to(out)),
+                                                     "sha256": h, "bytes": len(body), "gzip": False,
+                                                     "fast": fetch is fast}) + "\n")
             except Exception as e:                                   # never stop on the night
                 print(f"{t:%H:%M:%S} kalshi books error, continuing: {type(e).__name__}: {e}", flush=True)
-            await asyncio.sleep(max(0.0, interval - (datetime.now(timezone.utc) - t).total_seconds()))
+                status.update(last_status=type(e).__name__, fails=status["fails"] + 1)
+                full_due = max(full_due, now + min(120.0, interval * 2))
+                fast_due = max(fast_due, now + min(120.0, fast_interval * 2))
+            wait = max(0.0, tick - (datetime.now(timezone.utc) - t).total_seconds())
+            mark(out, "kalshi", datetime.now(timezone.utc) + timedelta(seconds=wait - 0.1), tick, {"kalshi_books": status})
+            await asyncio.sleep(wait)

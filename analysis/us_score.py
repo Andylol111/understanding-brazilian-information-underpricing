@@ -15,6 +15,8 @@ Inputs
   configs/us2026_*_v*.toml, prereg/registry.jsonl (hash check; nothing is written there except by --final)
   <out>/us2026/overview.json, hub/polls.json, hub/crosstabs.json, data_public/us_county_panel.csv,
   data_public/us2026_expected_votes_v4.csv
+  <snap>_ws/ws_crossings.jsonl, logs/us2026_updates.jsonl   brunder.pm_ws threshold crossings and the live model's update
+                                 log (display block `latency`: analysis/us_latency.py)
 
 Outcome per race: the certified row when present ("certified"), else the latest official feed snapshot in the archive
 ("provisional": the night's final official feed, not certified), else none. Every block states which it used.
@@ -52,6 +54,7 @@ from brunder.paths import PROCESSED
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import edge_audit as ea  # noqa: E402
 import underpricing_figures as uf  # noqa: E402
+import us_latency as ul  # noqa: E402
 
 ROOT = us.ROOT_DIR
 CERT = ROOT / "data_public" / "us2026_certified.csv"
@@ -773,9 +776,10 @@ def _pooled(per: dict, prim: dict) -> dict:
 
 def run(out: Path = ROOT / "site" / "data", snap: Path | None = None, configs: list[Path] | None = None,
         fees: dict[str, float | None] | None = None, cert_path: Path = CERT, cert_counties_path: Path = CERT_COUNTIES,
-        final: bool = False) -> Path:
+        final: bool = False, updates: Path | None = us.UPDATES) -> Path:
     """Score everything that has an outcome; write <out>/us2026/score.json and score.md. fees: taker fee rate per
-    Polymarket slug (default: Gamma feeSchedule, cached in results/us_score/pm_fees.json)."""
+    Polymarket slug (default: Gamma feeSchedule, cached in results/us_score/pm_fees.json). updates: the live model's
+    update log (display block `latency`, analysis/us_latency.py)."""
     uf.rng, ea.RNG = np.random.default_rng(0), np.random.default_rng(20261028)   # same seeds every run: re-runs repeat
     out, d26 = Path(out), Path(out) / us.EID
     cfg_paths = [Path(p) for p in (configs or default_configs())]
@@ -849,7 +853,9 @@ def run(out: Path = ROOT / "site" / "data", snap: Path | None = None, configs: l
     fin = county_finals(oc, cfgs)
     display = {"crosstabs": crosstabs(hub / "crosstabs.json", results),
                "fundamentals": _safe(lambda: fundamentals(fin)),
-               "expected_vote_dropoff": _safe(lambda: expected_vote_templates(oc, allv, pri_v))}
+               "expected_vote_dropoff": _safe(lambda: expected_vote_templates(oc, allv, pri_v)),
+               "latency": _safe(lambda: ul.block(tl, cfgs, arc.root.parent / (arc.root.name + "_ws"),
+                                                 updates if updates and updates.exists() else None))}
     statuses = [o["status"] for o in oc.values() if o["status"] != "none"]
     obj = {"generated_utc": _iso(pd.Timestamp.now(tz="UTC")), "spec": "prereg/NOTES.md (US midterms 2026)",
            "reading": "registered look, --final" if final else "monitoring run, not the registered look",
@@ -947,6 +953,12 @@ def markdown(s: dict) -> str:
     ct = s["display_only"]["crosstabs"]
     if ct.get("races"):
         L.append(f"  - crosstabs: {ct['races']} races, MAE raw {ct['mae_raw']} vs adjusted {ct['mae_adj']} pts; adjusted closer in {ct['adj_closer']}.")
+    lt = s["display_only"].get("latency") or {}
+    if lt.get("status") == "ok":
+        pl = lt["pooled_P"]
+        L.append(f"  - latency: {pl['n']} paired threshold crossings (P vs the market's WebSocket price, "
+                 f"{lt['window_min']} min window), market − model median {pl['median_s']} s "
+                 f"[{pl['p25_s']}, {pl['p75_s']}], model first {pl['model_first']}/{pl['n']}.")
     return "\n".join(L) + "\n"
 
 

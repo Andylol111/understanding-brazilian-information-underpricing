@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -99,6 +100,15 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--ncsbe", action="append", default=[],
                    help="NCSBE ENR data base, e.g. https://er.ncsbe.gov/enr/20261103/data (county.txt + results_<id>.txt)")
     s.add_argument("--date", help="election date YYYY-MM-DD for the resolvers")
+    s.add_argument("--feed-interval", action="append", default=[], metavar="URL_PREFIX=SECONDS",
+                   help="poll feeds whose URL starts with URL_PREFIX every SECONDS (≥ 10) instead of --interval (repeatable)")
+    s = sub.add_parser("pm-ws", help="passive Polymarket market-channel WebSocket recorder (server-timestamped events)")
+    s.add_argument("tag", help="recorder tag; writes under <snap root>/<tag> (use a tag of its own, e.g. us_midterms_2026_ws)")
+    s.add_argument("--pm-event", action="append", default=[], help="Polymarket event slug (repeatable)")
+    s.add_argument("--pm-events-from", action="append", default=[], type=Path,
+                   help="systemd unit whose --pm-event slugs to record (deploy/brunder-snap-us.service)")
+    s.add_argument("--shard", type=int, default=250, help="tokens per WebSocket connection")
+    s.add_argument("--until", help="UTC stop time, e.g. 2026-11-20T00:00Z")
     s = sub.add_parser("kalshi", help="Kalshi public market data: find series, list an event, record order books")
     s.add_argument("step", choices=["search", "event", "record"])
     s.add_argument("arg", help="search: regex on series ticker/title; event: event ticker; record: snap tag")
@@ -106,6 +116,9 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--event", action="append", default=[], help="record: every open market of an event (repeatable)")
     s.add_argument("--pairs", action="append", default=[], type=Path, help="record: Kalshi tickers of configs/pairs/<eid>.toml")
     s.add_argument("--interval", type=float, default=30.0)
+    s.add_argument("--fast-config-from", action="append", default=[], type=Path,
+                   help="record: systemd unit whose configs/us2026_*_v1.toml tickers are polled every 10 s")
+    s.add_argument("--fast-interval", type=float, default=10.0, help="record: seconds between modelled-race books (≥ 10)")
     s.add_argument("--until", help="UTC stop time, e.g. 2026-11-04T12:00Z")
     s = sub.add_parser("us", help="US midterms 2026: county priors; dashboard files before the count, live, replay")
     s.add_argument("step", choices=["priors", "preelection", "export", "live", "earlyvote", "score"])
@@ -114,7 +127,9 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--out", type=Path, default=Path("site/data"), help="data root; files go to <out>/us2026/")
     s.add_argument("--snap", type=Path, help="recorder directory (default data/raw/snap/us_midterms_2026)")
     s.add_argument("--until", help="export: replay up to this UTC time; live: stop time")
-    s.add_argument("--interval", type=float, default=30.0, help="live: seconds between passes")
+    s.add_argument("--interval", type=float, default=30.0,
+                   help="live: longest gap between passes (passes run as soon as a new minute row can be computed)")
+    s.add_argument("--updates", type=Path, help="live: model-update log (default logs/us2026_updates.jsonl)")
     s.add_argument("--days", type=float, default=14, help="preelection: days of price history")
     s.add_argument("--force", action="store_true", help="preelection: overwrite live/replay files")
     s = sub.add_parser("nz", help="New Zealand 2026: ingest official files; record, preelection, live, replay")
@@ -203,9 +218,16 @@ def main(argv: list[str] | None = None) -> None:
             from . import snap
             until = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
             asyncio.run(snap.run(a.tag, a.url, a.pm_event, a.interval, until, a.clarity, a.ga_enr, a.date,
-                                 vt_static=a.vt_static, ncsbe=a.ncsbe))
+                                 vt_static=a.vt_static, ncsbe=a.ncsbe, intervals=snap.feed_intervals(a.feed_interval)))
+        case "pm-ws":
+            from . import pm_ws, snap
+            from .pm_ws import slugs_from_unit
+            until = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
+            events = list(dict.fromkeys(a.pm_event + [s for f in a.pm_events_from for s in slugs_from_unit(f)]))
+            tokens = snap._pm_tokens(events)
+            asyncio.run(pm_ws.run(a.tag, tokens, until, shard=a.shard))
         case "kalshi":
-            from . import arb, kalshi
+            from . import arb, kalshi, us
             match a.step:
                 case "search":
                     print(kalshi.search_series(a.arg).to_string(index=False))
@@ -214,8 +236,12 @@ def main(argv: list[str] | None = None) -> None:
                     print(m[["ticker", "label", "status", "yes_bid", "yes_ask", "volume", "close_time"]].to_string(index=False))
                 case "record":
                     tickers = a.ticker + [p.kalshi_ticker for f in a.pairs for p in arb.load_pairs(f)[1]]
+                    configs = [Path(p) for f in a.fast_config_from
+                               for p in re.findall(r"configs/us2026_\w+_v1\.toml", f.read_text())]
+                    fast = [x["ticker"] for x in us.kalshi_markets([us.load_config(f) for f in configs]).values()]
                     until = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
-                    asyncio.run(kalshi.record(a.arg, kalshi.expand(tickers, a.event), a.interval, until))
+                    asyncio.run(kalshi.record(a.arg, kalshi.expand(tickers, a.event), a.interval, until,
+                                              fast_tickers=fast, fast_interval=a.fast_interval))
         case "us":
             from . import us
             us.cli(a)

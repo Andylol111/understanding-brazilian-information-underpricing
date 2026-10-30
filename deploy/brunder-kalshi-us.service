@@ -1,5 +1,7 @@
 # Kalshi order books for the US midterm races (configs/pairs/us2026.toml), every 30 s, into the same snap
-# directory as brunder-snap-us (data/raw/snap/us_midterms_2026/kalshi_books). ~0.07 requests/s.
+# directory as brunder-snap-us (data/raw/snap/us_midterms_2026/kalshi_books). The 21 modelled-race
+# tickers (the configs listed by brunder-us-live.service that have Kalshi pairs) are refreshed every 10 s; all 113
+# tickers every 30 s. Batches are ≤ 50, so 5 requests per 30 s (~0.17/s), below Kalshi Basic 20 reads/s.
 # Started by brunder-kalshi-us.timer. See docs/kalshi.md for what is stored and published.
 [Unit]
 Description=brunder Kalshi order-book recorder: US midterms 2026-11-03
@@ -10,7 +12,7 @@ After=network-online.target
 User=brunder
 WorkingDirectory=/srv/brunder/repo
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder kalshi record us_midterms_2026 --pairs configs/pairs/us2026.toml --interval 30 --until 2026-11-20T00:00Z
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder kalshi record us_midterms_2026 --pairs configs/pairs/us2026.toml --interval 30 --fast-config-from deploy/brunder-us-live.service --fast-interval 10 --until 2026-11-20T00:00Z
 Restart=on-failure
 RestartSec=30
 Nice=10

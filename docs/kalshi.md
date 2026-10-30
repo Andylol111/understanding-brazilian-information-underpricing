@@ -418,7 +418,7 @@ After=network-online.target
 User=brunder
 WorkingDirectory=/srv/brunder/repo
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder kalshi record us_midterms_2026 --pairs configs/pairs/us2026.toml --interval 30 --until 2026-11-20T00:00Z
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder kalshi record us_midterms_2026 --pairs configs/pairs/us2026.toml --interval 30 --fast-config-from deploy/brunder-us-live.service --fast-interval 10 --until 2026-11-20T00:00Z
 Restart=on-failure
 RestartSec=30
 Nice=10
@@ -441,3 +441,8 @@ WantedBy=timers.target
 
 The 113 us2026 tickers need 3 bulk requests per poll (50 tickers each; the endpoint accepts up to 100).
 At 30 s that is 0.1 requests/s. A test poll on 2026-10-28 returned all 113 books in 0.53 s.
+The 21 tickers of the modelled races (the configs in deploy/brunder-us-live.service with a pair) are also
+refreshed every 10 s in between (`--fast-config-from`, one request): 5 requests per 30 s, ~0.17/s, far below the
+Basic read budget (~20/s); public endpoints only, no credentials (the WebSocket needs auth, so it is not used).
+Each saved file is the merged latest book of every ticker; the index line carries `fetched` and `fast`. Before
+each sleep the recorder writes `<tag>/.poll/kalshi.json` (brunder.snap.mark).

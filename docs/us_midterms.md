@@ -39,7 +39,49 @@ and its priors stay (the feed is still recorded) for a later, separately registe
 
 The night run never contacts the official feeds: `brunder snap us_midterms_2026` (deploy/brunder-snap-us.service)
 polls them every 30 s and stores each changed response as `data/raw/snap/us_midterms_2026/<key>/<UTC time>.<ext>[.gz]`
-(key = `snap._name(url)`). `brunder.us` reads the latest snapshot at or before each minute.
+(key = `snap._name(url)`). `brunder.us` reads the latest snapshot at or before each minute. Each GET is conditional
+on the ETag / Last-Modified the feed last returned (an unchanged file is a 304 without a body; one unconditional GET
+every 20th fetch), and each index line records `fetched` (response time), `http_ms`, the server's `last_modified`,
+`etag` and `date`, so the latency from publication to our output can be measured. A 403 / 429 / 5xx / network error
+backs only that feed off (its interval × 2^failures × U(0.5, 1), at most 10 min, Retry-After honoured; reset by the
+next 200 / 304). `--feed-interval URL_PREFIX=SECONDS` (never below 10 s) sets one feed's interval: the unit polls Ohio
+(liveresults.ohiosos.gov, which answered the VM with 403 on 2026-10-30) every 60 s and everything else every 30 s; no
+feed is polled faster, since none was shown to publish more often than every 30 s (see "Poll cadence" below). Before each sleep the recorder writes `.poll/snap.json` (its next poll's start).
+
+### Market timing: Polymarket WebSocket recorder
+
+`brunder pm-ws us_midterms_2026_ws --pm-events-from deploy/brunder-snap-us.service` (deploy/brunder-pm-ws-us.service,
+started by its timer with the recorder) subscribes to Polymarket's public CLOB market channel
+(`wss://ws-subscriptions-clob.polymarket.com/ws/market`, no auth; `PING` every 10 s) for every token of the unit's
+`--pm-event` list, ≤ 250 tokens per connection, connections 1 s apart, reconnects ≥ 10 s apart with backoff. It keeps
+every `book` / `price_change` / `last_trade_price` / `best_bid_ask` event verbatim with the server's millisecond
+`timestamp` and our receipt time in 10-minute `polymarket_ws/<start>.jsonl` files (gzipped in a stream when closed,
+then indexed; ~30 MB/h gzipped at the 2026-10-30 rate; the unit stops 2026-11-07),
+and appends every move of a token's price (mid if the spread ≤ 10c, else last trade, as `brunder.live.top`) across
+0.01 / 0.05 / 0.10 / 0.25 / 0.50 / 0.75 / 0.90 / 0.95 / 0.99 to `ws_crossings.jsonl` (format: src/brunder/pm_ws.py).
+It writes only its own directory, which the live model never reads. Test on 2026-10-30, 1 520 tokens / 7
+connections: ~8 000 events per minute pre-election, 5 s CPU in 3.7 min, peak RSS 180 MB;
+median receipt − server timestamp 1.2 s. `analysis/us_latency.py` pairs these crossings with the model's
+(docs/us_scoring.md, `latency`).
+
+### Poll cadence (checked 2026-10-30)
+
+No US recorder archive exists yet (the recorder first runs on Nov 3), so publication intervals were measured by
+polling the static files that carry validators every 30 s for 20 min with conditional GETs (pre-election, so
+indicative only) and from the offices' own statements. Nothing showed or claimed an interval below 30 s, so every feed
+stays at 30 s or slower (Ohio 60 s).
+
+| feed | validators | measured / stated update interval | conditional GET | decision |
+|---|---|---|---|---|
+| VT static (Azure CDN, `max-age=60`) | ETag + Last-Modified | regenerated every ~5 min (5 new bodies in 20 min) | 304 on 35/40 | 30 s |
+| MN `allracesbycounty.txt` | ETag + Last-Modified | Last-Modified moved twice in ~50 min, body unchanged | 304 on 37/40 | 30 s |
+| FL DOS election-night file | ETag + Last-Modified | unchanged since Oct 19 (pre-election) | 304 on 39/40 | 30 s |
+| CA SoS API, AZ Enhanced Voting (`max-age=60`), PA, NE/NM GetMapData, TX Civix (`no-store`) | none | n/a (no validator; 200 every poll) | not possible | 30 s |
+| NC NCSBE (~100 files per poll) | — | "Data refresh every 5~10 minutes" (ncsbe.gov election-night timeline) | — | 30 s (heavy multi-file) |
+| OH SoS | — | answers 429 to a single probe from this laptop | — | 30 s, backs off on 429 |
+
+The ten offices promised a 30 s-or-slower cadence (SC, IA, MI, WI, NH, NV, NY, CO, KS, ME) can never be polled faster:
+a feed's interval is 30 s unless a `--feed-interval` prefix names it, and none names a shorter one.
 
 Each parser turns snapshot bytes into the same long table: `level` (state / county / district), `unit_id`,
 `race` (gov / sen), `candidate`, `party`, `votes`, `early` (early in-person + mail votes where the feed splits
@@ -740,8 +782,22 @@ uv run python analysis/us_night_replay.py run --work /tmp/brr --minutes 15   # p
 uv run --with playwright python analysis/us_night_replay.py page --live http://127.0.0.1:8791/   # headless page checks
 ```
 
-`live` re-reads the recorder's archive every 30 s, extends the per-minute timeline and rewrites the files
-atomically; `export` does the same pass once (optionally `--until`). Output under `<out>/us2026/`: `meta.json`,
+`live` is event-driven: it watches the recorder's `index.jsonl` and poll markers (`.poll/*.json`, written by
+brunder.snap and brunder.kalshi before each sleep) and runs a pass as soon as a new minute row can be computed: the
+minute has passed and every recorder has finished the polls it started before that minute (so a row is computed
+once, from the same snapshots `export` uses; without markers, 5 s after the minute). It still passes at least every
+`--interval` (30) s. Each pass extends the per-minute timeline and rewrites the files atomically, and appends to the
+update log (`--updates`, default `logs/us2026_updates.jsonl`, brunder.us.UpdateLog: per pass the snapshots it
+published with their fetch / Last-Modified times, per race the last row and the probability levels crossed).
+`meta.json` `feeds[]` (live only, refreshed at least every 30 s) lists every recorded feed from the recorders' poll
+markers: `{key, recorder, interval_s, last_ok_utc, last_status, stale}`, `stale` = no successful fetch (200 / 304) yet
+or the last one older than 3 × the feed's interval, so a blocked feed shows as stale instead of silently holding old
+counts. Mac A/B
+(`analysis/us_night_replay.py ab`, old and new live model side by side on one replayed archive, 2026-10-30): real time,
+minute boundary → served 1.7 s median vs 14.6 s before (on top of the minute grid both share); 12× accelerated night,
+snapshot on disk → served 3.0 s median / 5.4 s p95 vs 31.5 s / 47.8 s; CPU 4.3 % vs 5.9 % (real time), RSS ~0.3 GB
+both; rows identical to `brunder us export` of the final archive (the old loop differed on 20 of 3 780 rows, minutes it
+computed while a poll was still being written); `export` does the same pass once (optionally `--until`). Output under `<out>/us2026/`: `meta.json`,
 `timeline.json` (keyed by race_id), `units/<race_id>.json` (one contract units object per race, frames every 5
 minutes thinned to ≤ 60), `units.json` (the first race) and `timeline_tail.json` (the same shape as timeline.json
 restricted to each race's last 60 minutes, plus `"tail": true` and `"since"`, the earliest row included: what the
@@ -782,7 +838,7 @@ ssh oracle-slotbank 'journalctl -u brunder-tunnel | grep -o "https://[a-z0-9-]*\
 ```
 
 `brunder-election-night.timer` (2026-11-03 22:30 UTC) starts three capped services: brunder-us-live (writes
-`site/data/us2026/` every 30 s), brunder-site and brunder-tunnel (Cloudflare quick tunnel to 127.0.0.1:8790).
+`site/data/us2026/` as soon as each minute's snapshots are in, at least every 30 s), brunder-site and brunder-tunnel (Cloudflare quick tunnel to 127.0.0.1:8790).
 brunder-site runs `brunder.liveserve` (stdlib only, system `python3` ≥ 3.10, one asyncio loop): it serves only
 `us2026/**.json`, `elections.json` and `summary.json` from `site/data`, and 404 for everything else (no directory
 listing; `..`, percent-encoding, backslashes and symlinks out of the root are refused). Each file is read and
