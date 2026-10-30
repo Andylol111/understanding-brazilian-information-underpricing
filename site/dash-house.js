@@ -10,7 +10,7 @@
 // Margins: Democratic minus Republican, points; chances: P(Democratic party wins the seat).
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { getJSON, STATIC, esc, num, pct, fmtDate, marginText, probit } from "./common.js";
+import { getJSON, STATIC, esc, num, pct, fmtDate, marginText } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", ROOT = "us2026/house/";
 const ramp = (v) => d3.interpolateLab(NEUTRAL, v >= 0 ? DEM : REP)(Math.min(1, Math.abs(v)) ** 0.8); // v in [-1, 1]
@@ -60,15 +60,13 @@ export function best(d) {
   if (d.baseline?.p_d != null) return { p: d.baseline.p_d, src: "Our model" };
   return null;
 }
-// A district's projected 2026 margin (two-party, D minus R, points) and its source: the market price
-// read as a margin (Φ⁻¹(p) × our model's sd), else the district poll average, else our model
+// A district's projected 2026 margin (two-party, D minus R, points) and its source: our model, else the
+// district poll average. Market prices are never read as margins here: near 0 or 1 a price says who wins,
+// not by how much (a 0.97 seat reads as ~D+19 whatever the real margin), which drew false swings.
 export function projMargin(d) {
-  const m = mkt(d.id), sd = 200 * (d.baseline?.sd ?? 0.052);
-  const p = m?.pm?.p ?? m?.kalshi?.p;
-  if (p != null) return { v: probit(Math.min(0.99, Math.max(0.01, p))) * sd, src: `${m?.pm?.p != null ? "Polymarket" : "Kalshi"} price read as a margin` };
-  const a = m?.polls?.average?.avg;
-  if (a != null) return { v: (2 * a - 1) * 100, src: "district polls" };
   if (d.baseline?.share != null) return { v: (2 * d.baseline.share - 1) * 100, src: "Our model" };
+  const a = mkt(d.id)?.polls?.average?.avg;
+  if (a != null) return { v: (2 * a - 1) * 100, src: "district polls" };
   return null;
 }
 // Harris 2024 two-party margin on the district's lines
@@ -387,7 +385,7 @@ export function createOverlay(container, { onSelect, onState, modelOf = () => nu
       const len = ARROW_L * 10 / ARROW_FULL;
       const scale = `<svg width="${Math.ceil(len + 6)}" height="10" class="ov-scale" aria-hidden="true"><path d="M2,5h${len.toFixed(1)}m-3,-2l3,2l-3,2" stroke="#1b1b1b" fill="none"/></svg> 10 points (full length at ${ARROW_FULL} or more)`;
       const what = st.kind === "house" && st.arrows === "proj"
-        ? "Each district: our model's projected 2026 margin (the market price read as a margin, else district polls, else our model) minus Harris 2024, two-party, on the same 2026 lines; the card says which."
+        ? "Each district: our model's projected 2026 margin minus Harris 2024, two-party, on the same 2026 lines."
         : st.kind === "house" && st.arrows === "live" ? "No district count is published; counted arrows show for the Senate and governor counties."
         : st.arrows === "past" ? "Each county: the shift from 2020 to 2024 (president), D minus R as a share of all votes in both years."
         : st.arrows === "live" ? `Each county counting: the counted two-party margin so far minus the county's two-party margin in its race's past result (the one our model shifts${baselines()}).`

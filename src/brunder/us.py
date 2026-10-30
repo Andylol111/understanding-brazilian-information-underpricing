@@ -2656,12 +2656,17 @@ def _margin(share: float | None) -> float | None:
     return None if share is None else _r((2 * share - 1) * 100, 2)
 
 
+MARKET_MARGIN_RANGE = (0.05, 0.95)   # outside it a price says who wins, not by how much
+
+
 def market_margin(p: float | None, margin_sd: float | None) -> float | None:
-    """The D−R margin (points) the market price implies at our uncertainty: Φ⁻¹(p) × σ_margin."""
+    """The D−R margin (points) the market price implies at our uncertainty: Φ⁻¹(p) × σ_margin. None outside
+    MARKET_MARGIN_RANGE: near 0 or 1 the probit saturates (0.99 at σ 8 reads as D+19 whatever the real margin),
+    which would show safe seats as false swings or false model-market gaps."""
     from scipy.stats import norm
-    if p is None or margin_sd is None or not np.isfinite(p):
+    if p is None or margin_sd is None or not np.isfinite(p) or not MARKET_MARGIN_RANGE[0] <= p <= MARKET_MARGIN_RANGE[1]:
         return None
-    return _r(float(norm.ppf(min(max(p, 0.001), 0.999))) * margin_sd, 2)
+    return _r(float(norm.ppf(p)) * margin_sd, 2)
 
 
 def race_estimate(r: dict, base: pd.DataFrame, poll: dict | None, resid: float) -> tuple[dict, dict] | None:
