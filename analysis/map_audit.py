@@ -236,6 +236,91 @@ async def audit_election(page: Page, base: str, e: dict[str, Any], shots: Path |
         grid(thumbs, shots / f"{tag}-{eid}.png")
     if eid == "us2026":
         rows += await audit_house(page, shots, tag)
+        rows += await audit_pins(page)
+    return rows
+
+
+async def audit_pins(page: Page) -> list[Row]:
+    """Hit-testing and pins with the real mouse, zoomed into Texas: in the county office a click on a
+    county pins a card naming a Texas county and a second click releases it (so does Esc); with the
+    House office, a district under the pointer is named by its card, a click selects it, a second
+    click leaves nothing pinned, and no county card ever shows over the district layer."""
+    A = "window.__dashAudit"
+    name = "us2026 pins"
+    bad: list[str] = []
+    await page.evaluate(f"{A}.setOffice('senate')")
+    await settle(page, 800)
+    await page.evaluate(f"{A}.selectRace('tx-sen')")
+    try:
+        await page.wait_for_function(f"{A}.region() === 'tx' && {A}.units().n > 0", timeout=20000)
+    except Exception:
+        return [Row(name, "county pin", False, "Texas did not open")]
+    await settle(page, 1800)
+    hit = await page.evaluate(f"""(() => {{
+      const ids = {A}.units().ids;
+      for (let i = 0; i < ids.length; i++) {{
+        if (ids[i].split('-')[1] !== 'tx') continue;
+        const p = {A}.unitPoint(i);
+        if (p && p[0] > 20 && p[1] > 20 && p[0] < innerWidth - 20 && p[1] < innerHeight - 20 && {A}.unitAt(p[0], p[1]) === i) return [i, p[0], p[1]];
+      }}
+      return null; }})()""")
+    if not hit:
+        bad.append("no Texas county found under its own centre")
+    else:
+        i, x, y = hit
+        await page.mouse.move(x, y)
+        await page.mouse.click(x, y)
+        await settle(page, 400)
+        card = await page.evaluate(f"{A}.placeText()")
+        if await page.evaluate(f"{A}.pinned()") != i or not ("Texas" in card or ", TX" in card) or "Not part of" in card:
+            bad.append(f"county click: pinned {await page.evaluate(f'{A}.pinned()')} vs {i}, card {card[:60]!r}")
+        await page.mouse.click(x, y)
+        await settle(page, 300)
+        if await page.evaluate(f"{A}.pinned()") != -1:
+            bad.append("second click did not release the county pin")
+        await page.mouse.click(x, y)
+        await settle(page, 300)
+        await page.keyboard.press("Escape")
+        await settle(page, 600)
+        if await page.evaluate(f"{A}.pinned()") != -1:
+            bad.append("Esc did not release the county pin")
+    rows = [Row(name, "county pin", not bad, "; ".join(bad) or "a Texas county pins, the second click and Esc release it")]
+    bad = []
+    await page.evaluate(f"{A}.setOffice('house')")
+    try:
+        await page.wait_for_function(f"(() => {{ const l = {A}.layer(); return l && l.kind === 'house' && l.n > 0; }})()", timeout=20000)
+    except Exception:
+        return rows + [Row(name, "house pin", False, "the House layer did not draw")]
+    await page.evaluate(f"{A}.layerFocus('tx')")
+    await settle(page, 2500)
+    d = await page.evaluate("""(() => {
+      const ps = [...document.querySelectorAll('.ov-svg path.f')].filter((p) => p.getClientRects().length && String(p.__data__?.properties?.id).startsWith('TX'));
+      const pts = ps.map((p) => { const r = p.getBoundingClientRect(); return [p.__data__.properties.id, r.x + r.width / 2, r.y + r.height / 2, r.width]; })
+        .filter((o) => o[1] > 20 && o[2] > 20 && o[1] < innerWidth - 20 && o[2] < innerHeight - 20);
+      for (const o of pts.sort((a, b) => b[3] - a[3])) { const e = document.elementFromPoint(o[1], o[2]); if (e?.__data__?.properties?.id === o[0]) return o; }
+      return null; })()""")
+    if not d:
+        return rows + [Row(name, "house pin", False, "no Texas district under its own centre")]
+    did, x, y = d[0], d[1], d[2]
+    await page.mouse.move(x, y)
+    await settle(page, 400)
+    card = await page.evaluate("document.querySelector('.ov-card')?.hidden === false ? document.querySelector('.ov-card').innerText : ''")
+    if not card.startswith(did):
+        bad.append(f"hover card {card[:30]!r} does not name {did}")
+    await page.mouse.click(x, y)
+    await settle(page, 700)
+    sel = await page.evaluate(f"{A}.selection().selector")
+    if sel != f"house:{did}":
+        bad.append(f"click selected {sel!r}, not {did}")
+    await page.mouse.click(x, y)
+    await settle(page, 500)
+    if await page.evaluate(f"{A}.pinned()") != -1 or await page.evaluate(f"{A}.placeText()"):
+        bad.append(f"a county card is pinned over the districts: {await page.evaluate(f'{A}.placeText()')!r}")
+    rows.append(Row(name, "house pin", not bad, "; ".join(bad) or f"{did}: card names it, click selects, nothing stays pinned"))
+    await page.keyboard.press("Escape")
+    await settle(page, 600)
+    await page.evaluate(f"{A}.setOffice('senate')")
+    await settle(page, 600)
     return rows
 
 

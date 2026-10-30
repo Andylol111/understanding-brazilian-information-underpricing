@@ -4,7 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Election night</title>
-<link rel="stylesheet" href="style.css">
+<!-- BUILD: the one version constant, changed on every deploy. It versions the page's own JS and CSS (an import map
+     over the module graph, the stylesheet, the worker) so cached code cannot mix with new data; the Reload button of
+     a failed load adds a fresh ?_r stamp, which refetches all of it. -->
+<link id="page-css" rel="stylesheet">
+<script>
+window.__BUILD = "20261030a";
+window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
+document.getElementById("page-css").href = "style.css?v=" + window.__V;
+(() => {
+  const imports = {};
+  for (const f of ["common.js", "dash-agg.js", "dash-map.js", "dash-timeline.js", "dash-scrubber.js", "dash-panels.js", "dash-precount.js", "dash-national.js", "dash-house.js", "dash-us-tabs.js", "dash-engine.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  const m = document.createElement("script");
+  m.type = "importmap";
+  m.textContent = JSON.stringify({ imports });
+  document.head.append(m);
+})();
+</script>
 <!-- a cross-document view transition into this page: its modules load once it is over (window.__afterReveal) -->
 <script>
 addEventListener("pagereveal", (e) => { window.__vtDone = e.viewTransition ? e.viewTransition.finished.catch(() => {}) : null; }, { once: true });
@@ -96,6 +112,6 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
 </main>
 
 <script src="load-error.js"></script>
-<script type="module">window.__afterReveal().then(() => import("./election.js")).catch(window.__showLoadError);</script>
+<script type="module">window.__afterReveal().then(() => import("./election.js?v=" + window.__V)).catch(window.__showLoadError);</script>
 </body>
 </html>

@@ -375,6 +375,12 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       drawOverlay();
     },
     pin(i) { st.pinned = i; drawOverlay(); },
+    // for the map checks: the page point at the middle of a unit's bounds, and the unit under a page point
+    pointOf(i) {
+      const r = canvas.getBoundingClientRect();
+      return [r.left + ((bounds[4 * i] + bounds[4 * i + 2]) / 2) * st.view.k + st.view.x, r.top + ((bounds[4 * i + 1] + bounds[4 * i + 3]) / 2) * st.view.k + st.view.y];
+    },
+    pickAt: (x, y) => pick({ clientX: x, clientY: y }),
     get extent() { return st.extent; },
     get view() { return { ...st.view }; }, // for the map checks
     hasPopulatedView: populatedFirst,
