@@ -1,5 +1,10 @@
 # Bulgaria: presidential runoff, 2026-11-01 (`bg2026r2`)
 
+> **Status (decided 2026-10-30, before the runoff): registered, not run.** The model was registered on 2026-10-28
+> (`prereg/registry.jsonl`, commit `cd74e8d`). No result pages will be saved by hand during the count, so the
+> model is not run and not scored; see `prereg/NOTES.md`, "Bulgaria 2026 runoff". The hand-save workflow below
+> is kept as documentation of what would have been needed.
+
 Iliana Iotova (A) vs Andrey Gyurov (B), second round of the presidential election. The model is frozen in
 `configs/bg2026r2_v1.toml` (forward test once registered before polls close). **No dashboard page is published**
 (`site/data/bg2026r2/` doesn't exist). The official results site can't be read by any script, so the count can only
