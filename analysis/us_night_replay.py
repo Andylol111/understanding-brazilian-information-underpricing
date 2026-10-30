@@ -19,6 +19,9 @@ Feed (written exactly as brunder.snap / brunder.kalshi record do: <snap>/<key>/<
            analysis/us_house_night.py bench replays them on this archive; statewide parsing ignores these rows).
   Markets  polymarket_books / kalshi_books for every configured race: one level each side of a price that starts at
            the pre-count timeline's last Polymarket / Kalshi value and drifts toward the replayed winner.
+  civicAPI civic_<race id> (the key brunder.civic records) for every race of configs/us2026_civic/*_v1.toml and the House
+           race civic_87524 (435 districts): race documents in civicAPI's format from the configs' certified priors, early
+           batch first (40 %, 4 points more Democratic), then Election Day chunks; counties stop at 99 % reporting.
 The races run are the v1 configs of deploy/brunder-us-live.service. The replayed elections are the races' own prior
 races for GA/NC/FL/TX-gov, so "counted vs 2024" arrows are ~0 there by construction (the projected arrows draw).
 Count order: analysis/us_calibrate.py's simulated night (per county the early + mail batch first, then the Election
@@ -63,7 +66,7 @@ from us_house_rehearsal import HouseRehearsal  # noqa: E402  (House contests in 
 
 ROOT = us.ROOT_DIR                    # the checkout the brunder package runs from (this file may live elsewhere)
 # the v1 configs of the live unit's ExecStart (deploy/brunder-us-live.service), so the rehearsal runs what the VM runs
-CONFIGS = [ROOT / p for p in __import__("re").findall(r"configs/us2026_\w+_v1\.toml",
+CONFIGS = [ROOT / p for p in __import__("re").findall(r"configs/us2026_(?:civic/us2026_civic_)?\w+_v1\.toml",
                                                       (ROOT / "deploy" / "brunder-us-live.service").read_text())]
 GA_EID = "2022NovGen"
 TX_SOURCES = {"sen": ("tx_sen_2024", "U. S. Senator", "Federal", ("Colin Allred", "Ted Cruz")),
@@ -413,6 +416,98 @@ class Arizona(_PriorFeed):
 
 
 
+# ------------------------------------------------------------------ civicAPI (brunder.civic): race documents
+
+class Civic:
+    """civicAPI race documents under the keys the recorder writes (civic_<race id>), for every race of the civic configs
+    (configs/us2026_civic/*_v1.toml) and the national House race (civic_87524, 435 districts). The replayed election is
+    the config's own prior race (certified priors: data_public/us2026_priors.csv, <st>_pres_2024 × the config's turnout
+    ratio; SC: its 2022 races), with the count order of `schedule`: early + mail 40 % of a county's vote posted first at
+    4 points more Democratic than its final share, the Election Day vote in 4 chunks. Like civicAPI a county reports
+    percent_reporting 0-100 and stays at 99 once all its vote is in; a third-party line carries 3 % of the vote."""
+
+    EARLY, TILT, THIRD = 0.4, 0.04, 0.03
+    AT_LARGE = {"AK-AL", "DE-AL", "ND-AL", "SD-AL", "VT-AL", "WY-AL"}
+
+    def __init__(self, rng: np.random.Generator, span: float):
+        from brunder import civic
+        self.civic = civic
+        priors = us.load_priors()
+        self.races = {}
+        for c in us.load_races(CONFIGS)[0]:
+            E = c["election"]
+            if not E.get("source"):
+                continue
+            pri = us.race_prior(c, priors)
+            key = f"{E['state']}-{E['race']}"
+            tot = (pri["V"] * us.rules(c).turnout_ratio).to_numpy()
+            self.races[key] = {"cfg": c, "pri": pri, "tot": tot, "sched": schedule(tot, rng, span)}
+        h = json.loads((ROOT / "site" / "data" / "us2026" / "house" / "districts.json").read_text())["districts"]
+        self.house = {k.lower(): v for k, v in h.items()}
+        hv = np.array([[v["pres24"]["dv"], v["pres24"]["rv"]] for v in self.house.values()], float) * 0.72
+        self.hv, self.hsched = hv, schedule(hv.sum(axis=1), rng, span)
+
+    @staticmethod
+    def _pr(p: float, fe: float, fl: float, complete: bool) -> float:
+        return 0.0 if p <= 0 else 99.0 if complete else round(min(98.0, 100 * p), 1)
+
+    def _race(self, key: str, t: float) -> bytes:
+        r, E = self.races[key], self.races[key]["cfg"]["election"]
+        pri, tot = r["pri"], r["tot"]
+        names = [E["a"]["name"], E["b"]["name"], "Libertarian Candidate"]
+        parties = ["Democratic", "Republican", "Libertarian"]
+        regions, sums, prs = {}, np.zeros(3), []
+        for i, u in enumerate(pri["unit_id"]):
+            fe, fl, done = posted(r["sched"][i], t)
+            s = float(pri.loc[i, "s0"])
+            se = min(max(s + self.TILT, 0.0), 1.0)
+            sl = min(max((s - self.EARLY * se) / (1 - self.EARLY), 0.0), 1.0)
+            n = tot[i]
+            d = n * (self.EARLY * fe * se + (1 - self.EARLY) * fl * sl)
+            rep = n * (self.EARLY * fe * (1 - se) + (1 - self.EARLY) * fl * (1 - sl))
+            votes = np.round([d, rep, self.THIRD * (d + rep)])
+            sums += votes
+            pr = self._pr(self.EARLY * fe + (1 - self.EARLY) * fl, fe, fl, done)
+            prs.append(pr)
+            slug = pri.loc[i, "name"].lower().replace(" ", "_")
+            regions[slug] = {"name": pri.loc[i, "name"], "type": "County", "fips": u.rsplit("-", 1)[1],
+                             "percent_reporting": pr,
+                             "candidates": [{"name": nm, "party": pt, "votes": int(v)} for nm, pt, v in zip(names, parties, votes)]}
+        typ = "US Senate" if E["race"] == "sen" else "Governor"
+        doc = {"election_name": f"{E['name']} (replay)", "election_type": typ, "election_date": "2026-11-03T05:00:00.000Z",
+               "province": E["state"].upper(), "test_data": False, "last_updated": f"t+{t:.0f}min",
+               "percent_reporting": round(float(np.mean(prs)), 1),
+               "candidates": [{"name": nm, "party": pt, "votes": int(v)} for nm, pt, v in zip(names, parties, sums)],
+               "region_results": regions}
+        return json.dumps(doc).encode()
+
+    def _house(self, t: float) -> bytes:
+        regions, sums, prs = {}, np.zeros(2), []
+        for i, (k, v) in enumerate(self.house.items()):
+            fe, fl, done = posted(self.hsched[i], t)
+            p = self.EARLY * fe + (1 - self.EARLY) * fl
+            votes = np.round(self.hv[i] * p)
+            sums += votes
+            pr = self._pr(p, fe, fl, done)
+            prs.append(pr)
+            h = v.get("house24") or {}
+            regions[k] = {"name": f"{v['st']} district {k[-2:]}", "type": "Congressional District", "percent_reporting": pr,
+                          "candidates": [{"name": h.get("d_cand") or "Democratic candidate", "party": "Democratic", "votes": int(votes[0])},
+                                         {"name": h.get("r_cand") or "Republican candidate", "party": "Republican", "votes": int(votes[1])}]}
+        doc = {"election_name": "United States House of Representatives (replay)", "election_type": "US House",
+               "election_date": "2026-11-03T05:00:00.000Z", "province": "US", "test_data": False,
+               "last_updated": f"t+{t:.0f}min", "percent_reporting": round(float(np.mean(prs)), 1),
+               "candidates": [{"name": "Democrats", "party": "Democratic", "votes": int(sums[0])},
+                              {"name": "Republicans", "party": "Republican", "votes": int(sums[1])}],
+               "region_results": regions}
+        return json.dumps(doc).encode()
+
+    def bodies(self, t: float) -> dict[str, bytes]:
+        out = {f"civic_{self.civic.RACES[k]}": self._race(k, t) for k in self.races}
+        out[f"civic_{self.civic.HOUSE_ID}"] = self._house(t)
+        return out
+
+
 # ------------------------------------------------------------------ markets
 
 class Markets:
@@ -493,6 +588,7 @@ class Writer:
         """brunder.snap.mark: every snapshot named before `nxt` (simulated time) is on disk."""
         from brunder.snap import mark
         mark(self.out, "snap", nxt, 60.0)
+        mark(self.out, "civic", nxt, 30.0)                          # brunder.civic's marker (its poll interval)
 
 
 def feed(snap: Path, minutes: float, night: float, seed: int = 20261103, pre: float = 10.0,
@@ -507,6 +603,7 @@ def feed(snap: Path, minutes: float, night: float, seed: int = 20261103, pre: fl
             Arizona(rng, span)]                                   # after the others: their schedules are unchanged
     house = {st: HouseRehearsal(st, rng, span) for st in ("tx", "nc", "fl", "ga", "az", "oh", "sc")}   # after those
     tx.house, nc.house, fl.house = house["tx"], house["nc"], house["fl"]
+    civ = Civic(rng, span)                                        # after those: their schedules are unchanged
     w = Writer(snap)
     speed = night / minutes
     w0 = datetime.now(timezone.utc)
@@ -530,11 +627,27 @@ def feed(snap: Path, minutes: float, night: float, seed: int = 20261103, pre: fl
                             for x in (*house[st].ev_bodies(t).items(), *house[st].oh_sc_bodies(t).items()))
             for k, b in (*nc.bodies(t).items(), *fl.bodies(t).items(), *more_bodies, *house_bodies):
                 w.save(k, b, sim)
+            for k, b in civ.bodies(t).items():
+                w.save(k, b, sim)
             prog = {r: min(1.0, t / span) for r in Markets.WINNER}
         for k, b in mk.bodies(prog).items():
             w.save(k, b, sim)
         w.mark(sim + timedelta(minutes=1))                           # the next simulated poll's start
     print(f"feed: done at {datetime.now(timezone.utc):%H:%M:%S}", flush=True)
+
+
+def feed_civic(snap: Path, night: float = 180, seed: int = 20261103, pre: float = 10.0) -> None:
+    """Only the civicAPI keys, written as fast as possible (simulated times from 2026-11-04T00:00Z, one poll per simulated
+    minute): for `brunder us export` of the civic configs without the rest of the night."""
+    rng = np.random.default_rng(seed)
+    civ = Civic(rng, night - pre - 5)
+    w = Writer(snap)
+    s0 = datetime(2026, 11, 4, 0, 0, tzinfo=timezone.utc) - timedelta(minutes=pre)
+    for m in range(int(night) + 1):
+        sim = s0 + timedelta(minutes=m)
+        if m >= pre:
+            for k, b in civ.bodies(m - pre).items():
+                w.save(k, b, sim)
 
 
 # ------------------------------------------------------------------ run: feed + us live + liveserve, measured
@@ -897,6 +1010,9 @@ def main() -> None:
     f.add_argument("--snap", type=Path, required=True)
     f.add_argument("--minutes", type=float, default=15)
     f.add_argument("--night", type=float, default=180)
+    cf = sub.add_parser("civic-feed", help="only the civicAPI keys, fast (for `brunder us export` of the civic configs)")
+    cf.add_argument("--snap", type=Path, required=True)
+    cf.add_argument("--night", type=float, default=180)
     r = sub.add_parser("run")
     r.add_argument("--work", required=True)
     r.add_argument("--minutes", type=float, default=15)
@@ -925,6 +1041,8 @@ def main() -> None:
     a = ap.parse_args()
     if a.cmd_name == "feed":
         feed(a.snap, a.minutes, a.night)
+    elif a.cmd_name == "civic-feed":
+        feed_civic(a.snap, a.night)
     elif a.cmd_name == "run":
         run(a)
     elif a.cmd_name == "ab":

@@ -5,6 +5,7 @@ import asyncio
 import copy
 import gzip
 import json
+import re
 import sys
 import tomllib
 from datetime import datetime, timezone
@@ -426,3 +427,38 @@ def test_compare_reads_recorded_archives(tmp_path):
     import us_civic as X
     snapdir = tmp_path / "snap"
     assert X.compare(snapdir, tmp_path / "out").empty                   # nothing recorded: reports and returns
+
+
+# ------------------------------------------------------------------ live unit and rehearsal replay
+
+def _unit_civic_configs() -> list[Path]:
+    text = (ROOT / "deploy" / "brunder-us-live.service").read_text()
+    return [ROOT / p for p in re.findall(r"configs/us2026_civic/us2026_civic_\w+_v1\.toml", text)]
+
+
+def test_live_unit_loads_every_civic_v1_and_its_siblings():
+    unit = _unit_civic_configs()
+    assert sorted(p.name for p in unit) == sorted(p.name for p in CONFIGS if p.name.endswith("_v1.toml")) and len(unit) == 14
+    cfgs, versions = us.load_races(unit)
+    assert len(cfgs) == 14 and len({c["election"]["race_id"] for c in cfgs}) == 14
+    for c in cfgs:
+        have = versions[c["election"]["race_id"]]
+        assert {"v2"} <= set(have) and all(Path(v["_path"]).parent.name == "us2026_civic" for v in have.values())
+        assert ("v3" in have) == (c["election"]["state"] != "co")
+    timers = [(ROOT / "deploy" / f).read_text() for f in ("brunder-snap-us.timer", "brunder-civic-us.timer")]
+    assert all("OnCalendar=2026-11-03 18:00:00 UTC" in t for t in timers)
+
+
+def test_replay_feed_writes_civic_keys_the_recorder_uses(tmp_path):
+    import us_night_replay as R
+    R.feed_civic(tmp_path / "snap", night=40)
+    arc = us.Archive(tmp_path / "snap")
+    arc.refresh()
+    keys = {civic.RACES[f"{c['election']['state']}-{c['election']['race']}"] for c in us.load_races(R.CONFIGS)[0]
+            if c["election"].get("source")}
+    assert {k for k in arc._files} == {f"civic_{i}" for i in keys} | {"civic_87524"} and len(keys) == 14
+    last = pd.Timestamp("2026-11-04T01:00:00Z")
+    rows = us.parse_feed("civic_ia", us.feed_blobs(arc, us.feed_files(arc, "civic_ia", last)))
+    assert rows[rows["level"] == "county"]["votes"].sum() > 0 and set(rows["race"]) == {"sen", "gov"}
+    house = civic.parse_house(arc.read(arc.at("civic_87524", last)))
+    assert house["district"].nunique() == 435 and "ak-al" in set(house["district"])
