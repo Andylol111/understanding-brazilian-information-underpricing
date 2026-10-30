@@ -100,6 +100,14 @@ listed.
 Correction, 2026-10-30, still before any result: Alaska is reachable. The check above ran without the
 recorder's certificate bundle (SSL_CERT_FILE, needed because Alaska's server omits an intermediate certificate);
 with it the server answers normally, so the Alaska feed is recorded again. Only South Carolina is excluded.
+Ohio, 2026-10-30, before any 2026 result: liveresults.ohiosos.gov answers the recording server with HTTP 403 since
+about 18:24 UTC (it served the same files to the server earlier that day; a residential connection still gets 200).
+Not circumvented; a request to allow the server was sent to Media@OhioSoS.gov, and the recorder keeps polling every
+60 s with backoff. Scoring, fixed now: if the official Ohio feed records the count on the night, the registered Ohio
+official-feed configs (Senate and governor, all versions, and the Ohio House districts) are scored as registered;
+if it does not, they are not scored. In that case the civicAPI Ohio configs (oh-sen-civic, oh-gov-civic), if they
+pass validation against Ohio's certified county results and are registered before any result, are scored as a
+separate secondary-source set, never pooled with the official-feed test.
 
 ## Hungary 2026 (`configs/hu2026_v1.toml`): not pre-registered
 
