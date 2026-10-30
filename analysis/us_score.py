@@ -14,7 +14,7 @@ Inputs
   data_public/us2026_certified_counties.csv  certified county results of the modelled races (optional)
   configs/us2026_*_v*.toml, prereg/registry.jsonl (hash check; nothing is written there except by --final)
   <out>/us2026/overview.json, hub/polls.json, hub/crosstabs.json, data_public/us_county_panel.csv,
-  data_public/us2026_expected_votes_v4.csv, $BRUNDER_DATA/processed/reddit/us2026/{hourly.jsonl,subs.json}
+  data_public/us2026_expected_votes_v4.csv
 
 Outcome per race: the certified row when present ("certified"), else the latest official feed snapshot in the archive
 ("provisional": the night's final official feed, not certified), else none. Every block states which it used.
@@ -24,8 +24,8 @@ Registered reading (prereg/NOTES.md, US section): per race and version margin er
 >= 0.9 on the winner), the 30-minute catch-up slope pooled over markets, the frozen favoured-side edge rule (min_edge
 0.05, min_counted 0.01, configs/night_r2_v1.toml [trade]) executed on the recorded books at the signal price and at
 the model limit (analysis/edge_audit.py semantics), and Senate control. Display-only candidates: crosstab
-recalled-vote adjusted averages, county fundamentals (us_fundamentals Fit, 2026 as the test cycle), the county
-drop-off expected vote (v4 vs v3 vs the display turnout index) and the Reddit hypothesis (configs/reddit_us2026_v1).
+recalled-vote adjusted averages, county fundamentals (us_fundamentals Fit, 2026 as the test cycle) and the county
+drop-off expected vote (v4 vs v3 vs the display turnout index).
 
 --final: the registered look. Refuses unless every modelled race with a count has a certified result; logs one look
 per scored registered config in prereg/holdout_runs.jsonl (brunder.registry.open_holdout) and keeps a copy of that
@@ -45,7 +45,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy import stats as sps
 
 from brunder import live, registry, us
 from brunder.paths import PROCESSED
@@ -60,8 +59,6 @@ CERT_COUNTIES = ROOT / "data_public" / "us2026_certified_counties.csv"
 REGISTRY = ROOT / "prereg" / "registry.jsonl"
 RES = ROOT / "results" / "us_score"
 TRADE_RULE = ROOT / "configs" / "night_r2_v1.toml"        # the frozen favoured-side rule ([trade])
-REDDIT_PREREG = ROOT / "configs" / "reddit_us2026_v1.toml"
-REDDIT_DIR = PROCESSED / "reddit" / "us2026"
 FIRST_CLOSE = pd.Timestamp("2026-11-03T23:00:00Z")       # first polls close (Indiana / Kentucky)
 QS = (0.01, 0.05, 0.10, 0.25, 0.50, 0.75, 0.90)           # fixed counted fractions (timeline `counted`, v1 axis)
 Z90 = 1.645
@@ -90,7 +87,9 @@ def _mins(a, b) -> float | None:
 # ============================================================== configs, registration, outcomes
 
 def default_configs() -> list[Path]:
-    return sorted((ROOT / "configs").glob("us2026_*_v1.toml"))
+    """The statewide Senate / governor forward test (prereg/NOTES.md). House district configs
+    (us2026_house_*) are a separate study with their own feeds (brunder.us_house_night) and are not scored here."""
+    return sorted(p for p in (ROOT / "configs").glob("us2026_*_v1.toml") if not p.name.startswith("us2026_house_"))
 
 
 def registered_ids(path: Path = REGISTRY) -> dict[str, str]:
@@ -159,7 +158,10 @@ def provisional(arc: us.Archive, c: dict, memo: dict) -> tuple[dict | None, pd.D
     rows = rows[rows["race"] == race]
     if rows.empty:
         return None, None
-    cty = us._two_party(rows)
+    sides = sorted((c["election"]["a"]["party"], c["election"]["b"]["party"]), key=lambda p: p == "REP")
+    u = rows[rows["level"] != "state"]                 # dem = the dem side (DEM, or the flagged independent's code)
+    g = u.pivot_table(index="unit_id", columns="party", values="votes", aggfunc="sum", fill_value=0)
+    cty = pd.DataFrame({"dem": g.get(sides[0], 0), "rep": g.get(sides[1], 0), "total": g.sum(axis=1)}).reset_index()
     if cty.empty or cty[["dem", "rep"]].to_numpy().sum() == 0:
         return None, None
     tot = cty[["dem", "rep", "total"]].sum()
@@ -189,7 +191,7 @@ def outcomes(cfgs: list[dict], arc: us.Archive, cert: dict, cert_cty: dict, memo
         else:
             out[rid] = {"status": "none", "reason": (prov or {}).get("error", "no certified row and no feed snapshot")}
             continue
-        a, b = (res["dem"], res["rep"]) if a_party == "DEM" else (res["rep"], res["dem"])
+        a, b = (res["rep"], res["dem"]) if a_party == "REP" else (res["dem"], res["rep"])   # dem = the dem side
         share = a / (a + b)
         out[rid] = {"status": status, "share_a": share, "margin_pts": 100 * (2 * share - 1), "a_won": int(share > 0.5),
                     "two_party": a + b, "total": res["total"], "source": res["source"],
@@ -607,7 +609,7 @@ def all_results(cert: dict, oc: dict, cfgs: list[dict]) -> dict[str, dict]:
         rid = c["election"]["race_id"]
         o = oc.get(rid, {})
         if rid not in out and o.get("status") == "provisional":
-            s = o["share_a"] if c["election"]["a"]["party"] == "DEM" else 1 - o["share_a"]
+            s = 1 - o["share_a"] if c["election"]["a"]["party"] == "REP" else o["share_a"]
             out[rid] = {"dem_share": s, "status": "provisional"}
     return out
 
@@ -644,6 +646,8 @@ def county_finals(oc: dict, cfgs: list[dict]) -> pd.DataFrame:
         rid, st, race = c["election"]["race_id"], c["election"]["state"], c["election"]["race"]
         o = oc.get(rid, {})
         if o.get("county") is None:
+            continue
+        if c["election"]["a"]["party"] != "DEM":           # an independent's share is not the panel's D share
             continue
         if st not in by_state or race == "sen":
             by_state[st] = (rid, o)
@@ -738,139 +742,6 @@ def expected_vote_templates(oc: dict, allv: dict, pri_v: dict) -> dict:
                                               else "provisional"), "by_race": out}
 
 
-# ------------------------------------------------------------------ Reddit (configs/reddit_us2026_v1.toml)
-
-def _in(h: str, w: list[str]) -> bool:
-    return pd.Timestamp(w[0]) <= pd.Timestamp(h) < pd.Timestamp(w[1])
-
-
-def reddit_d(rows: list[dict], race: str, subs: set[str] | None, W: dict, scorer: str, mean: str, k: float,
-             min_ah: float) -> dict | None:
-    """D_race of the registered metric for one race, or None (excluded: too few author-hours, with the reason)."""
-    tg = {"dem": f"{race}/dem", "rep": f"{race}/rep"}
-
-    def pool(rs: list[dict], g: str) -> tuple[float, float]:
-        A = m = 0.0
-        for r in rs:
-            t = (r.get("targets") or {}).get(tg[g]) or {}
-            s = t.get(scorer) or {}
-            a = float(t.get("authors") or 0)
-            if a > 0 and s.get(mean) is not None:
-                A += a
-                m += a * float(s[mean])
-        return A, (m / A if A > 0 else np.nan)
-    win = {name: [r for r in rows if _in(r["hour"], w) and (subs is None or r["subreddit"] in subs)]
-           for name, w in W.items()}
-    lean, A_state = {}, {}
-    for name, rs in win.items():
-        st = {g: pool(rs, g) for g in tg}
-        A_state[name] = st
-        if any(st[g][0] < min_ah for g in tg):
-            return {"excluded": f"fewer than {min_ah:g} author-hours for dem or rep in the {name} window"}
-        per = {}
-        for sub in sorted({r["subreddit"] for r in rs}):
-            mine = [r for r in rs if r["subreddit"] == sub]
-            v = {}
-            for g in tg:
-                A, m = pool(mine, g)
-                v[g] = ((A * m if A > 0 else 0.0) + k * st[g][1]) / (A + k)
-                v[f"A_{g}"] = A
-            per[sub] = v
-        lean[name] = per
-    num = den = 0.0
-    for sub, f in lean["final"].items():
-        w = f["A_dem"] + f["A_rep"]
-        b = lean["baseline"].get(sub)
-        if w <= 0 or b is None:
-            continue
-        num += w * ((f["dem"] - f["rep"]) - (b["dem"] - b["rep"]))
-        den += w
-    if den == 0:
-        return {"excluded": "no subreddit with target author-hours in the final window"}
-    share = {n: A_state[n]["dem"][0] / (A_state[n]["dem"][0] + A_state[n]["rep"][0]) for n in W}
-    return {"D": num / den, "volume": share["final"] - share["baseline"]}
-
-
-def _sign_test(pairs: list[tuple[float, float]]) -> dict:
-    n = len(pairs)
-    k = sum(1 for x, y in pairs if round(x, 4) != 0 and round(y, 4) != 0 and np.sign(x) == np.sign(y))
-    p = float(sps.binomtest(k, n, 0.5, alternative="greater").pvalue) if n else None
-    return {"races": n, "agree": k, "share": _r(k / n, 3) if n else None, "p_one_sided": _r(p, 4)}
-
-
-def reddit(results: dict[str, dict], polls_path: Path, hourly: Path = REDDIT_DIR / "hourly.jsonl",
-           subs_path: Path = REDDIT_DIR / "subs.json", prereg_path: Path = REDDIT_PREREG) -> dict:
-    """The registered Reddit test. Scored only once every polled race has a certified result (the spec's
-    scored_after); provisional outcomes are never used."""
-    spec = tomllib.loads(prereg_path.read_text())
-    polled = {k: r for k, r in spec["races"].items() if r["polled"]}
-    missing = sorted(k for k in polled if results.get(k, {}).get("status") != "certified")
-    if missing:
-        return {"status": "pending", "reason": "scored after every included race is certified (reddit_us2026_v1 "
-                                               "[sample].scored_after); outcomes not looked at", "awaiting": len(missing)}
-    if not hourly.exists():
-        return {"status": "none", "reason": f"{hourly} missing"}
-    rows = [json.loads(l) for l in hourly.read_text().splitlines() if l.strip()]
-    sel = json.loads(subs_path.read_text()) if subs_path.exists() else {}
-    chosen = {k for k, v in sel.items() if v.get("selected")} or None
-    polls = json.loads(polls_path.read_text())["races"]
-    M = spec["metric"]
-    W = {"baseline": M["baseline"], "final": M["final"]}
-
-    def poll_avg(race: str) -> float | None:
-        h = [x for x in (polls.get(race) or {}).get("history") or [] if x[0] <= "2026-11-03"]
-        return float(h[-1][1]) if h else None
-
-    def run(scorer="vader", mean="amean", windows=W, state_only=False, race_ok=None):
-        obs, excl = {}, {}
-        for race, r in polled.items():
-            pa = poll_avg(race)
-            if pa is None:
-                excl[race] = "no poll average for 2026-11-03"
-                continue
-            st_rows = [x for x in rows if x["state"] == r["state"]]
-            subs = chosen
-            if state_only:
-                subs = {x["subreddit"] for x in st_rows if x.get("role") == "state"} & (chosen or {x["subreddit"] for x in st_rows})
-            if race_ok is not None and not race_ok(st_rows, subs, windows):
-                excl[race] = "not every hour of both windows was scored by this scorer"
-                continue
-            x = reddit_d(st_rows, race, subs, windows, scorer, mean, M["shrink_k"], M["min_author_hours"])
-            if "excluded" in x:
-                excl[race] = x["excluded"]
-                continue
-            obs[race] = {"state": r["state"], "D": x["D"], "volume": x["volume"],
-                         "miss": results[race]["dem_share"] - pa}
-        return obs, excl
-
-    def absa_ok(st_rows, subs, windows):
-        hrs = [x for x in st_rows if (subs is None or x["subreddit"] in subs) and any(_in(x["hour"], w) for w in windows.values())]
-        return bool(hrs) and all("absa" in (x.get("scorers") or []) for x in hrs)
-
-    obs, excl = run()
-    prim = _sign_test([(o["D"], o["miss"]) for o in obs.values()])
-    out = {"status": "certified", "primary": {**prim, "alpha": spec["primary"]["alpha"],
-                                               "supported": bool(prim["p_one_sided"] is not None and prim["p_one_sided"] < spec["primary"]["alpha"])},
-           "excluded": excl, "by_race": {k: {kk: _r(vv, 4) if isinstance(vv, float) else vv for kk, vv in v.items()}
-                                         for k, v in obs.items()}, "secondary": {}}
-    sec = out["secondary"]
-    o2, _ = run(scorer="absa", race_ok=absa_ok)
-    sec["absa"] = _sign_test([(o["D"], o["miss"]) for o in o2.values()])
-    if len(obs) >= 3:
-        rho, p = sps.spearmanr([o["D"] for o in obs.values()], [o["miss"] for o in obs.values()])
-        sec["spearman"] = {"rho": _r(rho, 3), "p": _r(p, 4), "races": len(obs)}
-    bys = pd.DataFrame(obs.values()).groupby("state")[["D", "miss"]].mean() if obs else pd.DataFrame()
-    sec["by_state"] = _sign_test(list(zip(bys["D"], bys["miss"]))) if len(bys) else None
-    o3, _ = run(mean="wmean")
-    sec["weighted"] = _sign_test([(o["D"], o["miss"]) for o in o3.values()])
-    sec["volume"] = _sign_test([(o["volume"], o["miss"]) for o in obs.values()])
-    o4, _ = run(windows={"baseline": ["2026-10-30T00:00Z", "2026-10-31T00:00Z"], "final": M["final"]})
-    sec["short_window"] = _sign_test([(o["D"], o["miss"]) for o in o4.values()])
-    o5, _ = run(state_only=True)
-    sec["state_only"] = _sign_test([(o["D"], o["miss"]) for o in o5.values()])
-    return out
-
-
 # ============================================================== run
 
 def _pooled(per: dict, prim: dict) -> dict:
@@ -902,7 +773,7 @@ def _pooled(per: dict, prim: dict) -> dict:
 
 def run(out: Path = ROOT / "site" / "data", snap: Path | None = None, configs: list[Path] | None = None,
         fees: dict[str, float | None] | None = None, cert_path: Path = CERT, cert_counties_path: Path = CERT_COUNTIES,
-        final: bool = False, reddit_paths: dict | None = None) -> Path:
+        final: bool = False) -> Path:
     """Score everything that has an outcome; write <out>/us2026/score.json and score.md. fees: taker fee rate per
     Polymarket slug (default: Gamma feeSchedule, cached in results/us_score/pm_fees.json)."""
     uf.rng, ea.RNG = np.random.default_rng(0), np.random.default_rng(20261028)   # same seeds every run: re-runs repeat
@@ -976,11 +847,9 @@ def run(out: Path = ROOT / "site" / "data", snap: Path | None = None, configs: l
     ov = json.loads(ov_path.read_text()) if ov_path.exists() else None
     hub = d26 / "hub"
     fin = county_finals(oc, cfgs)
-    rp = reddit_paths or {}
     display = {"crosstabs": crosstabs(hub / "crosstabs.json", results),
                "fundamentals": _safe(lambda: fundamentals(fin)),
-               "expected_vote_dropoff": _safe(lambda: expected_vote_templates(oc, allv, pri_v)),
-               "reddit": _safe(lambda: reddit(results, hub / "polls.json", **rp))}
+               "expected_vote_dropoff": _safe(lambda: expected_vote_templates(oc, allv, pri_v))}
     statuses = [o["status"] for o in oc.values() if o["status"] != "none"]
     obj = {"generated_utc": _iso(pd.Timestamp.now(tz="UTC")), "spec": "prereg/NOTES.md (US midterms 2026)",
            "reading": "registered look, --final" if final else "monitoring run, not the registered look",
@@ -1078,10 +947,6 @@ def markdown(s: dict) -> str:
     ct = s["display_only"]["crosstabs"]
     if ct.get("races"):
         L.append(f"  - crosstabs: {ct['races']} races, MAE raw {ct['mae_raw']} vs adjusted {ct['mae_adj']} pts; adjusted closer in {ct['adj_closer']}.")
-    rd = s["display_only"]["reddit"]
-    if rd.get("primary"):
-        p = rd["primary"]
-        L.append(f"  - reddit primary: {p['agree']}/{p['races']} signs agree, one-sided p = {p['p_one_sided']}.")
     return "\n".join(L) + "\n"
 
 

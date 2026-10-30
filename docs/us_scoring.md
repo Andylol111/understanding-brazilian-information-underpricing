@@ -9,7 +9,7 @@ uv run brunder us score [configs/us2026_*_v1.toml] [--out site/data] [--snap dat
 uv run python analysis/us_score.py [--out site/data] [--snap DIR] [--final]
 ```
 
-Default configs: every `configs/us2026_*_v1.toml`; later versions (`_v2` … `_v5`) are attached per race by
+Default configs: every `configs/us2026_*_v1.toml` except the House district configs (`us2026_house_*`, a separate study scored with its own feeds); later versions (`_v2` … `_v5`) are attached per race by
 `brunder.us.load_races`. Each version's file hash is checked against `prereg/registry.jsonl`
 (`races.<id>.registration`).
 
@@ -82,7 +82,7 @@ same minutes.
 - `crosstabs`: raw vs recalled-vote adjusted poll averages (`hub/crosstabs.json` races[].raw / adj, margin points)
   minus the outcome margin; MAE, mean and the number of races where the adjusted one is closer.
 - `fundamentals`: `analysis/us_fundamentals.py` with 2026 as the test cycle: the 2026 county results of the modelled
-  states (two-party D share, total votes; Senate race where modelled, else governor) are written into the panel's
+  states (two-party D share, total votes; the Senate race where a Democrat is modelled, else governor; races with an independent on the dem side are left out) are written into the panel's
   2026 rows, every `HYP` / `TURNOUT_HYP` is fitted on all earlier cycles (`Fit`), and county margin ΔRMSE vs the
   statewide-uniform swing and county turnout ΔRMSE vs the flat ratio are reported (negative = the feature helps).
 - `expected_vote_dropoff`: county distribution of the expected vote against the outcome per race: prior-race votes
@@ -90,12 +90,6 @@ same minutes.
   (`brunder.us.turnout_profile`). Error = 100 × log(predicted / actual), each template scaled to the actual state
   total, vote-weighted RMSE and MAE (the `us_fundamentals.turnout_tests` metric). The statewide turnout of each
   version is in `turnout_at_fractions` above.
-- `reddit`: `configs/reddit_us2026_v1.toml` exactly: per subreddit, author-hour pooled means (`amean`), shrunk to the
-  state mean (k = 20), lean = dem − rep, change final − baseline, D_race weighted by final-window author-hours;
-  races need ≥ 10 author-hours per side and window; miss = certified dem-side share − the race's poll average for
-  2026-11-03 (`hub/polls.json` history); primary = sign agreement with an exact one-sided binomial test (α 0.05),
-  zeros count as disagreements; all seven secondary variants. It stays `pending` (outcomes not looked at) until every
-  polled race has a **certified** row; provisional results are never used for it.
 
 ## Registered look (`--final`)
 
@@ -109,4 +103,4 @@ that score in `results/us_score/final_<UTC>.json`. Run it once, after certificat
 `tests/test_us_score.py` replays a night end to end (`analysis/us_night_replay.py feed` → `brunder.us.export` →
 `us_score.run`): provisional outcomes equal the replayed elections' official totals, every metric is present per
 race and version, re-projected shares equal the published ones, a certified row overrides the feed, re-runs are
-identical, `--final` refuses without certified results; plus the Reddit metric and Senate control on small inputs.
+identical, `--final` refuses without certified results; plus Senate control on small inputs.

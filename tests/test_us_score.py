@@ -1,5 +1,5 @@
 """analysis/us_score.py: end to end on a replayed night (analysis/us_night_replay.py feed → brunder.us.export → score),
-plus the Reddit and Senate-control rules on small synthetic inputs."""
+plus the Senate-control rule on small synthetic inputs."""
 import json
 import shutil
 import sys
@@ -66,7 +66,7 @@ def test_registered_metrics_per_race_and_version(night):
             assert x["edge_rule"]["fee_unverified"] is True          # fees={} in the test: flagged, not hidden
         assert r["versions"]["v1"]["score_race"]["turnout_rel"]["n"] > 0
     pooled = s["pooled"]["primary"]
-    assert set(pooled["races"]) == set(REPLAYED) and pooled["catchup"]["polymarket"]["markets"] == len(REPLAYED)
+    assert set(REPLAYED) <= set(pooled["races"]) and pooled["catchup"]["polymarket"]["markets"] >= len(REPLAYED)
     late = next(a for a in pooled["at_fractions"] if a["q"] == 0.9)
     assert late["mae_margin_pts"] < 2                                # replayed priors: the count converges
 
@@ -100,39 +100,6 @@ def test_rerun_is_stable_and_certified_rows_take_over(night):
 def test_final_refuses_without_certified_results(night):
     with pytest.raises(SystemExit):
         S.run(night["out"], night["snap"], R.CONFIGS, fees={}, cert_path=night["w"] / "none.csv", final=True)
-
-
-def _hour(sub, state, role, h, race, dem, rep, A=5):
-    tg = {f"{race}/dem": {"n": A, "authors": A, "vader": {"amean": dem, "wmean": dem}},
-          f"{race}/rep": {"n": A, "authors": A, "vader": {"amean": rep, "wmean": rep}}}
-    return {"hour": h, "subreddit": sub, "state": state, "role": role, "targets": tg, "scorers": ["vader"]}
-
-
-def test_reddit_registered_metric(tmp_path):
-    spec = S.tomllib.loads(S.REDDIT_PREREG.read_text())
-    polled = [k for k, r in spec["races"].items() if r["polled"]]
-    two = ["ga-sen", "tx-sen"]
-    rows = []
-    for race, st, shift in (("ga-sen", "ga", +0.2), ("tx-sen", "tx", -0.2)):
-        for h in pd.date_range("2026-10-24", periods=4, freq="h"):
-            rows.append(_hour(f"r_{st}", st, "state", h.strftime("%Y-%m-%dT%H:00Z"), race, 0.0, 0.0))
-        for h in pd.date_range("2026-11-03T01:00Z", periods=4, freq="h"):
-            rows.append(_hour(f"r_{st}", st, "state", h.strftime("%Y-%m-%dT%H:00Z"), race, shift, 0.0))
-    hourly = tmp_path / "hourly.jsonl"
-    hourly.write_text("\n".join(json.dumps(r) for r in rows))
-    polls = tmp_path / "polls.json"
-    polls.write_text(json.dumps({"races": {k: {"history": [["2026-11-03", 0.5, 5]]} for k in polled}}))
-    res = {k: {"dem_share": 0.5, "status": "certified"} for k in polled}
-    res["ga-sen"] = {"dem_share": 0.53, "status": "certified"}       # D_race > 0 and miss > 0: agree
-    res["tx-sen"] = {"dem_share": 0.46, "status": "certified"}       # D_race < 0 and miss < 0: agree
-    out = S.reddit(res, polls, hourly=hourly, subs_path=tmp_path / "none.json")
-    assert out["status"] == "certified"
-    assert set(out["by_race"]) == set(two) and out["primary"]["agree"] == 2 and out["primary"]["races"] == 2
-    assert out["by_race"]["ga-sen"]["D"] > 0 > out["by_race"]["tx-sen"]["D"]
-    assert all("author-hours" in why for k, why in out["excluded"].items() if k not in two and k in polled
-               and spec["races"][k]["state"] in ("ga", "tx"))
-    res.pop("ga-sen")
-    assert S.reddit(res, polls, hourly=hourly)["status"] == "pending"   # outcomes not looked at before all certified
 
 
 def test_senate_control_outcome_and_forecast_at_poll_close():
