@@ -132,6 +132,11 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--updates", type=Path, help="live: model-update log (default logs/us2026_updates.jsonl)")
     s.add_argument("--days", type=float, default=14, help="preelection: days of price history")
     s.add_argument("--force", action="store_true", help="preelection: overwrite live/replay files")
+    s = sub.add_parser("civic", help="civicAPI (civicapi.org), secondary US midterms source: record races, resolve ids")
+    s.add_argument("step", choices=["record", "resolve"])
+    s.add_argument("--tag", default="us_midterms_2026", help="record: snap directory name")
+    s.add_argument("--interval", type=float, default=30.0, help="record: seconds between polls of a race (not below 30)")
+    s.add_argument("--until", help="record: UTC stop time, e.g. 2026-11-20T00:00Z")
     s = sub.add_parser("nz", help="New Zealand 2026: ingest official files; record, preelection, live, replay")
     s.add_argument("step", choices=["ingest", "record", "preelection", "export", "live"])
     s.add_argument("config", nargs="?", type=Path, default=Path("configs/nz2026_v2.toml"))
@@ -245,6 +250,9 @@ def main(argv: list[str] | None = None) -> None:
         case "us":
             from . import us
             us.cli(a)
+        case "civic":
+            from . import civic
+            civic.cli(a)
         case "nz":
             from . import newzealand
             newzealand.cli(a)

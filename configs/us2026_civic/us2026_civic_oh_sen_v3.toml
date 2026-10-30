@@ -1,0 +1,60 @@
+# US midterms 2026-11-03, Ohio Senate (special): model v3. Identical to us2026_civic_oh_sen_v2.toml (sha256 38f29eb62e83d68781b0348d66071ae1a63f65634449c20a8fb567ae5d3c917f)
+# except the pre-count uncertainty: swing_prior_sd = the historical error of a poll average with this
+# many polls (538 raw_polls 2016-2022, CC BY 4.0; analysis/us_polls.py errorbins), and
+# count_scaled_terms = true, so before any vote the statewide uncertainty is that poll error alone and
+# the reporting-order / between-region terms grow with the counted votes (brunder.nowcast). Earlier
+# versions stay registered and scored.
+# SECONDARY SOURCE, LIVE BEHAVIOUR UNREHEARSED: civicAPI's counts were checked against certified results (docs/us_midterms.md,
+# results/us_civic_validation.json) but its update cadence and lag are unknown: GET /race/{id}/history/ is 404 for every past
+# race, so no timed snapshots of a past count exist to replay.
+id = "us2026_civic_oh_sen_v3"
+
+[election]
+eid = "us2026"
+race_id = "oh-sen-civic"
+name = "Ohio Senate (special)"
+state = "oh"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "civic_oh"                # brunder.us.FEEDS: civicAPI race 87527 (brunder.civic)
+source = "civicAPI (civicapi.org)"      # secondary source; shown with its link on every display
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T00:30:00Z"
+a = { party = "DEM", name = "Sherrod Brown", color = "#1f5fbf" }
+b = { party = "REP", name = "Jon Husted", color = "#c8102e" }
+
+[prior]                    # data_public/us2026_priors.csv or us2026_civic_priors.csv
+share = "oh_pres_2024"        # 2024 president (MEDSL county returns, CC0): no same-office county prior built
+votes = "oh_pres_2024"        # its two-party votes x 0.72 (mean 2022/2024 two-party ratio in CA, TX, GA official data)
+poll_avg = 0.5196           # two-party Dem share, weighted average of 13 polls
+poll_sd = 0.0393            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 13
+poll_last = "2026-10-23"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.6908        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0762   # poll_avg - prior statewide share 0.4434 (V-weighted, data_public/us2026_priors.csv)
+swing_prior_sd = 0.0228      # historical RMSE of a poll average with 13 polls (brunder.us.POLL_SD_BINS)
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+
+[count]                    # brunder.us.CountRules
+# civicAPI gives each county's votes and its percent reporting (0-100) and nothing else: once a county shows 99 or more
+# (brunder.civic.COMPLETE_AT; its percent stays at 99 or lower in counted primaries), 98% of its vote is assumed in;
+# those counties re-scale the expected vote of the rest. No early/late split, no outstanding-ballot count.
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "ohio-senate-election-winner"
+market = "will-the-democrats-win-the-ohio-senate-race-in-2026"
+question = "Will the Democrats win the Ohio Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

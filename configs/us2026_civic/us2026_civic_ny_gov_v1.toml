@@ -1,0 +1,50 @@
+# US midterms 2026-11-03, New York Governor, results from civicAPI (civicapi.org): model v1. Same model and count rules as the registered
+# official-feed configs; only the feed differs. civicAPI is a SECONDARY source (unofficial aggregator; free, attribution
+# required: civicAPI, https://civicapi.org). Frozen before polls close (first close 2026-11-04 02:00 UTC); the
+# integrator registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence:
+# docs/us_midterms.md. Live/replay: uv run brunder us live|export configs/us2026_civic/us2026_civic_ny_gov_v1.toml
+# SECONDARY SOURCE, LIVE BEHAVIOUR UNREHEARSED: civicAPI's counts were checked against certified results (docs/us_midterms.md,
+# results/us_civic_validation.json) but its update cadence and lag are unknown: GET /race/{id}/history/ is 404 for every past
+# race, so no timed snapshots of a past count exist to replay.
+id = "us2026_civic_ny_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "ny-gov"
+name = "New York Governor"
+state = "ny"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "civic_ny"                # brunder.us.FEEDS: civicAPI race 87329 (brunder.civic)
+source = "civicAPI (civicapi.org)"      # secondary source; shown with its link on every display
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T02:00:00Z"
+a = { party = "DEM", name = "Kathy Hochul", color = "#1f5fbf" }
+b = { party = "REP", name = "Bruce Blakeman", color = "#c8102e" }
+
+[prior]                    # data_public/us2026_priors.csv or us2026_civic_priors.csv
+share = "ny_pres_2024"        # 2024 president (MEDSL county returns, CC0): no same-office county prior built
+votes = "ny_pres_2024"        # its two-party votes x 0.72 (mean 2022/2024 two-party ratio in CA, TX, GA official data)
+
+[model]                    # brunder.nowcast.Params
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# civicAPI gives each county's votes and its percent reporting (0-100) and nothing else: once a county shows 99 or more
+# (brunder.civic.COMPLETE_AT; its percent stays at 99 or lower in counted primaries), 98% of its vote is assumed in;
+# those counties re-scale the expected vote of the rest. No early/late split, no outstanding-ballot count.
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "new-york-governor-winner-2026"
+market = "will-the-democrats-win-the-new-york-governor-race-in-2026"
+question = "Will the Democrats win the New York governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

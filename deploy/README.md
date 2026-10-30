@@ -9,6 +9,7 @@ host's other services keep priority. CPU-heavy work (rehearsals, replays) stays 
 |---|---|---|
 | `brunder-live.service` | `brunder live run prereg/forward_v1.toml` | 40% of one core, 2 GB, nice 10, idle IO |
 | `brunder-bweb.service` | `brunder bweb 2026 2 --wait` | 50% of one core, 3 GB, nice 15, idle IO |
+| `brunder-civic-us.service` (+ `.timer`, 2026-11-03 18:00 UTC) | `brunder civic record`: civicAPI (civicapi.org), secondary US midterms source, ~1 request/s | 10% of one core, 256 MB, nice 10, idle IO |
 
 Dry run of the watcher's parse under these exact caps (2026-10-27, São Paulo first-round file, the
 largest state, presidential + governor rows): 1.4 GB zip, 1.43 M rows kept, **peak RSS 1.32 GB** (cap

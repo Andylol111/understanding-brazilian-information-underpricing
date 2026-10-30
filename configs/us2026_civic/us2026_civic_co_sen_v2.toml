@@ -1,0 +1,52 @@
+# US midterms 2026-11-03, Colorado Senate: model v2. Identical to us2026_civic_co_sen_v1.toml (sha256 0b3ef87892b9635c15b8987f0a7231606febb624273012e25e083c636dcb6732)
+# except a prior on the statewide swing from the polls ([model] swing_prior_*; brunder.nowcast): the
+# swing is the precision-weighted mix of the poll prior and the swing in counted votes, so the polls
+# lead early and the count takes over. Poll average frozen here (rule docs/us_midterms.md#polls;
+# VoteHub polls, CC BY 4.0, data built 2026-10-29T18:33:58Z); nothing is fetched on the night. v1 and v2 are both
+# registered and scored.
+# No polls in the window: no poll prior (v2 = v1).
+# SECONDARY SOURCE, LIVE BEHAVIOUR UNREHEARSED: civicAPI's counts were checked against certified results (docs/us_midterms.md,
+# results/us_civic_validation.json) but its update cadence and lag are unknown: GET /race/{id}/history/ is 404 for every past
+# race, so no timed snapshots of a past count exist to replay.
+id = "us2026_civic_co_sen_v2"
+
+[election]
+eid = "us2026"
+race_id = "co-sen"
+name = "Colorado Senate"
+state = "co"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "civic_co"                # brunder.us.FEEDS: civicAPI race 87022 (brunder.civic)
+source = "civicAPI (civicapi.org)"      # secondary source; shown with its link on every display
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T02:00:00Z"
+a = { party = "DEM", name = "John Hickenlooper", color = "#1f5fbf" }
+b = { party = "REP", name = "Mark Baisley", color = "#c8102e" }
+
+[prior]                    # data_public/us2026_priors.csv or us2026_civic_priors.csv
+share = "co_pres_2024"        # 2024 president (MEDSL county returns, CC0): no same-office county prior built
+votes = "co_pres_2024"        # its two-party votes x 0.72 (mean 2022/2024 two-party ratio in CA, TX, GA official data)
+
+[model]                    # brunder.nowcast.Params
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# civicAPI gives each county's votes and its percent reporting (0-100) and nothing else: once a county shows 99 or more
+# (brunder.civic.COMPLETE_AT; its percent stays at 99 or lower in counted primaries), 98% of its vote is assumed in;
+# those counties re-scale the expected vote of the rest. No early/late split, no outstanding-ballot count.
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "colorado-senate-election-winner"
+market = "will-the-democrats-win-the-colorado-senate-race-in-2026"
+question = "Will the Democrats win the Colorado Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

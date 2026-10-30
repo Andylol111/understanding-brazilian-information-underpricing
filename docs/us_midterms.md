@@ -900,6 +900,65 @@ About 80 requests/s, a few percent of one core: well inside `CPUQuota=20%` and `
 egress, not the server: with a 250 kB timeline, 300 pages pull ~2.7 MB/s (the tail format above cuts that to
 ~0.1 MB/s). Gzipping that timeline once per change takes ~30 ms here (longer on the VM), once every 30 s.
 
+## civicAPI, a secondary source (`brunder.civic`, `configs/us2026_civic/`, `analysis/us_civic.py`; added 2026-10-30)
+
+civicAPI (https://civicapi.org; free for any use, **attribution required: "civicAPI (civicapi.org)" with a link on every
+display**: `meta.sources`, `races[].source`, the readout line, the Sources tab) serves county results for most US races
+without a key. It is the only county feed we can reach for SC, IA, MI, WI, NH, NV, NY, CO, KS and ME (their official
+feeds are blocked to the recorder, see `deploy/brunder-snap-us.service`), and a cross-check for TX, GA, NC, FL, OH, PA,
+AZ and MN, whose official feeds we record. `brunder civic record` (`deploy/brunder-civic-us.service`, 10 % CPU, 256 MB)
+polls GET /api/v2/race/{id} once per race per 30 s, spread over the interval (~1 request/s for 30 races: 17 target races,
+13 cross-validation races, the US House race 87524 with its 435 districts), one User-Agent `brunder/0.1 (research;
+recorder)`, doubling backoff on errors, `Retry-After` honoured. Snapshots (saved on change) land in
+`data/raw/snap/us_midterms_2026/civic_<race id>/`, index lines carry `fetched`, `http_ms`, `last_modified`, `etag`,
+and civicAPI's own `last_updated`; `brunder civic resolve` re-checks the ids with race/search. The parser
+(`brunder.civic.parse_race`) keeps `County` rows only (NH and ME also list towns), maps FIPS → `us-<st>-<FIPS>`
+(name fallback: a few counties come without `fips`), and treats a county as complete at `percent_reporting` ≥ 99 (below).
+
+**Validation bar** (`uv run python analysis/us_civic.py validate`, `results/us_civic_validation.json`): a state gets
+civicAPI configs only if every county is present and each major candidate's statewide total is within 2 % of the
+certified / official figure. civicAPI holds past general elections for IA and NY (and AZ, NC) only, so the others are
+checked on their counted 2026 primaries against the state's own figures.
+
+| state | race(s) compared | certified / official source | counties | worst statewide gap | verdict |
+|---|---|---|---|---|---|
+| IA | gov 2022, Senate 2022, president 2024 | MEDSL certified county returns | 99/99 | 0.000 % (every county equal) | pass |
+| NY | gov 2022 | MEDSL 2022 (fusion lines summed by candidate) | 62/62 | 0.58 % (Hochul 3,140,415 and Zeldin 2,762,581 are the certified totals; 24 counties > 2 % apart in the MEDSL file) | pass |
+| SC | Senate special primary and runoff, governor runoff (2026) | SC Election Commission Clarity ENR | 46/46 | 0.30 % (13 small counties > 2 % in the Aug 11 primary) | pass |
+| WI | governor primaries 2026-08-11 | WEC certified county-by-county report (elections.wi.gov, certified 2026-08-25) | 72/72 | statewide 0.14 %; counties: sum of absolute gaps 0.20 % (R) / 0.085 % (D) of the statewide total; worst county Washburn, Tiffany 3,549 vs 3,031 (+17 %); 4 R counties and 1 D county > 2 % of the county total | pass, with isolated county errors |
+| MI | governor D / R and Senate D primaries 2026-08-04 | MI Dept of State official county file `2026STATE_PRIMARY_MI_CENR_BY_COUNTY.txt` ("STATE PRIMARY, OFFICIAL", 2026-08-24); **downloaded by hand by the user in a normal browser from mvic.sos.state.mi.us** (the site answers 403 to our client) | 83/83 | statewide 0.43 % (Stevens; Benson 0.32 %, every candidate low except Nesbitt); counties: sum of absolute gaps 0.54 % / 0.40 % / 0.53 % of the statewide total; worst Oakland (Benson −3,686, Stevens −2,846 votes), Oscoda (civicAPI high: Benson 935 vs 615, +42 % of the county total); 6 / 3 / 3 counties > 2 % of the county total (Kalkaska, Oscoda, Leelanau, Cheboygan, Ottawa, Chippewa). Reconciled with `2026STATE_PRIMARY_MI_CENR_TURNOUT.txt` (2,584,867 ballots, 83 counties): official D+R governor votes ≤ 97 % of ballots in every county, Senate D ≤ 82 %; civicAPI's governor D+R exceeds the ballots in 2 counties. The county file's first line ("TOTAL VOTER TURNOUT: 12,240,190", votes over all offices) is skipped and never used; write-in rows (`Y`) are excluded as civicAPI lists none | pass, with isolated county errors |
+| CO | governor D / R and Senate D primaries 2026-06-30 | CO SoS certified county file (`2026PrimaryElectionStateResults.xlsx`) | 64/64 | 0.000 %; every county equal in all three races | pass |
+| KS | Senate and governor primaries 2026-08-04 | KS SoS certified totals | 105/105 | 1.54 % (all candidates 0.5-1.5 % low: last civicAPI update 2026-08-06, before the canvass) | pass |
+| OH | governor R / D and Senate D primaries 2026-05-05 | OH SoS "Summary Level Official Results for 2026 Primary Election" canvass workbooks (certified 2026-06-03; sheet Master, one row per county); **downloaded by hand by the user in a normal browser** (publicfiles.ohiosos.gov answers 403 to our client) | 88/88 | statewide 0.64 % (Putsch; Ramaswamy 0.39 %, Acton 0.64 %, Brown 0.58 %, Kincaid 1.25 %); counties: sum of absolute gaps 0.44-0.65 % of the statewide total, civicAPI below official in every differing county; worst Franklin (Acton −1,141, Brown −919 votes), Champaign (−2.1 to −3.3 % of the county total); 1 county > 2 %; official contest votes ≤ ballots counted in all 88 counties | pass (civicAPI is the fallback for the official feed, which now answers 403) |
+| NV | governor primaries 2026-06-09 | Wikipedia table citing NV SoS (secondary) | 17/17 | **−15.0 %** (civicAPI stays at 89 % reporting; Ford −11 %, Lombardo −10 %) | **no config** |
+| NH | Senate and governor primaries 2026-09-08 | Wikipedia (secondary; NH SoS blocked) | 10/10 | Senate ≤ 0.07 %, but governor D primary **−19 %** (civicAPI frozen at 60.6 % reporting) | **no config** |
+| ME | governor and Senate primaries 2026-06-09 | none needed | **6/16** | county rows add up to only 20-37 % of the race total | **no config** |
+
+AZ (governor 2022, president 2024) matches exactly (a check of civicAPI itself, not a config). The 2024 US House as one
+race is not in civicAPI (only the 2026 aggregate 87524 and a few single districts), so no House comparison exists.
+
+**Live behaviour is unrehearsed.** `GET /race/{id}/history/` returns 404 "snapshot not found" for every past race we tried
+(IA, NY, AZ, NC 2022-24, VA and NJ 2025, the SC and WI 2026 primaries): no timed snapshots exist, so update cadence, lag
+behind the official feeds, monotonicity of county votes and a candidate list changing mid-count cannot be checked until
+election night. What the finished races show: `percent_reporting` often never reaches 100 (WI 99 in all 72 counties,
+KS 83-99, NV 72-90, ME 49-99; SC, CO and NH counties do reach 100) and some counted races stop updating short of the
+full count (NV, NH governor). The parser therefore treats ≥ 99 as complete (`civic.COMPLETE_AT`; the counties of an
+unfinished race stay at f ≤ 0.95 instead). Every civicAPI config header says "SECONDARY SOURCE, LIVE BEHAVIOUR
+UNREHEARSED". After the night `uv run python analysis/us_civic.py compare` gives, for the eight cross-validated states,
+the final county totals and the lag of civicAPI behind the official feed at every county total.
+
+**Configs** (`uv run python analysis/us_civic.py configs`; v1-v3 by the rules of `analysis/us_polls.py`, run on a scratch
+copy so no other file changes): SC and OH (race ids `sc-sen-civic`, `sc-gov-civic`, `oh-sen-civic`, `oh-gov-civic`: their official feeds are unreachable or answer 403, and the
+registered `sc-*` / `oh-*` configs name them; every written config passed), IA, MI, WI, NY, CO, KS with the registry's race ids; SC keeps its 2022 same-office
+prior and turnout ratio 1.0, the others use the 2024 president (`data_public/us2026_civic_priors.csv`, copied from the county
+baseline) and 0.72, as Ohio. CO has no polls (v2 = v1, no v3). Nothing is registered.
+
+Candidate check against `data_public/us2026_races.json` (`us_civic.py check`): SC Senate "Darline Graham" is right (Lindsey
+Graham died in July 2026; his sister was appointed and won the Aug 25 special runoff: AP, NPR, Congress.gov, SC Election
+Commission audit files). CO Senate lists two primary losers (Powers, Apelbaum) beside Baisley: stale, no votes. Maine's
+Republican is "Bobby Charles" in civicAPI, "Robert Charles" in the registry. Michigan's governor race lacks Mike Duggan
+(registry: independent). The two-party model uses only the Democratic and Republican lines.
+
 ## Known weaknesses
 
 - The expected vote is the weak point where completion flags are ignored (CA): a turnout far from the assumption
