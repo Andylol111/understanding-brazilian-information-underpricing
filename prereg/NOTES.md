@@ -146,6 +146,42 @@ Decided 2026-10-30, before the runoff (2026-11-01): the official results site (C
 no result pages will be saved by hand during the count, so the registered model is not run and is not scored.
 The registration stays in the registry unchanged.
 
+## US midterms 2026: second registration batch (2026-10-30, before any 2026 result)
+
+Registered together after one combined rehearsal on the election server (2026-10-30 20:31–21:43 UTC, a 3-hour
+night replayed in 60 minutes, every live process under its production CPU and memory caps):
+primary process with v5 active — 190 cycles, latency p95 13.3 s (max 14.1 s; limit 30 s), 370 MB; House
+process — 71 districts, 2–7 s per cycle (limit 60 s); civicAPI process — first start with an empty output
+folder, 14 races, 0 errors; national process — 7–9 s per cycle. The national process first failed in the
+rehearsal because it was given a different output folder from the other processes (it reads their
+files relative to its own); with the production layout it ran cleanly. The rehearsal did not exercise its use
+of counted results (it used only its prior), and it is neither registered nor displayed.
+
+- **Night Hispanic slope, v5** (`configs/us2026_{tx_sen,tx_gov,fl_sen,fl_gov,ca_gov,nm_sen,nm_gov,az_gov}_v5.toml`):
+  **secondary**; v3 stays primary. The stacking weights on the backtests were 0 or 1 (no stable blend), and v5
+  only slightly improves margin error (2.445 vs 2.466 points, all states pooled), so v5 is scored, never promoted.
+  Evidence: `data_public/us_hisp_backtest/`, `docs/us_hisp_slope.md`.
+- **24 further House districts** (`configs/us2026_house/`): same method and scoring as the 2026-10-30 House batch.
+- **civicAPI races** (`configs/us2026_civic/`, 40 configs, 14 races in SC, IA, MI, WI, NY, CO, KS, OH): a
+  **secondary-source set**. Their county counts come from civicAPI (civicapi.org), not from an official state
+  feed. They are scored separately from the official-feed races, never pooled with them, and never counted
+  in Senate control. Validation against certified 2026 primary results, county by county: IA, NY, SC, WI, CO, KS,
+  MI and OH pass; NV, NH and ME fail and have no configs (`data_public/us_civic_validation.json`). These configs
+  are labelled "LIVE BEHAVIOUR UNREHEARSED" because only a replay was rehearsed: no live civicAPI election night
+  has been observed.
+- **Polling-miss forecasts** (`configs/hypotheses/`): never model inputs; scored after certification.
+  - `us2026_drift_v1` and `us2026_lean_v1` form the **confirmatory family**: Holm correction, α = 0.05. Lean
+    level was chosen after seeing the 2006–2024 results (its config says so), so its historical numbers are
+    in-sample.
+  - `us2026_ev_gap_v1` (early-vote party gap, 3 races) is **descriptive, outside the family**. With 3 races
+    its smallest attainable p is 0.125, so it can never reject, and counting it would only lower the bar for
+    the other two. It is reported regardless.
+- **State replies:** Wisconsin (results on county websites only) and Maine (no election-night results, certified
+  only) replied before registration. Colorado said its results go live on its official page on election
+  night, which doesn't address the bot check on our server's address, so Colorado stays on civicAPI.
+- **Not registered:** `configs/us2026_national/national_v1.toml` (worse than the separate state models on the
+  2022 and 2024 test years; experimental, not displayed).
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap
