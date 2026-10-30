@@ -1,0 +1,726 @@
+[
+ {
+  "race": "IA gov 2022",
+  "state": "ia",
+  "counties": "99/99",
+  "statewide_diff_pct": {
+   "DEM": 0.0,
+   "REP": 0.0
+  },
+  "max_abs_statewide_pct": 0.0,
+  "counties_off_gt2pct": 0,
+  "county_abs_diff_share_pct": 0.0,
+  "ok": true
+ },
+ {
+  "race": "IA sen 2022",
+  "state": "ia",
+  "counties": "99/99",
+  "statewide_diff_pct": {
+   "DEM": 0.0,
+   "REP": 0.0
+  },
+  "max_abs_statewide_pct": 0.0,
+  "counties_off_gt2pct": 0,
+  "county_abs_diff_share_pct": 0.0,
+  "ok": true
+ },
+ {
+  "race": "IA pres 2024",
+  "state": "ia",
+  "counties": "99/99",
+  "statewide_diff_pct": {
+   "DEM": 0.0,
+   "REP": 0.0
+  },
+  "max_abs_statewide_pct": 0.0,
+  "counties_off_gt2pct": 0,
+  "county_abs_diff_share_pct": 0.0,
+  "ok": true
+ },
+ {
+  "race": "NY gov 2022",
+  "state": "ny",
+  "counties": "62/62",
+  "statewide_diff_pct": {
+   "DEM": 0.071,
+   "REP": -0.584
+  },
+  "max_abs_statewide_pct": 0.584,
+  "counties_off_gt2pct": 24,
+  "county_abs_diff_share_pct": 1.185,
+  "ok": true
+ },
+ {
+  "race": "AZ gov 2022",
+  "state": "az",
+  "counties": "15/15",
+  "statewide_diff_pct": {
+   "DEM": 0.001,
+   "REP": -0.002
+  },
+  "max_abs_statewide_pct": 0.002,
+  "counties_off_gt2pct": 0,
+  "county_abs_diff_share_pct": 0.006,
+  "ok": true
+ },
+ {
+  "race": "AZ pres 2024",
+  "state": "az",
+  "counties": "15/15",
+  "statewide_diff_pct": {
+   "DEM": 0.0,
+   "REP": 0.0
+  },
+  "max_abs_statewide_pct": 0.0,
+  "counties_off_gt2pct": 0,
+  "county_abs_diff_share_pct": 0.0,
+  "ok": true
+ },
+ {
+  "race": "SC sen special primary 2026-08-11 (REP)",
+  "state": "sc",
+  "counties": "46/46",
+  "statewide_diff_pct": {
+   "fry": -0.297,
+   "graham": -0.197,
+   "lynch": -0.116,
+   "norman": -0.053,
+   "sanford": -0.193
+  },
+  "max_abs_statewide_pct": 0.297,
+  "counties_off_gt2pct": 13,
+  "county_abs_diff_share_pct": 0.28,
+  "ok": true
+ },
+ {
+  "race": "SC sen special runoff 2026-08-25 (REP)",
+  "state": "sc",
+  "counties": "46/46",
+  "statewide_diff_pct": {
+   "graham": 0.0,
+   "norman": 0.0
+  },
+  "max_abs_statewide_pct": 0.0,
+  "counties_off_gt2pct": 0,
+  "county_abs_diff_share_pct": 0.0,
+  "ok": true
+ },
+ {
+  "race": "SC gov runoff 2026-06-23 (REP)",
+  "state": "sc",
+  "counties": "46/46",
+  "statewide_diff_pct": {
+   "evette": -0.007,
+   "wilson": -0.01
+  },
+  "max_abs_statewide_pct": 0.01,
+  "counties_off_gt2pct": 0,
+  "county_abs_diff_share_pct": 0.01,
+  "ok": true
+ },
+ {
+  "race": "Wisconsin Governor Democratic Primary 2026-08-11 (85787)",
+  "state": "wi",
+  "counties": "72/72",
+  "county_sum_vs_race_total_pct": {
+   "crowley": 0.0,
+   "hong": 0.0,
+   "roys": 0.0
+  },
+  "total_votes": 792132,
+  "ok": true,
+  "statewide_diff_pct": {
+   "crowley": -0.033,
+   "hong": -0.073,
+   "roys": 0.082,
+   "brennan": 0.138,
+   "rodriguez": 0.043,
+   "barnes": -0.04
+  },
+  "max_abs_statewide_pct": 0.138,
+  "civic_percent_reporting": 99,
+  "source": "WI Elections Commission canvass results, 2026 partisan primary (2026-08-27): elections.wi.gov/sites/default/files/documents/August%202026%20Partisan%20Primary_Summary%20Results.pdf",
+  "official_source": true
+ },
+ {
+  "race": "Wisconsin Governor Republican Primary 2026-08-11 (85788)",
+  "state": "wi",
+  "counties": "72/72",
+  "county_sum_vs_race_total_pct": {
+   "tiffany": 0.0
+  },
+  "total_votes": 492195,
+  "ok": true,
+  "statewide_diff_pct": {
+   "tiffany": 0.07
+  },
+  "max_abs_statewide_pct": 0.07,
+  "civic_percent_reporting": 99,
+  "source": "same WEC canvass",
+  "official_source": true
+ },
+ {
+  "race": "Kansas US Senate Republican Primary 2026-08-04 (84841)",
+  "state": "ks",
+  "counties": "105/105",
+  "county_sum_vs_race_total_pct": {
+   "marshall": 0.0,
+   "naramore": 0.0
+  },
+  "total_votes": 335667,
+  "ok": true,
+  "statewide_diff_pct": {
+   "marshall": -1.014,
+   "naramore": -0.47
+  },
+  "max_abs_statewide_pct": 1.014,
+  "civic_percent_reporting": 98.6,
+  "source": "KS SoS, 2026 Primary Election Official Vote Totals (certified 2026-09-01): sos.ks.gov/elections/26elec/2026-Primary-Election-Official-Vote-Totals.pdf",
+  "official_source": true
+ },
+ {
+  "race": "Kansas US Senate Democratic Primary 2026-08-04 (84840)",
+  "state": "ks",
+  "counties": "105/105",
+  "county_sum_vs_race_total_pct": {
+   "hamilton": 0.0,
+   "davis": 0.0,
+   "taylor": 0.0,
+   "parelkar": 0.0,
+   "murray": 0.0,
+   "schmidt": 0.0,
+   "neumann": 0.0,
+   "hart": 0.0
+  },
+  "total_votes": 221062,
+  "ok": true,
+  "statewide_diff_pct": {
+   "hamilton": -0.821,
+   "davis": -1.541,
+   "taylor": -1.525
+  },
+  "max_abs_statewide_pct": 1.541,
+  "civic_percent_reporting": 98.2,
+  "source": "same KS SoS file",
+  "official_source": true
+ },
+ {
+  "race": "Kansas Governor Democratic Primary 2026-08-04 (84780)",
+  "state": "ks",
+  "counties": "105/105",
+  "county_sum_vs_race_total_pct": {
+   "holscher": 0.0,
+   "corson": 0.0,
+   "skoog": 0.0
+  },
+  "total_votes": 223916,
+  "ok": true,
+  "statewide_diff_pct": {
+   "holscher": -0.948,
+   "corson": -1.195,
+   "skoog": -1.398
+  },
+  "max_abs_statewide_pct": 1.398,
+  "civic_percent_reporting": 98.6,
+  "source": "same KS SoS file",
+  "official_source": true
+ },
+ {
+  "race": "Colorado Governor Democratic Primary 2026-06-30 (84286)",
+  "state": "co",
+  "counties": "64/64",
+  "county_sum_vs_race_total_pct": {
+   "weiser": 0.0,
+   "bennet": 0.0
+  },
+  "total_votes": 888597,
+  "ok": true,
+  "statewide_diff_pct": {
+   "weiser": 0.0,
+   "bennet": 0.0
+  },
+  "max_abs_statewide_pct": 0.0,
+  "civic_percent_reporting": 99.9,
+  "source": "CO SoS, 2026 Primary State Abstract of Votes Cast (certified): coloradosos.gov/pubs/elections/Results/2026/2026PrimaryStateAbstractofResultsCast.pdf",
+  "official_source": true
+ },
+ {
+  "race": "Colorado US Senate Democratic Primary 2026-06-30 (84322)",
+  "state": "co",
+  "counties": "64/64",
+  "county_sum_vs_race_total_pct": {
+   "hickenlooper": 0.0,
+   "gonzales": 0.0
+  },
+  "total_votes": 895358,
+  "ok": true,
+  "statewide_diff_pct": {
+   "hickenlooper": 0.0,
+   "gonzales": 0.0
+  },
+  "max_abs_statewide_pct": 0.0,
+  "civic_percent_reporting": 99.9,
+  "source": "same CO abstract",
+  "official_source": true
+ },
+ {
+  "race": "Nevada Governor Democratic Primary 2026-06-09 (83110)",
+  "state": "nv",
+  "counties": "17/17",
+  "county_sum_vs_race_total_pct": {
+   "ford": 0.0,
+   "hill": 0.0
+  },
+  "total_votes": 165621,
+  "ok": false,
+  "statewide_diff_pct": {
+   "ford": -11.196,
+   "hill": -14.977
+  },
+  "max_abs_statewide_pct": 14.977,
+  "civic_percent_reporting": 89,
+  "source": "Wikipedia 2026 Nevada gubernatorial election (cites NV SoS official statewide primary results; secondary)",
+  "official_source": false
+ },
+ {
+  "race": "Nevada Governor Republican Primary 2026-06-09 (83111)",
+  "state": "nv",
+  "counties": "17/17",
+  "county_sum_vs_race_total_pct": {
+   "lombardo": 0.0
+  },
+  "total_votes": 171143,
+  "ok": false,
+  "statewide_diff_pct": {
+   "lombardo": -9.617
+  },
+  "max_abs_statewide_pct": 9.617,
+  "civic_percent_reporting": 88.7,
+  "source": "same Wikipedia table",
+  "official_source": false
+ },
+ {
+  "race": "New Hampshire US Senate Democratic Primary 2026-09-08 (96678)",
+  "state": "nh",
+  "counties": "10/10",
+  "county_sum_vs_race_total_pct": {
+   "pappas": 0.0,
+   "manzur": 0.0
+  },
+  "total_votes": 153459,
+  "ok": true,
+  "statewide_diff_pct": {
+   "pappas": -0.035,
+   "manzur": -0.028
+  },
+  "max_abs_statewide_pct": 0.035,
+  "civic_percent_reporting": 98.9,
+  "source": "Wikipedia 2026 US Senate election in New Hampshire (secondary)",
+  "official_source": false
+ },
+ {
+  "race": "New Hampshire US Senate Republican Primary 2026-09-08 (96679)",
+  "state": "nh",
+  "counties": "10/10",
+  "county_sum_vs_race_total_pct": {
+   "sununu": 0.0,
+   "brown": 0.0
+  },
+  "total_votes": 110037,
+  "ok": true,
+  "statewide_diff_pct": {
+   "sununu": -0.066,
+   "brown": 0.064
+  },
+  "max_abs_statewide_pct": 0.066,
+  "civic_percent_reporting": 98.9,
+  "source": "same Wikipedia table",
+  "official_source": false
+ },
+ {
+  "race": "New Hampshire Governor Democratic Primary 2026-09-08 (96676)",
+  "state": "nh",
+  "counties": "10/10",
+  "county_sum_vs_race_total_pct": {
+   "warmington": 0.0
+  },
+  "total_votes": 102062,
+  "ok": false,
+  "statewide_diff_pct": {
+   "warmington": -19.142
+  },
+  "max_abs_statewide_pct": 19.142,
+  "civic_percent_reporting": 60.6,
+  "source": "Wikipedia 2026 New Hampshire gubernatorial election (secondary)",
+  "official_source": false
+ },
+ {
+  "race": "Michigan Governor Democratic Primary 2026-08-04 (84668)",
+  "state": "mi",
+  "counties": "83/83",
+  "statewide_diff_pct": {
+   "benson": -0.319,
+   "swanson": -0.188
+  },
+  "max_abs_statewide_pct": 0.319,
+  "counties_off_gt2pct": 11,
+  "county_abs_diff_share_pct": 0.543,
+  "ok": true,
+  "county_deviation": {
+   "counties_certified": 83,
+   "counties_civic": 83,
+   "max_abs_votes": [
+    "Oakland",
+    "benson",
+    -3686.0
+   ],
+   "max_pct_of_county_total": [
+    "Oscoda",
+    "benson",
+    42.38
+   ],
+   "counties_over_2pct": 6,
+   "any_difference": 49,
+   "sum_abs_diff_pct_of_statewide": 0.543
+  },
+  "civic_percent_reporting": 98.7,
+  "source": "MI Dept of State official county file, downloaded by hand by the user",
+  "official_source": true
+ },
+ {
+  "race": "Michigan Governor Republican Primary 2026-08-04 (84669)",
+  "state": "mi",
+  "counties": "83/83",
+  "statewide_diff_pct": {
+   "cox": -0.193,
+   "james": -0.103,
+   "johnson": -0.087
+  },
+  "max_abs_statewide_pct": 0.193,
+  "counties_off_gt2pct": 14,
+  "county_abs_diff_share_pct": 0.394,
+  "ok": true,
+  "county_deviation": {
+   "counties_certified": 83,
+   "counties_civic": 83,
+   "max_abs_votes": [
+    "Ottawa",
+    "james",
+    510.0
+   ],
+   "max_pct_of_county_total": [
+    "Kalkaska",
+    "james",
+    4.62
+   ],
+   "counties_over_2pct": 3,
+   "any_difference": 43,
+   "sum_abs_diff_pct_of_statewide": 0.399
+  },
+  "civic_percent_reporting": 98.9,
+  "source": "MI Dept of State official county file, downloaded by hand by the user",
+  "official_source": true
+ },
+ {
+  "race": "Michigan US Senate Democratic Primary 2026-08-04 (84778)",
+  "state": "mi",
+  "counties": "83/83",
+  "statewide_diff_pct": {
+   "sayed": -0.185,
+   "stevens": -0.427
+  },
+  "max_abs_statewide_pct": 0.427,
+  "counties_off_gt2pct": 13,
+  "county_abs_diff_share_pct": 0.538,
+  "ok": true,
+  "county_deviation": {
+   "counties_certified": 83,
+   "counties_civic": 83,
+   "max_abs_votes": [
+    "Oakland",
+    "stevens",
+    -2846.0
+   ],
+   "max_pct_of_county_total": [
+    "Oscoda",
+    "stevens",
+    27.02
+   ],
+   "counties_over_2pct": 3,
+   "any_difference": 51,
+   "sum_abs_diff_pct_of_statewide": 0.531
+  },
+  "civic_percent_reporting": 98.6,
+  "source": "MI Dept of State official county file, downloaded by hand by the user",
+  "official_source": true
+ },
+ {
+  "race": "MI county file vs turnout file",
+  "state": "mi",
+  "counties": 83,
+  "ballots_total": 2584867,
+  "GOVERNOR": {
+   "official_over_ballots": 0,
+   "civic_over_ballots": 2,
+   "max_official_share_of_ballots": 0.97
+  },
+  "UNITED STATES SENATOR": {
+   "official_over_ballots": 0,
+   "civic_over_ballots": 0,
+   "max_official_share_of_ballots": 0.817
+  },
+  "ok": true
+ },
+ {
+  "race": "Ohio Governor Republican Primary 2026-05-05 (68682)",
+  "state": "oh",
+  "counties": "88/88",
+  "statewide_diff_pct": {
+   "putsch": -0.643,
+   "ramaswamy": -0.393
+  },
+  "max_abs_statewide_pct": 0.643,
+  "counties_off_gt2pct": 4,
+  "county_abs_diff_share_pct": 0.437,
+  "ok": true,
+  "county_deviation": {
+   "counties_certified": 88,
+   "counties_civic": 88,
+   "max_abs_votes": [
+    "Franklin",
+    "ramaswamy",
+    -197.0
+   ],
+   "max_pct_of_county_total": [
+    "Champaign",
+    "ramaswamy",
+    2.08
+   ],
+   "counties_over_2pct": 1,
+   "any_difference": 88,
+   "sum_abs_diff_pct_of_statewide": 0.437
+  },
+  "civic_percent_reporting": 97.2,
+  "official_over_ballots": 0,
+  "source": "OH SoS official canvass workbook, downloaded by hand by the user",
+  "official_source": true
+ },
+ {
+  "race": "Ohio Governor Democratic Primary 2026-05-05 (68681)",
+  "state": "oh",
+  "counties": "88/88",
+  "statewide_diff_pct": {
+   "acton": -0.639
+  },
+  "max_abs_statewide_pct": 0.639,
+  "counties_off_gt2pct": 1,
+  "county_abs_diff_share_pct": 0.639,
+  "ok": true,
+  "county_deviation": {
+   "counties_certified": 88,
+   "counties_civic": 88,
+   "max_abs_votes": [
+    "Franklin",
+    "acton",
+    -1141.0
+   ],
+   "max_pct_of_county_total": [
+    "Champaign",
+    "acton",
+    3.29
+   ],
+   "counties_over_2pct": 1,
+   "any_difference": 85,
+   "sum_abs_diff_pct_of_statewide": 0.639
+  },
+  "civic_percent_reporting": 99.9,
+  "official_over_ballots": 0,
+  "source": "OH SoS official canvass workbook, downloaded by hand by the user",
+  "official_source": true
+ },
+ {
+  "race": "Ohio US Senate Democratic Primary 2026-05-05 (68678)",
+  "state": "oh",
+  "counties": "88/88",
+  "statewide_diff_pct": {
+   "brown": -0.576,
+   "kincaid": -1.25
+  },
+  "max_abs_statewide_pct": 1.25,
+  "counties_off_gt2pct": 10,
+  "county_abs_diff_share_pct": 0.647,
+  "ok": true,
+  "county_deviation": {
+   "counties_certified": 88,
+   "counties_civic": 88,
+   "max_abs_votes": [
+    "Franklin",
+    "brown",
+    -919.0
+   ],
+   "max_pct_of_county_total": [
+    "Champaign",
+    "brown",
+    2.53
+   ],
+   "counties_over_2pct": 1,
+   "any_difference": 86,
+   "sum_abs_diff_pct_of_statewide": 0.647
+  },
+  "civic_percent_reporting": 97.3,
+  "official_over_ballots": 0,
+  "source": "OH SoS official canvass workbook, downloaded by hand by the user",
+  "official_source": true
+ },
+ {
+  "race": "South Carolina US Senate Special Republican Primary Runoff 2026-08-25 (87534)",
+  "state": "sc",
+  "counties": "46/46",
+  "county_sum_vs_race_total_pct": {
+   "graham": 0.0,
+   "norman": 0.0
+  },
+  "total_votes": 368898,
+  "ok": true
+ },
+ {
+  "race": "South Carolina US Senate Special Republican Primary 2026-08-11 (86330)",
+  "state": "sc",
+  "counties": "46/46",
+  "county_sum_vs_race_total_pct": {
+   "graham": 0.0,
+   "norman": 0.0,
+   "fry": 0.0,
+   "sanford": 0.0,
+   "lynch": 0.0
+  },
+  "total_votes": 335092,
+  "ok": true
+ },
+ {
+  "race": "South Carolina Governor Republican Primary 2026-06-09 (82596)",
+  "state": "sc",
+  "counties": "46/46",
+  "county_sum_vs_race_total_pct": {
+   "evette": 0.0,
+   "wilson": 0.0,
+   "norman": 0.0,
+   "reddy": 0.0,
+   "mace": 0.0
+  },
+  "total_votes": 472588,
+  "ok": true
+ },
+ {
+  "race": "South Carolina Governor Democratic Primary 2026-06-09 (82595)",
+  "state": "sc",
+  "counties": "46/46",
+  "county_sum_vs_race_total_pct": {
+   "johnson": 0.0,
+   "webster": 0.0,
+   "mcleod": 0.0
+  },
+  "total_votes": 371728,
+  "ok": true
+ },
+ {
+  "race": "South Carolina US Senate Democratic Primary 2026-06-09 (82663)",
+  "state": "sc",
+  "counties": "46/46",
+  "county_sum_vs_race_total_pct": {
+   "andrews": 0.0,
+   "brown": 0.0,
+   "freeman": 0.0
+  },
+  "total_votes": 367152,
+  "ok": true
+ },
+ {
+  "race": "South Carolina US Senate Republican Primary 2026-06-09 (82664)",
+  "state": "sc",
+  "counties": "46/46",
+  "county_sum_vs_race_total_pct": {
+   "graham": 0.0,
+   "lynch": 0.0,
+   "dismukes": 0.0
+  },
+  "total_votes": 464709,
+  "ok": true
+ },
+ {
+  "race": "Michigan Governor Republican Primary 2026-08-04 (84669)",
+  "state": "mi",
+  "counties": "83/83",
+  "county_sum_vs_race_total_pct": {
+   "james": 0.0,
+   "johnson": 0.0,
+   "cox": 0.0
+  },
+  "total_votes": 931508,
+  "ok": true
+ },
+ {
+  "race": "Kansas Governor Republican Primary 2026-08-04 (84781)",
+  "state": "ks",
+  "counties": "105/105",
+  "county_sum_vs_race_total_pct": {
+   "masterson": 0.0,
+   "sarnecki": 0.0,
+   "schmidt": 0.0,
+   "schwab": 0.0
+  },
+  "total_votes": 340912,
+  "ok": true
+ },
+ {
+  "race": "Maine Governor Republican Primary 2026-06-09 (82694)",
+  "state": "me",
+  "counties": "6/16",
+  "county_sum_vs_race_total_pct": {
+   "charles": -63.478,
+   "midgley": -74.25,
+   "bush": -75.294,
+   "mason": -63.821
+  },
+  "total_votes": 118424,
+  "ok": false
+ },
+ {
+  "race": "Maine US Senate Democratic Primary 2026-06-09 (83063)",
+  "state": "me",
+  "counties": "6/16",
+  "county_sum_vs_race_total_pct": {
+   "platner": -80.469,
+   "mills": -79.864,
+   "costello": -74.317
+  },
+  "total_votes": 206860,
+  "ok": false
+ },
+ {
+  "race": "Maine Governor Democratic Primary 2026-06-09 (82693)",
+  "state": "me",
+  "counties": "6/16",
+  "county_sum_vs_race_total_pct": {
+   "shah": -79.277,
+   "pingree": -83.398,
+   "jackson": -76.118,
+   "bellows": -79.57,
+   "iii": -79.778
+  },
+  "total_votes": 208097,
+  "ok": false
+ },
+ {
+  "race": "Ohio Governor Republican Primary 2026-05-05 (68682)",
+  "state": "oh",
+  "counties": "88/88",
+  "county_sum_vs_race_total_pct": {
+   "ramaswamy": 0.0,
+   "putsch": 0.0
+  },
+  "total_votes": 817159,
+  "ok": true
+ }
+]
