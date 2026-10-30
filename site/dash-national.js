@@ -194,7 +194,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
         Expected seats: each race counted at the market's chance.</p>
       ${ctl.markets.length || sen.control_p_corr != null ? `<p>Chance the Democrats control the Senate: ${ctl.markets.map((c) => `<span class="${c.platform === "kalshi" ? "kx" : "k"}">${num(c.now)}</span> ${c.platform === "kalshi" ? "Kalshi" : `Polymarket${c.slug && st.live.has(`ctl:${c.slug}`) ? " now" : ""}`}`).join(" · ")}${sen.control_p_corr != null ? `${ctl.markets.length ? " · " : ""}<span class="m" title="${esc(sen.control_note ?? "")}">${num(sen.control_p_corr)}</span> model with polls, poll errors correlated across states${sen.control_p_indep != null ? ` (${num(sen.control_p_indep)} if independent)` : ""}` : ""}</p>
         <div class="nat-ctl-chart"></div><p class="note">The last 14 days: <span class="k">Polymarket</span>, <span class="kx">Kalshi</span>.</p>` : ""}` : "";
-    summary.innerHTML = `<p class="ro-head"><span class="ro-at"><b>${office}</b> races this year</span><span class="ro-race">chance the Democratic side wins</span></p>
+    summary.innerHTML = `<p class="nat-prompt">Pick a race on the map or in the list to see its model, polls and markets.</p><p class="ro-head"><span class="ro-at"><b>${office}</b> races this year</span><span class="ro-race">chance the Democratic side wins</span></p>
       ${ctlHTML}
       <h3 class="tab-h">${office} races (${rows.length})</h3>
       <table class="races nat-races"><thead><tr>${cols.map(([k, l]) => `<th class="${k === "state" || k === "inc" ? "" : "n"}" aria-sort="${key === k ? (dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${l}</button></th>`).join("")}</tr></thead>

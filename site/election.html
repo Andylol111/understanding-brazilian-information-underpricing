@@ -9,7 +9,7 @@
      a failed load adds a fresh ?_r stamp, which refetches all of it. -->
 <link id="page-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261030a";
+window.__BUILD = "20261030b";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 (() => {
@@ -82,6 +82,7 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
   <section class="panel p-timeline" aria-label="Race timeline">
     <div class="tl-head">
       <label class="select"><span>Race</span> <select id="race"></select></label>
+      <div class="toggle tl-view" id="tl-range" role="group" aria-label="Time range" hidden></div>
       <div class="toggle tl-view" id="tl-view" role="group" aria-label="Chart" hidden></div>
       <details class="tl-help"><summary title="About this chart" aria-label="About this chart">?</summary><p class="note" id="tl-note"></p></details>
     </div>

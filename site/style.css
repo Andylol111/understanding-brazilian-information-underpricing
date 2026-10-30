@@ -578,6 +578,7 @@ td.sched.pre { padding-top: 6px; }
   .dash.nat-on .p-summary { grid-area: auto; grid-column: 2; grid-row: 2 / 6; border-left: 1px solid var(--ink); }
 }
 .p-summary .tab-h:first-of-type { margin-top: 10px; }
+.nat-prompt { font: 600 14px/1.5 var(--sans); margin: 0 0 8px; }
 .nat-sum-ctl { font: 14px/1.5 var(--sans); margin: 0 0 6px; }
 .p-summary > p { font: 13.5px/1.5 var(--sans); }
 .nat-ctl-chart svg { display: block; width: 100%; height: auto; }
