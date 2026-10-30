@@ -1,0 +1,64 @@
+# US midterms 2026-11-03, Texas Senate: model v5 (SECONDARY; the primary stays us2026_tx_sen_v3).
+# Identical to us2026_tx_sen_v3.toml (sha256 c310ca6dff7f78aeba8b317e9d354fe2a6dac759f81d22bf739183b14676d601) except the night Hispanic slope: a county's expected swing is
+# the state swing + beta*(its Hispanic share - the state's expected-vote mean), with beta estimated from the
+# night's own counted counties (vote-weighted least squares, Normal(0, hisp_slope_tau^2) prior shrinking it
+# to 0 when few counties have reported) and its uncertainty added to the margin variance. The slope is never
+# carried over from earlier cycles (it changes sign). Hispanic share: Census ACS 2020-24 B03003.
+# Backtest and choice of hisp_slope_tau: docs/us_hisp_slope.md.
+id = "us2026_tx_sen_v5"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "tx-sen"
+name = "Texas Senate"
+state = "tx"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "tx"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "James Talarico", color = "#1f5fbf" }
+b = { party = "REP", name = "Ken Paxton", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "tx_sen_2024"        # 2024 Senate (Allred v Cruz): same office, most recent
+votes = "tx_gov_2022"        # 2022 governor two-party votes (TX had no 2022 Senate race)
+poll_avg = 0.5126           # two-party Dem share, weighted average of 17 polls
+poll_sd = 0.0393            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 17
+poll_last = "2026-10-21"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.6255        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays, vote_type on (analysis/us_calibrate.py)
+tau = 0.04
+rho = 0.6
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0540   # poll_avg - prior statewide share 0.4586 (V-weighted, data_public/us2026_priors.csv)
+swing_prior_sd = 0.0228      # historical RMSE of a poll average with 17 polls (brunder.us.POLL_SD_BINS)
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+hisp_slope = true               # night Hispanic slope (brunder.nowcast): swing = state swing + beta*(h - state h)
+hisp_slope_tau = 0.2           # prior sd of beta, chosen on backtests before 2026 (docs/us_hisp_slope.md)
+
+[count]                    # brunder.us.CountRules
+# TX counts early in-person and mail ballots first and nearly everything on election night: once every
+# polling place in a county reported, 98% of its vote is assumed in; those counties re-scale the
+# expected vote of the rest (learned turnout).
+# vote_type: counties split into early+mail and Election Day units (the feed reports early votes);
+# early_share = 0.6 (assumption: no TX county vote-type history in the sources used).
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = true
+early_share = 0.6
+hisp_share = "data_public/us2026_hispanic_share.csv"   # county Hispanic share, ACS 2020-24 B03003
+
+[markets.polymarket]
+event = "texas-senate-election-winner"
+market = "will-the-democrats-win-the-texas-senate-race-in-2026"
+question = "Will the Democrats win the Texas Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

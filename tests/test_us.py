@@ -1011,6 +1011,43 @@ def test_swing_prior_off_matches_previous_model():
         (0.8983338861717141, 1279060.706500724, 0.5358053444298526), rel=1e-9, abs=1e-15)
 
 
+def _golden_values() -> dict[str, list[float]]:
+    """project() on a synthetic half-counted night for every registered race config: (p_win, margin_sd, share_hat,
+    raw, rem_total and the sum of the per-county projections). Counties report 0-100 % with an early + mail part,
+    a third of them with all precincts in."""
+    import zlib
+    out = {}
+    for path in sorted((ROOT / "configs").glob("us2026_*_v*.toml")):
+        cfg = us.load_config(path)
+        rng = np.random.default_rng(zlib.crc32(cfg["id"].encode()))
+        c = us.counties(cfg["election"]["state"])
+        pri = pd.DataFrame({"unit_id": c["unit_id"], "name": c["name"], "s0": rng.uniform(0.3, 0.75, len(c)),
+                            "V": rng.integers(2_000, 300_000, len(c)).astype(float)})
+        frac = np.where(rng.uniform(size=len(pri)) < 0.6, rng.uniform(0.1, 1.0, len(pri)), 0.0)
+        share = np.clip(pri["s0"].to_numpy() - 0.03 + rng.normal(0, 0.03, len(pri)), 0, 1)
+        done = rng.uniform(size=len(pri)) < 0.33
+        rows = _rows(pri, share, frac)
+        n = rows["votes"].to_numpy()
+        rows["early"] = 0.55 * n
+        rows["reporting"] = np.where(np.tile(done, 2), 10.0, 5.0)
+        rows["race"] = cfg["election"]["race"]
+        res, units = us.project(rows, cfg, pri)
+        out[cfg["id"]] = [res["p_win"], res["margin_sd"], res["share_hat"], res["raw"], res["rem_total"],
+                          float(units["proj"].sum())]
+    return out
+
+
+def test_hisp_slope_off_matches_previous_model_for_every_registered_config():
+    """Golden values (tests/fixtures/us_golden_off.json) written by the committed code before the optional Hispanic
+    slope existed, for every registered race config that does not turn the slope on. 1e-9 relative (last bits differ
+    between macOS and the Linux CI runners)."""
+    golden = json.loads((Path(__file__).parent / "fixtures" / "us_golden_off.json").read_text())
+    cur = {k: v for k, v in _golden_values().items() if k in golden}
+    assert set(cur) == set(golden) and len(golden) >= 70
+    for k, v in golden.items():
+        assert cur[k] == pytest.approx(v, rel=1e-9, abs=1e-12), k
+
+
 def test_v2_configs_only_change_the_prior():
     import hashlib
     import re as _re
@@ -1020,16 +1057,29 @@ def test_v2_configs_only_change_the_prior():
         n = int(p2.stem[-1])
         prev = p2.with_name(_re.sub(r"_v\d\.toml$", f"_v{n - 1}.toml", p2.name))
         head = "".join(line for line in p2.read_text().splitlines() if line.startswith("#"))
-        assert hashlib.sha256(prev.read_bytes()).hexdigest()[:16] in head        # cites the version it extends
+        hisp = "hisp_slope" in c2["model"]
+        if hisp:        # v5 / v6 extend the race's primary poll model (not necessarily the version just before them)
+            bases = [q for q in p2.parent.glob(_re.sub(r"_v\d\.toml$", "_v*.toml", p2.name)) if q != p2
+                     and hashlib.sha256(q.read_bytes()).hexdigest()[:16] in head]
+            assert len(bases) == 1 and c2["role"] == "secondary" and (ROOT / c2["count"]["hisp_share"]).exists()
+            cb = us.load_config(bases[0])
+            assert {k: v for k, v in c2["model"].items() if not k.startswith("hisp")} == {
+                k: v for k, v in cb["model"].items()}
+            assert {k: v for k, v in c2["count"].items() if k != "hisp_share"} == cb["count"]
+            assert c2["prior"] == cb["prior"] and 0 < c2["model"]["hisp_slope_tau"] <= 2
+            assert 0 < c2["model"].get("hisp_blend", 0.5) < 1
+        else:
+            assert hashlib.sha256(prev.read_bytes()).hexdigest()[:16] in head    # cites the version it extends
         assert c2["id"] == c1["id"][:-3] + p2.stem[-3:]
         for k in ("election", "markets"):
             assert c2[k] == c1[k], (p2.name, k)
         assert {k: c2["count"][k] for k in c1["count"]} == c1["count"]
-        assert set(c2["count"]) - set(c1["count"]) <= {"expected_votes", "expected_votes_level"}
+        assert set(c2["count"]) - set(c1["count"]) <= {"expected_votes", "expected_votes_level", "hisp_share"}
         if c2["count"].get("expected_votes"):                       # v4 / Ohio v5: secondary, file in the repo
             assert c2.get("role") == "secondary" and (ROOT / c2["count"]["expected_votes"]).exists()
         assert {k: c2["model"][k] for k in c1["model"]} == c1["model"]
-        assert set(c2["model"]) - set(c1["model"]) <= {"swing_prior_mean", "swing_prior_sd", "count_scaled_terms"}
+        assert set(c2["model"]) - set(c1["model"]) <= {"swing_prior_mean", "swing_prior_sd", "count_scaled_terms",
+                                                         "hisp_slope", "hisp_slope_tau", "hisp_blend"}
         extra = set(c2["prior"]) - set(c1["prior"])
         assert {k: c2["prior"][k] for k in c1["prior"]} == c1["prior"] and extra <= {
             "poll_avg", "poll_sd", "poll_n", "poll_last", "poll_asof", "poll_p_win"}
@@ -1447,3 +1497,97 @@ def test_meta_names_each_race_baseline():
     by = {r["race_id"]: r["baseline"] for r in m["races"]}
     assert by["ga-gov"] == "2022 governor (certified)" and by["tx-sen"] == "2024 Senate (certified)"
     assert m["baseline_estimate"] == "2024 president (certified)"
+
+
+# ------------------------------------------------------------------ v5: night Hispanic slope, v6: v3/v5 mixture
+
+def _slope_world(slope: float, seed=3, n=80):
+    """A state whose county swing is 0.02 + slope·(h − h̄) + noise; the low-h half of the counties has reported."""
+    rng = np.random.default_rng(seed)
+    prior = pd.DataFrame({"uf": "tx", "cd_mun": [f"c{i}" for i in range(n)], "s0": rng.uniform(0.35, 0.65, n),
+                          "V0": rng.integers(5_000, 60_000, n).astype(float), "h": rng.uniform(0.0, 0.9, n)})
+    hbar = np.average(prior["h"], weights=prior["V0"])
+    final = (prior["s0"] + 0.02 + slope * (prior["h"] - hbar) + rng.normal(0, 0.01, n)).clip(0.02, 0.98)
+    order = prior["h"].argsort().to_numpy()
+    f = np.zeros(n)
+    f[order[: int(0.45 * n)]] = 1.0
+    nv = prior["V0"] * f
+    state = pd.DataFrame({"uf": "tx", "cd_mun": prior["cd_mun"], "n": nv, "a": nv * final, "f": f})
+    truth = float((prior["V0"] * (2 * final - 1)).sum())
+    return state, prior, truth
+
+
+def test_hisp_slope_recovers_planted_slope_and_corrects_composition_bias():
+    from brunder import nowcast
+    state, prior, truth = _slope_world(0.30)
+    base = dict(tau=0.02, rho=0.3, sigma_mun0=0.03, swing_prior_mean=0.0, swing_prior_sd=0.03, count_scaled_terms=True)
+    r3 = nowcast.nowcast(state, prior, nowcast.Params(**base))
+    r5 = nowcast.nowcast(state, prior, nowcast.Params(**base, hisp_slope=True, hisp_slope_tau=0.5))
+    assert 0.2 < r5["hisp_beta"] < 0.4 and r5["hisp_beta_sd"] < 0.1
+    assert abs(r5["margin_hat"] - truth) < 0.4 * abs(r3["margin_hat"] - truth)       # v3 misses the Hispanic-heavy half
+    assert r5["margin_sd"] > 0 and r5["hisp_margin_sd"] > 0
+
+
+def test_hisp_slope_shrinks_to_v3_when_there_is_no_slope_or_no_information():
+    from brunder import nowcast
+    base = dict(tau=0.02, rho=0.3, sigma_mun0=0.03, swing_prior_mean=0.0, swing_prior_sd=0.03, count_scaled_terms=True)
+    on = nowcast.Params(**base, hisp_slope=True, hisp_slope_tau=0.3)
+    state, prior, truth = _slope_world(0.0)
+    r3, r5 = nowcast.nowcast(state, prior, nowcast.Params(**base)), nowcast.nowcast(state, prior, on)
+    assert abs(r5["hisp_beta"]) < 0.1 and abs(r5["margin_hat"] - r3["margin_hat"]) < 0.25 * abs(r3["margin_sd"])
+    # nothing counted: no slope information, and the margin variance carries no Hispanic term (counted mix = state mix)
+    pre = state.assign(n=0.0, a=0.0, f=0.0)
+    p3, p5 = nowcast.nowcast(pre, prior, nowcast.Params(**base)), nowcast.nowcast(pre, prior, on)
+    assert p5["hisp_beta"] == 0.0 and p5["margin_hat"] == pytest.approx(p3["margin_hat"], rel=1e-12)
+    assert p5["margin_sd"] == pytest.approx(p3["margin_sd"], rel=1e-9)
+    # two counted counties only: β stays near 0 however steep their pair is
+    two = state.assign(n=0.0, a=0.0, f=0.0)
+    for i in (0, 1):
+        two.loc[i, ["n", "a", "f"]] = [prior["V0"].iat[i], prior["V0"].iat[i] * (0.5 + 0.4 * i), 1.0]
+    assert abs(nowcast.nowcast(two, prior, on)["hisp_beta"]) < 0.05
+
+
+def test_hisp_blend_is_the_mixture_of_v3_and_v5():
+    from brunder import nowcast
+    from scipy.stats import norm
+    state, prior, _ = _slope_world(0.30)
+    base = dict(tau=0.02, rho=0.3, sigma_mun0=0.03, swing_prior_mean=0.0, swing_prior_sd=0.03, count_scaled_terms=True)
+    r3 = nowcast.nowcast(state, prior, nowcast.Params(**base))
+    r5 = nowcast.nowcast(state, prior, nowcast.Params(**base, hisp_slope=True, hisp_slope_tau=0.5))
+    rb = nowcast.nowcast(state, prior, nowcast.Params(**base, hisp_slope_tau=0.5, hisp_blend=0.25))
+    m = 0.25 * r5["margin_hat"] + 0.75 * r3["margin_hat"]
+    assert rb["margin_hat"] == pytest.approx(m) and rb["p_win"] == pytest.approx(0.25 * r5["p_win"] + 0.75 * r3["p_win"])
+    var = 0.25 * r5["margin_sd"] ** 2 + 0.75 * r3["margin_sd"] ** 2 + 0.25 * 0.75 * (r5["margin_hat"] - r3["margin_hat"]) ** 2
+    assert rb["margin_sd"] == pytest.approx(np.sqrt(var)) and rb["share_sd"] < r3["share_sd"] * 10
+    assert rb["p_win_v3"] == r3["p_win"] and rb["p_win_v5"] == r5["p_win"]
+    assert min(r3["p_win"], r5["p_win"]) <= rb["p_win"] <= max(r3["p_win"], r5["p_win"])
+    assert norm.cdf(1) > 0
+
+
+def test_project_reads_hisp_share_file_and_slope_changes_only_the_projection(tmp_path):
+    pri = _pri(2)
+    h = np.linspace(0.02, 0.9, len(pri))
+    csv_ = tmp_path / "hisp.csv"
+    pd.DataFrame({"unit_id": pri["unit_id"], "hisp": h}).to_csv(csv_, index=False)
+    cfg = _cfg()
+    cfg["count"] = {**cfg["count"], "hisp_share": str(csv_)}
+    cfg["model"] = {**cfg["model"], "hisp_slope": True, "hisp_slope_tau": 0.5}
+    order = np.argsort(h)
+    frac = np.zeros(len(pri))
+    frac[order[: len(pri) // 2]] = 0.8
+    truth = np.clip(pri["s0"].to_numpy() - 0.02 + 0.25 * (h - h.mean()), 0, 1)
+    rows = _rows(pri, truth, frac)
+    res, units = us.project(rows, cfg, pri)
+    off = {**cfg, "model": {k: v for k, v in cfg["model"].items() if not k.startswith("hisp")}}
+    res0, units0 = us.project(rows, off, pri)
+    assert res["hisp_beta"] > 0.05 and "hisp_beta" not in res0
+    assert res["raw"] == res0["raw"] and not np.allclose(units["proj"], units0["proj"])
+    final = (pri["V"] * truth).sum() / pri["V"].sum()
+    assert abs(res["share_hat"] - final) < abs(res0["share_hat"] - final)
+    blend = {**cfg, "model": {**cfg["model"], "hisp_blend": 0.5}}
+    rb, ub = us.project(rows, blend, pri)
+    assert rb["share_hat"] == pytest.approx(0.5 * (res["share_hat"] + res0["share_hat"]), rel=1e-9)
+    assert np.allclose(ub["proj"], 0.5 * (units["proj"] + units0["proj"]), equal_nan=True)
+    del blend["count"]["hisp_share"]
+    with pytest.raises(ValueError, match="hisp_share"):
+        us.project(rows, blend, pri)
