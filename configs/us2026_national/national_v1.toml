@@ -1,0 +1,41 @@
+# US midterms 2026-11-03: national election-night estimate, v1 (brunder.us_national, docs/us_national.md).
+# Not a per-race model: it pools the count signals of every live race into a national / region / state deviation from the
+# pre-count priors and propagates it to all 35 Senate races and 435 House districts (joint simulation, control and
+# balance-of-power probabilities). Variance components: docs/us_poll_error.md (REML 2002-2022). The values under
+# [model] sd_house_env, house_c_load, house_sd and huber_k were set on the 2018 and 2020 replays only (analysis/us_national_backtest.py, grid in
+# docs/us_national.md; meas_inflate and sd_common stayed at their structural values)
+# and are frozen before polls close; the integrator registers it (prereg/registry.jsonl).
+id = "us2026_national_v1"
+
+[election]
+eid = "us2026"
+name = "US 2026 national: Senate and House control"
+
+[sources]                           # files of site/data/us2026/ written by the other live processes (read only)
+overview_json = "overview.json"
+districts_json = "house/districts.json"
+senate_timeline_json = "timeline_tail.json"          # brunder us live: latest row per race (count-only share/sd)
+house_timeline_json = "house_live/timeline_tail.json" # python -m brunder.us_house_night live
+config_dir = "configs"                               # registered Senate/governor configs (which version is a race's own model)
+
+[model]                              # brunder.us_national.Params, share units (0.0134 = 1.34 points)
+sd_common = 0.0134
+sd_region = 0.0041
+sd_state = 0.0203
+sd_house_env = 0.0125           # tuned on 2018+2020 (docs/us_national.md); structural prior was 0.0375
+house_c_load = 0.0              # tuned on 2018+2020: House districts do not load on the Senate/governor poll miss c (structural: 1)
+house_sd = 0.08                 # tuned on 2018+2020: prior sd of a district's final share (districts.json says 0.052)
+state_load_house = 0.74
+sd_unpolled = 0.06
+sd_floor = 0.01
+meas_inflate = 1.0
+huber_k = 3.0                   # robust weights (tuned on 2018+2020): a race > 3 sd off the fitted factors is down-weighted
+meas_floor = 0.0
+min_counted = 0.0
+n_sim = 20000
+seed = 2026
+senate_need = 51
+house_need = 218
+
+[live]
+interval = 60
