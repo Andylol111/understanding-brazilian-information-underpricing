@@ -326,11 +326,113 @@ class Settings:
     incumbent_bonus: float = 1.20
     lock_fraction: float = 0.85
     draws: int = 4000
+    # ---- v3 options; every default is "off", so configs that set none of them (v1/v2) draw bit-identical samples.
+    count_log_sd: float = 0.0       # > 0 replaces party_log_sd*sqrt(1-f) by sqrt(floor^2+special^2+(count*(1-f)^exp)^2)
+    count_exp: float = 0.5
+    special_log_sd: float = 0.0     # log-share uncertainty of the not-yet-counted special/overseas votes
+    special_cand_sd: float = 0.0    # same, per electorate, on candidate scores (added in quadrature)
+    error_df: float = 0.0           # > 2: Student-t party-vote errors, scaled to unit variance
+    bloc_log_sd: float = 0.0        # common left-versus-right log-share error, shared by the parties of each bloc
+    bloc_left: tuple = ("LAB", "GP", "TPMAO")
+    poll_shares: dict | None = None     # party key -> poll-average share (fraction); tilts the electorate prior
+    special_shift: dict | None = None   # party key -> log(final / election-night share) expected from special votes
+    advance_shrink: float = 0.0     # > 0: weight on the previous election's per-electorate advance-vs-election-day gaps
+    advance_file: str | None = None     # CSV of the previous election's advance / election-day votes by electorate
 
 
 def settings(cfg: dict) -> Settings:
     m = cfg.get("model", {})
-    return Settings(**{f.name: m[f.name] for f in fields(Settings) if f.name in m})
+    kw = {f.name: m[f.name] for f in fields(Settings) if f.name in m}
+    if "bloc_left" in kw:
+        kw["bloc_left"] = tuple(kw["bloc_left"])
+    if cfg.get("poll"):
+        kw["poll_shares"] = {k: float(v) for k, v in cfg["poll"].items() if isinstance(v, (int, float))}
+    if cfg.get("special"):
+        kw["special_shift"] = {k: float(v) for k, v in cfg["special"].items() if isinstance(v, (int, float))}
+    if cfg.get("advance", {}).get("file"):
+        kw["advance_file"] = str(ROOT_DIR / cfg["advance"]["file"])
+    return Settings(**kw)
+
+
+@dataclass(frozen=True)
+class AdvanceProfile:
+    """Per-electorate shape of the election-night count: advance voting places report first and hold most of the vote.
+
+    ``alpha``: advance share of ordinary votes; ``place_frac``: advance share of ordinary voting places;
+    ``dev``: log(advance/election-day share) of each party in the electorate minus the same log-ratio nationally."""
+    alpha: np.ndarray
+    place_frac: np.ndarray
+    dev: np.ndarray
+
+
+def advance_profile(names: list[str], table: pd.DataFrame, parties: list[str], smooth: float = 300.0) -> AdvanceProfile:
+    """Build the profile for electorates ``names`` from a previous-election table.
+
+    ``table`` is indexed by electorate name with columns ``adv_places``, ``ed_places`` and per party ``adv_<KEY>``,
+    ``ed_<KEY>`` (party-vote counts).  Electorates absent from the table get the national average and no gap."""
+    A = np.column_stack([table.get(f"adv_{p}", pd.Series(0.0, index=table.index)).to_numpy(float) for p in parties])
+    D = np.column_stack([table.get(f"ed_{p}", pd.Series(0.0, index=table.index)).to_numpy(float) for p in parties])
+    nA, nD = A.sum(0) / A.sum(), D.sum(0) / D.sum()
+    a = (A + smooth * nA) / (A.sum(1, keepdims=True) + smooth)
+    d = (D + smooth * nD) / (D.sum(1, keepdims=True) + smooth)
+    gap = np.log(np.maximum(a, 1e-9) / np.maximum(d, 1e-9)) - np.log(np.maximum(nA, 1e-9) / np.maximum(nD, 1e-9))[None, :]
+    gap = np.clip(np.where((nA > 0) & (nD > 0), gap, 0.0), -0.6, 0.6)
+    alpha = A.sum(1) / np.maximum(A.sum(1) + D.sum(1), 1)
+    pf = table["adv_places"].to_numpy(float) / np.maximum(table["adv_places"].to_numpy(float) + table["ed_places"].to_numpy(float), 1)
+    row = {n: i for i, n in enumerate(table.index)}
+    n_alpha, n_pf = A.sum() / (A.sum() + D.sum()), table["adv_places"].sum() / (table["adv_places"].sum() + table["ed_places"].sum())
+    out_a, out_p, out_d = np.full(len(names), n_alpha), np.full(len(names), n_pf), np.zeros((len(names), len(parties)))
+    for i, n in enumerate(names):
+        j = row.get(CROSSWALK.get(n, n), row.get(n))
+        if j is not None:
+            out_a[i], out_p[i], out_d[i] = alpha[j], pf[j], gap[j]
+    return AdvanceProfile(np.clip(out_a, .05, .95), np.clip(out_p, .05, .95), out_d)
+
+
+def load_advance_table(path: Path | str) -> pd.DataFrame:
+    return pd.read_csv(path, comment="#").set_index("electorate")
+
+
+def _advance_split(prior_s: np.ndarray, prof: AdvanceProfile, shrink: float) -> tuple[np.ndarray, np.ndarray]:
+    """Split each electorate's overall composition into its advance and election-day compositions, so that
+    alpha*advance + (1-alpha)*election-day = overall and advance/election-day = exp(shrink*dev) up to normalisation."""
+    u = np.exp(shrink * prof.dev)
+    al = prof.alpha[:, None]
+    d = prior_s.copy()
+    for _ in range(6):
+        k = 1.0 / np.maximum((d * u).sum(1, keepdims=True), 1e-12)
+        d = prior_s / (al * k * u + 1 - al)
+        d /= d.sum(1, keepdims=True)
+    a = d * u
+    a /= a.sum(1, keepdims=True)
+    return a, d
+
+
+def tilt_to_poll(prior_s: np.ndarray, V: np.ndarray, parties: list[str], poll: dict,
+                 shift: dict | None = None) -> np.ndarray:
+    """Rescale every electorate's prior composition so the V-weighted national prior equals the poll average.
+
+    Polls estimate the FINAL party-vote shares, but the count that updates this prior is the ordinary (election-night)
+    vote, so when ``shift`` (log final/night share per party) is given the target is moved to the night scale.
+    Parties without a poll entry share what the poll leaves over, in proportion to their prior national share."""
+    ix = {p: i for i, p in enumerate(parties)}
+    bad = sorted(set(poll) - set(ix))
+    if bad:
+        raise ValueError(f"poll shares for unknown parties: {bad}")
+    target, listed = np.zeros(len(parties)), np.zeros(len(parties), bool)
+    for k, v in poll.items():
+        target[ix[k]], listed[ix[k]] = v, True
+    nat = (V[:, None] * prior_s).sum(0) / V.sum()
+    target[~listed] = max(1.0 - target.sum(), 0.002) * nat[~listed] / nat[~listed].sum()
+    if shift:
+        target = target * np.exp(-np.array([shift.get(k, 0.0) for k in parties]))
+    target /= target.sum()
+    s = prior_s.copy()
+    for _ in range(25):
+        cur = (V[:, None] * s).sum(0) / V.sum()
+        s = s * (target / np.maximum(cur, 1e-12))[None, :]
+        s /= s.sum(1, keepdims=True)
+    return s
 
 
 @dataclass
@@ -345,11 +447,11 @@ class Projection:
     expected_total: float
 
 
-def empty_counts(units: pd.DataFrame) -> pd.DataFrame:
+def empty_counts(units: pd.DataFrame, parties: list[str] | None = None) -> pd.DataFrame:
     d = pd.DataFrame(index=units.index)
     for c in ("f", "places", "places_total", "valid"):
         d[c] = 0.0
-    for p in (*PARTY_KEYS, "IND"):
+    for p in (*(PARTY_KEYS if parties is None else parties), "IND"):
         if p != "IND":
             d[f"pv_{p}"] = 0.0
         d[f"cv_{p}"] = 0.0
@@ -372,8 +474,9 @@ def counts_frame(items: list[ElectorateCount], units: pd.DataFrame) -> pd.DataFr
     return d
 
 
-def project(units: pd.DataFrame, count: pd.DataFrame, st: Settings) -> Projection:
-    parties = list(PARTY_KEYS)
+def project(units: pd.DataFrame, count: pd.DataFrame, st: Settings, parties: list[str] | None = None,
+            advance: AdvanceProfile | None = None) -> Projection:
+    parties = list(PARTY_KEYS if parties is None else parties)
     U, C = units.reindex(count.index), count.reindex(units.index).fillna(0.0)
     prior_s = U[parties].to_numpy(float, copy=True)
     # New 2026 parties have no 2023 column. A tiny symmetric seed keeps the multiplicative transition
@@ -381,13 +484,27 @@ def project(units: pd.DataFrame, count: pd.DataFrame, st: Settings) -> Projectio
     prior_s = np.maximum(prior_s, 1e-6)
     prior_s /= np.maximum(prior_s.sum(1, keepdims=True), 1e-12)
     V = U["V"].to_numpy(float)
+    if st.poll_shares:
+        prior_s = tilt_to_poll(prior_s, V, parties, st.poll_shares, st.special_shift)
     f = np.clip(C["f"].to_numpy(float), 0, 1)
     cv = C[[f"pv_{p}" for p in parties]].to_numpy(float)
     valid = cv.sum(1)
-    expected_in = f * V
+    split = advance is not None and st.advance_shrink > 0
+    if split:
+        # Advance voting places report first and carry most of the vote: ``f`` (places counted) is turned into the
+        # advance and election-day vote fractions counted, and the counted / remaining compositions differ by the
+        # previous election's per-electorate advance-vs-election-day gap.
+        a_c, d_c = _advance_split(prior_s, advance, st.advance_shrink)
+        c_adv = advance.alpha * np.minimum(f / advance.place_frac, 1.0)
+        c_ed = (1 - advance.alpha) * np.clip((f - advance.place_frac) / (1 - advance.place_frac), 0.0, 1.0)
+        g = c_adv + c_ed
+        expected_in = g * V
+    else:
+        expected_in = f * V
     growth = (valid.sum() + st.growth_votes) / (expected_in.sum() + st.growth_votes)
     prior_nat_votes = (V[:, None] * prior_s).sum(0)
-    expected_party_in = (expected_in[:, None] * prior_s).sum(0)
+    expected_party_in = ((V[:, None] * (c_adv[:, None] * a_c + c_ed[:, None] * d_c)).sum(0) if split
+                         else (expected_in[:, None] * prior_s).sum(0))
     observed = cv.sum(0)
     ratio = (observed + st.prior_votes * prior_nat_votes / prior_nat_votes.sum()) / (
         expected_party_in + st.prior_votes * prior_nat_votes / prior_nat_votes.sum())
@@ -395,10 +512,21 @@ def project(units: pd.DataFrame, count: pd.DataFrame, st: Settings) -> Projectio
     pred = prior_s * ratio[None, :]
     pred /= np.maximum(pred.sum(1, keepdims=True), 1e-12)
     own = np.divide(cv, valid[:, None], out=np.zeros_like(cv), where=valid[:, None] > 0)
+    if split:
+        in_c = c_adv[:, None] * a_c + c_ed[:, None] * d_c
+        ec = np.where(g[:, None] > 0, in_c / np.maximum(in_c.sum(1, keepdims=True), 1e-12), prior_s)
+        r_adv, r_ed = advance.alpha - c_adv, (1 - advance.alpha) - c_ed
+        in_r = r_adv[:, None] * a_c + r_ed[:, None] * d_c
+        er = np.where((1 - g)[:, None] > 1e-9, in_r / np.maximum(in_r.sum(1, keepdims=True), 1e-12), prior_s)
+        own = own * prior_s / np.maximum(ec, 1e-12)            # remove the advance-heavy bias of the counted part
+        own /= np.maximum(own.sum(1, keepdims=True), 1e-12)
     w = valid / (valid + st.own_votes)
     comp = w[:, None] * own + (1 - w)[:, None] * pred
     comp /= np.maximum(comp.sum(1, keepdims=True), 1e-12)
-    rem_n = np.maximum((1 - f) * V * growth, 0)
+    if split:
+        comp = comp * er / prior_s                              # the not-yet-counted part is election-day-heavy
+        comp /= np.maximum(comp.sum(1, keepdims=True), 1e-12)
+    rem_n = np.maximum(((1 - g) if split else (1 - f)) * V * growth, 0)
     rem = rem_n[:, None] * comp
     mean = observed + rem.sum(0)
     final_u = cv + rem
@@ -430,25 +558,48 @@ def project(units: pd.DataFrame, count: pd.DataFrame, st: Settings) -> Projectio
 
 def simulate(p: Projection, st: Settings, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
     base = p.mean / max(p.mean.sum(), 1)
-    sigma = st.floor_log_sd + st.party_log_sd * math.sqrt(max(0.0, 1 - p.counted_frac))
-    z = rng.standard_normal((st.draws, len(base))) * sigma
-    sh = np.exp(np.log(np.maximum(base, 1e-8))[None, :] + z)
+    K = len(base)
+    if st.count_log_sd > 0:
+        sigma = math.sqrt(st.floor_log_sd ** 2 + st.special_log_sd ** 2
+                          + (st.count_log_sd * max(0.0, 1 - p.counted_frac) ** st.count_exp) ** 2)
+    else:
+        sigma = st.floor_log_sd + st.party_log_sd * math.sqrt(max(0.0, 1 - p.counted_frac))
+    if st.error_df > 2:
+        z = rng.standard_t(st.error_df, (st.draws, K)) * math.sqrt((st.error_df - 2) / st.error_df) * sigma
+    else:
+        z = rng.standard_normal((st.draws, K)) * sigma
+    if st.bloc_log_sd > 0:
+        sign = np.array([1.0 if k in st.bloc_left else -1.0 for k in p.parties])
+        z = z + rng.standard_normal((st.draws, 1)) * st.bloc_log_sd * sign[None, :]
+    center = np.log(np.maximum(base, 1e-8))
+    shift = np.zeros(K + 1)
+    if st.special_shift:
+        shift[:K] = [st.special_shift.get(k, 0.0) for k in p.parties]
+        center = center + shift[:K]
+    sh = np.exp(center[None, :] + z)
     sh /= sh.sum(1, keepdims=True)
     votes = sh * p.expected_total
     ratio = sh / np.maximum(base[None, :], 1e-12)
     # The last candidate column is IND (including candidates whose party did not submit a list). It can win an
     # electorate but has no party-vote baseline and is excluded from party market rankings.
-    seats = np.zeros((st.draws, len(base) + 1), dtype=np.int64)
+    seats = np.zeros((st.draws, K + 1), dtype=np.int64)
     for i, (_, u) in enumerate(p.unit.iterrows()):
         party_score = p.unit_shares[i][None, :] * ratio
         score = np.column_stack([party_score, np.zeros(st.draws)])
         f = float(u["f"])
         if p.candidate_shares[i].sum() > 0:
             blend = min(1.0, f / max(st.lock_fraction, 1e-9))
-            score = (1 - blend) * score + blend * p.candidate_shares[i][None, :]
+            cand = p.candidate_shares[i]
+            if st.special_shift:
+                cand = cand * np.exp(shift)
+                cand = cand / cand.sum()
+            score = (1 - blend) * score + blend * cand[None, :]
         elif u["winner"] in p.parties:
             score[:, p.parties.index(u["winner"])] *= 1 + (st.incumbent_bonus - 1) * (1 - f)
-        noise = st.candidate_log_sd * math.sqrt(max(0.0, 1 - f))
+        if st.count_log_sd > 0:
+            noise = math.sqrt(st.candidate_log_sd ** 2 * max(0.0, 1 - f) + st.special_cand_sd ** 2)
+        else:
+            noise = st.candidate_log_sd * math.sqrt(max(0.0, 1 - f))
         if noise:
             score *= np.exp(noise * rng.standard_normal(score.shape))
         win = score.argmax(1)
@@ -671,11 +822,18 @@ def units_object(units: pd.DataFrame, frames: list[dict], t: str) -> dict:
             "b": {"name": "Labour", "color": COLORS["LAB"]}, "frames": frames}
 
 
+def config_advance(st: Settings, units: pd.DataFrame) -> AdvanceProfile | None:
+    """The previous election's advance / election-day profile for ``units`` when the config asks for it."""
+    if st.advance_shrink > 0 and st.advance_file:
+        return advance_profile(list(units["name"]), load_advance_table(st.advance_file), list(PARTY_KEYS))
+    return None
+
+
 def _projection(cfg, refs, counts=None):
     parties, elect, _ = refs
     units = prior_units(elect)
     c = empty_counts(units) if counts is None else counts
-    p = project(units, c, settings(cfg))
+    p = project(units, c, settings(cfg), advance=config_advance(settings(cfg), units))
     rng = np.random.default_rng(int(cfg.get("seed", 20261107)))
     votes, _, seats = seat_draws(p, settings(cfg), rng)
     vals = outcomes(votes, seats, p.parties, cfg["markets"])
@@ -749,7 +907,8 @@ class Exporter:
             if b: items.append(parse_electorate(b, refs[0], refs[2]))
         key = tuple(sig)
         if key == self._sig: return self._result
-        units = prior_units(refs[1]); c = counts_frame(items, units); p = project(units, c, settings(self.cfg))
+        units = prior_units(refs[1]); c = counts_frame(items, units)
+        p = project(units, c, settings(self.cfg), advance=config_advance(settings(self.cfg), units))
         rng = np.random.default_rng(int(self.cfg.get("seed", 20261107)))
         votes, _, seats = seat_draws(p, settings(self.cfg), rng)
         probs = {k: float(v.mean()) for k, v in outcomes(votes, seats, p.parties, self.cfg["markets"]).items()}

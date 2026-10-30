@@ -3,7 +3,8 @@
 This is a **forward** election-night test. The registered v1 model is frozen in `configs/nz2026_v1.toml`;
 the complete v2 in `configs/nz2026_v2.toml` inherits the identical model, prior, feed and seed and adds only the
 second-/third-place seat-rank markets. Both must be committed and hash-registered by **2026-11-05 12:00 UTC**,
-before polls close. Election day is Saturday 7 November. Voting closes at
+before polls close. A draft v3 (`configs/nz2026_v3.toml`: honest seat tails, special-vote shift, poll prior) and its backtest are in
+`docs/newzealand_v3.md`. Election day is Saturday 7 November. Voting closes at
 **19:00 NZDT (UTC+13), 06:00 UTC**. The Electoral Commission's 2026 timetable gives the same local closing time
 and says preliminary results are released progressively from 19:00.
 

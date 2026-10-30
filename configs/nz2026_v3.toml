@@ -1,0 +1,55 @@
+# DRAFT 2026-10-30, before the 2026 count. Evidence label: FORWARD. Becomes registered when committed to prereg/registry.jsonl;
+# never edit after registration. Extends v2 (and through it v1): the market list is v2's, unchanged.
+#
+# What v3 changes (everything else -- prior, feed, seed, markets -- is inherited):
+#   (a) honest seat tails: party-vote error sd = sqrt(floor^2 + special^2 + (count_log_sd*(1-f)^count_exp)^2), Student-t(4),
+#       candidate-score noise = sqrt(candidate_log_sd^2*(1-f) + special_cand_sd^2).  count_log_sd/count_exp/special_cand_sd/
+#       candidate_log_sd/error_df were chosen by coordinate descent on the 2017 and 2020 night replays only
+#       (analysis/nz_v3_study.py select; objective = bracket log loss with a 92% party-seat coverage floor); 2023 is the test.
+#       special_log_sd = 0.03 is set by hand from the leave-one-election-out RMS of the special-vote shift (0.027) because
+#       the two-election search could not see a tail that wide.
+#   (b) [special]: log(final / election-night share) per party, mean of 2017, 2020 and 2023 official results (ordinary voting
+#       places vs all votes).  Markets settle on FINAL results, which include ~16-21% special votes counted after the night.
+#   (c) [poll]: mean party-vote poll of the final three weeks (analysis/nz_polls.py toml 2026-11-07), tilting the 2023
+#       electorate priors to the poll on the election-night scale.  Its weight fades as the count arrives (prior_votes) and
+#       its error (historical RMS 0.11 log share) is count_log_sd at nothing counted.
+#   (d) advance-vs-election-day gaps are implemented (advance_shrink, nz2023_advance_split.csv) but NOT adopted:
+#       advance_shrink = 0 (default), see docs/newzealand_v3.md.
+# No 2026 count data or market prices were used. Polls: 2026-10-17 .. 2026-10-26 (4 polls, Wikipedia CC BY-SA table in
+# data_public/nz_polls_2026.csv). Refresh with `uv run python analysis/nz_polls.py toml 2026-11-07 <as-of date>` before registering.
+extends = "nz2026_v2.toml"
+id = "nz2026_v3"
+
+[model]
+prior_votes = 50000.0
+own_votes = 2000.0
+growth_votes = 100000.0
+party_log_sd = 0.817        # unused once count_log_sd > 0
+floor_log_sd = 0.015
+candidate_log_sd = 0.15
+incumbent_bonus = 1.20
+lock_fraction = 0.85
+draws = 4000
+count_log_sd = 0.12         # party-vote log-share error with nothing counted (poll error scale)
+count_exp = 1.0             # error shrinks like (1-f)^1
+special_log_sd = 0.03       # error left in the special-vote shift
+special_cand_sd = 0.3       # electorate candidate-score noise from special votes, in quadrature
+error_df = 4.0              # Student-t errors
+
+[poll]
+ACT = 0.10625
+GP = 0.14900
+LAB = 0.28400
+NAT = 0.28325
+NZF = 0.09925
+OPP = 0.06475
+TPMAO = 0.01175
+
+[special]
+ACT = -0.0309
+GP = 0.0584
+LAB = 0.0155
+NAT = -0.0328
+NZF = -0.0467
+OPP = 0.0753
+TPMAO = 0.1311
