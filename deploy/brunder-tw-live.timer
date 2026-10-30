@@ -1,0 +1,10 @@
+[Unit]
+Description=Start Taiwan's Taipei live model 30 minutes before polls close
+
+[Timer]
+OnCalendar=2026-11-28 07:30:00 UTC
+Persistent=true
+Unit=brunder-tw-live.service
+
+[Install]
+WantedBy=timers.target

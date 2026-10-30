@@ -1,0 +1,115 @@
+# FROZEN 2026-10-30, before the Taipei mayoral count. Evidence label: FORWARD once registered.
+# Integrator: commit and hash-register this file before polls close at 2026-11-28T08:00:00Z.
+# Settings use only official 2014/2018/2022 results and public polls published before this freeze.
+# Do not edit after registration; later changes require a new versioned file.
+id = "tw2026_taipei_v1"
+seed = 20261128
+
+[election]
+eid = "tw2026_taipei"
+name = "Taiwan: Taipei mayoral election 2026"
+date = "2026-11-28"
+tz = "Asia/Taipei"
+poll_close_utc = "2026-11-28T08:00:00Z"
+
+[prior]
+year = 2022
+public_file = "data_public/tw_taipei_mayor_2014_2022.csv"
+# Huang Shan-shan's 2022 independent/TPP-aligned spatial profile is split using the public-poll evidence that
+# 75-88.5% of TPP identifiers supported Chiang and 16% supported Shen. Rounded, frozen transfer:
+tpp_to_kmt = 0.80
+
+[poll]
+# Average of two transparent October toplines: UDN (20-22/25 Oct, n=1,115: Shen 45, Chiang 41) and Taipei
+# Trust in Democracy/Beacon (14-16 Oct, n=1,075: Shen 50.3, Chiang 33.3). Their named-candidate ratio is
+# normalized to 98%; the four minor candidates receive 2% in their disclosed September proportions.
+source = "https://www.taiwannews.com.tw/en/news/6467763"
+secondary_source = "https://www.taipeitimes.com/News/taiwan/archives/2026/10/20/2003866309"
+
+[model]
+# own_votes and swing_votes minimize mean absolute candidate-share error on 2014->2018 simulated count orders.
+own_votes = 100.0
+swing_votes = 5000.0
+growth_votes = 100000.0
+# Smallest candidate-share sd with overall 90% interval coverage >=.90 in both random and small-stations-first
+# 2014->2018 replays (20 seeds/order): .996/.943. floor_sd avoids false certainty before certification.
+tau = 0.020
+floor_sd = 0.002
+# Pre-count poll error: conservative six-point candidate-share sd (larger than the 2018/2022 leading-candidate miss).
+precount_sd = 0.060
+draws = 20000
+
+[feed]
+# The official 2026 app is reachable at info.cec.gov.tw/vote2026. Its current static JSON exposes district/li
+# topology and polling-place/candidate search metadata, but no count result route yet. The recorder monitors the
+# app's historical CEC result-fragment convention under that base and accepts only pages that pass strict parsing.
+# Both mayor prefixes remain declared because the live route is unverified until CEC publishes count data.
+base = "https://info.cec.gov.tw/vote2026"
+metadata_url = "https://info.cec.gov.tw/vote2026/static/json/dist/63000_deptLi.json"
+prefixes = ["M1", "C1"]
+interval_seconds = 1200
+request_delay_seconds = 2.0
+
+[markets]
+polymarket_event = "taipei-mayor-election-winner-20260813125857100"
+kalshi_event = "KXTAIPEIMAYOR-26NOV28"
+
+[[candidates]]
+id = "chiang"
+name = "Chiang Wan-an"
+name_zh = "蔣萬安"
+profile = "KMT"
+prior_share = 0.4258
+color = "#000095"
+polymarket = "will-chiang-wan-an-win-the-next-taipei-mayor-election-20260813125857101"
+pm_token = "100205215067722297517595068937257697192973299370955287626157382353628199508318"
+kalshi = "KXTAIPEIMAYOR-26NOV28-CWAN"
+
+[[candidates]]
+id = "shen"
+name = "Puma Shen"
+name_zh = "沈伯洋"
+profile = "DPP"
+prior_share = 0.5542
+color = "#1B9431"
+polymarket = "will-puma-shen-win-the-next-taipei-mayor-election-20260813125857102"
+pm_token = "71621185653281721927174401118354054745399424014255544529977515442951477963801"
+kalshi = "KXTAIPEIMAYOR-26NOV28-SPY"
+
+[[candidates]]
+id = "kuo"
+name = "Kuo Hsi"
+name_zh = "郭璽"
+profile = "OTHER"
+prior_share = 0.0067
+color = "#8c6bb1"
+polymarket = "will-kuo-hsi-win-the-next-taipei-mayor-election-20260813125857103"
+pm_token = "83624824617807796418858828267382617938551022707456486446511299731216683633041"
+kalshi = "KXTAIPEIMAYOR-26NOV28-KHSI"
+
+[[candidates]]
+id = "tang"
+name = "Tang Hsin-min"
+name_zh = "唐新民"
+profile = "OTHER"
+prior_share = 0.0057
+color = "#d95f02"
+kalshi = "KXTAIPEIMAYOR-26NOV28-THM"
+
+[[candidates]]
+id = "hsiao"
+name = "Hsiao Wen-kan"
+name_zh = "蕭文乾"
+profile = "OTHER"
+prior_share = 0.0048
+color = "#7570b3"
+kalshi = "KXTAIPEIMAYOR-26NOV28-HWK"
+
+[[candidates]]
+id = "lin"
+name = "Lin Chih-cheng"
+name_zh = "林志成"
+profile = "OTHER"
+prior_share = 0.0028
+color = "#666666"
+kalshi = "KXTAIPEIMAYOR-26NOV28-LCC"

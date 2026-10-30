@@ -1,0 +1,10 @@
+[Unit]
+Description=Start Taiwan's Taipei CEC and market recorder two hours before polls close
+
+[Timer]
+OnCalendar=2026-11-28 06:00:00 UTC
+Persistent=true
+Unit=brunder-tw-record.service
+
+[Install]
+WantedBy=timers.target

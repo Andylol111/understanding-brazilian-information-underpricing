@@ -1,0 +1,16 @@
+# Reads the recorder archive only; never requests the CEC itself. See docs/taiwan.md.
+[Unit]
+Description=brunder live model: Taiwan — Taipei mayoral election 2026-11-28
+After=brunder-tw-record.service
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+Environment=BRUNDER_DATA=/home/brunder/brunder-data-local
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder taiwan live configs/tw2026_taipei_v1.toml --out /srv/brunder/repo/site/data --interval 60 --until 2026-11-28T14:00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=10
+CPUQuota=30%
+MemoryMax=1G

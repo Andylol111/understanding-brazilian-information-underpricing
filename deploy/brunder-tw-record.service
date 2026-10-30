@@ -1,0 +1,17 @@
+# Records official CEC li result fragments plus Polymarket and Kalshi books. See docs/taiwan.md.
+[Unit]
+Description=brunder recorder: Taiwan — Taipei mayoral election 2026-11-28
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+Environment=BRUNDER_DATA=/home/brunder/brunder-data-local
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder taiwan record configs/tw2026_taipei_v1.toml --interval 1200 --until 2026-11-28T14:00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=10
+CPUQuota=15%
+MemoryMax=512M
