@@ -953,6 +953,17 @@ registered `sc-*` / `oh-*` configs name them; every written config passed), IA, 
 prior and turnout ratio 1.0, the others use the 2024 president (`data_public/us2026_civic_priors.csv`, copied from the county
 baseline) and 0.72, as Ohio. CO has no polls (v2 = v1, no v3). Nothing is registered.
 
+**On the site** (`election.html?id=us2026`): the civicAPI process writes `civic/us2026/{meta,timeline,timeline_tail}.json` and
+`units/*.json` (the us2026 schema) beside the election's files (`<live>/civic/us2026/`; `site/data/civic/us2026/` once archived).
+The page reads them optionally: on the night (`&live=`) or once the phase is no longer `pre-count` (before the night the static
+page makes no request, so no 404 is logged; `&civic=1` asks for them anyway, for a preview), retrying with a growing wait while they
+are missing and picking them up mid-session when the process starts. Their races appear in the map's state list (group "County
+count, secondary source (civicAPI)"), the race selector and the Races tab, each named "… · secondary source (civicAPI)", with the
+readout's "Results: civicAPI (civicapi.org) (secondary source)" link and civicAPI in the Method & sources tab. They are kept out of
+`meta.races`, the registered timeline rows, the statistics, the Senate-control figures and the registered models' summaries (their
+rows only extend the time axis). A state with a registered race (OH, SC) keeps it as the default and gets the civic race as a chip
+("Governor (civicAPI)"); a state without one (MI, IA…) opens the civic race, replacing the overview's estimate-only entry of the same id.
+
 Candidate check against `data_public/us2026_races.json` (`us_civic.py check`): SC Senate "Darline Graham" is right (Lindsey
 Graham died in July 2026; his sister was appointed and won the Aug 25 special runoff: AP, NPR, Congress.gov, SC Election
 Commission audit files). CO Senate lists two primary losers (Powers, Apelbaum) beside Baisley: stale, no votes. Maine's
