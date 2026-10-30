@@ -308,7 +308,7 @@ async def audit_house(page: Page, shots: Path | None, tag: str) -> list[Row]:
     s = await page.evaluate(f"{A}.selection()")
     house_heads = await page.locator("#pane-races thead th").all_inner_texts()
     house_ids = await page.locator("#pane-races tbody tr").evaluate_all("(rs) => rs.slice(0, 3).map((r) => r.dataset.id)")
-    house_cols_ok = house_heads[:1] == ["District"] and all(c in house_heads for c in ("Polymarket", "Kalshi", "Polls", "Harris 2024")) and any("aseline" in c for c in house_heads)
+    house_cols_ok = house_heads[:1] == ["District"] and all(c in house_heads for c in ("Polymarket", "Kalshi", "Polls", "Our model", "Harris 2024", "Market − our model"))
     if s["selector"] != "house:MT-01" or "MT-01" not in s["chart"] or "MT-01" not in s["readout"] or "MT-01" not in s["tab"] or "race=house%3AMT-01" not in s["url"] or not house_cols_ok or house_ids[0] != "MT-01" or "House 2024R R+" in s["readout"]:
         sel_bad.append(f"Georgia Senate → MT-01: selector {s['selector']}, chart {s['chart'][:40]!r}, tab {s['tab'][:40]!r}, races {house_heads!r}/{house_ids!r}, url {s['url']}")
     await page.click("#tab-races")

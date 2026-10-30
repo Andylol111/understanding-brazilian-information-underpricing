@@ -114,7 +114,7 @@ export const EVIDENCE = {
   "pre-specified": { cls: "pre", text: "pre-specified", long: "model settings were frozen before this data was examined; the outcome was already known" },
   forward: { cls: "fwd", text: "forward", long: "model settings were frozen before the outcome existed" },
   "not-preregistered": { cls: "np", text: "not pre-registered", long: "settings were chosen on earlier elections and scored once, but were not frozen in the repository before scoring" },
-  "model-only": { cls: "mo", text: "model only", long: "no market prices to compare with" },
+  "model-only": { cls: "mo", text: "no market", long: "no market prices to compare with" },
   "market-only": { cls: "mo", text: "market only", long: "no count model was run: there is no official count over time to run it on. The page shows market prices over the night and the official final results" },
 };
 

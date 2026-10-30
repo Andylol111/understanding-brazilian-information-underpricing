@@ -215,6 +215,19 @@ async def check_page(
                     result.failures.append("race/national readout is empty")
                 if current["visiblePaths"] == 0 and not await canvas_has_drawing(page):
                     result.failures.append("map has neither visible SVG paths nor non-background canvas pixels")
+                if "id=us2026" in case.path:
+                    bad = await page.evaluate(
+                        """() => { const re = /baseline|model only|not a forecast|not traded|rough/i;
+                          const hits = new Set();
+                          for (const el of document.body.querySelectorAll('*')) {
+                            if (['SCRIPT', 'STYLE'].includes(el.tagName)) continue;
+                            const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(' ');
+                            for (const s of [own, el.getAttribute('title') || '', el.getAttribute('aria-label') || '']) { const m = s.match(re); if (m) hits.add(s.trim().slice(0, 80)); }
+                          }
+                          return [...hits]; }"""
+                    )
+                    if bad:
+                        result.failures.append(f"US page shows retired model labels: {bad[:3]}")
             if screenshots and viewport_name == "desktop" and (
                 (engine == "firefox" and case.name in {"index", "br2026r2gov"})
                 or (engine == "webkit" and case.name == "us2026")

@@ -29,9 +29,9 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   const margins = mm != null || row.margin_market != null || row.margin_polls != null;
   const mmSd = row.margin_v2 != null && row.sd_v2 != null ? 200 * row.sd_v2 : row.margin_model_sd;
   const mkt = row.margin_market ?? row.margin_market_kalshi ?? null, mktP = row.margin_market != null ? row.pm : row.kalshi;
-  const who = row.estimate ? "Estimate" : "Model";
+  const who = "Our model", whoTip = row.estimate ? "Estimate: 2024 county results shifted to the poll average" : "v3: poll average prior + county count (registered)";
   if (margins) {
-    chips.push(chip(`${who}${row.margin_v2 != null ? ", polls" : ""}`, marginText(mm), "m", mm != null && mmSd != null ? `± ${mmSd.toFixed(1)}` : "", "margin, Democratic minus Republican, points; ± one standard deviation"));
+    chips.push(chip(`${who}${row.margin_v2 != null ? ", polls" : ""}`, marginText(mm), "m", mm != null && mmSd != null ? `± ${mmSd.toFixed(1)}` : "", `${whoTip}. Margin, Democratic minus Republican, points; ± one standard deviation`));
     chips.push(chip("Polls", marginText(row.margin_polls)));
     chips.push(chip("Market-implied", marginText(mkt), "k", mkt != null ? `from ${num(mktP)}` : "", `the margin at which the model's uncertainty gives the ${row.margin_market != null ? "Polymarket" : "Kalshi"} price${row.margin_market_kalshi != null && row.margin_market != null ? `; Kalshi-implied ${marginText(row.margin_market_kalshi)}` : ""}`));
   } else {
@@ -41,8 +41,8 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   }
   // chances: the model (with polls where it has them), Polymarket, Kalshi
   const P = modelP(row), two = row.P_v2 != null && row.P != null;
-  const ch = [[P, "m", "model"], [row.pm, "k", "PM"], [row.kalshi, "kx", "Kalshi"]].filter(([v]) => v != null);
-  if (ch.length) chips.push(chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", "", `chance ${race.a.name} wins: ${P != null ? `${two ? "model with polls" : row.estimate ? "estimate" : "model"} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
+  const ch = [[P, "m", margins ? "our model" : "model"], [row.pm, "k", "PM"], [row.kalshi, "kx", "Kalshi"]].filter(([v]) => v != null);
+  if (ch.length) chips.push(chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", "", `chance ${race.a.name} wins: ${P != null ? `${margins ? "our model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
   if (row.rem_total > 0) {
     const lean = row.rem_margin_total;
     chips.push(chip("Votes left (est.)", `≈ ${votesShort(row.rem_total)}`, "", lean != null ? `lean ${esc(lean >= 0 ? race.a.name : race.b.name)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)}` : "", "the model's estimate of the votes still to count and how they lean"));

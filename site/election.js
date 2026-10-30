@@ -13,7 +13,7 @@ import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
-import { createOverlay, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, CENSUS } from "./dash-house.js";
+import { createOverlay, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, ourModelHTML, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { regionAgg, regionWinner, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
 
@@ -268,6 +268,7 @@ async function loadHouseLive() {
 // after a House read: the district's readout and chart, the House races and statistics
 function houseLiveShown() {
   if (houseShown()) { $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel)); drawChart(); }
+  S.ov?.resize(); // refresh the House map's registered-model colours and hover figures
   if (S.office === "house" && S.rows) {
     if (!$("pane-races").querySelector(".hr-filter")?.value) buildRaceList(); // not under a reader's filter
     renderStatsTab();
@@ -720,7 +721,7 @@ function render() {
       ? remNote || (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}`
         : S.mapRaces?.length === 1 && S.mapRaces[0].estimate ? `Before any votes. ${S.mapRaces[0].estimate.note}` // the data's own wording
         : S.units?.hasPoll && S.mode === "margin" ? "Before any votes: past certified results shifted toward the recent polls (the race's model with polls)."
-        : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county baseline yet; prices shown.` : ""}`)
+        : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county model yet; prices shown.` : ""}`)
       : k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
         : `${remNote ? `${remNote} ` : ""}${tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames` : `Map frame ${clock(S.units.times[k], S.tz)}`}`;
     if (S.hover >= 0 || S.pinned >= 0) placeCard();
@@ -1605,7 +1606,7 @@ function renderStatsTab() {
   // before any district has a count model, a note
   if (S.office === "house") {
     const hr = houseRaces();
-    if (!hr.length) { $("pane-stats").innerHTML = `<p class="note">The statistics (accuracy, calibration, market comparison, profit) are computed per race once the count is over, for the races with a county count model. No House district has one in this election's files yet: their markets, polls and baseline are in the Races, Polls and Markets tabs.</p>`; return; }
+    if (!hr.length) { $("pane-stats").innerHTML = `<p class="note">The statistics (accuracy, calibration, market comparison, profit) are computed per race once the count is over, for the races with a county count model. No House district has one in this election's files yet: their markets, polls and our model are in the Races, Polls and Markets tabs.</p>`; return; }
     const race = raceById(`house:${S.houseSel}`) ?? hr[0];
     renderStats($("pane-stats"), { stats: S.stats, race, races: hr, raceName, tz: S.tz, arb: S.arb, settleOf, profitOf });
     return;
@@ -1623,6 +1624,11 @@ function geometryCredit() {
 
 // The race selector: the office shown first (US: Senate, governor or the House districts), then
 // the rest; elsewhere the national race and each region's races.
+// US: "How our model works" at the top of the Method & sources tab (written once; idempotent)
+function addOurModel() {
+  const pm = $("pane-method");
+  if (pm && !pm.querySelector("#our-model")) pm.insertAdjacentHTML("afterbegin", `<div id="our-model">${ourModelHTML()}</div>`);
+}
 function initRaceSelect() {
   const sel = $("race");
   fillRaceSelect();
@@ -1630,8 +1636,8 @@ function initRaceSelect() {
   // House data is needed now for a House deep link; otherwise keep it out of the navigation's
   // critical first second and add the selector group when the browser is idle.
   if (S.ov) {
-    if (S.houseSel || S.office === "house") loadHouse().then(fillRaceSelect);
-    else setTimeout(() => idle(() => loadHouse().then(fillRaceSelect)), 3500);
+    if (S.houseSel || S.office === "house") loadHouse().then(() => { fillRaceSelect(); addOurModel(); });
+    else setTimeout(() => idle(() => loadHouse().then(() => { fillRaceSelect(); addOurModel(); })), 3500);
   }
   initExtent();
 }
@@ -1873,7 +1879,7 @@ async function initNational() {
   // the layer covers the map box and the region list beside it (their layout never changes under it)
   const body = document.querySelector(".map-body");
   S.ov = createOverlay(body, {
-    onSelect: (id) => showDistrict(id), onState: () => houseState(),
+    onSelect: (id) => showDistrict(id), onState: () => houseState(), modelOf: (id) => districtModel(id),
     // the layer's controls go under the office toggle and map select
     top: () => { const n = document.querySelector("#national .nat-top"); return n ? n.getBoundingClientRect().bottom - body.getBoundingClientRect().top + 2 : 52; },
   });
@@ -2125,6 +2131,7 @@ async function main() {
   const twoModels = [...S.rows.values()].some((rows) => rows.some((d) => d.P_v2 != null)) || races().some((r) => r.precount?.[`P_${r.poll_model ?? "v2"}`] != null);
   const margins = [...S.rows.values()].some((rows) => rows.some((d) => d.margin_market != null || d.margin_model != null));
   renderMethod($("pane-method"), { meta: S.meta, entry: S.entry, geometryCredit: geometryCredit(), twoModels, margins });
+  if (S.ov) loadHouse().then(addOurModel);
   renderStatsTab();
   await yieldBrowser();
   drawChart();
