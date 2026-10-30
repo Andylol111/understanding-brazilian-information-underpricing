@@ -710,16 +710,20 @@ function paint(ctx) {
   }
   if (REM_MODES.has(R.mode)) remCircles(ctx, px, dim, nat && R.levelMix < 1);
   if (nat && R.natRings?.size && R.levelMix < 1) {
-    // regions with a unit-level model: a ring at the region's centre, gone once its units show
-    ctx.strokeStyle = "#1b1b1b";
-    ctx.lineWidth = 1.6 * px;
+    // states with a live county model on election night: a small ink dot on a white halo at the
+    // state's centre (a marker, not data; the legend's ●), gone once its units show
     for (const r of R.natRings) {
       const c = R.regionCentre[r];
       if (!c || !Number.isFinite(c[0])) continue;
       ctx.globalAlpha = (1 - R.levelMix) * (r === focus ? 1 - R.natMix : dim);
       ctx.beginPath();
-      ctx.arc(c[0], c[1], 5 * px, 0, 2 * Math.PI);
-      ctx.stroke();
+      ctx.arc(c[0], c[1], 4.6 * px, 0, 2 * Math.PI);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(c[0], c[1], 3 * px, 0, 2 * Math.PI);
+      ctx.fillStyle = "#1b1b1b";
+      ctx.fill();
     }
     ctx.globalAlpha = 1;
   }

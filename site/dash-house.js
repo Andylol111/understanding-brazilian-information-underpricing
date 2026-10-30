@@ -499,8 +499,16 @@ export function createOverlay(container, { onSelect, onState, top = () => 52 } =
 }
 
 // The selected district for the page's readout: its figures (chips), and a strip chart of the
-// chances (markets, polls, baseline) on one 0-1 axis.
-export function districtReadout(id) {
+// chances (count model, markets, polls, baseline) on one 0-1 axis. model: { row, race } of the
+// district's count model (race "house:TX-23" in the election's files) at the page's time, or null.
+const modelChance = (model) => model?.row?.P_v2 ?? model?.row?.P ?? null;
+const modelNote = (model) => {
+  const r = model?.row;
+  if (!r) return model ? " Count model: no row yet at this time." : "";
+  const share = r.share_v2 ?? r.share;
+  return ` Count model (counties of the district, 2024 president baseline plus the generic-ballot swing prior): ${pct(r.counted ?? 0, 0)} counted${share != null ? `, projected Democratic two-party share ${pct(share, 1)}` : ""}, chance ${num(modelChance(model))}.`;
+};
+export function districtReadout(id, model = null) {
   const d = houseDistrict(id), m = mkt(id), e = H.ev?.districts?.[id];
   if (!d) return `<p class="note">No data for ${esc(id)}.</p>`;
   const h = h24(d), b = best(d), F = H.files?.flows?.states?.[d.st];
@@ -508,12 +516,12 @@ export function districtReadout(id) {
   const from = (F?.flows ?? []).filter((f) => f[1] === id).sort((a, x) => x[4] - a[4]).slice(0, 3).map((f) => `${esc(f[0])} ${pct(f[4], 0)}`).join(", ");
   const chip = (label, v, cls = "") => `<span class="chip"><small>${label}</small><b class="${cls}">${v}</b></span>`;
   return `<p class="ro-head"><span class="ro-at"><b>${esc(id)}</b>${d.redrawn ? " · new lines" : ""}${h?.incumbent ? ` · incumbent ${esc(h.incumbent)} (${esc(h.incumbent_party ?? "")})` : ""}</span><span class="ro-race">chance the Democratic party wins</span></p>
-    <div class="chips">${chip("Chance", b ? `${num(b.p)}` : "–")}${chip("Polymarket", num(m?.pm?.p), "k")}${chip("Kalshi", num(m?.kalshi?.p), "kx")}${chip("Polls", pollM(d) != null ? marginText(pollM(d)) : m?.polls?.polls?.length ? "none in 45 days" : "–")}${chip("Baseline (model only)", num(d.baseline?.p_d))}${chip("Harris 2024", marginText(d.pres24?.margin))}${chip("House 2024", h ? marginText(h.margin) : "–")}</div>
-    <p class="note">${b ? `Chance from ${esc(b.src)}.` : ""} ${m?.pm?.cands?.D ? `${esc(m.pm.cands.D)} (D) v ${esc(m.pm.cands.R ?? "–")} (R).` : ""}${flow ? ` New lines: core 2024 district ${esc(flow.core_2024 ?? "")} (Harris ${marginText(flow.core_margin)}), lean change ${marginText(flow.lean_change)}; made from ${from}.` : ""}${d.swing_pres != null ? ` Swing 2020→24: ${marginText(d.swing_pres)}.` : ""}${e ? ` Early vote ${d3.format(",")(e.ev_total)} (${pct(e.share_of_2022_total, 0)} of 2022).` : ""}</p>`;
+    <div class="chips">${model ? chip("Count model", num(modelChance(model)), "m") : ""}${chip("Chance", b ? `${num(b.p)}` : "–")}${chip("Polymarket", num(model?.row?.pm ?? m?.pm?.p), "k")}${chip("Kalshi", num(model?.row?.kalshi ?? m?.kalshi?.p), "kx")}${chip("Polls", pollM(d) != null ? marginText(pollM(d)) : m?.polls?.polls?.length ? "none in 45 days" : "–")}${chip("Baseline (model only)", num(d.baseline?.p_d))}${chip("Harris 2024", marginText(d.pres24?.margin))}${chip("House 2024", h ? marginText(h.margin) : "–")}</div>
+    <p class="note">${b ? `Chance from ${esc(b.src)}.` : ""}${modelNote(model)} ${m?.pm?.cands?.D ? `${esc(m.pm.cands.D)} (D) v ${esc(m.pm.cands.R ?? "–")} (R).` : ""}${flow ? ` New lines: core 2024 district ${esc(flow.core_2024 ?? "")} (Harris ${marginText(flow.core_margin)}), lean change ${marginText(flow.lean_change)}; made from ${from}.` : ""}${d.swing_pres != null ? ` Swing 2020→24: ${marginText(d.swing_pres)}.` : ""}${e ? ` Early vote ${d3.format(",")(e.ev_total)} (${pct(e.share_of_2022_total, 0)} of 2022).` : ""}</p>`;
 }
-export function districtChart(el, id) {
+export function districtChart(el, id, model = null) {
   const d = houseDistrict(id), m = mkt(id);
-  const pts = [["Polymarket", m?.pm?.p, "#1b1b1b"], ["Kalshi", m?.kalshi?.p, "#2f8a6c"], ["District polls", m?.polls?.average?.p_win, "#6a7f99"], ["Baseline (model only)", d?.baseline?.p_d, "#c4501b"]].filter((x) => x[1] != null);
+  const pts = [["Count model", modelChance(model), "#c4501b"], ["Polymarket", model?.row?.pm ?? m?.pm?.p, "#1b1b1b"], ["Kalshi", model?.row?.kalshi ?? m?.kalshi?.p, "#2f8a6c"], ["District polls", m?.polls?.average?.p_win, "#6a7f99"], ["Baseline (model only)", d?.baseline?.p_d, "#d99a7a"]].filter((x) => x[1] != null);
   const w = Math.max(260, el.clientWidth || 400), rowH = 22, h = 24 + rowH * Math.max(1, pts.length), m0 = { l: 150, r: 14 };
   const x = d3.scaleLinear([0, 1], [m0.l, w - m0.r]);
   el.innerHTML = `<h3 class="tab-h">${esc(id)}: chance the Democratic party wins</h3><svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" class="ov-strip">
@@ -552,11 +560,13 @@ export function houseList(el, { state = null, onPick }) {
 // The Races tab with the House office on: every district, the open state's first, then the most
 // competitive nationally; market, Kalshi, polls, the baseline (model only), Harris 2024 and the gap
 // between the market and the baseline. Rows pick a district.
-export function houseRaceTable(el, { state = null, selected = null, onPick }) {
+export function houseRaceTable(el, { state = null, selected = null, onPick, modelOf = () => null }) {
   const close = (d) => Math.abs((best(d)?.p ?? 0) - 0.5);
   const rows = houseDistrictIds().map(houseDistrict).sort((a, b) => (state ? (b.st.toLowerCase() === state) - (a.st.toLowerCase() === state) : 0) || close(a) - close(b) || a.id.localeCompare(b.id));
+  // a "Count model" column once any district has a count model in the election's files
+  const withModel = rows.some((d) => modelOf(d.id));
   el.innerHTML = `<label class="select"><span>District</span> <input type="search" class="hr-filter" placeholder="TX-07, Fletcher…" aria-label="Filter districts"></label>
-    <div class="hub-scroll"><table class="races hr-table"><thead><tr><th>District</th><th class="n">Polymarket</th><th class="n">Kalshi</th><th class="n">Polls</th><th class="n">Rough baseline</th><th class="n">Harris 2024</th><th class="n" title="Market price minus the rough, model-only baseline; not evidence of mispricing">Market − baseline</th></tr></thead><tbody></tbody></table></div>
+    <div class="hub-scroll"><table class="races hr-table"><thead><tr><th>District</th>${withModel ? `<th class="n" title="The district's county count model (2024 president baseline plus the generic-ballot swing prior)">Count model</th>` : ""}<th class="n">Polymarket</th><th class="n">Kalshi</th><th class="n">Polls</th><th class="n">Rough baseline</th><th class="n">Harris 2024</th><th class="n" title="Market price minus the rough, model-only baseline; not evidence of mispricing">Market − baseline</th></tr></thead><tbody></tbody></table></div>
     <p class="note">${state ? `${esc(state.toUpperCase())} first, then` : "Most competitive first:"} districts by how close the chance is to 0.5. <b>The market − baseline difference is diagnostic, not a claim of mispricing.</b> The baseline is model-only: Harris 2024 shifted by a generic ballot based on ${H.files?.markets?.generic_ballot?.n_polls ?? 0} qualifying polls. New-line results are estimated for redrawn districts; use their polls and markets separately.</p>`;
   const body = el.querySelector("tbody"), filter = el.querySelector(".hr-filter");
   const fill = () => {
@@ -564,7 +574,7 @@ export function houseRaceTable(el, { state = null, selected = null, onPick }) {
     body.innerHTML = rows.filter((d) => !f || d.id.toLowerCase().includes(f) || (h24(d)?.incumbent ?? "").toLowerCase().includes(f)).slice(0, 150).map((d) => {
       const m = mkt(d.id), p = m?.pm?.p ?? m?.kalshi?.p ?? null, base = d.baseline?.p_d ?? null;
       const gap = p != null && base != null ? Math.round((p - base) * 100) / 100 : null;
-      return `<tr tabindex="0" data-id="${esc(d.id)}"${d.id === selected ? ' class="sel"' : ""}><td>${esc(d.id)}${d.redrawn ? " <small>new</small>" : ""}</td><td class="n k">${num(m?.pm?.p)}</td><td class="n kx">${num(m?.kalshi?.p)}</td><td class="n">${pollM(d) != null ? marginText(pollM(d)) : "–"}</td><td class="n m">${num(base)}</td><td class="n">${marginText(d.pres24?.margin)}</td><td class="n">${gap == null ? "–" : gap === 0 ? "0.00" : `${gap > 0 ? "+" : "−"}${Math.abs(gap).toFixed(2)}`}</td></tr>`;
+      return `<tr tabindex="0" data-id="${esc(d.id)}"${d.id === selected ? ' class="sel"' : ""}><td>${esc(d.id)}${d.redrawn ? " <small>new</small>" : ""}</td>${withModel ? `<td class="n m">${num(modelChance(modelOf(d.id)))}</td>` : ""}<td class="n k">${num(m?.pm?.p)}</td><td class="n kx">${num(m?.kalshi?.p)}</td><td class="n">${pollM(d) != null ? marginText(pollM(d)) : "–"}</td><td class="n m">${num(base)}</td><td class="n">${marginText(d.pres24?.margin)}</td><td class="n">${gap == null ? "–" : gap === 0 ? "0.00" : `${gap > 0 ? "+" : "−"}${Math.abs(gap).toFixed(2)}`}</td></tr>`;
     }).join("");
   };
   filter.addEventListener("input", fill);

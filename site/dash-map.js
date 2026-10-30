@@ -357,8 +357,8 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       post({ type: "bind", featIdx: index, radius: st.radius, pointOrder, ...colouring });
     },
     paint(mode, t, tween) { post({ type: "paint", mode, t, tween }); },
-    // A state layer under the units (national maps): colours per region, rings on modelled regions.
-    // With it, hover outlines whole regions until one is focused.
+    // A state layer under the units (national maps): colours per region, a marker (●) on regions
+    // with a live county model ("rings" below). With it, hover outlines whole regions until one is focused.
     setNational(colours, rings = []) {
       st.nat = !!colours;
       st.natHover = st.nat && !st.focus;

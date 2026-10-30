@@ -18,8 +18,9 @@ const mkt = (d) => d.margin_market ?? implied(d.pm, msd(d));
 const mktK = (d) => d.margin_market_kalshi ?? implied(d.kalshi, msd(d));
 const rawM = (d) => (d.raw != null && d.counted > 0 ? (2 * d.raw - 1) * 100 : null);
 
-// Which views a race's rows support (the margin view needs a model share or margin).
-export const timelineViews = (rows) => (rows.some((d) => mm(d) != null) ? ["margin", "chance"] : ["chance"]);
+// Which views a race's rows support (the margin view needs a margin: the model's, the polls' or a
+// market-implied one).
+export const timelineViews = (rows) => (rows.some((d) => mm(d) != null || d.margin_polls != null || mkt(d) != null || d.margin_estimate != null) ? ["margin", "chance"] : ["chance"]);
 
 // view: "margin" | "chance"; us: margins read "D+3" / "R+3" (else "+3" for side a, "−3" for b).
 export function drawTimeline(root, { race, rows, domain, tz, wall, height, view = "chance", us = false, countPanel = true, onPreview, onSet }) {
@@ -52,7 +53,9 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     const hi = (d) => (mm(d) != null && msd(d) != null ? mm(d) + 1.645 * msd(d) : null);
     const counting = vis.filter((d) => d.counted > 0.005);
     const span = counting.length ? counting : vis;
-    const vals = span.flatMap((d) => [mm(d), lo(d), hi(d), d.margin_polls, mkt(d), mktK(d), rawM(d)]).filter((v) => v != null && Number.isFinite(v));
+    const est = lastF((d) => d.margin_estimate ?? null); // a race without a live model: the county estimate now
+    const eLo = est?.margin_estimate_sd != null ? est.margin_estimate - 1.645 * est.margin_estimate_sd : null, eHi = eLo != null ? est.margin_estimate + 1.645 * est.margin_estimate_sd : null;
+    const vals = [...span.flatMap((d) => [mm(d), lo(d), hi(d), d.margin_polls, mkt(d), mktK(d), rawM(d)]), est?.margin_estimate, eLo, eHi].filter((v) => v != null && Number.isFinite(v));
     const [a, b] = vals.length ? d3.extent([...vals, 0]) : [-10, 10];
     const yM = d3.scaleLinear().domain([a - 1, b + 1]).nice().range([m.t + h, m.t]);
     const [d0, d1] = yM.domain();
@@ -68,6 +71,10 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     path(C.kalshi, 1.2, mktK);
     path(C.market, 1.6, mkt);
     path(C.model, 2, mm);
+    if (est) {
+      if (eLo != null) g.append("line").attr("x1", X(est)).attr("x2", X(est)).attr("y1", Y(eLo)).attr("y2", Y(eHi)).attr("stroke", C.model).attr("stroke-width", 1.5).attr("opacity", 0.6);
+      g.append("circle").attr("cx", X(est)).attr("cy", Y(est.margin_estimate)).attr("r", 4).attr("fill", C.model).attr("stroke", "#fff");
+    }
     // the final result, once fully counted
     const last = rows[rows.length - 1];
     const final = countPanel && last.counted >= 0.999 && last.raw != null ? (2 * last.raw - 1) * 100 : null;
@@ -75,6 +82,7 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     endLabels(svg, width - m.r + 5, [
       [lastF(mm), (d) => Y(mm(d)), two ? "model, polls" : "model", C.model],
       [lastF((d) => d.margin_polls ?? null), (d) => Y(d.margin_polls), "polls", POLLS],
+      [est, (d) => Y(d.margin_estimate), "estimate", C.model],
       [lastF(mkt), (d) => Y(mkt(d)), "market-implied", C.market],
       [lastF(mktK), (d) => Y(mktK(d)), "Kalshi-implied", C.kalshi],
       [lastF(rawM), (d) => Y(rawM(d)), "raw count", C.raw],
@@ -91,11 +99,14 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     path(C.model, 2, main);
     path(C.kalshi, 1.5, (d) => d.kalshi ?? null);
     path(C.market, 1.6, (d) => d.pm ?? null);
+    const estP = lastF((d) => d.P_estimate ?? null);
+    if (estP) g.append("circle").attr("cx", X(estP)).attr("cy", yP(estP.P_estimate)).attr("r", 4).attr("fill", C.model).attr("stroke", "#fff");
     endLabels(svg, width - m.r + 5, [
       [lastF(main), (d) => yP(main(d)), two ? "model, polls" : "model", C.model],
       [two ? lastF((d) => d.P ?? null) : null, (d) => yP(d.P), "without polls", C.model],
       [lastF((d) => d.pm ?? null), (d) => yP(d.pm), "Polymarket", C.market],
       [lastF((d) => d.kalshi ?? null), (d) => yP(d.kalshi), "Kalshi", C.kalshi],
+      [estP, (d) => yP(d.P_estimate), "estimate", C.model],
     ]);
   }
 

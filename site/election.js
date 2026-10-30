@@ -110,15 +110,44 @@ function engineFailed(err) {
 /* ---------------------------------------------------------------- data */
 
 const races = () => S.meta.races ?? [];
-// races of the meta, then the US overview's races with only a county estimate (S.extra)
-const raceById = (id) => races().find((r) => r.race_id === id) ?? S.extra?.get(id);
-const national = () => races().find((r) => !r.region);
-const mainRace = () => national() ?? races()[0];
+// races of the meta, then the US overview's races with only a county estimate (S.extra), then the
+// House count models of house_live/ (S.houseLive)
+const raceById = (id) => races().find((r) => r.race_id === id) ?? S.extra?.get(id) ?? S.houseLive?.races.get(id);
+// House district count models (race_id "house:TX-23", region = state) are read from their own
+// files (house_live/, loadHouseLive); a pre-count meta may also list them beside the statewide
+// races. Either way they are shown through the House district selection, never as a state's race.
+const isHouse = (r) => (typeof r === "string" ? r : r?.race_id ?? "").startsWith("house:");
+const statewide = () => races().filter((r) => !isHouse(r));
+const houseRaces = () => [...races().filter(isHouse), ...(S.houseLive?.races.values() ?? [])];
+const national = () => statewide().find((r) => !r.region);
+const mainRace = () => national() ?? statewide()[0];
 const regionName = (id) => S.meta.regions?.find((r) => r.id === id)?.name ?? (countryCode() === "US" && id ? usStateName(id) : id?.toUpperCase());
 const raceName = (r) => (r.region && !r.name.includes(regionName(r.region)) ? `${r.name}, ${regionName(r.region)}` : r.name);
-const racesIn = (region) => races().filter((r) => r.region === region);
-// The race's office without its region ("tx-sen" -> "sen"), to keep the same office across regions.
-const office = (r) => (r?.region ? r.race_id.split(/[-_]/).filter((p) => p !== r.region).join("-") : r?.race_id);
+const racesIn = (region) => [...statewide(), ...(S.extra?.values() ?? [])].filter((r) => r.region === region);
+// US: a race with a live county model on election night is one of the election's own races
+// (meta.races); the overview's other races (S.extra, carrying their overview row as .ov) have the
+// county estimate, prices and polls only
+const modelled = (r) => !!r && !r.ov && !isHouse(r);
+// every statewide race of an office ("sen" | "gov"), modelled or not, by name
+const officeRaces = (off) => [...statewide(), ...(S.extra?.values() ?? [])].filter((r) => office(r) === off).sort((a, b) => raceName(a).localeCompare(raceName(b)));
+// a race's row at time t: its timeline, else (estimate-only race) the overview's figures now
+const raceRow = (r, t) => (r ? rowAt(r.race_id, t) ?? (r.ov ? extraRow(r) : null) : null);
+// a state's line on election-night coverage (site/data/us_night_feeds.json, from
+// docs/us_midterms.md "States checked"): live model, configured, or why there is none
+function feedLine(st) {
+  const f = S.feeds?.states?.[st], name = regionName(st);
+  if (f?.status === "model") return `${name}: live county model on election night, from the state's official results feed.`;
+  if (f?.status === "added") return `${name}: ${f.why}.`;
+  return `No live county model on election night for ${name}: ${f?.why ?? "its official results feed was not among those checked for this project"}. The night shows market prices and the official count only.`;
+}
+// The race's office without its region ("tx-sen" -> "sen"; "house:TX-23" -> "house"), to keep the
+// same office across regions.
+const office = (r) => (isHouse(r) ? "house" : r?.region ? r.race_id.split(/[-_]/).filter((p) => p !== r.region).join("-") : r?.race_id);
+// a race's timeline rows: the election's own, else the House count models'
+const seriesOf = (id) => S.rows?.get(id) ?? S.houseLive?.rows.get(id) ?? null;
+// a district's count model at time t (null: no count model for it); following the latest, its
+// own latest row (the House files refresh on their own minute, ahead of or behind the page's)
+const districtModel = (id, t = S.preview ?? (S.followLatest ? Infinity : S.t)) => (id && seriesOf(`house:${id}`)?.length ? { row: rowAt(`house:${id}`, t), race: raceById(`house:${id}`) } : null);
 const shortRaceName = (r) => {
   const s = r.name.replace(regionName(r.region), "").replace(/(\s+(in|of|for|the))+\s*$/i, "").replace(/^[\s,:–-]+|[\s,:–-]+$/g, "") || r.name;
   return s[0].toUpperCase() + s.slice(1);
@@ -139,7 +168,7 @@ async function loadMeta() {
   S.countTimeline = meta.count_timeline !== false;
   S.tz = meta.tz ?? "UTC";
   S.layer = (meta.layers?.find((l) => l.default) ?? meta.layers?.[0])?.id ?? null;
-  const asked = raceById(param("race"));
+  const asked = isHouse(param("race")) ? null : raceById(param("race")); // a district: selected once the House layer is up
   // ?region=sp opens that region (its race in the main race's office); ?level=regions|units the level
   const askedRegion = (meta.regions ?? []).some((r) => r.id === param("region")) ? param("region") : null;
   S.race = asked ?? (askedRegion ? racesIn(askedRegion).find((r) => office(r) === office(mainRace())) ?? racesIn(askedRegion)[0] : null) ?? mainRace() ?? null;
@@ -213,13 +242,47 @@ function mergeTail(have, tail) {
   return out;
 }
 
+// The House district count models run in their own process and publish to <eid>/house_live/:
+// meta.json (House races only), timeline.json + timeline_tail.json (keys "house:TX-23", the
+// standard row fields), status.json. Read on the US page every HOUSE_LIVE_MS; before the House
+// unit starts the files are absent and the House view stays the pre-count one. True when held
+// rows changed.
+const HOUSE_LIVE_MS = 60000;
+async function loadHouseLive() {
+  const get = async (f) => {
+    try { const r = await fetch(absUrl(`${EID}/house_live/${f}`), { cache: "no-cache" }); return r.ok ? await r.json() : null; } catch { return null; }
+  };
+  const meta = await get("meta.json");
+  const list = (meta?.races ?? []).filter(isHouse);
+  if (!list.length) return false;
+  const had = S.houseLive;
+  S.houseLive = { races: new Map(list.map((r) => [r.race_id, r])), rows: had?.rows ?? new Map(), status: had?.status ?? null };
+  // the tail merged onto the held rows; the whole timeline on the first read or after a gap
+  const tail = had?.rows.size ? await get("timeline_tail.json") : null;
+  const merged = tail ? mergeTail(had.rows, timelineRows(tail)) : null;
+  const rows = merged ?? timelineRows(await get("timeline.json"));
+  if (rows.size) S.houseLive.rows = rows;
+  S.houseLive.status = await get("status.json");
+  return rows.size > 0;
+}
+// after a House read: the district's readout and chart, the House races and statistics
+function houseLiveShown() {
+  if (houseShown()) { $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel)); drawChart(); }
+  if (S.office === "house" && S.rows) {
+    if (!$("pane-races").querySelector(".hr-filter")?.value) buildRaceList(); // not under a reader's filter
+    renderStatsTab();
+  }
+}
+
 // Which units files the map shows: the selected race's own file, or units.json. With no national
 // race and per-race files, the overview (no region chosen, or a race without its own file, e.g.
 // before the count where a state has no county baseline) merges one race per region, keeping the
 // selected race's office where a region has it.
 function unitsPlan() {
-  if ((!S.region || (PRE() && !S.race?.units)) && !national() && races().some((r) => r.units)) {
-    const byRegion = d3.group(races().filter((r) => r.region && r.units), (r) => r.region);
+  // the merged layer: no region open, or (before the count, and on the US page) a race without its
+  // own county file
+  if ((!S.region || ((PRE() || S.nat) && !S.race?.units)) && !national() && statewide().some((r) => r.units)) {
+    const byRegion = d3.group(statewide().filter((r) => r.region && r.units), (r) => r.region);
     const pick = [...byRegion.values()].map((list) => list.find((r) => office(r) === office(S.race)) ?? list[0]);
     return { key: pick.map((r) => r.units).join("|"), urls: pick.map((r) => `${EID}/${r.units}`), races: pick };
   }
@@ -252,7 +315,7 @@ function extraRow(r) {
 }
 // Row of a race's timeline at time t (last row at or before t). Time arrays are built once per load.
 function rowAt(raceId, t) {
-  const rows = S.rows.get(raceId);
+  const rows = seriesOf(raceId);
   if (!rows?.length) return null;
   let ts = tIndex.get(rows);
   if (!ts) { ts = Float64Array.from(rows, (d) => d.tms); tIndex.set(rows, ts); }
@@ -269,7 +332,7 @@ function setUnits(U, plan) {
   // Map sides: units.a/b when the values are not one race's candidates (e.g. blocs); a merged
   // overview: each unit's own file's race; else units.race_id, the planned race, the region's race,
   // or the main race.
-  const byRegion = new Map(races().filter((r) => r.region).map((r) => [r.region, r]));
+  const byRegion = new Map(statewide().filter((r) => r.region).map((r) => [r.region, r]));
   const sides = U.a && U.b ? { race_id: null, name: U.label ?? "Map", a: U.a, b: U.b } : null;
   const fixed = sides ?? (U.race_id ? raceById(U.race_id) : plan.races.length === 1 ? plan.races[0] : null);
   S.unitRace = U.unit_ids.map((_, j) => (plan.races.length > 1 ? plan.races[U.source[j]] : fixed) ?? byRegion.get(U.region[j]) ?? mainRace());
@@ -329,7 +392,7 @@ function setupLayers() {
 // hatched on the map and named in the map note.
 function noBaseline() {
   if (!PRE()) return [];
-  const byRegion = d3.group(races().filter((r) => r.region), (r) => r.region);
+  const byRegion = d3.group(statewide().filter((r) => r.region), (r) => r.region);
   return [...byRegion].filter(([, rs]) => rs.every((r) => !r.units)).map(([reg]) => reg);
 }
 
@@ -668,6 +731,7 @@ function render() {
   $("scrub-time").innerHTML = S.preview != null
     ? `<b>${clock(S.preview, S.tz)}</b> preview · scrubber at ${clock(S.t, S.tz)}`
     : `${PRE() ? `${esc(dayOf(S.t))} ` : ""}<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing && !PRE() ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
+  if (houseShown() && seriesOf(`house:${S.houseSel}`)) $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel));
   if (S.race && !houseShown()) {
     const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
     const row = rowAt(S.race.race_id, tt) ?? extraRow(S.race);
@@ -687,8 +751,8 @@ function render() {
 function updateLists(t) {
   lastList = performance.now();
   if (S.list) {
-    S.list.update(new Map(races().map((r) => {
-      const row = rowAt(r.race_id, t);
+    S.list.update(new Map([...races(), ...(S.extra?.values() ?? [])].map((r) => {
+      const row = raceRow(r, t);
       return [r.race_id, { P: modelP(row), pm: row?.pm ?? null, k: row?.kalshi ?? null }];
     })));
   }
@@ -1032,8 +1096,17 @@ function positionCard(el, at) {
 
 // Regions shown in the picker: those with their own races or units, and with shapes on the map.
 function pickerRegions() {
-  const withRaces = new Set(races().filter((r) => r.region).map((r) => r.region));
   S.mapRegions ??= S.map ? new Set(S.map.ids.map((id) => id.split("-")[1])) : null;
+  if (S.nat) {
+    // US: every state with a race of the office shown, those with a live county model first
+    const off = OFFICE_ID[S.office] ?? office(S.race) ?? "sen";
+    const by = d3.group(officeRaces(off), (r) => r.region);
+    const list = [...by].filter(([id]) => !S.mapRegions || S.mapRegions.has(id))
+      .map(([id, rs]) => ({ id, name: regionName(id), live: rs.some(modelled) }))
+      .sort((a, b) => b.live - a.live || a.name.localeCompare(b.name));
+    return list.length >= 2 ? list : [];
+  }
+  const withRaces = new Set(statewide().filter((r) => r.region).map((r) => r.region));
   const list = (S.meta.regions ?? []).filter((r) => (withRaces.has(r.id) || S.units?.region?.includes(r.id)) && (!S.mapRegions || S.mapRegions.has(r.id)));
   return list.length >= 2 ? list : [];
 }
@@ -1071,11 +1144,14 @@ function buildPicker() {
   const list = pickerRegions();
   el.hidden = !list.length;
   if (!list.length) return;
-  el.innerHTML = `<p class="rp-head"><span>Region</span><span>${PRE() ? "Polls close" : S.countTimeline ? "Counted" : ""}</span><span title="Model probability (orange dot), Polymarket price (black line) and Kalshi price (green line) for the region's race, 0 to 1">Chance</span></p>
-    <div class="rp-list" role="listbox" aria-label="Regions">${list.map((r) => {
+  el.innerHTML = `<p class="rp-head"><span>${S.nat ? "State" : "Region"}</span><span>${PRE() ? "Polls close" : S.countTimeline ? "Counted" : ""}</span><span title="Model probability or county estimate (orange dot), Polymarket price (black line) and Kalshi price (green line) for the region's race, 0 to 1">Chance</span></p>
+    <div class="rp-list" role="listbox" aria-label="Regions">${list.map((r, i) => {
       const rs = racesIn(r.id);
       const chips = rs.length > 1 ? `<span class="rp-races">${rs.map((x) => `<button type="button" class="rp-chip" data-race="${esc(x.race_id)}">${esc(shortRaceName(x))}</button>`).join("")}</span>` : "";
-      return `<div class="rp-row" role="option" tabindex="0" data-region="${esc(r.id)}" aria-selected="${r.id === S.region}">
+      // US: the states with a live county model, then those with the estimate only
+      const group = r.live != null && (i === 0 || list[i - 1].live !== r.live)
+        ? `<div class="rp-group" role="presentation">${r.live ? `<span class="mk-live" aria-hidden="true"></span> Live county model` : "Estimate only <small>(prices, polls, county estimate)</small>"}</div>` : "";
+      return `${group}<div class="rp-row" role="option" tabindex="0" data-region="${esc(r.id)}" aria-selected="${r.id === S.region}">
         <span class="rp-name">${esc(r.name)}</span><span class="rp-counted"></span><span class="rp-ind" aria-hidden="true"><i class="rp-m"></i><i class="rp-k"></i><i class="rp-x"></i></span>${chips}</div>`;
     }).join("")}</div>`;
   el.querySelectorAll(".rp-row").forEach((row) => {
@@ -1112,7 +1188,7 @@ function updatePicker(t) {
       for (const j of S.regionUnits.get(reg) ?? []) { const v = U.V0[j] || 0; w += v; f += v * U.F[k * U.n + j]; m += U.F[k * U.n + j]; cnt++; }
       c = w > 0 ? f / w / 1000 : cnt ? m / cnt / 1000 : null;
     }
-    const race = regionRace(reg), r = race ? rowAt(race.race_id, t) : null;
+    const race = regionRace(reg), r = raceRow(race, t);
     if (S.countTimeline && r?.counted != null) c = r.counted; // the region's own race, when it has one
     row.children[1].textContent = PRE() ? untilText(closeOf(reg) - Date.now(), true) ?? "closed" : c == null ? "" : pct(c, 0);
     const ind = row.children[2];
@@ -1181,6 +1257,7 @@ async function reloadUnitsIfNeeded() {
 // keepRegion: a race without a region (national) stays on the open region (its units there).
 async function selectRace(r, { keepRegion = false } = {}) {
   if (!r) return;
+  if (isHouse(r)) { selectKey(r.race_id); return; } // a district's count model: the district selection
   // the one selection: a race chosen anywhere (selector, list, map, tab) replaces a selected district
   clearDistrict();
   // a Senate or governor race chosen while the House layer shows: back to that office first
@@ -1247,11 +1324,36 @@ function turnoutChip(row) {
   if (U?.turnout && k >= 0) for (let j = 0; j < U.n; j++) if (S.unitRace[j] === S.race) { n++; if (U.F[k * U.n + j] >= 950) rep++; }
   return { text: `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(0)}% vs expected`, title: `Projected ${votesShort(row.turnout_proj_total)} two-party votes against ${votesShort(row.turnout_exp_total)} expected${n ? `; ${rep} of ${n} counties reported (95% or more counted)` : ""}${row.margin_hot != null ? `. Counties above expected turnout lean ${marginText(row.margin_hot)}, those below ${marginText(row.margin_cold)}` : ""}.` };
 }
+// An estimate-only race (no live county model): its history from the overview (Polymarket and
+// Kalshi every 30 minutes, read as margins through the estimate's sd) with the poll average by day
+// (hub polls.json, once loaded) and the county estimate as the last point.
+function extraSeries(r) {
+  const o = r.ov, ph = S.hubPolls?.races?.[r.race_id]?.history ?? [];
+  if (!o?.history?.length) return [];
+  const sd = o.margins?.market_sd_used ?? null;
+  const imp = (p) => (sd != null && p > 0 && p < 1 ? probit(p) * sd : null);
+  let j = -1;
+  const rows = o.history.map(([t, pm, k]) => {
+    const tms = Date.parse(t);
+    while (j + 1 < ph.length && Date.parse(ph[j + 1][0]) <= tms) j++;
+    return { t, time: new Date(tms), tms, pm: pm ?? null, kalshi: k ?? null, margin_market: imp(pm), margin_market_kalshi: imp(k), margin_polls: j >= 0 && ph[j][1] != null ? (2 * ph[j][1] - 1) * 100 : null };
+  });
+  const e = o.estimate;
+  if (e) rows[rows.length - 1] = { ...rows[rows.length - 1], margin_estimate: e.margin ?? null, margin_estimate_sd: e.margin_sd ?? null, P_estimate: e.P ?? null };
+  return rows;
+}
+
 // One chart with a Margin | Chance (| Turnout) toggle (Margin by default where the race has a
 // model share or margin); the explanation sits behind the "?" button.
 function drawChart() {
-  if (houseShown()) { districtChart($("timeline"), S.houseSel); return; } // a House district: its chances
-  const rows = S.rows.get(S.race.race_id) ?? [];
+  if (houseShown()) { $("tl-feed").hidden = true; districtChart($("timeline"), S.houseSel, districtModel(S.houseSel)); return; } // a House district: its chances
+  const extra = !!S.race.ov && !S.rows.get(S.race.race_id)?.length;
+  if (extra && S.nat && !S.hubPolls) {
+    // the poll average's history: from the hub's polls file, then this chart again
+    const r = S.race;
+    (S.hub ??= loadUsHub()).then((H) => { S.hubPolls = H.polls ?? { races: {} }; if (S.race === r && !houseShown()) drawChart(); }).catch(() => { S.hubPolls = { races: {} }; });
+  }
+  const rows = extra ? extraSeries(S.race) : S.rows.get(S.race.race_id) ?? [];
   const tv = turnoutView();
   // live: the Turnout view is offered from page load (disabled until the county turnout data arrives)
   const tvWait = !tv && LIVE && !PRE() && !!S.race.units;
@@ -1272,7 +1374,11 @@ function drawChart() {
     });
   const g = S.gateCut;
   const a = esc(S.race.a.name), b = esc(S.race.b?.name ?? "");
-  const what = S.tlView === "margin"
+  const what = extra
+    ? (S.tlView === "margin"
+      ? "Margin, Democratic minus Republican, in points: the poll average, the market-implied margins (Polymarket, Kalshi: the price read through the estimate's uncertainty) and the county estimate now (dot, with its 90% range)."
+      : `Chance that ${a} wins: Polymarket and Kalshi prices, and the county estimate now (dot).`)
+    : S.tlView === "margin"
     ? `Margin, ${countryCode() === "US" ? "Democratic minus Republican" : `${a} minus ${b}`}, in points: the model (shaded: its 90% band), the raw count once counting starts${countryCode() === "US" ? ", the polls" : ""} and the market-implied margin (the margin at which the model's uncertainty gives the market's price).`
     : S.tlView === "turnout"
       ? "Turnout: each county that has reported (95% or more counted) as a dot, its votes against the turnout model's expectation (up: more than expected), by its low-propensity index (right: a bigger expected midterm drop-off), sized by expected votes; the line is the weighted trend at the map's frame. Display only; the model's projection does not use it."
@@ -1281,6 +1387,10 @@ function drawChart() {
     ? "Before the count: prices every 30 minutes over the last 14 days, and Polymarket's current price as the last point."
     : g ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the vote was counted${g.maxBefore != null ? ` (at most ${pct(g.maxBefore)})` : ""}.` : "";
   $("tl-note").innerHTML = `${what} ${axis}`;
+  // a race without a live county model: one plain line under the chart on why
+  const feed = extra && S.race.region ? feedLine(S.race.region) : "";
+  $("tl-feed").hidden = !feed;
+  $("tl-feed").textContent = feed;
   S.tl.setCursor(S.t, S.preview);
 }
 
@@ -1491,9 +1601,16 @@ function profitOf(r) {
 }
 
 function renderStatsTab() {
-  // House districts: no count model, so no night statistics (markets, polls and the baseline only)
-  if (S.office === "house") { $("pane-stats").innerHTML = `<p class="note">The statistics (accuracy, calibration, market comparison, profit) are computed per race once the count is over, for the Senate and governor races with a county model. House districts have no count model here: their markets, polls and baseline are in the Races, Polls and Markets tabs.</p>`; return; }
-  renderStats($("pane-stats"), { stats: S.stats, race: S.race, races: races(), raceName, tz: S.tz, arb: S.arb, settleOf, profitOf });
+  // House: the district count models' statistics (the selected district's, the others listed);
+  // before any district has a count model, a note
+  if (S.office === "house") {
+    const hr = houseRaces();
+    if (!hr.length) { $("pane-stats").innerHTML = `<p class="note">The statistics (accuracy, calibration, market comparison, profit) are computed per race once the count is over, for the races with a county count model. No House district has one in this election's files yet: their markets, polls and baseline are in the Races, Polls and Markets tabs.</p>`; return; }
+    const race = raceById(`house:${S.houseSel}`) ?? hr[0];
+    renderStats($("pane-stats"), { stats: S.stats, race, races: hr, raceName, tz: S.tz, arb: S.arb, settleOf, profitOf });
+    return;
+  }
+  renderStats($("pane-stats"), { stats: S.stats, race: S.race, races: statewide(), raceName, tz: S.tz, arb: S.arb, settleOf, profitOf });
 }
 
 function geometryCredit() {
@@ -1522,13 +1639,15 @@ function fillRaceSelect() {
   const sel = $("race");
   const opt = (r) => `<option value="${esc(r.race_id)}">${esc(raceName(r))}</option>`;
   if (S.nat) {
-    const groups = [["senate", "Senate", races().filter((r) => office(r) === "sen")], ["governor", "Governor", races().filter((r) => office(r) === "gov")],
+    // every Senate and governor race (● = live county model on election night), then the House
+    const live = (r) => `<option value="${esc(r.race_id)}">${modelled(r) ? "● " : ""}${esc(raceName(r))}</option>`;
+    const groups = [["senate", "Senate", officeRaces("sen")], ["governor", "Governor", officeRaces("gov")],
       ["house", "House", houseDistrictIds().map((id) => ({ race_id: `house:${id}`, name: `${id} (House)` }))]];
     groups.sort((a, b) => (b[0] === S.office) - (a[0] === S.office));
-    sel.innerHTML = groups.filter(([, , list]) => list.length).map(([, label, list]) => `<optgroup label="${label}">${list.map((r) => (r.region ? opt(r) : `<option value="${esc(r.race_id)}">${esc(r.name)}</option>`)).join("")}</optgroup>`).join("");
+    sel.innerHTML = groups.filter(([, , list]) => list.length).map(([k, label, list]) => `<optgroup label="${label}${k === "house" ? "" : " (● live county model)"}">${list.map((r) => (k === "house" ? `<option value="${esc(r.race_id)}">${esc(r.name)}</option>` : live(r))).join("")}</optgroup>`).join("");
   } else {
-    const nat = races().filter((r) => !r.region);
-    const byRegion = d3.groups(races().filter((r) => r.region), (r) => r.region);
+    const nat = statewide().filter((r) => !r.region);
+    const byRegion = d3.groups(statewide().filter((r) => r.region), (r) => r.region);
     sel.innerHTML = nat.map((r) => `<option value="${esc(r.race_id)}">${esc(r.name)}</option>`).join("")
       + byRegion.map(([reg, list]) => `<optgroup label="${esc(regionName(reg))}">${list.map(opt).join("")}</optgroup>`).join("");
   }
@@ -1569,12 +1688,14 @@ async function refresh() {
 function buildRaceList() {
   if (S.office === "house") {
     S.list = null;
-    houseRaceTable($("pane-races"), { state: S.ov?.state ?? null, selected: S.houseSel, onPick: (id) => selectDistrict(id) });
+    houseRaceTable($("pane-races"), { state: S.ov?.state ?? null, selected: S.houseSel, onPick: (id) => selectDistrict(id), modelOf: (id) => districtModel(id) });
     return;
   }
   const hasKalshi = [...(S.rows?.values() ?? [])].some((rows) => rows.some((d) => d.kalshi != null));
-  const list = S.nat ? races().filter((r) => office(r) === OFFICE_ID[S.office ?? "senate"] && (!S.region || r.region === S.region)) : races();
-  S.list = createRaceList($("pane-races"), { races: list, raceName, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf });
+  // US: every race of the office (● live county model), in the open state if one is open
+  const list = S.nat ? officeRaces(OFFICE_ID[S.office ?? "senate"] ?? "sen").filter((r) => !S.region || r.region === S.region) : statewide();
+  const name = S.nat ? (r) => `${modelled(r) ? "● " : ""}${raceName(r)}` : raceName;
+  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf });
   S.list.select(S.race?.race_id);
 }
 
@@ -1732,9 +1853,10 @@ const OFFICE_ID = { senate: "sen", governor: "gov" };
 
 async function initNational() {
   if (!S.meta.overview || !S.meta.geometry) return;
-  const overview = await getJSON(`${EID}/${S.meta.overview}`, { optional: true }).catch(() => null);
+  const [overview, feeds] = await Promise.all([getJSON(`${EID}/${S.meta.overview}`, { optional: true }).catch(() => null), getJSON("us_night_feeds.json", { optional: true }).catch(() => null)]);
   if (!overview) return;
   S.overview = overview;
+  S.feeds = feeds;
   S.nat = createNational($("national"), {
     overview, office: "senate", summary: $("nat-summary"),
     onDrill: (id) => { const r = raceById(id); if (r) selectRace(r); },
@@ -1742,6 +1864,9 @@ async function initNational() {
     onColours: (colours, rings) => { S.natLayer = [colours, rings]; S.map?.setNational(colours, rings); },
     onHighlight: (r) => S.map?.highlightRegion(r),
     layers: [["arrows", "Swing arrows"], ...CENSUS.map(([k, l]) => [k, l])], onLayer: (k) => setLayer(k),
+    // a live county model: the race is in the election's own files (meta.races), whatever the overview says
+    modelled: (r) => !!(r.modeled || statewide().some((x) => x.race_id === (r.race_id ?? r.race_key))),
+    feedNote: (s) => feedLine(s),
   });
   // the House office and the census map modes: a layer over the county map, in the same map box
   S.office = "senate";
@@ -1752,14 +1877,15 @@ async function initNational() {
     // the layer's controls go under the office toggle and map select
     top: () => { const n = document.querySelector("#national .nat-top"); return n ? n.getBoundingClientRect().bottom - body.getBoundingClientRect().top + 2 : 52; },
   });
-  // the overview's other races with a county file (an estimate: past results shifted by polls) open
-  // like the modelled ones; they are not in the race list
+  // the overview's other races (no live county model): they open like the modelled ones, with the
+  // county estimate (past results shifted by polls) where they have a county file, their price
+  // history and polls. A race that joins meta.races (a new county model) leaves this list by itself.
   S.extra = new Map();
   for (const [o, off] of Object.entries(overview.offices ?? {})) {
     for (const r of off.races ?? []) {
-      if (!r.units || (r.race_id && races().some((x) => x.race_id === r.race_id))) continue;
+      if (statewide().some((x) => x.race_id === (r.race_id ?? r.race_key))) continue;
       S.extra.set(r.race_key, {
-        race_id: r.race_key, region: r.state, units: r.units, estimate: r.estimate ?? null, ov: r,
+        race_id: r.race_key, region: r.state, units: r.units ?? null, estimate: r.estimate ?? null, ov: r,
         name: `${r.state_name ?? r.state.toUpperCase()} ${o === "governor" ? "governor" : "Senate"}${r.special ? " (special)" : ""}`,
         a: { name: r.dem_side?.name ?? r.candidates?.D ?? "Democratic side", color: "#1f5fbf" },
         b: { name: r.candidates?.R ?? "Republican side", color: "#c8102e" },
@@ -1768,6 +1894,8 @@ async function initNational() {
   }
   const asked = S.extra.get(param("race"));
   if (asked) { S.race = asked; S.region = asked.region; S.level = "units"; }
+  // ?region=mi without a race: that state's race (a modelled one first), not another state's
+  else if (S.region && S.race?.region !== S.region) S.race = regionRace(S.region) ?? S.race;
   // the merged county layer under the state map follows the office shown
   if (!param("race")) syncOffice("senate", false);
   S.nat.draw(); // the state layer is ready before the map's first frame
@@ -1815,6 +1943,8 @@ function setOffice(o) {
   // the selector, the Races and Statistics tabs follow the office
   fillRaceSelect();
   if (S.rows) { buildRaceList(); renderStatsTab(); }
+  // the state list beside the map: the office's states
+  if (S.map) { buildPicker(); updateLists(S.preview ?? S.t); }
 }
 function setLayer(k) {
   S.censusLayer = k === "races" ? null : k;
@@ -1846,14 +1976,16 @@ function showDistrict(id) {
   S.houseSel = id;
   $("race").value = `house:${id}`;
   S.list?.select(null);
-  $("readout").innerHTML = districtReadout(id);
+  $("readout").innerHTML = districtReadout(id, districtModel(id));
   $("tl-view").hidden = true;
-  districtChart($("timeline"), id);
+  $("tl-feed").hidden = true;
+  districtChart($("timeline"), id, districtModel(id));
   showNational();
   renderCrumbs();
   refreshUsTab();
   syncUrl(true);
   buildRaceList(); // the district highlighted in the Races tab
+  renderStatsTab(); // its count model's statistics, where it has one
 }
 // End a district selection (a race chosen, the office changed, back to the country): the
 // selector, list, readout and chart return to the race. True when a district was selected.
@@ -2001,7 +2133,13 @@ async function main() {
   render();
   S.perf.firstPaintMs = Math.round(performance.now());
   startPrices();
-  if (S.nat) setTimeout(() => idle(() => prefetchUnits(races())), 1500);
+  if (S.nat) setTimeout(() => idle(() => prefetchUnits(statewide())), 1500);
+  // the House count models' own files: first read after the page's first second, then every minute
+  if (S.nat) {
+    const tick = () => { if (!document.hidden) loadHouseLive().then((ok) => { if (ok) houseLiveShown(); }); };
+    setTimeout(tick, 1200);
+    setInterval(tick, HOUSE_LIVE_MS);
+  }
 
   $("play").addEventListener("click", () => (S.playing ? pause() : play()));
   document.querySelectorAll("#speed button").forEach((b) => b.addEventListener("click", () => {
@@ -2032,6 +2170,8 @@ async function main() {
     readout: () => $("readout").innerText,
     // the one selection and what shows it: selector value, readout, chart, open tab, address
     selectKey: (k) => selectKey(k),
+    // read the House count models' files now (as the minute poll does): districts with rows
+    houseLive: () => loadHouseLive().then((ok) => { if (ok) houseLiveShown(); return S.houseLive ? S.houseLive.rows.size : 0; }),
     selection: () => ({ selector: $("race").value, readout: $("readout").innerText, chart: $("timeline").innerText, tab: document.querySelector(".tab-panes [role=tabpanel]:not([hidden])")?.innerText ?? "", url: location.search }),
     modes, levels: () => (levelsOn() ? ["regions", "units"] : []), level: () => S.level, region: () => S.region,
     domain: () => S.domain, frameTimes: () => S.frameTimes ?? [],

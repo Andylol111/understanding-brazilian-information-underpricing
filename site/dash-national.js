@@ -1,10 +1,10 @@
 // National view for elections with an overview file (US: every Senate and governor race of the
 // year, us2026/overview.json). The state map itself is the dashboard's map canvas with a state
 // layer (dash-map.js setNational): this module works out each state's colour, the market's
-// P(Democratic side) (Polymarket first, Kalshi where Polymarket has none; grey: no race), and the
-// rings on modelled states (with a county model), and owns what sits around the map: the office
-// toggle, the Senate control bar, the legend, the hover card, the race panel with price history
-// and the office summary beside the map. Clicking a modelled state drills into its county view.
+// P(Democratic side) (Polymarket first, Kalshi where Polymarket has none; grey: no race), and a
+// marker (●) on states with a live county model on election night, and owns what sits around the
+// map: the office toggle, the Senate control bar, the legend, the hover card, the race panel with
+// price history and the office summary beside the map. Clicking a state drills into its county view.
 import * as d3 from "./vendor/d3.js";
 import { C, esc, num, fmtDate, marginText, probit } from "./common.js";
 
@@ -27,10 +27,12 @@ const ramp = d3.range(201).map((j) => {
 export const colourOf = (p) => (p == null ? NORACE : ramp[Math.round(Math.max(0, Math.min(1, p)) * 200)]);
 
 // office: "senate" | "governor" | "house"; summary: the element for the office summary beside the map;
-// onColours(Map region -> colour, rings): the state layer for the map; onHighlight(region | null):
-// outline a state on the map (summary row hover); onDrill(race_id): open a modelled state's county view.
-// layers: [[key, label]] extra map modes (census) offered in a select; onLayer(key | "races").
-export function createNational(root, { overview, office = "senate", summary = null, onDrill, onOffice, onColours, onHighlight, layers = [], onLayer }) {
+// onColours(Map region -> colour, marked): the state layer for the map (marked: states with a live
+// county model); onHighlight(region | null): outline a state on the map (summary row hover);
+// onDrill(race_id): open a state's county view. modelled(race): the race has a live county model on
+// election night (the page knows: its own race files); feedNote(state): one line on why a state has
+// none. layers: [[key, label]] extra map modes (census) offered in a select; onLayer(key | "races").
+export function createNational(root, { overview, office = "senate", summary = null, onDrill, onOffice, onColours, onHighlight, layers = [], onLayer, modelled = (r) => !!r.modeled, feedNote = () => "" }) {
   const st = { office, overview, live: new Map(), model: new Map(), panel: null, sort: { key: "state", dir: 1 } };
 
   root.innerHTML = `
@@ -73,7 +75,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
       // states without a race or a price: left out, the map hatches them (no data)
       const p = priceOf(r);
       if (!colours.has(r.state) && p != null) colours.set(r.state, colourOf(p));
-      if (r.modeled) rings.push(r.state);
+      if (modelled(r)) rings.push(r.state);
     }
     onColours?.(colours, rings);
     drawControl();
@@ -96,7 +98,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
         ${m != null ? `<span class="m">${num(m)}</span> model · ` : ""}<span class="k">${num(pmP(r))}</span> Polymarket${st.live.has(r.race_key) ? " now" : ""} · <span class="kx">${num(r.kalshi?.price)}</span> Kalshi${"polls" in r ? ` · ${p ? `<b>${num(p.p_win)}</b> polls` : "no recent polls"}` : ""}</p>
       ${p ? `<p class="pc-hint">${esc(pollsTitle(p))}.</p>` : ""}
       ${r.dem_side?.aligned ? `<p class="pc-hint">${esc(r.dem_side.aligned)}</p>` : ""}
-      <p class="pc-hint">${r.modeled ? "Click for the county model." : r.units ? "Click for county estimates (past results shifted by polls)." : "Click for the price history. No county figures for this state."}</p>`;
+      <p class="pc-hint">${modelled(r) ? `<span class="mk-live" aria-hidden="true"></span> Live county model on election night. Click for the county model.` : `${esc(feedNote(r.state))} ${r.units ? "Click for county estimates (past results shifted by polls)." : "Click for the price history."}`}</p>`;
   }
 
   // the card for the state under the pointer (s: state code or null; ev: the pointer event)
@@ -127,9 +129,9 @@ export function createNational(root, { overview, office = "senate", summary = nu
     if (!r) { closePanel(); return; }
     st.panel = key;
     panel.hidden = false;
-    panel.innerHTML = `<button type="button" class="nat-close" aria-label="Close">×</button>${cardHTML(r).replace(/<p class="pc-hint">Click[^<]*<\/p>/, "")}
+    panel.innerHTML = `<button type="button" class="nat-close" aria-label="Close">×</button>${cardHTML(r).replace(/<p class="pc-hint">[^<]*Click[^<]*<\/p>/, "")}
       <div class="nat-hist"></div>
-      <p class="note">Prices every 30 minutes over the last 14 days: <span class="k">Polymarket</span>, <span class="kx">Kalshi</span>. No county model for this state.</p>`;
+      <p class="note">Prices every 30 minutes over the last 14 days: <span class="k">Polymarket</span>, <span class="kx">Kalshi</span>. ${esc(feedNote(r.state))}</p>`;
     panel.querySelector(".nat-close").addEventListener("click", closePanel);
     history(panel.querySelector(".nat-hist"), r);
   }
@@ -196,9 +198,9 @@ export function createNational(root, { overview, office = "senate", summary = nu
       ${ctlHTML}
       <h3 class="tab-h">${office} races (${rows.length})</h3>
       <table class="races nat-races"><thead><tr>${cols.map(([k, l]) => `<th class="${k === "state" || k === "inc" ? "" : "n"}" aria-sort="${key === k ? (dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${l}</button></th>`).join("")}</tr></thead>
-      <tbody>${rows.map((x) => `<tr tabindex="0" data-key="${esc(x.r.race_key)}" data-state="${esc(x.r.state)}"><td>${esc(x.state)}${x.r.special ? " (special)" : ""}${x.r.modeled ? ` <span class="ring" title="county model"></span>` : ""}</td><td>${esc(x.inc)}${x.r.incumbent_party ? ` (${esc(x.r.incumbent_party)})` : ""}${x.r.open ? " <small>not running</small>" : ""}</td>
-        <td class="n">${num(x.pm)}</td><td class="n kx">${num(x.k)}</td><td class="n" title="${esc(pollsTitle(x.r.polls))}">${marginText(x.polls)}</td><td class="n m" title="${esc(x.r.estimate?.note ?? (x.r.modeled ? "county model" : ""))}">${marginText(x.model)}</td><td class="n" title="${x.market != null ? esc(`from the price ${num(mg(x.r).market != null ? pmP(x.r) : x.k)}`) : ""}">${marginText(x.market)}</td></tr>`).join("")}</tbody></table>
-      <p class="note">Polymarket, Kalshi: prices (chance the Democratic side wins). Polls, Model, Market-implied: margins, Democratic minus Republican, in points of the two-party vote. Model: the county model with polls where a state has one (ringed), else the county estimate (past results shifted by polls). Market-implied: the margin at which the model's uncertainty gives Polymarket's price (Kalshi's where Polymarket has none). Click a race or a state to open its counties.</p>`;
+      <tbody>${rows.map((x) => `<tr tabindex="0" data-key="${esc(x.r.race_key)}" data-state="${esc(x.r.state)}"><td>${esc(x.state)}${x.r.special ? " (special)" : ""}${modelled(x.r) ? ` <span class="mk-live" title="live county model on election night"></span>` : ""}</td><td>${esc(x.inc)}${x.r.incumbent_party ? ` (${esc(x.r.incumbent_party)})` : ""}${x.r.open ? " <small>not running</small>" : ""}</td>
+        <td class="n">${num(x.pm)}</td><td class="n kx">${num(x.k)}</td><td class="n" title="${esc(pollsTitle(x.r.polls))}">${marginText(x.polls)}</td><td class="n m" title="${esc(x.r.estimate?.note ?? (modelled(x.r) ? "county model" : ""))}">${marginText(x.model)}</td><td class="n" title="${x.market != null ? esc(`from the price ${num(mg(x.r).market != null ? pmP(x.r) : x.k)}`) : ""}">${marginText(x.market)}</td></tr>`).join("")}</tbody></table>
+      <p class="note">Polymarket, Kalshi: prices (chance the Democratic side wins). Polls, Model, Market-implied: margins, Democratic minus Republican, in points of the two-party vote. Model: the county model with polls where a state has a live county model on election night (<span class="mk-live" aria-hidden="true"></span>), else the county estimate (past results shifted by polls). Market-implied: the margin at which the model's uncertainty gives Polymarket's price (Kalshi's where Polymarket has none). Click a race or a state to open its counties.</p>`;
     if (ctl?.markets.length) {
       const pm = ctl.markets.find((c) => c.platform !== "kalshi"), ks = ctl.markets.find((c) => c.platform === "kalshi");
       const byT = new Map();
@@ -249,7 +251,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
         const d = ps.filter((p) => p > 0.5).length, r = ps.filter((p) => p < 0.5).length;
         return `Favoured: <span style="color:${DEM}">Democratic side</span> in <b>${d}</b> · <span style="color:${REP}">Republican</span> in <b>${r}</b> states`;
       })()}</p>
-      <p class="legend-note"><span class="lg-none"></span> no ${st.office === "senate" ? "Senate" : "governor"} race or no price · <span class="ring"></span> county model</p>
+      <p class="legend-note"><span class="lg-none"></span> no ${st.office === "senate" ? "Senate" : "governor"} race or no price · <span class="mk-live"></span> live county model on election night (a marker, not data)</p>
       <p class="legend-note">Colour: market chance (Polymarket, else Kalshi).</p>`;
   }
 
