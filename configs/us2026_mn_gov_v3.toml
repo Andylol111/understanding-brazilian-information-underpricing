@@ -1,0 +1,56 @@
+# US midterms 2026-11-03, Minnesota governor: model v3. Identical to us2026_mn_gov_v2.toml (sha256 597306444dba1bdd77c637f0bf458eb20921fa6d1ef22f437e429c2f4ed2232b)
+# except the pre-count uncertainty: swing_prior_sd = the historical error of a poll average with this
+# many polls (538 raw_polls 2016-2022, CC BY 4.0; analysis/us_polls.py errorbins), and
+# count_scaled_terms = true, so before any vote the statewide uncertainty is that poll error alone and
+# the reporting-order / between-region terms grow with the counted votes (brunder.nowcast). Earlier
+# versions stay registered and scored.
+id = "us2026_mn_gov_v3"
+
+[election]
+eid = "us2026"
+race_id = "mn-gov"
+name = "Minnesota governor"
+state = "mn"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "mn"                    # brunder.us.FEEDS (MN SoS results file allracesbycounty.txt; plain --url)
+poll_close_utc = "2026-11-04T02:00:00Z"
+a = { party = "DEM", name = "Amy Klobuchar", color = "#1f5fbf" }
+b = { party = "REP", name = "Lisa Demuth", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "mn_gov_2022"        # 2022 governor (Walz v Jensen): same office, last midterm (MN SoS official results file)
+votes = "mn_gov_2022"        # 2022 governor two-party votes
+poll_avg = 0.5473           # two-party Dem share, weighted average of 3 polls
+poll_sd = 0.0405            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 3
+poll_last = "2026-10-28"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.8788        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 replays without a vote-type split (this feed has none), as SC/FL
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0077   # poll_avg - prior statewide share 0.5396 (V-weighted, data_public/us2026_priors.csv)
+swing_prior_sd = 0.0334      # historical RMSE of a poll average with 3 polls (brunder.us.POLL_SD_BINS)
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+
+[count]                    # brunder.us.CountRules
+# MN counts absentee ballots with the precincts on election night; the file gives precincts reporting per county
+# and no vote-type split: f = counted / expected votes, capped at 0.95 until every precinct reported, then 98%
+# counted; complete counties re-scale the rest (learned turnout). DFL candidates are read as DEM.
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = false
+
+[markets.polymarket]
+event = "minnesota-governor-winner-2026"
+market = "will-the-democrats-win-the-minnesota-governor-race-in-2026"
+question = "Will the Democrats win the Minnesota governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

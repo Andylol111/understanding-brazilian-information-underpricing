@@ -46,6 +46,21 @@ def _ga_item_ids(data: dict) -> list[str]:
             ids.append(item["id"])
     return ids
 
+
+_GA_HOUSE = ("us house", "u.s. house", "u.s. representative", "us representative", "united states representative")
+_GA_HOUSE_ITEMS: dict[str, list[str]] = {}  # election data URL -> US House ballot-item ids (brunder.us_house_night)
+
+
+def _ga_house_ids(data: dict) -> list[str]:
+    """US House ballot items (recorded under their own key prefix, ga_enr_<name>_house_<id>)."""
+    ids = []
+    for item in data.get("ballotItems") or []:
+        names = item.get("name") or []
+        text = " ".join(n.get("text", "") for n in names if isinstance(n, dict)).lower()
+        if any(text.startswith(r) for r in _GA_HOUSE):
+            ids.append(item["id"])
+    return ids
+
 _CLARITY_EID: dict[str, str] = {}           # clarity spec -> election id, once found
 
 
@@ -119,6 +134,9 @@ async def _resolve(web: httpx.AsyncClient, clarity: list[str], ga_enr: list[str]
                 if not _GA_ITEMS.get(base):
                     _GA_ITEMS[base] = _ga_item_ids((await web.get(f"{base}/data")).json())
                 out += [(f"ga_enr_{name}_item_{i}", f"{base}/data/ballot-item/{i}") for i in _GA_ITEMS[base]]
+                if base not in _GA_HOUSE_ITEMS:
+                    _GA_HOUSE_ITEMS[base] = _ga_house_ids((await web.get(f"{base}/data")).json())
+                out += [(f"ga_enr_{name}_house_{i}", f"{base}/data/ballot-item/{i}") for i in _GA_HOUSE_ITEMS[base]]
         except Exception as e:
             print(f"resolver {url}: {type(e).__name__}: {e}", flush=True)
     for url in vt_static:

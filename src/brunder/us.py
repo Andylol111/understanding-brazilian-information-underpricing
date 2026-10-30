@@ -47,6 +47,7 @@ import pandas as pd
 from . import kalshi, live, nowcast
 from .paths import PROCESSED, RAW
 from .paths import ROOT as ROOT_DIR
+from . import us_feeds_extra as _extra
 from .snap import SNAP, _name
 
 TAG = "us_midterms_2026"
@@ -74,8 +75,12 @@ FEEDS = {           # snapshot keys (snap._name of the recorded URL); "*" = ever
     "nc": {"county": "ncsbe_county", "results": "ncsbe_results_*"},                # resolver --ncsbe YYYYMMDD
     "fl": {"enight": _name("https://flelectionfiles.floridados.gov/enightfilespublic/20261103_ElecResultsFL.txt")},
 }
+FEEDS.update({f"{k}_house": FEEDS[k] for k in ("tx", "oh", "sc", "nc", "fl")})   # House districts: brunder.us_house_night
+FEEDS.update({"ga_house": {"item": "ga_enr_Georgia_house_*"}, "az_house": {"item": "ga_enr_Arizona_house_*"}})
 STATES = {"ca": "California", "tx": "Texas", "oh": "Ohio", "ga": "Georgia", "ak": "Alaska", "az": "Arizona",
           "sc": "South Carolina", "vt": "Vermont", "nc": "North Carolina", "fl": "Florida"}
+FEEDS.update(_extra.FEEDS)       # PA, MN, NE, NM (brunder.us_feeds_extra, added 2026-10-30); parsed there
+STATES.update(_extra.STATES)
 
 
 # ------------------------------------------------------------------ units
@@ -542,6 +547,11 @@ def parse_feed(kind: str, blobs: dict[str, bytes | list[bytes] | None]) -> pd.Da
             return parse_nc(blobs["county"], blobs.get("results") or []) if blobs.get("county") else _frame([])
         case "fl":
             return parse_fl(blobs["enight"]) if blobs.get("enight") else _frame([])
+    if kind in _extra.FEEDS:                         # PA, MN, NE, NM: brunder.us_feeds_extra
+        return _extra.parse_feed(kind, blobs)
+    if kind.endswith("_house"):                      # House districts (brunder.us_house_night); other kinds unchanged
+        from .us_house_night import parse_house
+        return parse_house(kind.removesuffix("_house"), blobs)
     raise ValueError(kind)
 
 
@@ -618,7 +628,7 @@ class Archive:
                 return None
             b = f.read_bytes()
             b = gzip.decompress(b) if f.suffix == ".gz" else b
-            _check(b)
+            _extra.CHECKS.get(f.parent.name, _check)(b)   # PA / MN keys: their own completeness check
         except Exception as e:                       # partial write, bad gzip, truncated JSON/XML
             if f not in self.bad:
                 print(f"snapshot skipped: {f.parent.name}/{f.name}: {type(e).__name__}: {e}", flush=True)
@@ -958,6 +968,7 @@ PRIOR_SOURCES = {
     "fl_sen_2022": lambda: _fl_official("11/8/2022", "sen"),
     "fl_gov_2022": lambda: _fl_official("11/8/2022", "gov"),
 }
+PRIOR_SOURCES.update(_extra.PRIOR_SOURCES)       # pa_*, mn_*, ne_*, nm_*, az_gov_2022 (brunder.us_feeds_extra)
 SOURCE_INFO = {
     "ca": ("California Secretary of State, Statement of Vote", "https://www.sos.ca.gov/elections/prior-elections/statewide-election-results", "public record"),
     "tx": ("Texas Legislative Council, Capitol Data Portal", "https://data.capitol.texas.gov/", "CC BY"),
@@ -970,6 +981,7 @@ SOURCE_INFO = {
     "fl": ("Florida Division of Elections, election results", "https://results.elections.myflorida.com/", "public record"),
     "az": ("Arizona Secretary of State, election results (Enhanced Voting)", "https://app.enhancedvoting.com/results/public/Arizona", "public record"),
 }
+SOURCE_INFO.update(_extra.SOURCE_INFO)
 
 
 def build_priors(sources: list[str] | None = None) -> Path:
@@ -991,6 +1003,7 @@ def build_priors(sources: list[str] | None = None) -> Path:
 
 
 PUBLIC_PRIORS = ROOT_DIR / "data_public" / "us2026_priors.csv"
+HOUSE_PRIORS = ROOT_DIR / "data_public" / "us2026_house_priors.csv"
 
 
 def load_priors(path: Path | None = None, processed: Path | None = None, public: Path | None = None) -> pd.DataFrame:
@@ -1001,6 +1014,8 @@ def load_priors(path: Path | None = None, processed: Path | None = None, public:
     if path is not None:
         return pd.read_csv(path, comment="#")
     pub = pd.read_csv(public or PUBLIC_PRIORS, comment="#")
+    if public is None and HOUSE_PRIORS.exists():    # House district priors (sources "<st>-<nn>_pres_2024"), own file
+        pub = pd.concat([pub, pd.read_csv(HOUSE_PRIORS, comment="#")], ignore_index=True)
     proc_path = processed or US_PROC / "priors.csv"
     if not proc_path.exists():
         return pub
@@ -1032,7 +1047,11 @@ def write_public_priors(priors: pd.DataFrame | None = None, dest: Path = PUBLIC_
         "#   ak_* Alaska Division of Elections (public record); oh_* MIT Election Data and Science Lab, U.S. President",
         "#   Precinct-Level Returns 2024, doi:10.7910/DVN/XDJYKC (CC0), summed to counties; sc_* South Carolina Election",
         "#   Commission certified results, enr-scvotes.org (public record); vt_* Vermont Secretary of State certified",
-        "#   results, electionresults.vermont.gov, towns summed to counties by this project (public record).",
+        "#   results, electionresults.vermont.gov, towns summed to counties by this project (public record);",
+        "#   nc_* NC State Board of Elections; fl_* Florida Division of Elections; pa_* Pennsylvania Department of State",
+        "#   (electionreturns.pa.gov); mn_* Minnesota Secretary of State results files; nm_* New Mexico Secretary of",
+        "#   State (public record); ne_*, az_* and nc_pres_2024 MIT Election Data and Science Lab 2022/2024 returns (CC0),",
+        "#   summed to counties (ne_sen_2024: Osborn, independent, in the dem column).",
     ]
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(".tmp")
@@ -1328,12 +1347,16 @@ def pm_tokens(cfgs: list[dict], pairs_path: Path | None = None, lookup: bool = F
 # ET (georgia.gov/vote-in-person-election-day), OH 6:30 a.m.-7:30 p.m. ET (Ohio SoS 2026 elections calendar), TX
 # 7 a.m.-7 p.m. local, central and mountain time (Texas SoS news release 2026-10-27), CA 7 a.m.-8 p.m. PT (California
 # SoS, Elections Officers' Digest: Election Day), SC 7 a.m.-7 p.m. ET (scvotes.gov upcoming elections), VT close at
-# 7 p.m. ET (Vermont SoS polling-place information).
+# 7 p.m. ET (Vermont SoS polling-place information). Added 2026-10-30: AZ 6 a.m.-7 p.m. MST (no DST), PA 7 a.m.-8 p.m.
+# ET, MN 7 a.m.-8 p.m. CT, NE 8 a.m.-8 p.m. local (central; the western counties mountain), NM 7 a.m.-7 p.m. MT.
 POLL_CLOSE = {"ga": "2026-11-04T00:00:00Z", "oh": "2026-11-04T00:30:00Z", "tx": "2026-11-04T01:00:00Z",
               "ca": "2026-11-04T04:00:00Z", "ak": "2026-11-04T05:00:00Z", "sc": "2026-11-04T00:00:00Z",
-              "vt": "2026-11-04T00:00:00Z", "nc": "2026-11-04T00:30:00Z", "fl": "2026-11-04T00:00:00Z"}
+              "vt": "2026-11-04T00:00:00Z", "nc": "2026-11-04T00:30:00Z", "fl": "2026-11-04T00:00:00Z",
+              "az": "2026-11-04T02:00:00Z", "pa": "2026-11-04T01:00:00Z", "mn": "2026-11-04T02:00:00Z",
+              "ne": "2026-11-04T02:00:00Z", "nm": "2026-11-04T02:00:00Z"}
 POLL_CLOSE_LAST = {"tx": "2026-11-04T02:00:00Z", "ak": "2026-11-04T06:00:00Z",   # El Paso/Hudspeth (MT); Aleutians
-                   "fl": "2026-11-04T01:00:00Z"}                                  # FL panhandle (central time)
+                   "fl": "2026-11-04T01:00:00Z",                                  # FL panhandle (central time)
+                   "ne": "2026-11-04T03:00:00Z"}                                  # NE panhandle (mountain time)
 POLL_SOURCES = [
     {"name": "Georgia.gov, Vote in person on Election Day (polls 7 a.m.-7 p.m.)",
      "url": "https://georgia.gov/vote-in-person-election-day", "licence": "public record"},
@@ -1426,7 +1449,7 @@ def meta(cfgs: list[dict], priors_ok: dict[str, bool], kalshi_mk: dict[str, dict
         srcs.append({"name": "© Kalshi: market prices (order-book midpoints)", "url": "https://kalshi.com",
                      "licence": "© Kalshi; shown per the project's decision and pending exception request, "
                                 "see docs/kalshi.md"})
-    srcs += POLL_SOURCES
+    srcs += POLL_SOURCES + [_extra.POLL_SOURCES[s] for s in states if s in _extra.POLL_SOURCES]
     srcs.append({"name": "VoteHub Polling API: Senate and governor polls (model v2 prior; our averages only)",
                  "url": "https://votehub.com/polls/api/", "licence": "CC BY 4.0"})
     notes = [
@@ -2895,6 +2918,11 @@ def cli(a) -> None:
             print(earlyvote(a.out))
         case "export":
             print(export(a.configs, a.out, a.snap, a.until))
+        case "score":
+            import sys
+            sys.path.insert(0, str(ROOT_DIR / "analysis"))
+            import us_score
+            print(us_score.run(a.out, a.snap, a.configs or None))
         case "live":
             stop = pd.Timestamp(a.until).tz_convert("UTC").to_pydatetime() if a.until else None
             asyncio.run(run_live(a.configs, a.out, a.snap, a.interval, stop))

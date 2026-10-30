@@ -1,0 +1,39 @@
+# Live US House district models (2026-11-03; brunder.us_house_night, docs/us_midterms.md#house): its own process,
+# isolated from brunder-us-live (the registered Senate/governor forward test). Re-reads the recorder's archive
+# (brunder-snap-us) every 60 s and writes only site/data/us2026/house_live/, which brunder-site serves. Never polls
+# the official feeds. The 40 most competitive districts by market price (analysis/us_house_night.py
+# by_competitiveness); Mac replay of these 40: 0.95 s CPU per cycle median, 3.2 s p95, 6.7 s max, peak RSS 0.3 GB
+# (analysis/us_house_night.py bench). Started by brunder-election-night.target.
+[Unit]
+Description=brunder live House district models: US midterms 2026-11-03
+After=brunder-snap-us.service
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen python -m brunder.us_house_night live \
+  configs/us2026_house/tx-23_v1.toml configs/us2026_house/nc-03_v1.toml configs/us2026_house/nc-13_v1.toml \
+  configs/us2026_house/sc-01_v1.toml configs/us2026_house/oh-15_v1.toml configs/us2026_house/fl-27_v1.toml \
+  configs/us2026_house/fl-09_v1.toml configs/us2026_house/az-02_v1.toml configs/us2026_house/nc-09_v1.toml \
+  configs/us2026_house/fl-22_v1.toml configs/us2026_house/tx-35_v1.toml configs/us2026_house/fl-14_v1.toml \
+  configs/us2026_house/oh-10_v1.toml configs/us2026_house/fl-13_v1.toml configs/us2026_house/fl-07_v1.toml \
+  configs/us2026_house/nc-14_v1.toml configs/us2026_house/nc-07_v1.toml configs/us2026_house/fl-16_v1.toml \
+  configs/us2026_house/oh-09_v1.toml configs/us2026_house/tx-09_v1.toml configs/us2026_house/fl-25_v1.toml \
+  configs/us2026_house/az-01_v1.toml configs/us2026_house/fl-04_v1.toml configs/us2026_house/fl-12_v1.toml \
+  configs/us2026_house/nc-01_v1.toml configs/us2026_house/ga-12_v1.toml configs/us2026_house/fl-26_v1.toml \
+  configs/us2026_house/nc-05_v1.toml configs/us2026_house/oh-07_v1.toml configs/us2026_house/az-05_v1.toml \
+  configs/us2026_house/tx-32_v1.toml configs/us2026_house/tx-15_v1.toml configs/us2026_house/az-08_v1.toml \
+  configs/us2026_house/sc-02_v1.toml configs/us2026_house/fl-11_v1.toml configs/us2026_house/nc-11_v1.toml \
+  configs/us2026_house/fl-21_v1.toml configs/us2026_house/ga-01_v1.toml configs/us2026_house/tx-34_v1.toml \
+  configs/us2026_house/az-06_v1.toml \
+  --out /srv/brunder/repo/site/data --interval 60 --until 2026-11-20T00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=15
+CPUQuota=25%
+MemoryMax=1G
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=brunder-election-night.target

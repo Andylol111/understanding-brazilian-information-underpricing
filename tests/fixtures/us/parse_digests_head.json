@@ -1,0 +1,57 @@
+{
+ "_commit": "3fa8783",
+ "_feeds": {
+  "ak": {
+   "js": "www.elections.alaska.gov_enr26_results_statewide.js"
+  },
+  "az": {
+   "item": "ga_enr_Arizona_item_*"
+  },
+  "ca": {
+   "results": "api.sos.ca.gov_returns_governor_county_all",
+   "status": "api.sos.ca.gov_returns_status"
+  },
+  "fl": {
+   "enight": "flelectionfiles.floridados.gov_enightfilespublic_20261103_ElecResultsFL.txt"
+  },
+  "ga": {
+   "item": "ga_enr_Georgia_item_*"
+  },
+  "nc": {
+   "county": "ncsbe_county",
+   "results": "ncsbe_results_*"
+  },
+  "oh": {
+   "csv": "liveresults.ohiosos.gov_Api_v1_Contest_GetElectionSummaryCsv",
+   "xml": "liveresults.ohiosos.gov_Api_v1_download_filename_VSSC1622XmlFileBlob"
+  },
+  "sc": {
+   "all": "clarity_www.enr-scvotes.org_SC",
+   "status": "clarity_www.enr-scvotes.org_SC_status",
+   "summary": "clarity_www.enr-scvotes.org_SC_summary"
+  },
+  "tx": {
+   "county": "goelect.txelections.civixapps.com_api-ivis-system_api_s3_enr_election_countyInfo_53815",
+   "election": "goelect.txelections.civixapps.com_api-ivis-system_api_s3_enr_election_53815"
+  },
+  "vt": {
+   "main": "vt_static_main",
+   "statewide": "vt_static_statewide"
+  }
+ },
+ "ak": "cc3eb71dcbb39a0fdfe29cdca07b227965f50914ef63ac589498a75617b364cc",
+ "az": "1599e0589cb0beec59d063bbec4bd287bb67b59278e039b624e9d19f8f16115b",
+ "ca": "0f4b4cd001058f6f072b43cc5aa7e851c64be2e724923d08e433a451ea2d11c4",
+ "fl22": "983959856b84448d079e3bc7bffc4fa35c883bfbc21599611010b132a73ee7fa",
+ "fl26": "7550c0a70ce9bec2a51c5fe27575fb6893ab964ae775e3d19871bc4178d2eb07",
+ "ga": "f79504b2f36ac34e475472ac9bd6083c002515e849c72d3ca3680734cecac3a5",
+ "nc22": "842acc59db825706873e5e8b833487ed0d14a937653e83ae44670a7334e364bb",
+ "nc26": "82ba32cc98c124ee7d3df39fc5e84d31103d7ead3d96c34c41b61233a9070770",
+ "oh": "897056072e680c8090647db576d9a273dcbe497431e6ef0ca6ddd499497278bd",
+ "sc22": "cfc541269c58d63f1cfdd459d44140dcf1aa27de5e8302a0d87a9f3a21539db5",
+ "sc24": "a0478c893e2614d5cdc8598a670f41e3f0d07346a44613741772ae510ca77e6c",
+ "tx24": "525542e5380e787cfefade82d8d3085026c2bb26fa4cacb3d4b79c176dfb3d7a",
+ "tx26": "9c8a910bb5e6dcc01098c186b6140427e43bb5910a5edf955f68179a81032727",
+ "vt24": "c468ad635a5f580fbec10b9c32ce8b60550a7bbce50cf9b04c0fdab20c760464",
+ "vt26": "318bfa0e6aa6d974f3edc5f213dd5a1d6f4a9271b705f949719b58d871c74577"
+}

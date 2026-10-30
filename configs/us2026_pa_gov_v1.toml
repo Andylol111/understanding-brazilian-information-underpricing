@@ -1,0 +1,48 @@
+# US midterms 2026-11-03, Pennsylvania governor. Frozen before polls close (2026-11-04 01:00 UTC); the integrator registers it
+# (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence: docs/us_midterms.md
+# ("More states", added 2026-10-30). Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_pa_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "pa-gov"
+name = "Pennsylvania governor"
+state = "pa"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "pa"                    # brunder.us.FEEDS (PA DoS election returns API, GetCountyBreak governor; plain --url)
+poll_close_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "Josh Shapiro", color = "#1f5fbf" }
+b = { party = "REP", name = "Stacy Garrity", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "pa_gov_2022"        # 2022 governor (Shapiro v Mastriano): same office and candidate, last midterm (PA DoS certified county returns)
+votes = "pa_gov_2022"        # 2022 governor two-party votes
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 vote-type replays, vote_type on (analysis/us_calibrate.py), as NC
+tau = 0.04
+rho = 0.6
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# PA counts mail ballots from 7 a.m. on Election Day and most counties post them soon after polls close; the feed
+# gives each candidate's Election Day / mail-in / provisional votes by county, so vote_type is on (early = mail-in).
+# The file has no precincts reporting (the separate county status messages are unreliable: Philadelphia 2022 still
+# shows 89 of 1,703 divisions after certification), so no county is ever taken as complete: f = counted / expected
+# (2022 governor two-party votes x 1.0), capped at 0.95, no learned turnout.
+# early_share = 0.23 = PA 2022 governor mail-in share of the two-party vote (DoS county returns).
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.0
+use_outstanding = false
+learn_turnout = false
+vote_type = true
+early_share = 0.23
+
+[markets.polymarket]
+event = "pennsylvania-governor-winner-2026"
+market = "will-the-democrats-win-the-pennsylvania-governor-race-in-2026"
+question = "Will the Democrats win the Pennsylvania governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

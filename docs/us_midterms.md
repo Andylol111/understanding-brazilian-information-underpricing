@@ -23,8 +23,9 @@ Acton–Ramaswamy, Ossoff–Collins, Bottoms–Jackson. The Republican-side Poly
 are matched in `configs/pairs/us2026.toml` (Kalshi workstream); Kalshi prices are shown credited "© Kalshi" under the
 project's decision (`docs/kalshi.md`).
 
-Not covered: Kansas, Michigan, Iowa (their results sites block or disallow automated access; not circumvented),
-Maine (no official night feed) — see `deploy/brunder-snap-us.service`.
+Not covered: Kansas, Michigan, Iowa, Wisconsin, Nevada, New Hampshire, Maine and others (their results sites block or
+disallow automated access, or there is no official night feed; not circumvented) — see "States checked" below and
+`deploy/brunder-snap-us.service`.
 
 Alaska (Senate, governor) is excluded from the scored set. It holds a top-four primary and a ranked-choice general,
 so one party can field several finalists: the certified 2026 primary has two major Democratic governor tickets
@@ -77,6 +78,8 @@ with retries that neither duplicate nor drop minutes.
 | `ga_gov_2022`, `ga_sen_2022`, `ga_pres_2024`, `ga_pres_2020` | GA certified results by county and vote type | GA SoS Enhanced Voting | public record |
 | `ak_sen_p2026`, `ak_gov_p2026` | AK 2026 top-four primary by house district (built, not used: Alaska excluded) | AK Division of Elections (`enr26` while it still holds the primary; a copy is the test fixture) | public record |
 | `oh_pres_2024` | OH president 2024 | MIT Election Data and Science Lab county returns, doi:10.7910/DVN/VOQCHQ | CC0 |
+| `pa_gov_2022`, `mn_gov_2022`, `nm_gov_2022`, `nm_sen_2024` | PA/MN/NM certified county results | PA DoS API, MN SoS results file, NM SoS archive (`brunder.us_feeds_extra`) | public record |
+| `ne_sen_2024`, `ne_gov_2022`, `az_gov_2022` | NE Senate 2024 (Osborn as dem), NE/AZ governor 2022 | MEDSL 2024 Senate county file, 2022 precinct returns | CC0 |
 
 Ohio: the SoS sites answer scripts with a 403 block page and Dataverse requires a guestbook (name, e-mail,
 institution), so the MEDSL file is not downloaded by code; save `countypres_2000-2024.csv` (original CSV) under
@@ -168,9 +171,9 @@ model only knows the early batches and the prior. The sd covers that, which is t
 | vt-gov | `us2026_vt_gov_v1` | Vermont SoS static JSON `static.electionresults.vermont.gov/elections/<guid>.json` + its statewide file, renamed on every update | 247 towns summed to 14 counties | 2024 governor (same incumbent), votes × 0.72 | τ 0.06, ρ 0.3; county complete when all its towns reported → 98 %, learned turnout |
 
 Arizona governor: the feed is ready, and `parse_ga(item, "az")` reads AZ's Enhanced Voting ballot items, tested on
-the live test data. The race has no config: AZ's certified county results (azsos.gov, apps.azsos.gov) sit behind a
-Cloudflare challenge that is not circumvented. Enhanced Voting holds no earlier AZ general election, and its 2026
-primary covers 3 counties only. AZ is listed with prices in the overview.
+the live test data. AZ's certified county results (azsos.gov, apps.azsos.gov) sit behind a Cloudflare challenge that
+is not circumvented, and Enhanced Voting holds no earlier AZ general election. On 2026-10-30 the race got configs
+with a prior from MEDSL's 2022 precinct returns (next sections).
 
 Settings: SC and VT feeds report no vote-type split, so they use the Georgia calibration without a split (τ 0.06,
 ρ 0.3). Both states count on election night (SC early and absentee ballots, VT town hand counts including
@@ -204,6 +207,78 @@ Florida was first skipped on 2026-10-28 for want of a county endpoint. It was ad
 | New Hampshire | sos.nh.gov answers 403 under Akamai ("Access Denied") |
 | Maine | maine.gov answers 403, and there is no official election-night feed |
 | Nebraska | electionresults.nebraska.gov is open, but serves ASP.NET HTML pages only; there is no machine-readable county endpoint and no parser in the time available. Senate is Osborn (independent) v Ricketts |
+
+Pennsylvania and Nebraska were revisited on 2026-10-30 and added (next section): PA's results *API* answers plain
+requests (only its HTML landing page carries the Incapsula script), and Nebraska's county maps are drawn from a JSON
+web service.
+
+### Pennsylvania, Minnesota, Nebraska, New Mexico, Arizona governor (added 2026-10-30; no 2026 count data used)
+
+Code: `src/brunder/us_feeds_extra.py` (feeds, parsers, priors; `brunder.us` merges its `FEEDS`, `STATES`,
+`PRIOR_SOURCES`, `SOURCE_INFO` and dispatches `parse_feed`). Every feed is recorded with a plain `--url` and was
+fetched from both a Mac and the recorder VM (HTTP 200, same bytes) on 2026-10-29/30, cache-buster `t=` included.
+
+| race_id | configs | feed (recorder `--url`) | units | prior | settings |
+|---|---|---|---|---|---|
+| pa-gov | `us2026_pa_gov_v1..v3` | PA DoS `electionreturns.pa.gov/api/ElectionReturn/GetCountyBreak?officeId=3…&electionid=117…` (2026 general = election 117) | 67 counties | 2022 governor (Shapiro v Mastriano), same API, finished election 94 | GA vote-type settings τ 0.04, ρ 0.6, `vote_type` (early = mail-in), early_share 0.23 (PA 2022 governor); no complete flag (f_complete 0), f ≤ 0.95, no learned turnout |
+| mn-sen | `us2026_mn_sen_v1..v3` | MN SoS `electionresultsfiles.sos.mn.gov/20261103/allracesbycounty.txt` | 87 counties | 2022 governor share and votes (MN SoS results file) | no split, τ 0.06, ρ 0.3; complete = all precincts in → 98 %, learned turnout |
+| mn-gov | `us2026_mn_gov_v1..v3` | same file | 87 counties | 2022 governor | as mn-sen |
+| ne-sen | `us2026_ne_sen_v1..v3` | NE SoS `neresultswebservice.azurewebsites.us/ResultsAjax.svc/GetMapData?…raceID=13224&osn=102…` | 93 counties | 2024 Senate share with Osborn as side a (MEDSL county file, CC0), 2022 governor votes | as mn-sen; side a = Dan Osborn (party code PET, "By Petition"), no Democrat on the ballot |
+| ne-gov | `us2026_ne_gov_v1..v3` | same service, `raceID=13508&osn=105` | 93 counties | 2022 governor (MEDSL 2022 precinct returns, CC0) | as mn-sen |
+| nm-gov | `us2026_nm_gov_v1`, `_v2` (= v1, no polls) | NM SoS `nmresultswebservice.azurewebsites.us/NMResultsAjax.svc/GetMapData?type=SW…raceID=11530&osn=202…` | 33 counties | 2022 governor (NM SoS archive, election 2838) | as mn-sen |
+| nm-sen | `us2026_nm_sen_v1..v3` | same service, `type=FED…raceID=11185&osn=180` | 33 counties | 2024 Senate share (NM SoS archive, election 2882), 2022 governor votes | as mn-sen |
+| az-gov | `us2026_az_gov_v1..v3` | AZ Enhanced Voting (already recorded, `--ga-enr …/Arizona`) | 15 counties | 2022 governor (Hobbs v Lake; MEDSL 2022 precinct returns, CC0) | as CA (days-long count of late early ballots): τ 0.08, ρ 0.3, f ≤ 0.90, no complete flag, no learned turnout |
+
+- **Parsers** (`tests/test_us_feeds_extra.py`), each statewide sum equal to the certified result:
+  - PA, 2022 governor, all 67 counties: Shapiro 3,031,137 / Mastriano 2,238,477; mail-in read as early.
+  - MN, 2022 governor: Walz 1,312,349 / Jensen 1,119,941; 2024 Senate: Klobuchar 1,792,441 / White 1,291,712. DFL is
+    read as DEM. County ID = alphabetical index, FIPS = 2 × ID − 1 (checked against the SoS county table).
+  - NE, 2020 Senate (the archive endpoint does not serve the 2022/2024 generals' pages; the schema is the 2026 one):
+    Sasse 583,507 / Janicek 227,191.
+  - NM, 2022 governor: Lujan Grisham 370,168 / Ronchetti 324,701; 2024 Senate: Heinrich 497,333 / Domenici 405,978.
+  - All four also parse the 2026 files as published now (zeroed test decks; MN's holds test numbers). NM shows `*`
+    as a county's votes until it reports (read as 0). NE/NM rows are kept only if `RaceName` is the expected race.
+- **Priors** (`data_public/us2026_priors.csv`, rows appended, existing rows unchanged): each equals the certified
+  totals above; NE 2024 Senate Osborn 436,493 / Fischer 499,124; NE 2022 governor Blood 242,006 / Pillen 398,334;
+  AZ 2022 governor Hobbs 1,287,875 / Lake 1,270,796 (MEDSL; the canvass has 1,287,891 / 1,270,774, ≤ 0.002 % off).
+- **Snapshot checks:** PA answers a JSON *string* holding the document, and MN's file is ISO-8859-1 text; both keys get
+  their own completeness check in `Archive` (`us_feeds_extra.CHECKS`: both JSON layers parse; text ends with a line
+  break). Every other key keeps `_check`.
+- **Existing states unchanged:** a regression test runs every earlier parser on every earlier fixture through
+  `parse_feed` and compares SHA-256 digests with those computed by the code of commit 3fa8783
+  (`tests/fixtures/us/parse_digests_head.json`); the earlier `FEEDS` keys are compared too.
+- **Race ids:** NE/NM race ids are the 2026 general's, read from the states' results pages (`BuildCounty(type, race,
+  osn)`); a changed id would yield no rows, not wrong rows.
+- **PA counting:** the API has no precinct counts and the county status messages are unreliable (Philadelphia 2022
+  still reads 89 of 1,703 divisions after certification), so no PA county is ever taken as complete.
+- **Settings** were set by analogy (no PA/MN/NE/NM night replay exists): vote-type states as GA/NC, no-split states
+  as SC/FL, AZ as CA.
+
+**States checked on 2026-10-29/30** (Mac and recorder VM; no bot protection circumvented):
+
+| state (races) | endpoint checked | Mac | VM | status |
+|---|---|---|---|---|
+| PA (gov) | electionreturns.pa.gov API | 200 | 200 | added |
+| MN (sen, gov) | electionresultsfiles.sos.mn.gov media files | 200 | 200 | added (the results website itself is behind a Radware bot manager; the files host is not) |
+| NE (sen, gov) | neresultswebservice.azurewebsites.us | 200 | 200 | added |
+| NM (gov, sen) | nmresultswebservice.azurewebsites.us | 200 | 200 | added |
+| AZ (gov) | app.enhancedvoting.com (Arizona) | 200 | 200 | added (prior: MEDSL 2022) |
+| MI (sen, gov) | mielections.us | timeout | timeout | no (earlier Cloudflare) |
+| WI (gov) | elections.wi.gov | 403 CF | 403 CF | no; no statewide night feed |
+| IA (sen, gov) | electionresults.iowa.gov (Clarity) | 200 | 202 challenge | no (recorder runs on the VM) |
+| KS (sen, gov) | sos.ks.gov | — | — | no: robots.txt disallows /ent/ and /api/ |
+| NV (gov) | silverstateelection.nv.gov | Incapsula JS | 403 | no |
+| NH (sen, gov) | sos.nh.gov | 403 Akamai | 403 Akamai | no |
+| ME (sen, gov) | maine.gov | 403 | 403 | no; no night feed |
+| CO (sen, gov) | results.enr.clarityelections.com/CO (county Clarity) | 200 | 202 challenge | no |
+| NY (gov) | nyenr.elections.ny.gov | CF challenge | CF challenge | no |
+| IL (gov, sen) | elections.il.gov | 200 | 403 CF | no; no statewide night feed |
+| MA (gov, sen) | electionstats.state.ma.us | 200 | 200 | no: certified results only |
+| KY, AR, WV | results.enr.clarityelections.com | 403/200 | 202 challenge | no |
+| OK, MT, TN | results.okelections.gov, electionresults.mt.gov, sos.tn.gov | 403 | 403 | no |
+| SD | electionresults.sd.gov (same vendor as NE/NM) | 200 | 200 | feasible, not added (uncompetitive, low volume) |
+| OR, VA, LA, RI, CT, MD, DE, HI, WY, MS, AL | state results sites | 200 | 200 | not pursued (uncompetitive, low market volume) |
+| AK | elections.alaska.gov (recorded) | 200 | 200* | excluded (ranked-choice; see above). *VM needs the unit's SSL_CERT_FILE |
 
 ## Polls
 
@@ -391,6 +466,9 @@ Margins are D − R in points of the two-party vote.
   - margin error, model − certified, in points;
   - turnout error, projected total votes (`votes_proj`) / certified − 1;
   - probability calibration, Brier and log loss of P against the outcome.
+  - the full post-election pipeline (every registered metric per race and version, execution, Senate control,
+    display-only candidates; `uv run brunder us score`) is `analysis/us_score.py`, documented in
+    [`docs/us_scoring.md`](us_scoring.md).
 
 ## Early-vote implied margin and its history (display only)
 
@@ -522,6 +600,60 @@ Margins are D − R as a percentage of all votes for the office; `d2` is the two
   (public domain); MEDSL 2024 precinct returns (github.com/MEDSL/2024-elections-official, CC0 1.0) and County
   Presidential Returns 2000–2024 (CC0 1.0); FEC (public domain); VoteHub (CC BY 4.0); Polymarket public data;
   © Kalshi.
+
+## House districts on election night (`brunder.us_house_night`; configs `configs/us2026_house/<st>-<nn>_v1/v2.toml`) {#house}
+
+The feeds recorded for the statewide races already carry every U.S. House contest by county in TX (Civix
+`countyInfo`), FL (DOS file, `RaceCode` USR), NC (NCSBE `results_<county>.txt`), SC (Clarity), OH (NIST 1622 XML);
+GA and AZ House ballot items are recorded under their own keys (`ga_enr_<Georgia|Arizona>_house_<item>`; the
+statewide `…_item_*` keys are unchanged). CA is not covered (the SoS API reports House results districtwide only,
+`/returns/us-rep/district/all`, no county split, and is not recorded); VT's at-large seat has no competitive market.
+Feed kinds `<st>_house` (same snapshot keys) are parsed by `brunder.us_house_night.parse_house` into the usual rows
+with race `house-<NN>` and one row per county × district (a split county appears in each of its districts with only
+that district's votes and, in TX/NC/FL, that district's precinct counts). The model is `brunder.us.project`
+unchanged, on the district's counties.
+
+- **Prior** (`data_public/us2026_house_priors.csv`, `analysis/us_house_night.py priors`): 2024 president in each
+  county's part of each 2026 district, the allocation of `site/data/us2026/house/districts.json` (district sums
+  equal it to < 1e-5). v1: no shift. v2: `swing_prior_mean` = generic-ballot shift +0.0552 (average 0.5477 −
+  national 2024 Harris share 0.4925), `swing_prior_sd` = 0.052 = √(0.0429² generic-ballot error + 0.0294² spread of
+  2024 House vs president shares). Expected votes = 0.72 × 2024 president two-party votes, learned on the night.
+- **Parser checks** (`analysis/us_house_night.py verify`): district totals equal the certified ones for FL 2022
+  official extract vs FEC (27/27 exact), FL 2024 extract vs MEDSL (26 exact, 1 off by 1 vote), SC Clarity 2022 vs
+  FEC (7/7) and 2024 vs MEDSL (7/7), NC certified 2022 precincts vs FEC (14/14), NC 2022 ENR county files vs the
+  certified precincts (all cells exact), GA 2024 certified items vs MEDSL (14, max 7 votes). TX, OH, AZ have no past
+  file of the night format; their 2026 pre-election files list every district, D and R, and the prior's counties
+  (TX-14 lists Chambers County, a sliver the block crosswalk gives no 2024 votes; FL-10 is absent, uncontested).
+- **Replay** (`analysis/us_house_night.py replay`; `data_public/us2026_house_calibration.json`): 2024 districts with
+  a final two-party share in [0.35, 0.65] (68: TX 16, FL 20, NC 9, SC 6, OH 8, GA 6, AZ 3; AZ-02/05/07 dropped
+  because MEDSL's Arizona precinct file does not reproduce their certified result), 6 simulated nights each:
+  certified county-part votes split by vote type where certified data have it (NC, SC, AZ precincts; GA items),
+  else a split borrowed from a donor state's county parts; count order as `analysis/us_calibrate.py`; the prior is
+  moved by an unknown national swing N(0, 0.04); expected votes off by exp(N(0, 0.08)); v2's swing prior is that
+  swing plus N(0, 0.0429). Selection per feed group and version (≥ 85 % coverage of the 90 % band at each of 5/25/50 %
+  counted, then smallest mean |error|, then smallest tau / sigma_uf0). Chosen: tau 0.01, sigma_uf0 0.03, sigma_mun0
+  0.08; rho 0.3 (FL/SC/OH v1) or 0.6; vote_type on only for TX/NC/GA/AZ v1. Coverage at 5/25/50 % counted (mean
+  |error|): FL/SC/OH v1 0.98/0.95/0.87 (0.016/0.015/0.013), v2 0.98/0.96/0.90 (0.024/0.018/0.014); TX/NC/GA/AZ v1
+  0.98/0.98/0.95 (0.018/0.012/0.010), v2 0.96/0.96/0.93 (0.020/0.014/0.011). Weak spot: Maricopa-only AZ districts
+  (AZ-01/04/08), 0.78 (v1) and 0.67 (v2), where the Election Day batch is far more Republican than the early batch
+  and arrives last; no setting in the grid reaches 0.85 there.
+- **Configs** (`analysis/us_house_night.py configs`): districts of these states with a Polymarket or Kalshi P(D) in
+  [0.05, 0.95] in `markets.json` built 2026-10-29: 63 (TX 12, FL 20, NC 11, SC 4, OH 7, GA 4, AZ 5); race id
+  `house:<ST>-<NN>`, Polymarket market "Will the Democratic Party win the <ST>-<NN> House seat?". Kalshi lines need
+  the district's pair in `configs/pairs/us2026.toml` (YES = `<event>-D`); Polymarket lines need the event in the
+  recorder's `--pm-event` list. The configs live in `configs/us2026_house/` (ids `us2026_house_<st>-<nn>_v<k>`), so
+  globs over `configs/us2026_*_v1.toml` (pre-count, overview, scoring, poll generators) never see them.
+- **Live, own process** (`deploy/brunder-us-house-live.service`: `python -m brunder.us_house_night live`, 60 s,
+  `CPUQuota=25%`, `MemoryMax=1G`, `Nice=15`): never inside `brunder us live`; reads the same recorder archive and
+  writes only `site/data/us2026/house_live/{meta,timeline,timeline_tail,status}.json` + `units/house:<ST>-<NN>.json`
+  (same row and units shapes as the statewide files; rows older than 6 h / 48 h thinned to one per 10 min / hour).
+  Cost on the Mac (`analysis/us_house_night.py bench`: the rehearsal archive below, 240 simulated minutes, every feed
+  changing every minute): all 63 districts 3.3 s CPU per cycle median, 7.7 s p95, 11.2 s max, 0.32 GB peak; the 40
+  most competitive by market price 0.95 / 3.2 / 6.7 s, 0.30 GB. The unit runs those 40 (p95 ≈ 13 s wall at 25 %
+  of a Mac core); the other 23 configs are complete and can be replayed from the archive after the night.
+- **Rehearsal:** `analysis/us_house_rehearsal.py` adds the House contests to the TX/NC/FL bodies of
+  `analysis/us_night_replay.py` and writes the GA/AZ House items and OH/SC House-only files (statewide parsing of
+  those bodies is unchanged: House rows carry no statewide race key).
 
 ## Wallet flow on Polymarket (`analysis/us_wallets.py`; display and analysis only, nothing registered)
 
@@ -704,6 +836,9 @@ egress, not the server: with a 250 kB timeline, 300 pages pull ~2.7 MB/s (the ta
   resolve on the plurality winner, which can differ from the two-party majority only if third parties are large.
 - A feed that flags a county complete too early makes the model overconfident there (f jumps to 0.98).
 - Snapshot cadence is 30 s; the timeline is per minute, so the model lags the feed by up to ~90 s.
+- House districts (#house): 1–30 counties per district, so the swing is learned from few units and the
+  within-county vote-type order dominates; Maricopa-only AZ districts are under-covered in the 2024 replay. The prior
+  is the 2024 president vote: candidates and incumbency enter only through the count (v2: through the swing sd).
 
 ## Evidence label
 

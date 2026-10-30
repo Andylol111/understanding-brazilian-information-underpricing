@@ -1,0 +1,48 @@
+# US midterms 2026-11-03, TX-15 U.S. House: model v1. No swing: the count alone moves the 2024 president baseline.
+# Counted units = the district's counties (a split county: only its part in the district, as the feed reports it).
+# Prior = 2024 president in each county's part of the 2026 district (data_public/us2026_house_priors.csv,
+# analysis/us_house_night.py priors; same allocation as site/data/us2026/house/districts.json). Settings from the
+# 2024 replay of the same feed's House contests (analysis/us_house_night.py replay; data_public/us2026_house_calibration.json):
+# feeds with an early-vote split (TX, NC, GA, AZ), 34 replayed districts; 90 % coverage 0.98/0.98/0.95 at 5/25/50 % counted, mean |error| 0.018/0.012/0.010.
+# Frozen before polls close; the integrator registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count
+# data. Market selection: P(D) Polymarket 0.865, Kalshi 0.875 in markets.json built 2026-10-29 (rule: Polymarket or Kalshi in [0.05, 0.95]).
+id = "us2026_house_tx-15_v1"
+
+[election]
+eid = "us2026"
+race_id = "house:TX-15"
+name = "TX-15 U.S. House"
+state = "tx"
+race = "house-15"             # race key in the parsed feed (brunder.us_house_night)
+feed = "tx_house"             # brunder.us.FEEDS: the state's recorded feed, House contests
+poll_close_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "Bobby Pulido", color = "#1f5fbf" }
+b = { party = "REP", name = "Monica De La Cruz", color = "#c8102e" }
+
+[prior]
+share = "tx-15_pres_2024"     # 2024 president (Harris v Trump), county parts of the 2026 district
+votes = "tx-15_pres_2024"     # its two-party votes × turnout_ratio = expected 2026 two-party votes
+
+[model]                    # brunder.nowcast.Params
+tau = 0.01
+rho = 0.6
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03                # prior sd of a region's swing (one district = one region; early/late with vote_type)
+
+[count]                    # brunder.us.CountRules
+turnout_ratio = 0.72         # 2026 midterm / 2024 president two-party votes (brunder.us.EST_TURNOUT)
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = true
+early_share = 0.6
+
+[markets.polymarket]
+event = "tx-15-house-election-winner"
+market = "will-the-democratic-party-win-the-tx-15-house-seat"
+question = "Will the Democratic Party win the TX-15 House seat?"
+yes_is = "a"
+
+[markets.kalshi]           # timeline line needs a pair in configs/pairs/us2026.toml (race_id "house:TX-15")
+ticker = ""                # Kalshi event HOUSETX15-26, YES = HOUSETX15-26-D

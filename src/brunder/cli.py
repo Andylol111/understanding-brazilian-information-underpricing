@@ -108,7 +108,7 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--interval", type=float, default=30.0)
     s.add_argument("--until", help="UTC stop time, e.g. 2026-11-04T12:00Z")
     s = sub.add_parser("us", help="US midterms 2026: county priors; dashboard files before the count, live, replay")
-    s.add_argument("step", choices=["priors", "preelection", "export", "live", "earlyvote"])
+    s.add_argument("step", choices=["priors", "preelection", "export", "live", "earlyvote", "score"])
     s.add_argument("configs", nargs="*", type=Path, help="configs/us2026_*_v1.toml")
     s.add_argument("--source", action="append", default=[], help="priors: only these sources (repeatable)")
     s.add_argument("--out", type=Path, default=Path("site/data"), help="data root; files go to <out>/us2026/")
@@ -134,17 +134,6 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--r1", type=Path, required=True, help="first round: folder of saved result pages or export.zip")
     s.add_argument("--r2", type=Path, help="ingest: folder of runoff result pages saved on the night")
     s.add_argument("--no-markets", action="store_true", help="ingest: skip Polymarket/Kalshi price history")
-    s = sub.add_parser("reddit", help="US 2026: hourly aggregate sentiment of state/city subreddits (docs/us_reddit.md)")
-    s.add_argument("step", choices=["verify", "collect", "bench"])
-    s.add_argument("--sub", action="append", default=[], help="collect: only this subreddit (repeatable)")
-    s.add_argument("--max-hours", type=int, help="collect: at most the latest N missing hours per subreddit")
-    s.add_argument("--until", help="collect: last hour boundary (UTC), default 2026-11-04T12:00Z")
-    s.add_argument("--absa", nargs="?", const="yangheng/deberta-v3-base-absa-v1.1",
-                   help="also score target sentiment with this HF checkpoint[@revision] (needs `--extra absa`)")
-    s.add_argument("--absa-budget", type=float, default=1200, help="collect: seconds of transformer scoring per run")
-    s.add_argument("--batch", type=int, default=16, help="transformer batch size")
-    s.add_argument("--n", type=int, default=64, help="bench: synthetic items")
-    s.add_argument("--pad", type=int, default=0, help="bench: extra sentences per item (longer inputs)")
 
 
     a = ap.parse_args(argv)
@@ -236,9 +225,6 @@ def main(argv: list[str] | None = None) -> None:
         case "bulgaria":
             from . import bulgaria
             bulgaria.cli(a)
-        case "reddit":
-            from . import reddit
-            reddit.cli(a)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,44 @@
+# US midterms 2026-11-03, Minnesota governor. Frozen before polls close (2026-11-04 02:00 UTC); the integrator registers it
+# (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence: docs/us_midterms.md
+# ("More states", added 2026-10-30). Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_mn_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "mn-gov"
+name = "Minnesota governor"
+state = "mn"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "mn"                    # brunder.us.FEEDS (MN SoS results file allracesbycounty.txt; plain --url)
+poll_close_utc = "2026-11-04T02:00:00Z"
+a = { party = "DEM", name = "Amy Klobuchar", color = "#1f5fbf" }
+b = { party = "REP", name = "Lisa Demuth", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "mn_gov_2022"        # 2022 governor (Walz v Jensen): same office, last midterm (MN SoS official results file)
+votes = "mn_gov_2022"        # 2022 governor two-party votes
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 replays without a vote-type split (this feed has none), as SC/FL
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# MN counts absentee ballots with the precincts on election night; the file gives precincts reporting per county
+# and no vote-type split: f = counted / expected votes, capped at 0.95 until every precinct reported, then 98%
+# counted; complete counties re-scale the rest (learned turnout). DFL candidates are read as DEM.
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = false
+
+[markets.polymarket]
+event = "minnesota-governor-winner-2026"
+market = "will-the-democrats-win-the-minnesota-governor-race-in-2026"
+question = "Will the Democrats win the Minnesota governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

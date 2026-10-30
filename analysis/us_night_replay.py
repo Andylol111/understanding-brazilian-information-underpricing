@@ -10,6 +10,13 @@ Feed (written exactly as brunder.snap / brunder.kalshi record do: <snap>/<key>/<
            file's ~5 MB (gzipped like the recorder does for bodies over 1 MB).
   NC, FL   ncsbe_county + ncsbe_results_<county> (NC 2022 Senate, early 46 %) and the DOS election-night text file
            (FL 2022 Senate and governor), from data_public/us2026_priors.csv.
+  PA, MN,  the feeds of brunder.us_feeds_extra (PA GetCountyBreak, MN allracesbycounty.txt, NE/NM GetMapData) and
+  NE, NM,  the AZ Enhanced Voting governor item (the 2026 test item as template), from the configs' prior races in
+  AZ       data_public/us2026_priors.csv (CA, OH, SC and VT races get no replayed count and stay pre-count).
+  House    U.S. House contests (analysis/us_house_rehearsal.py) inside the TX/NC/FL bodies, GA/AZ House items
+           (ga_enr_<Georgia|Arizona>_house_<nn>) and OH XML / SC Clarity files with House contests only, from
+           data_public/us2026_house_priors.csv (the House races run in their own unit, brunder-us-house-live;
+           analysis/us_house_night.py bench replays them on this archive; statewide parsing ignores these rows).
   Markets  polymarket_books / kalshi_books for every configured race: one level each side of a price that starts at
            the pre-count timeline's last Polymarket / Kalshi value and drifts toward the replayed winner.
 The races run are the v1 configs of deploy/brunder-us-live.service. The replayed elections are the races' own prior
@@ -46,6 +53,9 @@ import numpy as np
 import pandas as pd
 
 from brunder import us
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from us_house_rehearsal import HouseRehearsal  # noqa: E402  (House contests in the TX/NC/FL bodies; GA/AZ/OH/SC keys)
 
 ROOT = us.ROOT_DIR                    # the checkout the brunder package runs from (this file may live elsewhere)
 # the v1 configs of the live unit's ExecStart (deploy/brunder-us-live.service), so the rehearsal runs what the VM runs
@@ -124,6 +134,8 @@ class Georgia:
 # ------------------------------------------------------------------ Texas: Civix files from the county priors
 
 class Texas:
+    house: HouseRehearsal | None = None          # House contests (analysis/us_house_rehearsal.py), set by feed()
+
     def __init__(self, rng: np.random.Generator, span: float):
         pr = pd.read_csv(ROOT / "data_public" / "us2026_priors.csv", comment="#")
         self.c = us.counties("tx")
@@ -177,7 +189,8 @@ class Texas:
             county[str(i + 1)] = {"N": self.c.loc[i, "name"],
                                   "Summary": {"PRR": n if complete else int(n * fl * 0.95), "PRP": n, "PLR": 0, "NPL": 0,
                                               "VC": int(tot * f), "RV": int(tot * 1.6)},
-                                  "Races": {**races, **self.filler[i]}}
+                                  "Races": {**races, **self.filler[i],
+                                            **(self.house.tx_races(i, fe, fl, complete) if self.house else {})}}
         enc = lambda o: base64.b64encode(json.dumps(o, separators=(",", ":")).encode()).decode()  # noqa: E731
         elec = {"ElectionName": "2026 NOVEMBER 3RD GENERAL ELECTION (REHEARSAL)"}
         for race, (_, title, block, names) in TX_SOURCES.items():
@@ -209,6 +222,7 @@ class _PriorFeed:
 class NorthCarolina(_PriorFeed):
     """ncsbe_county (county.txt) + one ncsbe_results_<cid> per county (results_<cid>.txt), NC 2022 Senate; early
     (one-stop + mail) = 46 % of the vote (config early_share), 3 points more Democratic than the county's final."""
+    house: HouseRehearsal | None = None
 
     def __init__(self, rng, span):
         super().__init__("nc", {"sen": "nc_sen_2022"}, rng, span)
@@ -230,6 +244,8 @@ class NorthCarolina(_PriorFeed):
                              "vct": str(int(round(early + late))), "evc": str(int(round(early * 0.8))),
                              "avc": str(int(round(early)) - int(round(early * 0.8))), "ovc": str(int(round(late))),
                              "pvc": "0", "prt": str(n if complete else int(n * fl * 0.95)), "ptl": str(n)})
+            if self.house:
+                rows += self.house.nc_rows(i, fe, fl, complete, n)
             out[f"ncsbe_results_{i + 1}"] = json.dumps(rows).encode()
             info.append({"cid": str(i + 1), "cnm": self.c.loc[i, "name"].upper(),
                          "bct": str(int((d + r + o) * (0.46 * fe + 0.54 * fl))), "rtl": str(int((d + r + o) * 1.9))})
@@ -239,6 +255,7 @@ class NorthCarolina(_PriorFeed):
 
 class Florida(_PriorFeed):
     """The DOS election-night file (tab-separated, no vote-type split), FL 2022 Senate and governor."""
+    house: HouseRehearsal | None = None
 
     COLS = ["ElectionDate", "PartyCode", "PartyName", "RaceCode", "RaceName", "CountyCode", "CountyName", "Juris1num",
             "Juris2num", "Precincts", "PrecinctsReporting", "CanNameLast", "CanNameFirst", "CanNameMiddle", "CanVotes"]
@@ -262,7 +279,134 @@ class Florida(_PriorFeed):
                                             self.c.loc[i, "name"], "   ", " ", str(n),
                                             str(n if complete else int(n * fl * 0.95)), last, first, "",
                                             str(int(round(v * f)))]))
+            if self.house:
+                lines += self.house.fl_lines(i, fe, fl, complete, n)
         return {us.FEEDS["fl"]["enight"]: ("\n".join(lines) + "\n").encode()}
+
+# ------------------------------------------------------------------ PA, MN, NE, NM, AZ (brunder.us_feeds_extra; AZ EV)
+
+class Pennsylvania(_PriorFeed):
+    """PA GetCountyBreak (a JSON string), PA 2022 governor; mail-in 23 % of the vote, 15 points more Democratic than
+    the county's final, posted at once, then Election Day votes; no precinct counts."""
+
+    CANDS = (("JOSH SHAPIRO", "DEM"), ("STACY GARRITY", "REP"), ("KEN KRAWCHUK", "LIB"))
+
+    def __init__(self, rng, span):
+        super().__init__("pa", {"gov": "pa_gov_2022"}, rng, span)
+
+    def bodies(self, t: float) -> dict[str, bytes]:
+        block = {}
+        for i in range(len(self.c)):
+            fe, fl, _ = posted(self.sched[i], t)
+            d, r, o = self.v["gov"][i]
+            s = d / (d + r) if d + r else 0.5
+            se = min(max(s + 0.15, 0), 1)
+            mail = [0.23 * (d + r) * se, 0.23 * (d + r) * (1 - se), 0.23 * o]
+            rows = []
+            for (name, pty), tot, m in zip(self.CANDS, (d, r, o), mail):
+                mv, ed = m * fe, max(tot - m, 0) * fl
+                rows.append({"CandidateName": name, "PartyName": pty, "Votes": str(int(round(mv)) + int(round(ed))),
+                             "MailInVotes": str(int(round(mv))), "ElectionDayVotes": str(int(round(ed))),
+                             "ProvisionalVotes": "0"})
+            block[self.c.loc[i, "name"].upper()] = rows
+        body = json.dumps({"Election": {"Statewide": [block]}})
+        return {us.FEEDS["pa"]["gov"]: json.dumps(body).encode()}
+
+
+class Minnesota(_PriorFeed):
+    """MN allracesbycounty.txt (ISO-8859-1, CRLF), governor and Senate both from the 2022 governor by county."""
+
+    CANDS = {"sen": ("0102", "U.S. Senator", (("Peggy Flanagan", "DFL"), ("Michele Tafoya", "R"), ("Other", "IND"))),
+             "gov": ("0331", "Governor & Lt Governor", (("Amy Klobuchar and Ben Schierer", "DFL"),
+                                                        ("Lisa Demuth and Ryan Wilson", "R"), ("Other", "GP")))}
+
+    def __init__(self, rng, span):
+        super().__init__("mn", {"sen": "mn_gov_2022", "gov": "mn_gov_2022"}, rng, span)
+
+    def bodies(self, t: float) -> dict[str, bytes]:
+        lines = []
+        for i in range(len(self.c)):
+            fe, fl, complete = posted(self.sched[i], t)
+            f = 0.3 * fe + 0.7 * fl
+            n = int(self.prec[i])
+            cid = (int(self.c.loc[i, "unit_id"][-3:]) + 1) // 2
+            rep = n if complete else int(n * fl * 0.95)
+            for race, (oid, office, cands) in self.CANDS.items():
+                v = [int(round(x * f)) for x in self.v[race][i]]
+                for k, ((name, pty), x) in enumerate(zip(cands, v)):
+                    lines.append(f"MN;{cid:02d};;{oid};{office};;{k + 1:04d};{name};;;{pty};{rep};{n};{x};0.00;{sum(v)}")
+        lines.append("MN;01;;0500;County Commissioner Dist. 1 (Aitkin, Été);;0101;Test;;;NP;0;1;0;0.00;0")
+        return {us.FEEDS["mn"]["county"]: ("\r\n".join(lines) + "\r\n").encode("latin-1")}
+
+
+class MapData(_PriorFeed):
+    """NE / NM results web service GetMapData (one race per file); NE wraps the list in {"d": …}."""
+
+    RACES = {"ne": {"sen": ("ne_sen_2024", "For United States Senator - 6  Year Term",
+                            (("Dan  Osborn ", "PET"), ("Pete  Ricketts ", "REP"), ("Mike  Marvin ", "LMN"))),
+                    "gov": ("ne_gov_2022", "For Governor and Lt. Governor",
+                            (("Lynne Walz and Ben Steffen ", "DEM"), ("Jim Pillen and Joe Kelly ", "REP"),
+                             ("Rick Beard and Keenya Barnes ", "LMN")))},
+             "nm": {"sen": ("nm_sen_2024", "United States Senator", (("BEN R LUJAN", "DEM"), ("LARRY E MARKER", "REP"),
+                                                                    ("OTHER", "LIB"))),
+                    "gov": ("nm_gov_2022", "Governor and Lieutenant Governor",
+                            (("DEB HAALAND AND STEPHANIE GARCIA RICHARD", "DEM"),
+                             ("GREGGORY D HULL AND DAVID M GALLEGOS", "REP"), ("OTHER", "LIB")))}}
+
+    def __init__(self, st, rng, span):
+        self.st = st
+        super().__init__(st, {race: src for race, (src, _, _) in self.RACES[st].items()}, rng, span)
+
+    def bodies(self, t: float) -> dict[str, bytes]:
+        out = {}
+        for race, (_, title, cands) in self.RACES[self.st].items():
+            rows = []
+            for i in range(len(self.c)):
+                fe, fl, complete = posted(self.sched[i], t)
+                f = 0.5 * fe + 0.5 * fl
+                n = int(self.prec[i])
+                for (name, pty), v in zip(cands, self.v[race][i]):
+                    rows.append({"CountyName": self.c.loc[i, "name"], "RaceName": title, "calcCandidate": name,
+                                 "PartyCode": pty, "calcCandidateVotes": str(int(round(v * f))) if fe or fl else "*",
+                                 "PrecinctsReporting": n if complete else int(n * fl * 0.95), "TotalPrecincts": n})
+            out[us.FEEDS[self.st][race]] = json.dumps({"d": rows} if self.st == "ne" else rows).encode()
+        return out
+
+
+class Arizona(_PriorFeed):
+    """AZ Enhanced Voting governor ballot item: the 2026 test item (tests/fixtures/us) with the 2022 governor's county
+    votes, early ballots (60 %) at once, Election Day and late earlies with the precincts."""
+
+    def __init__(self, rng, span):
+        super().__init__("az", {"gov": "az_gov_2022"}, rng, span)
+        self.item = json.loads(gzip.decompress((ROOT / "tests" / "fixtures" / "us" /
+                                                "az_2026_governor_item_testdata.json.gz").read_bytes()))
+
+    def bodies(self, t: float) -> dict[str, bytes]:
+        b = json.loads(json.dumps(self.item))
+        x = b["ballotItemWithBreakdown"]
+        row = {us._norm(n): i for i, n in enumerate(self.c["name"])}
+        totals: dict[str, int] = {}
+        for br in x["breakdownResults"]:
+            i = row[us._norm(br["locality"]["name"][0]["text"])]
+            fe, fl, complete = posted(self.sched[i], t)
+            d, r, o = self.v["gov"][i]
+            for opt in br["ballotOptions"]:
+                nm = opt["name"][0]["text"]
+                tot = d if "Hobbs" in nm else r if "Biggs" in nm else o / 3
+                for g in opt.get("groupResults") or []:
+                    gn = g["groupName"][0]["text"].strip()
+                    g["voteCount"] = int(round(tot * (0.6 * fe if gn == "Early Voting" else
+                                                      0.25 * fl if gn == "Election Day" else
+                                                      0.15 * fl if gn.startswith("Late Early") else 0)))
+                opt["voteCount"] = sum(g["voteCount"] for g in opt.get("groupResults") or [])
+                totals[opt["id"]] = totals.get(opt["id"], 0) + opt["voteCount"]
+            n = br["precinctReportingStatus"]["totalUnits"]
+            br["precinctReportingStatus"]["reportingUnits"] = n if complete else int(n * fl * 0.95)
+        for opt in x["summaryResults"]["ballotOptions"]:
+            opt["voteCount"] = totals.get(opt["id"], 0)
+        return {f"ga_enr_Arizona_item_{x['id']}": json.dumps(b, separators=(",", ":")).encode()}
+
 
 
 # ------------------------------------------------------------------ markets
@@ -272,7 +416,9 @@ class Markets:
     the replayed winner as the count of that race's state completes (others: a small random walk)."""
 
     WINNER = {"ga-gov": "b", "ga-sen": "a", "tx-sen": "b", "tx-gov": "b", "nc-sen": "b", "fl-sen": "b",
-              "fl-gov": "b"}                         # the replayed elections' winners (GA/NC/FL 2022, TX 2024/2022)
+              "fl-gov": "b",                         # the replayed elections' winners (GA/NC/FL 2022, TX 2024/2022)
+              "pa-gov": "a", "mn-sen": "a", "mn-gov": "a", "ne-sen": "b", "ne-gov": "b", "nm-gov": "a",
+              "nm-sen": "a", "az-gov": "a"}          # PA/MN/NE/NM/AZ 2022 governor, NE/NM 2024 Senate
 
     def __init__(self, rng: np.random.Generator):
         self.rng = rng
@@ -347,6 +493,10 @@ def feed(snap: Path, minutes: float, night: float, seed: int = 20261103, pre: fl
     span = night - pre - 5
     ga, tx, mk = Georgia(rng, span), Texas(rng, span), Markets(rng)
     nc, fl = NorthCarolina(rng, span), Florida(rng, span)
+    more = [Pennsylvania(rng, span), Minnesota(rng, span), MapData("ne", rng, span), MapData("nm", rng, span),
+            Arizona(rng, span)]                                   # after the others: their schedules are unchanged
+    house = {st: HouseRehearsal(st, rng, span) for st in ("tx", "nc", "fl", "ga", "az", "oh", "sc")}   # after those
+    tx.house, nc.house, fl.house = house["tx"], house["nc"], house["fl"]
     w = Writer(snap)
     speed = night / minutes
     w0 = datetime.now(timezone.utc)
@@ -365,7 +515,10 @@ def feed(snap: Path, minutes: float, night: float, seed: int = 20261103, pre: fl
             if m % tx_every == 0:
                 for k, b in tx.bodies(t).items():
                     w.save(k, b, sim)
-            for k, b in (*nc.bodies(t).items(), *fl.bodies(t).items()):
+            more_bodies = (x for f in more for x in f.bodies(t).items())
+            house_bodies = (x for st in ("ga", "az", "oh", "sc")
+                            for x in (*house[st].ev_bodies(t).items(), *house[st].oh_sc_bodies(t).items()))
+            for k, b in (*nc.bodies(t).items(), *fl.bodies(t).items(), *more_bodies, *house_bodies):
                 w.save(k, b, sim)
             prog = {r: min(1.0, t / span) for r in Markets.WINNER}
         for k, b in mk.bodies(prog).items():

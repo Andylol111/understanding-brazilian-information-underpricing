@@ -1,0 +1,50 @@
+# US midterms 2026-11-03, GA-12 U.S. House: model v2. Identical to v1 except a prior on the district swing = the generic-ballot shift (markets.json generic_ballot: average − national 2024 Harris two-party share) with its error and the spread of House vs president results.
+# Counted units = the district's counties (a split county: only its part in the district, as the feed reports it).
+# Prior = 2024 president in each county's part of the 2026 district (data_public/us2026_house_priors.csv,
+# analysis/us_house_night.py priors; same allocation as site/data/us2026/house/districts.json). Settings from the
+# 2024 replay of the same feed's House contests (analysis/us_house_night.py replay; data_public/us2026_house_calibration.json):
+# feeds with an early-vote split (TX, NC, GA, AZ), 34 replayed districts; 90 % coverage 0.96/0.96/0.93 at 5/25/50 % counted, mean |error| 0.020/0.014/0.011.
+# Frozen before polls close; the integrator registers it (prereg/registry.jsonl). Nothing here was chosen on 2026 count
+# data. Market selection: P(D) Polymarket 0.150, Kalshi 0.155 in markets.json built 2026-10-29 (rule: Polymarket or Kalshi in [0.05, 0.95]).
+id = "us2026_house_ga-12_v2"
+
+[election]
+eid = "us2026"
+race_id = "house:GA-12"
+name = "GA-12 U.S. House"
+state = "ga"
+race = "house-12"             # race key in the parsed feed (brunder.us_house_night)
+feed = "ga_house"             # brunder.us.FEEDS: the state's recorded feed, House contests
+poll_close_utc = "2026-11-04T00:00:00Z"
+a = { party = "DEM", name = "Ceretta Smith", color = "#1f5fbf" }
+b = { party = "REP", name = "Rick Allen", color = "#c8102e" }
+
+[prior]
+share = "ga-12_pres_2024"     # 2024 president (Harris v Trump), county parts of the 2026 district
+votes = "ga-12_pres_2024"     # its two-party votes × turnout_ratio = expected 2026 two-party votes
+generic_ballot_shift = 0.0552   # VoteHub generic-ballot average 0.5477 − 0.4925 (asof 2026-11-02)
+
+[model]                    # brunder.nowcast.Params
+tau = 0.01
+rho = 0.6
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03                # prior sd of a region's swing (one district = one region; early/late with vote_type)
+swing_prior_mean = 0.0552   # = generic_ballot_shift
+swing_prior_sd = 0.052     # sqrt(0.0429^2 generic-ballot error + 0.0294^2 House vs president, 2024)
+
+[count]                    # brunder.us.CountRules
+turnout_ratio = 0.72         # 2026 midterm / 2024 president two-party votes (brunder.us.EST_TURNOUT)
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = false
+
+[markets.polymarket]
+event = "ga-12-house-election-winner"
+market = "will-the-democratic-party-win-the-ga-12-house-seat"
+question = "Will the Democratic Party win the GA-12 House seat?"
+yes_is = "a"
+
+[markets.kalshi]           # timeline line needs a pair in configs/pairs/us2026.toml (race_id "house:GA-12")
+ticker = ""                # Kalshi event KXHOUSERACE-GA12-26, YES = KXHOUSERACE-GA12-26-D

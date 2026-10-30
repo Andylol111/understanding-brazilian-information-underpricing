@@ -1,0 +1,44 @@
+# US midterms 2026-11-03, New Mexico governor. Frozen before polls close (2026-11-04 02:00 UTC); the integrator registers it
+# (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence: docs/us_midterms.md
+# ("More states", added 2026-10-30). Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_nm_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "nm-gov"
+name = "New Mexico governor"
+state = "nm"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "nm"                    # brunder.us.FEEDS (NM SoS results web service GetMapData, race 11530; plain --url)
+poll_close_utc = "2026-11-04T02:00:00Z"
+a = { party = "DEM", name = "Deb Haaland", color = "#1f5fbf" }
+b = { party = "REP", name = "Greggory D. Hull", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "nm_gov_2022"        # 2022 governor (Lujan Grisham v Ronchetti): same office, last midterm (NM SoS certified results)
+votes = "nm_gov_2022"        # 2022 governor two-party votes
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 replays without a vote-type split (this feed has none), as SC/FL
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# NM counties report absentee and early votes on election night; the service gives precincts reporting per county
+# and no vote-type split ('*' until a county reports, read as 0): f = counted / expected votes, capped at 0.95 until
+# every precinct reported, then 98% counted; complete counties re-scale the rest (learned turnout).
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = false
+
+[markets.polymarket]
+event = "new-mexico-governor-winner-2026"
+market = "will-the-democrats-win-the-new-mexico-governor-race-in-2026"
+question = "Will the Democrats win the New Mexico governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

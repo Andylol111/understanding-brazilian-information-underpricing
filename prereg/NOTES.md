@@ -82,6 +82,14 @@ so v3 (Ohio v4) stays primary; v4 runs and is scored as a secondary model.
 Added 2026-10-29, before any 2026 result: NC Senate, FL Senate and FL governor (v1–v3; official NCSBE and
 Florida DOS election-night feeds, parsers tested against 2022 certified totals). Same rules as the other races;
 v3 is their primary. PA, WI, NH and ME were left out because their official feeds block automated access.
+Added 2026-10-30, before any 2026 result: PA governor, MN Senate and governor, NE Senate and governor, NM Senate and
+governor, AZ governor (v1–v3; NM governor v1–v2, no polls). Official feeds; parsers reproduce certified 2022/2024
+totals (NE parser tested on 2020 Senate; NE and AZ priors from MEDSL). Same rules; v3 primary (NM governor: v2).
+US House, separate study, added 2026-10-30 before any result: 63 districts in TX, FL, NC, SC, OH, GA, AZ
+(`configs/us2026_house/`, v1 = 2024 president on the 2026 lines, v2 = plus the generic-ballot swing), run as their
+own process (40 most competitive live, the rest replayable from the archive). Replay coverage of the 90% band at
+5/25/50% counted ≥ 0.87 except the three all-Maricopa districts (AZ-01/04/08), which under-covered; recorded here
+before any result. Scored separately from the Senate/governor test.
 
 ## Hungary 2026 (`configs/hu2026_v1.toml`): not pre-registered
 

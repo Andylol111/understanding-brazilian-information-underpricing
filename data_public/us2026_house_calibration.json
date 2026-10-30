@@ -1,0 +1,287 @@
+{
+ "built": "2026-10-30T03:47:40Z",
+ "rule": "Per feed group (split / no split) and version: among settings covering \u2265 85 % at each of 5/25/50 % counted, the smallest mean |error| over those checkpoints, then the smallest tau (analysis/us_calibrate.py's rule).",
+ "n_sim": 6,
+ "districts": [
+  "AZ-01",
+  "AZ-04",
+  "AZ-08",
+  "FL-02",
+  "FL-03",
+  "FL-04",
+  "FL-05",
+  "FL-07",
+  "FL-08",
+  "FL-09",
+  "FL-10",
+  "FL-11",
+  "FL-13",
+  "FL-14",
+  "FL-15",
+  "FL-16",
+  "FL-17",
+  "FL-21",
+  "FL-22",
+  "FL-23",
+  "FL-25",
+  "FL-27",
+  "FL-28",
+  "GA-01",
+  "GA-02",
+  "GA-07",
+  "GA-10",
+  "GA-12",
+  "GA-14",
+  "NC-01",
+  "NC-05",
+  "NC-07",
+  "NC-08",
+  "NC-09",
+  "NC-10",
+  "NC-11",
+  "NC-13",
+  "NC-14",
+  "OH-01",
+  "OH-07",
+  "OH-08",
+  "OH-09",
+  "OH-10",
+  "OH-13",
+  "OH-14",
+  "OH-15",
+  "SC-01",
+  "SC-02",
+  "SC-04",
+  "SC-05",
+  "SC-06",
+  "SC-07",
+  "TX-03",
+  "TX-05",
+  "TX-07",
+  "TX-12",
+  "TX-15",
+  "TX-16",
+  "TX-21",
+  "TX-22",
+  "TX-23",
+  "TX-24",
+  "TX-26",
+  "TX-28",
+  "TX-31",
+  "TX-32",
+  "TX-34",
+  "TX-38"
+ ],
+ "chosen": {
+  "nosplit|v1": {
+   "vote_type": false,
+   "tau": 0.01,
+   "rho": 0.3,
+   "sigma_uf0": 0.03,
+   "min_cover": 0.873,
+   "by_check": {
+    "0.0": {
+     "cover90": 0.9559,
+     "mae": 0.0382,
+     "bias": 0.0089,
+     "n": 204.0
+    },
+    "0.05": {
+     "cover90": 0.9804,
+     "mae": 0.0156,
+     "bias": 0.0099,
+     "n": 204.0
+    },
+    "0.25": {
+     "cover90": 0.951,
+     "mae": 0.0146,
+     "bias": 0.0108,
+     "n": 204.0
+    },
+    "0.5": {
+     "cover90": 0.8725,
+     "mae": 0.0129,
+     "bias": 0.0099,
+     "n": 204.0
+    }
+   },
+   "by_state": {
+    "fl": {
+     "cover90": 0.9111,
+     "mae": 0.0154,
+     "districts": 20.0
+    },
+    "oh": {
+     "cover90": 0.9444,
+     "mae": 0.0136,
+     "districts": 8.0
+    },
+    "sc": {
+     "cover90": 1.0,
+     "mae": 0.0119,
+     "districts": 6.0
+    }
+   }
+  },
+  "nosplit|v2": {
+   "vote_type": false,
+   "tau": 0.01,
+   "rho": 0.6,
+   "sigma_uf0": 0.03,
+   "min_cover": 0.897,
+   "by_check": {
+    "0.0": {
+     "cover90": 1.0,
+     "mae": 0.0426,
+     "bias": 0.0105,
+     "n": 204.0
+    },
+    "0.05": {
+     "cover90": 0.9804,
+     "mae": 0.0235,
+     "bias": 0.0108,
+     "n": 204.0
+    },
+    "0.25": {
+     "cover90": 0.9559,
+     "mae": 0.0181,
+     "bias": 0.0118,
+     "n": 204.0
+    },
+    "0.5": {
+     "cover90": 0.8971,
+     "mae": 0.0137,
+     "bias": 0.0105,
+     "n": 204.0
+    }
+   },
+   "by_state": {
+    "fl": {
+     "cover90": 0.925,
+     "mae": 0.0177,
+     "districts": 20.0
+    },
+    "oh": {
+     "cover90": 0.9514,
+     "mae": 0.0213,
+     "districts": 8.0
+    },
+    "sc": {
+     "cover90": 1.0,
+     "mae": 0.0169,
+     "districts": 6.0
+    }
+   }
+  },
+  "split|v1": {
+   "vote_type": true,
+   "tau": 0.01,
+   "rho": 0.6,
+   "sigma_uf0": 0.03,
+   "min_cover": 0.951,
+   "by_check": {
+    "0.0": {
+     "cover90": 0.848,
+     "mae": 0.0369,
+     "bias": 0.01,
+     "n": 204.0
+    },
+    "0.05": {
+     "cover90": 0.9755,
+     "mae": 0.0179,
+     "bias": 0.0106,
+     "n": 204.0
+    },
+    "0.25": {
+     "cover90": 0.9804,
+     "mae": 0.0119,
+     "bias": 0.0068,
+     "n": 204.0
+    },
+    "0.5": {
+     "cover90": 0.951,
+     "mae": 0.0099,
+     "bias": 0.0069,
+     "n": 204.0
+    }
+   },
+   "by_state": {
+    "az": {
+     "cover90": 0.7778,
+     "mae": 0.0123,
+     "districts": 3.0
+    },
+    "ga": {
+     "cover90": 1.0,
+     "mae": 0.0056,
+     "districts": 6.0
+    },
+    "nc": {
+     "cover90": 0.9815,
+     "mae": 0.0122,
+     "districts": 9.0
+    },
+    "tx": {
+     "cover90": 0.9861,
+     "mae": 0.0169,
+     "districts": 16.0
+    }
+   }
+  },
+  "split|v2": {
+   "vote_type": false,
+   "tau": 0.01,
+   "rho": 0.6,
+   "sigma_uf0": 0.03,
+   "min_cover": 0.931,
+   "by_check": {
+    "0.0": {
+     "cover90": 0.9755,
+     "mae": 0.0401,
+     "bias": 0.0023,
+     "n": 204.0
+    },
+    "0.05": {
+     "cover90": 0.9608,
+     "mae": 0.0199,
+     "bias": 0.0079,
+     "n": 204.0
+    },
+    "0.25": {
+     "cover90": 0.9608,
+     "mae": 0.0136,
+     "bias": 0.006,
+     "n": 204.0
+    },
+    "0.5": {
+     "cover90": 0.9314,
+     "mae": 0.0105,
+     "bias": 0.0065,
+     "n": 204.0
+    }
+   },
+   "by_state": {
+    "az": {
+     "cover90": 0.6667,
+     "mae": 0.0114,
+     "districts": 3.0
+    },
+    "ga": {
+     "cover90": 1.0,
+     "mae": 0.0109,
+     "districts": 6.0
+    },
+    "nc": {
+     "cover90": 0.9877,
+     "mae": 0.0155,
+     "districts": 9.0
+    },
+    "tx": {
+     "cover90": 0.9653,
+     "mae": 0.0162,
+     "districts": 16.0
+    }
+   }
+  }
+ }
+}

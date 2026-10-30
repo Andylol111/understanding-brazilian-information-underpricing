@@ -1,0 +1,45 @@
+# US midterms 2026-11-03, Nebraska Senate. Frozen before polls close (2026-11-04 02:00 UTC; western counties 03:00); the integrator registers it
+# (prereg/registry.jsonl). Nothing here was chosen on 2026 count data. Settings and evidence: docs/us_midterms.md
+# ("More states", added 2026-10-30). Live/replay: uv run brunder us live|export configs/us2026_*_v1.toml
+id = "us2026_ne_sen_v1"
+
+[election]
+eid = "us2026"
+race_id = "ne-sen"
+name = "Nebraska Senate"
+state = "ne"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "ne"                    # brunder.us.FEEDS (NE SoS results web service GetMapData, race 13224; plain --url)
+poll_close_utc = "2026-11-04T02:00:00Z"
+a = { party = "PET", name = "Dan Osborn", color = "#6a4c93" }
+b = { party = "REP", name = "Pete Ricketts", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "ne_sen_2024"        # 2024 Senate (Osborn v Fischer): same office and independent candidate (MEDSL county returns of the certified canvass, CC0; Osborn in the dem column)
+votes = "ne_gov_2022"        # 2022 governor two-party votes (midterm turnout pattern; MEDSL, CC0)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 replays without a vote-type split (this feed has none), as SC/FL
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]                    # brunder.us.CountRules
+# Side a is Dan Osborn, independent ("By Petition", party code PET in the feed); there is no Democrat on the
+# ballot. NE counties count early ballots on election night; the service gives precincts reporting per county and
+# no vote-type split: f = counted / expected votes, capped at 0.95 until every precinct reported, then 98%
+# counted; complete counties re-scale the rest (learned turnout).
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = false
+
+[markets.polymarket]
+event = "nebraska-senate-election-winner"
+market = "will-an-independent-win-the-nebraska-senate-race-in-2026"
+question = "Will an independent win the Nebraska Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""
