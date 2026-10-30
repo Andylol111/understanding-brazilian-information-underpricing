@@ -604,26 +604,36 @@ Margins are D − R as a percentage of all votes for the office; `d2` is the two
 ## House districts on election night (`brunder.us_house_night`; configs `configs/us2026_house/<st>-<nn>_v1/v2.toml`) {#house}
 
 The feeds recorded for the statewide races already carry every U.S. House contest by county in TX (Civix
-`countyInfo`), FL (DOS file, `RaceCode` USR), NC (NCSBE `results_<county>.txt`), SC (Clarity), OH (NIST 1622 XML);
-GA and AZ House ballot items are recorded under their own keys (`ga_enr_<Georgia|Arizona>_house_<item>`; the
-statewide `…_item_*` keys are unchanged). CA is not covered (the SoS API reports House results districtwide only,
-`/returns/us-rep/district/all`, no county split, and is not recorded); VT's at-large seat has no competitive market.
-Feed kinds `<st>_house` (same snapshot keys) are parsed by `brunder.us_house_night.parse_house` into the usual rows
-with race `house-<NN>` and one row per county × district (a split county appears in each of its districts with only
-that district's votes and, in TX/NC/FL, that district's precinct counts). The model is `brunder.us.project`
-unchanged, on the district's counties.
+`countyInfo`), FL (DOS file, `RaceCode` USR), NC (NCSBE `results_<county>.txt`), SC (Clarity), OH (NIST 1622 XML)
+and MN (SoS `allracesbycounty.txt`, "U.S. Representative District <n>"); GA and AZ House ballot items are recorded
+under their own keys (`ga_enr_<Georgia|Arizona>_house_<item>`; the statewide `…_item_*` keys are unchanged), and so
+are, since 2026-10-30, one document per configured district in PA (DoS API `GetCountyBreak`, office 11,
+`districtId` = district + 1, election 117; early = mail-in, no precinct counts), NE (SoS web service `GetMapData`
+type CG, race ids 13165/13166) and NM (type FED, race 11187) (`brunder.us_feeds_extra.HOUSE_URLS`). SC is excluded
+(its host challenges the recording server; `prereg/NOTES.md`). Not covered: CA (the SoS API reports House results
+districtwide only, `/returns/us-rep/district/<n>`, no county split; `…/county` answers 403), AK (AK-AL P(D) 0.02),
+VT (at-large, P(D) 0.98). Feed kinds `<st>_house` are parsed by `brunder.us_house_night.parse_house` into the
+usual rows with race `house-<NN>` and one row per county × district (a split county appears in each of its
+districts with only that district's votes and, in TX/NC/FL/MN, that district's precinct counts; NE/NM give the
+county's). The model is `brunder.us.project`, on the district's counties (live: its exact numpy form,
+`brunder.us_house_night.project`, equal to 1e-9 in tests).
 
 - **Prior** (`data_public/us2026_house_priors.csv`, `analysis/us_house_night.py priors`): 2024 president in each
   county's part of each 2026 district, the allocation of `site/data/us2026/house/districts.json` (district sums
-  equal it to < 1e-5). v1: no shift. v2: `swing_prior_mean` = generic-ballot shift +0.0552 (average 0.5477 −
+  equal it to < 1e-5; every district of TX, FL, NC, SC, OH, GA, AZ and, appended 2026-10-30 with the earlier rows
+  unchanged, PA, MN, NE, NM: 156). v1: no shift. v2: `swing_prior_mean` = generic-ballot shift +0.0552 (average 0.5477 −
   national 2024 Harris share 0.4925), `swing_prior_sd` = 0.052 = √(0.0429² generic-ballot error + 0.0294² spread of
   2024 House vs president shares). Expected votes = 0.72 × 2024 president two-party votes, learned on the night.
 - **Parser checks** (`analysis/us_house_night.py verify`): district totals equal the certified ones for FL 2022
   official extract vs FEC (27/27 exact), FL 2024 extract vs MEDSL (26 exact, 1 off by 1 vote), SC Clarity 2022 vs
   FEC (7/7) and 2024 vs MEDSL (7/7), NC certified 2022 precincts vs FEC (14/14), NC 2022 ENR county files vs the
-  certified precincts (all cells exact), GA 2024 certified items vs MEDSL (14, max 7 votes). TX, OH, AZ have no past
-  file of the night format; their 2026 pre-election files list every district, D and R, and the prior's counties
-  (TX-14 lists Chambers County, a sliver the block crosswalk gives no 2024 votes; FL-10 is absent, uncontested).
+  certified precincts (all cells exact), GA 2024 certified items vs MEDSL (14, max 7 votes), MN SoS county file 2022
+  vs FEC (8/8) and 2024 vs MEDSL (8/8), PA DoS API 2024 (election 105) vs MEDSL (14/17 exact, all five configured
+  districts exact; PA-02/03/05, Philadelphia/Delaware County, off by 500/1,549/15 in MEDSL's file), NM SoS archive
+  2024 (election 2882) vs MEDSL (≤ 26 votes; the parser reproduces the SoS canvass exactly). TX, OH, AZ, NE have no
+  past file of the night format (NE's archive endpoint serves no past general); their 2026 pre-election files list
+  every district, D and R, and the prior's counties (TX-14 lists Chambers County, a sliver the block crosswalk gives
+  no 2024 votes; FL-10 is absent, uncontested; PA-03 has no Republican; PA-05 lists Chester County, a sliver).
 - **Replay** (`analysis/us_house_night.py replay`; `data_public/us2026_house_calibration.json`): 2024 districts with
   a final two-party share in [0.35, 0.65] (68: TX 16, FL 20, NC 9, SC 6, OH 8, GA 6, AZ 3; AZ-02/05/07 dropped
   because MEDSL's Arizona precinct file does not reproduce their certified result), 6 simulated nights each:
@@ -637,20 +647,31 @@ unchanged, on the district's counties.
   0.98/0.98/0.95 (0.018/0.012/0.010), v2 0.96/0.96/0.93 (0.020/0.014/0.011). Weak spot: Maricopa-only AZ districts
   (AZ-01/04/08), 0.78 (v1) and 0.67 (v2), where the Election Day batch is far more Republican than the early batch
   and arrives last; no setting in the grid reaches 0.85 there.
-- **Configs** (`analysis/us_house_night.py configs`): districts of these states with a Polymarket or Kalshi P(D) in
-  [0.05, 0.95] in `markets.json` built 2026-10-29: 63 (TX 12, FL 20, NC 11, SC 4, OH 7, GA 4, AZ 5); race id
-  `house:<ST>-<NN>`, Polymarket market "Will the Democratic Party win the <ST>-<NN> House seat?". Kalshi lines need
-  the district's pair in `configs/pairs/us2026.toml` (YES = `<event>-D`); Polymarket lines need the event in the
-  recorder's `--pm-event` list. The configs live in `configs/us2026_house/` (ids `us2026_house_<st>-<nn>_v<k>`), so
-  globs over `configs/us2026_*_v1.toml` (pre-count, overview, scoring, poll generators) never see them.
+- **Configs** (`analysis/us_house_night.py configs`; never rewrites a registered config): districts of these states
+  with a Polymarket or Kalshi P(D) in [0.05, 0.95] in `markets.json` built 2026-10-29: 63 registered (TX 12, FL 20,
+  NC 11, SC 4, OH 7, GA 4, AZ 5) and, added 2026-10-30 (`configs_new`), 12 more: PA-01/07/08/10/16, MN-01/02/06/08,
+  NE-01/02, NM-02. These four feeds are not in the 2024 replay; they take the chosen settings of their group (PA: the
+  vote-type group, mail-in = early, `early_share` 0.23 = PA 2022 midterm mail share as the registered pa-gov configs;
+  MN/NE/NM: the no-split group). Race id `house:<ST>-<NN>`, Polymarket market "Will the Democratic Party win the
+  <ST>-<NN> House seat?". Kalshi lines need the district's pair in `configs/pairs/us2026.toml` (YES = `<event>-D`);
+  Polymarket lines need the event in the recorder's `--pm-event` list (all 75 are listed). The configs live in
+  `configs/us2026_house/` (ids `us2026_house_<st>-<nn>_v<k>`), so globs over `configs/us2026_*_v1.toml` (pre-count,
+  overview, scoring, poll generators) never see them.
 - **Live, own process** (`deploy/brunder-us-house-live.service`: `python -m brunder.us_house_night live`, 60 s,
   `CPUQuota=25%`, `MemoryMax=1G`, `Nice=15`): never inside `brunder us live`; reads the same recorder archive and
   writes only `site/data/us2026/house_live/{meta,timeline,timeline_tail,status}.json` + `units/house:<ST>-<NN>.json`
   (same row and units shapes as the statewide files; rows older than 6 h / 48 h thinned to one per 10 min / hour).
-  Cost on the Mac (`analysis/us_house_night.py bench`: the rehearsal archive below, 240 simulated minutes, every feed
-  changing every minute): all 63 districts 3.3 s CPU per cycle median, 7.7 s p95, 11.2 s max, 0.32 GB peak; the 40
-  most competitive by market price 0.95 / 3.2 / 6.7 s, 0.30 GB. The unit runs those 40 (p95 ≈ 13 s wall at 25 %
-  of a Mac core); the other 23 configs are complete and can be replayed from the archive after the night.
+  The unit runs all 71 districts with a recorded feed (59 registered + the 12 added; SC's 4 excluded). Where the
+  time went (cProfile, 63 districts, mid-count): 88 % in `brunder.us.project` (two pandas projections per district
+  per minute, ~64 ms each), feed parsing 5 %, file writes 8 %. `HouseExporter` now (a) projects with the numpy form
+  (~3.6 ms), (b) splits a parsed feed by district once and re-projects a district only when its own rows changed
+  (content digest), (c) looks a feed's snapshot files up once per minute for all its districts, (d) lists the
+  archive incrementally (`IncrementalArchive`: each file name parsed once; the plain listing re-parses every name
+  every cycle and grows with the two-week archive), (e) rewrites a units file only when the district gained a frame.
+  Feeds are still parsed only when a snapshot file changes. Cost on the Mac (rehearsal archive below, 240 simulated
+  minutes, every feed changing every minute; CPU s per cycle, median / p95 / max after the first): 63 districts
+  before 3.76 / 5.83 / 7.17, after 0.42 / 0.78 / 1.01; the 59 live ones 0.42 / 0.71 / 0.88; identical
+  `timeline.json` and units files before and after; peak RSS 0.3 GB.
 - **Rehearsal:** `analysis/us_house_rehearsal.py` adds the House contests to the TX/NC/FL bodies of
   `analysis/us_night_replay.py` and writes the GA/AZ House items and OH/SC House-only files (statewide parsing of
   those bodies is unchanged: House rows carry no statewide race key).

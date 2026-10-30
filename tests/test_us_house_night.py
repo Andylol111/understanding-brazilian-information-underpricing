@@ -85,6 +85,156 @@ def test_ga_az_enhanced_voting_items():
     assert set(az["race"]) == {"house-01"} and set(az["unit_id"]) == {"us-az-04013"}
 
 
+def test_mn_official_2022_and_2024_district_totals_match_certified():
+    """MN SoS allracesbycounty.txt (House lines of the official file): every district equals FEC 2022 / MEDSL 2024."""
+    certified = {
+        "2022": {"house-01": (125457, 159621), "house-02": (165583, 148576), "house-03": (198883, 134797),
+                 "house-04": (200055, 95493), "house-05": (214224, 70702), "house-06": (120852, 198145),
+                 "house-07": (84455, 204766), "house-08": (141009, 188755)},
+        "2024": {"house-01": (156375, 220929), "house-02": (231751, 175621), "house-03": (240209, 170427),
+                 "house-04": (242802, 117618), "house-05": (261066, 86213), "house-06": (155836, 260095),
+                 "house-07": (114979, 275098), "house-08": (176724, 244498)},
+    }
+    for year, expected in certified.items():
+        rows = hn.parse_mn(_gz(f"house_mn_{year}_ushouse.txt.gz"))
+        tot = hn.district_totals(rows)
+        assert {r: tuple(tot.loc[r, ["dem", "rep"]].astype(int)) for r in tot.index} == expected
+        assert rows.groupby("race")["unit_id"].nunique()["house-02"] == 5 and rows["units"].gt(0).all()
+
+
+def test_pa_official_2024_district_totals_match_certified():
+    """PA DoS API (election 105 = 2024 general), office 11: the five configured districts equal MEDSL 2024."""
+    rows = hn.parse_pa({f"d{n:02d}": _gz(f"house_pa_2024_cd{n:02d}.json.gz") for n in (1, 7, 8, 10, 16)})
+    assert hn.district_totals(rows)[["dem", "rep"]].astype(int).to_dict("index") == {
+        "house-01": {"dem": 202042, "rep": 261390}, "house-07": {"dem": 199626, "rep": 203688},
+        "house-08": {"dem": 189411, "rep": 195663}, "house-10": {"dem": 200434, "rep": 205567},
+        "house-16": {"dem": 146709, "rep": 256923}}
+    assert rows.groupby("race")["unit_id"].nunique().to_dict() == {
+        "house-01": 2, "house-07": 4, "house-08": 5, "house-10": 3, "house-16": 6}
+    assert 0 < rows["early"].sum() < rows["votes"].sum() and rows["units"].isna().all()
+
+
+def test_nm_official_2024_district_totals():
+    """NM SoS archive (election 2882): the state's own canvass (MEDSL's precinct file differs by ≤ 26 votes)."""
+    rows = hn.parse_map_house({f"d{n:02d}": _gz(f"house_nm_2024_cd{n:02d}.json.gz") for n in (1, 2, 3)}, "nm")
+    assert hn.district_totals(rows)[["dem", "rep"]].astype(int).to_dict("index") == {
+        "house-01": {"dem": 193203, "rep": 149546}, "house-02": {"dem": 138173, "rep": 127145},
+        "house-03": {"dem": 162342, "rep": 126085}}
+    assert rows.groupby("race")["unit_id"].nunique().to_dict() == {"house-01": 10, "house-02": 15, "house-03": 18}
+
+
+def test_ne_2026_service_house_districts():
+    """NE 2026 general (zeroed before the count): Sarpy is split between NE-01 and NE-02; a wrong race is dropped."""
+    blobs = {f"d{n:02d}": _gz(f"house_ne_2026_cd{n:02d}.json.gz") for n in (1, 2)}
+    rows = hn.parse_map_house(blobs, "ne")
+    assert set(rows.loc[rows["race"] == "house-02", "unit_id"]) == {"us-ne-31055", "us-ne-31153", "us-ne-31155"}
+    assert "us-ne-31153" in set(rows.loc[rows["race"] == "house-01", "unit_id"])
+    assert {"DEM", "REP"} <= set(rows["party"]) and rows["votes"].sum() == 0
+    assert hn.parse_map_house({"sen": _gz("ne_2026_sen_mapdata.json.gz")}, "ne").empty
+
+
+def test_new_state_house_feeds_are_recorded():
+    unit = (us.ROOT_DIR / "deploy" / "brunder-snap-us.service").read_text()
+    for urls in us._extra.HOUSE_URLS.values():
+        for u in urls.values():
+            assert f"--url '{u}'" in unit
+    for st in ("pa", "mn", "ne", "nm"):
+        assert us.FEEDS[f"{st}_house"] == us._extra.HOUSE_FEEDS[f"{st}_house"]
+    for c in CONFIGS:
+        ev = us.load_config(c)["markets"]["polymarket"]["event"]
+        assert not ev or f"--pm-event {ev} " in unit + " ", c.name
+
+
+def _partial(rows: pd.DataFrame, frac: np.ndarray) -> pd.DataFrame:
+    """A mid-count state: each unit's votes, early votes and precincts scaled by its own fraction."""
+    f = rows["unit_id"].map(dict(zip(sorted(rows["unit_id"].unique()), frac))).to_numpy()
+    out = rows.copy()
+    for col in ("votes", "early", "reporting"):
+        out[col] = np.floor(out[col] * f)
+    return out
+
+
+@pytest.mark.parametrize("case", ["fl", "nc", "pa", "mn"])
+def test_numpy_projection_equals_us_project(case):
+    """brunder.us_house_night.project = brunder.us.project (v1 and v2 configs, empty / partial / full counts)."""
+    st, cds, rows = {
+        "fl": ("fl", (2, 13), lambda: hn.parse_fl(_gz("house_fl_20241105_official_usr.txt.gz"))),
+        "nc": ("nc", (1, 13, 14), lambda: hn.parse_nc(_gz("nc_20221108_county.txt.gz"),
+                                                     [_gz(f"nc_20221108_results_{i}.txt.gz") for i in (1, 60, 92)])),
+        "pa": ("pa", (1, 7, 8, 10, 16), lambda: hn.parse_pa(
+            {f"d{n:02d}": _gz(f"house_pa_2024_cd{n:02d}.json.gz") for n in (1, 7, 8, 10, 16)})),
+        "mn": ("mn", (1, 2, 6, 8), lambda: hn.parse_mn(_gz("house_mn_2024_ushouse.txt.gz"))),
+    }[case]
+    rows = rows()
+    pr = us.load_priors()
+    rng = np.random.default_rng(7)
+    for cd in cds:
+        for ver in (1, 2):
+            p = us.ROOT_DIR / "configs" / "us2026_house" / f"{st}-{cd:02d}_v{ver}.toml"
+            if not p.exists():
+                continue
+            c = us.load_config(p)
+            for vt in (False, True):
+                c = {**c, "count": {**c["count"], "vote_type": vt}}
+                pri = us.race_prior(c, pr)
+                n_units = rows["unit_id"].nunique()
+                states = [us._frame([]), rows, _partial(rows, rng.uniform(0, 1, n_units)),
+                          _partial(rows, rng.choice([0.0, 0.3, 1.0], n_units))]
+                for r in states:
+                    want, wu = us.project(r, c, pri)
+                    got, gu = hn.project(r, c, pri)
+                    assert set(got) == set(want)
+                    for k, v in want.items():
+                        assert (np.isnan(v) and np.isnan(got[k])) or got[k] == pytest.approx(v, rel=1e-9, abs=1e-9), k
+                    assert list(gu.columns) == list(wu.columns)
+                    for col in wu.columns:
+                        if wu[col].dtype.kind == "f":
+                            np.testing.assert_allclose(gu[col], wu[col], rtol=1e-9, atol=1e-6)
+                        else:
+                            assert (gu[col].to_numpy() == wu[col].to_numpy()).all(), col
+
+
+def test_house_exporter_reprojects_only_changed_districts(tmp_path, monkeypatch):
+    """A feed change that leaves a district's rows unchanged does not re-run its projection."""
+    key = us.FEEDS["fl"]["enight"]
+    d = tmp_path / "snap" / key
+    d.mkdir(parents=True)
+    blob = _gz("house_fl_20241105_official_usr.txt.gz")
+    d.joinpath("20261104T003000.000000Z.txt").write_bytes(blob)
+    cfgs = [us.ROOT_DIR / "configs" / "us2026_house" / f"fl-{n:02d}_v1.toml" for n in (2, 13)]
+    ex = hn.HouseExporter(cfgs, tmp_path / "snap", max_retries=1)
+    calls = []
+    monkeypatch.setattr(ex, "project", lambda r, c, p: calls.append(c["election"]["race_id"]) or hn.project(r, c, p))
+    ex.update(pd.Timestamp("2026-11-04T00:31Z"))
+    first = len(calls)
+    # FL-13 (Pinellas) changes, FL-02 does not: a new snapshot of the same file with one line edited
+    lines = blob.decode("latin-1").splitlines(keepends=True)
+    i = next(i for i, x in enumerate(lines) if "\tUSR\t" in x and "\tPIN\t" in x)
+    f = lines[i].split("\t")
+    f[-1] = str(int(f[-1]) + 1) + "\n"
+    lines[i] = "\t".join(f)
+    d.joinpath("20261104T003500.000000Z.txt").write_bytes("".join(lines).encode("latin-1"))
+    ex.update(pd.Timestamp("2026-11-04T00:36Z"))
+    later = calls[first:]
+    assert later and set(later) == {"house:FL-13"}
+
+
+def test_incremental_archive_lists_as_archive(tmp_path):
+    """IncrementalArchive.refresh gives brunder.us.Archive's listing as files are added and removed."""
+    a, b = us.Archive(tmp_path), hn.IncrementalArchive(tmp_path)
+    (tmp_path / ".tmp").mkdir()
+    for i, (key, ts) in enumerate([("k1", "20261104T003000.000000Z.json"), ("k2", "20261104T003015.500000Z.txt.gz"),
+                                   ("k1", "20261104T002930.000000Z.json"), ("k1", "notes.txt"),
+                                   ("k2", "20261104T003045.000000Z.txt.gz")]):
+        (tmp_path / key).mkdir(exist_ok=True)
+        (tmp_path / key / ts).write_bytes(b"{}")
+        if i == 3:
+            (tmp_path / "k1" / "20261104T003000.000000Z.json").unlink()
+        a.refresh()
+        b.refresh()
+        assert b._files == a._files and b.times() == a.times()
+
+
 def test_parse_feed_dispatch_and_existing_kinds_untouched():
     blob = _gz("house_fl_20241105_official_usr.txt.gz")
     house = us.parse_feed("fl_house", {"enight": blob})
@@ -131,7 +281,7 @@ def test_house_configs_load_and_have_priors():
 
 def test_priors_file_district_sums_positive():
     pr = pd.read_csv(us.ROOT_DIR / "data_public" / "us2026_house_priors.csv", comment="#")
-    assert pr["source"].str.fullmatch(r"(tx|fl|nc|sc|oh|ga|az)-\d\d_pres_2024").all()
+    assert pr["source"].str.fullmatch(r"(tx|fl|nc|sc|oh|ga|az|pa|mn|ne|nm)-\d\d_pres_2024").all()
     assert pr.groupby("source")[["dem", "rep"]].sum().gt(0).all().all()
     assert not pr.duplicated(["source", "unit_id"]).any()
 
