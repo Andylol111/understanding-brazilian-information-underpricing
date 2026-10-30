@@ -110,7 +110,7 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder snap us_midterms_2026 
   --pm-event pa-10-house-election-winner --pm-event pa-16-house-election-winner --pm-event mn-01-house-election-winner \
   --pm-event mn-02-house-election-winner --pm-event mn-06-house-election-winner --pm-event mn-08-house-election-winner \
   --pm-event ne-01-house-election-winner --pm-event ne-02-house-election-winner --pm-event nm-02-house-election-winner \
-  --interval 30 --until 2026-11-20T00:00Z
+  --interval 30 --feed-interval https://liveresults.ohiosos.gov/=60 --until 2026-11-20T00:00Z
 Restart=on-failure
 RestartSec=30
 Nice=10
