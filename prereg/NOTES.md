@@ -90,6 +90,13 @@ US House, separate study, added 2026-10-30 before any result: 63 districts in TX
 own process (40 most competitive live, the rest replayable from the archive). Replay coverage of the 90% band at
 5/25/50% counted ≥ 0.87 except the three all-Maricopa districts (AZ-01/04/08), which under-covered; recorded here
 before any result. Scored separately from the Senate/governor test.
+Excluded 2026-10-30, before any 2026 result, after a one-poll check of every configured feed from the
+recording server: South Carolina (its results host, enr-scvotes.org, answers the server with an empty HTTP 202
+bot challenge, the same as Iowa; not circumvented) and Alaska (the server cannot connect). The registered SC
+Senate and SC governor configs and the SC House district configs therefore have no count and are not scored;
+Alaska had no model.
+All other feeds returned data; Georgia's host is reachable and its 2026 general election is picked up once it is
+listed.
 
 ## Hungary 2026 (`configs/hu2026_v1.toml`): not pre-registered
 

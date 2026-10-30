@@ -4,7 +4,9 @@
 # non-browser clients; not circumvented), Iowa (its CloudFront answers datacenter IPs with an empty
 # 202 bot challenge; not circumvented), Maine (no official election-night feed), Wisconsin (Cloudflare 403;
 # no statewide night feed), New Hampshire (Akamai 403), Nevada (Incapsula challenge), New York (Cloudflare
-# challenge), Colorado (county Clarity sites answer datacenter IPs with a 202 bot challenge).
+# challenge), Colorado (county Clarity sites answer datacenter IPs with a 202 bot challenge), South Carolina
+# (enr-scvotes.org: empty 202 bot challenge to this server, checked 2026-10-30), Alaska (this server cannot
+# connect, checked 2026-10-30).
 # Pennsylvania, Minnesota, Nebraska, New Mexico (added 2026-10-30): open data endpoints, brunder.us_feeds_extra.
 # SSL_CERT_FILE: certifi + GlobalSign GCC R46 OV TLS CA 2025, which Alaska's server omits from its chain.
 [Unit]
@@ -24,10 +26,8 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder snap us_midterms_2026 
   --url https://goelect.txelections.civixapps.com/api-ivis-system/api/s3/enr/election/countyInfo/53815 \
   --url https://liveresults.ohiosos.gov/Api/v1/download?filename=VSSC1622XmlFileBlob \
   --url https://liveresults.ohiosos.gov/Api/v1/Contest/GetElectionSummaryCsv \
-  --url https://www.elections.alaska.gov/enr26/results/statewide.js \
   --ga-enr https://results.sos.ga.gov/results/public/api/jurisdictions/Georgia \
   --ga-enr https://app.enhancedvoting.com/results/public/api/jurisdictions/Arizona \
-  --clarity 'https://www.enr-scvotes.org/SC|https://scvotes.gov/elections-statistics/election-results/|^ *2026 (Statewide )?General Election *$$' \
   --vt-static https://static.electionresults.vermont.gov/elections/68d61e96-1d28-4210-8c1d-8e90512ae105.json \
   --url https://flelectionfiles.floridados.gov/enightfilespublic/20261103_ElecResultsFL.txt \
   --ncsbe https://er.ncsbe.gov/enr/20261103/data \
