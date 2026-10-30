@@ -10,6 +10,7 @@ export const param = (k) => params.get(k);
 // Static: site/data/. Live: ?live=<base url> serves the same layout (geometry always comes from the
 // static site, it does not change during a night).
 const live = params.get("live");
+const RELOAD = params.has("_r"); // a Reload after a failed load: revalidate every file
 export const LIVE = live ? (live.endsWith("/") ? live : `${live}/`) : null;
 export const DATA = LIVE ?? "data/";
 export const STATIC = "data/";
@@ -23,7 +24,7 @@ export function getJSON(path, { root = DATA, optional = false } = {}) {
   const url = new URL(path, new URL(root, location.href)).href;
   const live = LIVE && root === LIVE;
   if (!live && parsed.has(url)) return parsed.get(url);
-  const p = fetch(url, { cache: live ? "no-cache" : "default" }).then((r) => {
+  const p = fetch(url, { cache: live ? "no-cache" : RELOAD ? "reload" : "default" }).then((r) => {
     if (r.ok) return r.json();
     if (optional && r.status === 404) return null;
     throw new Error(`${path}: HTTP ${r.status}`);

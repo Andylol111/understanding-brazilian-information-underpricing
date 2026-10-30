@@ -58,7 +58,7 @@ function onEngineEvent(data) {
 function startWorker() {
   if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined" || !HTMLCanvasElement.prototype.transferControlToOffscreen) return false;
   try {
-    E.worker = new Worker(new URL("./dash-worker.js", import.meta.url), { type: "module" });
+    E.worker = new Worker(new URL(`./dash-worker.js?v=${window.__V ?? ""}`, import.meta.url), { type: "module" });
   } catch (err) {
     console.error("Map worker could not start:", err);
     return false;
@@ -77,7 +77,7 @@ function startWorker() {
 }
 
 async function startMain() {
-  E.main ??= await import("./dash-engine.js");
+  E.main ??= await import("./dash-engine.js"); // the import map adds ?v=
   E.main.setEmitter(onEngineEvent);
   E.kind = "main";
 }
@@ -248,12 +248,20 @@ function mergeTail(have, tail) {
 // unit starts the files are absent and the House view stays the pre-count one. True when held
 // rows changed.
 const HOUSE_LIVE_MS = 60000;
+let houseLiveMiss = 0, houseLiveSkip = 0; // consecutive missing reads; ticks still to skip
 async function loadHouseLive() {
+  // The folder does not exist before election night: no request while the election is pre-count (as
+  // loadArb), and after a missing meta.json the next reads back off (1, 2, 4 ... 10 ticks) instead of
+  // asking every minute.
+  if (S.meta?.phase === "pre-count") return false;
+  if (houseLiveSkip > 0) { houseLiveSkip--; return false; }
   const get = async (f) => {
     try { const r = await fetch(absUrl(`${EID}/house_live/${f}`), { cache: "no-cache" }); return r.ok ? await r.json() : null; } catch { return null; }
   };
   const meta = await get("meta.json");
-  const list = (meta?.races ?? []).filter(isHouse);
+  if (!meta) { houseLiveMiss++; houseLiveSkip = Math.min(10, 2 ** (houseLiveMiss - 1)); return false; }
+  houseLiveMiss = 0;
+  const list = (meta.races ?? []).filter(isHouse);
   if (!list.length) return false;
   const had = S.houseLive;
   S.houseLive = { races: new Map(list.map((r) => [r.race_id, r])), rows: had?.rows ?? new Map(), status: had?.status ?? null };
@@ -457,6 +465,7 @@ const regionHover = () => levelsOn() && !S.region && S.level === "regions";
 
 // S.region with the level path: entering a region shows its units, leaving shows regions again.
 function setRegionState(reg) {
+  if (reg && S.overviewDefault) { S.overviewDefault = false; fillRaceSelect(); $("race").value = S.race?.race_id ?? ""; }
   if (reg && !S.region) { S.countryLevel = S.level; S.level = "units"; }
   else if (!reg && S.region) S.level = S.countryLevel; // back to the country at the level it had
   S.region = reg ?? null;
@@ -468,7 +477,7 @@ function syncUrl(push) {
   if (S.fromPop) return;
   const url = new URL(location.href);
   // the one selection: a House district ("house:TX-07") or the race
-  if (S.houseSel) url.searchParams.set("race", `house:${S.houseSel}`); else if (S.race) url.searchParams.set("race", S.race.race_id);
+  if (S.houseSel) url.searchParams.set("race", `house:${S.houseSel}`); else if (S.race && !S.overviewDefault) url.searchParams.set("race", S.race.race_id);
   if (S.region) url.searchParams.set("region", S.region); else url.searchParams.delete("region");
   if (levelsOn()) url.searchParams.set("level", S.level); else url.searchParams.delete("level");
   if (S.office === "house") url.searchParams.set("office", "house"); else url.searchParams.delete("office");
@@ -1030,8 +1039,18 @@ function focusMap(animate = true, ready = null) {
   for (const row of document.querySelectorAll(".rp-row")) row.classList.toggle("sel", row.dataset.region === S.region);
 }
 
+// Release the pinned unit and clear the hover state (office or layer changes, Esc, the card's ×).
+function releasePin() {
+  S.pinned = -1; S.hover = -1; S.hoverReg = null;
+  S.map?.pin(-1);
+  placeCard();
+}
+
 function placeCard() {
   const el = $("place");
+  // the House / census layer covers the county map and has its own cards: this one never shows over it
+  if (S.ov?.kind) { el.hidden = true; el.classList.remove("pinned"); return; }
+  el.classList.toggle("pinned", S.pinned >= 0);
   const i = S.pinned >= 0 ? S.pinned : S.hover;
   if (S.hoverReg && S.pinned < 0 && S.map) {
     el.innerHTML = `<p class="pc-name"><b>${esc(regionName(S.hoverReg))}</b></p>${regionCardHTML(S.hoverReg)}`;
@@ -1076,7 +1095,7 @@ function placeCard() {
   const name = (j >= 0 && U?.names[j]) || S.map.names[i] || S.map.ids[i];
   const reg = S.map.regionOf(i);
   el.innerHTML = `<p class="pc-name"><b>${esc(name)}</b>${reg && !String(name).includes(`, ${reg.toUpperCase()}`) ? `, ${esc(regionName(reg))}` : ""}</p>${body}
-    <p class="pc-hint">${S.pinned >= 0 ? "Pinned. Click it again to release." : "Click to pin."}</p>`;
+    <p class="pc-hint">${S.pinned >= 0 ? "Pinned. Click it again, press Esc or use × to release." : "Click to pin."}</p>${S.pinned >= 0 ? `<button type="button" class="pc-close" aria-label="Release the pinned card">×</button>` : ""}`;
   el.hidden = false;
   positionCard(el, S.pinned >= 0 ? S.pinPos : S.hoverPos);
 }
@@ -1259,6 +1278,7 @@ async function reloadUnitsIfNeeded() {
 async function selectRace(r, { keepRegion = false } = {}) {
   if (!r) return;
   if (isHouse(r)) { selectKey(r.race_id); return; } // a district's count model: the district selection
+  if (S.overviewDefault) { S.overviewDefault = false; fillRaceSelect(); $("race").value = r.race_id; } // a race is chosen: the placeholder goes
   // the one selection: a race chosen anywhere (selector, list, map, tab) replaces a selected district
   clearDistrict();
   // a Senate or governor race chosen while the House layer shows: back to that office first
@@ -1476,10 +1496,11 @@ function stepFrame(dir) {
 document.addEventListener("keydown", (e) => {
   const tag = e.target.tagName;
   if (e.key === "Escape") {
+    // a pinned unit is released first, whatever else is open
+    if (S.pinned >= 0) releasePin();
     // the House or census layer zoomed to a state: back to the country
     if (S.ov?.kind && S.ov.state) { S.ov.focus(null); return; }
-    // a pinned unit is released; inside a region the same press also returns to the whole country
-    if (S.pinned >= 0) { S.pinned = -1; S.map?.pin(-1); placeCard(); }
+    // inside a region the same press also returns to the whole country
     backToNational();
     return;
   }
@@ -1657,7 +1678,8 @@ function fillRaceSelect() {
     sel.innerHTML = nat.map((r) => `<option value="${esc(r.race_id)}">${esc(r.name)}</option>`).join("")
       + byRegion.map(([reg, list]) => `<optgroup label="${esc(regionName(reg))}">${list.map(opt).join("")}</optgroup>`).join("");
   }
-  sel.value = S.houseSel ? `house:${S.houseSel}` : S.race?.race_id ?? "";
+  if (S.overviewDefault && !S.houseSel) sel.insertAdjacentHTML("afterbegin", `<option value="" disabled hidden>Choose a race</option>`);
+  sel.value = S.houseSel ? `house:${S.houseSel}` : S.overviewDefault ? "" : S.race?.race_id ?? "";
 }
 function initExtent() {
   $("extent").addEventListener("click", () => {
@@ -1903,6 +1925,9 @@ async function initNational() {
   // ?region=mi without a race: that state's race (a modelled one first), not another state's
   else if (S.region && S.race?.region !== S.region) S.race = regionRace(S.region) ?? S.race;
   // the merged county layer under the state map follows the office shown
+  // us2026 and its kind open on the national overview with no race chosen: S.race stays a Senate race
+  // internally (the county layer under the state map), but the selector shows its placeholder
+  S.overviewDefault = !param("race") && !S.region;
   if (!param("race")) syncOffice("senate", false);
   S.nat.draw(); // the state layer is ready before the map's first frame
   if (param("office") === "house") S.nat.setOffice("house");
@@ -1917,7 +1942,7 @@ function syncOffice(o, reload = true) {
   const r = races().find((x) => x.units && office(x) === OFFICE_ID[o]);
   if (!r || r === S.race || S.region) return;
   S.race = r;
-  $("race").value = r.race_id;
+  $("race").value = S.overviewDefault ? "" : r.race_id;
   if (reload) reloadUnitsIfNeeded();
 }
 // The office shown: Senate or governor (the county map with its state layer), or the House (the
@@ -2000,7 +2025,7 @@ function clearDistrict() {
   S.houseSel = null;
   S.ov?.deselect();
   if (S.race) {
-    $("race").value = S.race.race_id;
+    $("race").value = S.overviewDefault ? "" : S.race.race_id;
     S.list?.select(S.race.race_id);
     drawChart();
     render();
@@ -2033,6 +2058,7 @@ const houseShown = () => S.ov?.kind === "house" && !!S.houseSel;
 // see style.css). At the county level the county map's modes and legend show. A selected House
 // district shows like a race.
 function showNational() {
+  if (S.ov?.kind && (S.pinned >= 0 || S.hover >= 0 || S.hoverReg)) releasePin(); // the county map's pin/hover is not part of the layer shown
   const on = !!S.nat && !S.region && !houseShown(), map = natShown();
   $("national").classList.toggle("off", !map);
   $("dash").classList.toggle("nat-on", on);
@@ -2148,6 +2174,7 @@ async function main() {
     setInterval(tick, HOUSE_LIVE_MS);
   }
 
+  $("place").addEventListener("click", (ev) => { if (ev.target.closest(".pc-close")) releasePin(); });
   $("play").addEventListener("click", () => (S.playing ? pause() : play()));
   document.querySelectorAll("#speed button").forEach((b) => b.addEventListener("click", () => {
     S.speed = +b.dataset.speed;
@@ -2192,6 +2219,8 @@ async function main() {
     },
     units: () => ({ n: S.map?.ids?.length ?? 0, ids: S.map?.ids ?? [], regions: [...new Set((S.map?.ids ?? []).map((id) => id.split("-")[1]))] }),
     view: () => S.map?.view ?? null,
+    unitPoint: (i) => S.map?.pointOf(i) ?? null, unitAt: (x, y) => S.map?.pickAt(x, y) ?? -1,
+    pinned: () => S.pinned, placeText: () => ($("place").hidden ? "" : $("place").innerText),
     pickable: () => pickerRegions().map((r) => r.id).filter((r) => S.map?.hasRegion(r)),
     selectRegion, backToNational, clickUnit: (i) => mapClick(i, { clientX: 0, clientY: 0 }),
     races: () => races().map((r) => [r.race_id, r.region ?? null]), selectRace: (id) => selectRace(raceById(id)),

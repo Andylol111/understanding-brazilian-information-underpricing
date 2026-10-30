@@ -215,6 +215,25 @@ async def check_page(
                     result.failures.append("race/national readout is empty")
                 if current["visiblePaths"] == 0 and not await canvas_has_drawing(page):
                     result.failures.append("map has neither visible SVG paths nor non-background canvas pixels")
+                if case.path == "election.html?id=us2026":
+                    # no parameters: the national overview, no race preselected, no missing-file requests
+                    nat = await page.evaluate(
+                        """() => ({ value: document.querySelector('#race').value,
+                          placeholder: document.querySelector('#race option[value=""]')?.textContent ?? "",
+                          natOn: document.querySelector('#dash').classList.contains('nat-on'),
+                          stateMap: !document.querySelector('#national').classList.contains('off'),
+                          summary: document.querySelector('#nat-summary').innerText.trim().length,
+                          office: window.__dashAudit?.office?.() ?? null, region: window.__dashAudit?.region?.() ?? null,
+                          url: location.search })"""
+                    )
+                    if nat["value"] != "" or nat["placeholder"] != "Choose a race":
+                        result.failures.append(f"us2026 default preselects a race: {nat}")
+                    if not nat["natOn"] or not nat["stateMap"] or not nat["summary"] or nat["region"] or nat["office"] != "senate":
+                        result.failures.append(f"us2026 default is not the national Senate overview: {nat}")
+                    if "race=" in nat["url"]:
+                        result.failures.append(f"us2026 default wrote a race to the address: {nat['url']}")
+                    if any("house_live" in d for d in result.diagnostics):
+                        result.failures.append("us2026 requested the missing house_live/ files")
                 if "id=us2026" in case.path:
                     bad = await page.evaluate(
                         """() => { const re = /baseline|model only|not a forecast|not traded|rough/i;

@@ -1,7 +1,8 @@
 // Worker wrapper around dash-engine.js: jobs ({ id, type: "geo" | "units" | "prefetch" | "audit" })
 // answer with { id, out } or { id, error }; control messages ({ type, ... } without id) go straight
 // to the engine, and the engine's events ("painted", "drawStats") are posted back.
-import { geo, units, prefetch, audit, control, setEmitter } from "./dash-engine.js";
+// the engine is imported with this worker's own ?v= (the page's build stamp), so a cached engine cannot pair with a new page
+const { geo, units, prefetch, audit, control, setEmitter } = await import(`./dash-engine.js${self.location.search}`);
 
 const JOBS = { geo, units, prefetch, audit };
 
