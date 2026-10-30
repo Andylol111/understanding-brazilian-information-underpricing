@@ -985,9 +985,10 @@ def test_v2_swing_prior_hands_over_to_the_count():
     assert all(x >= y - 1e-12 for x, y in zip(gaps, gaps[1:])) and gaps[-1] < 0.002
 
 
-def test_swing_prior_off_is_bit_identical_to_previous_model():
+def test_swing_prior_off_matches_previous_model():
     """Golden values from brunder.nowcast before the optional swing prior existed (the committed code of 2026-10-28),
-    for a Brazil-style multi-state case and a US v1 race (GA Senate settings, vote-type split)."""
+    for a Brazil-style multi-state case and a US v1 race (GA Senate settings, vote-type split). Equal to 1e-9 relative:
+    the last bits differ between macOS (arm64) and the Linux CI runners."""
     from brunder import nowcast
     rng = np.random.default_rng(11)
     rows = [{"uf": u, "cd_mun": f"{u}{i}", "s0": rng.uniform(0.3, 0.7), "V0": float(rng.integers(1000, 90000))}
@@ -999,15 +1000,15 @@ def test_swing_prior_off_is_bit_identical_to_previous_model():
     state = pd.DataFrame({"uf": prior["uf"], "cd_mun": prior["cd_mun"], "n": n, "a": n * share, "f": f})
     for p in (nowcast.Params(), nowcast.Params(swing_prior_mean=None, swing_prior_sd=None)):
         br = nowcast.nowcast(state, prior, p)
-        assert (br["p_win"], br["margin_sd"], br["share_hat"]) == (8.342211860354956e-12, 95704.73921682102,
-                                                                   0.45119738702190726)
+        assert (br["p_win"], br["margin_sd"], br["share_hat"]) == pytest.approx(
+            (8.342211860354956e-12, 95704.73921682102, 0.45119738702190726), rel=1e-9, abs=1e-15)
         assert "swing_obs" not in br
     cfg = us.load_config(ROOT / "configs" / "us2026_ga_sen_v1.toml")
     priors, _ = _synth_priors([cfg])
     pri = us.race_prior(cfg, priors)
     res, _ = us.project(_rows(pri, np.clip(pri["s0"].to_numpy() - 0.03, 0, 1), 0.3).assign(race="sen"), cfg, pri)
-    assert (res["p_win"], res["margin_sd"], res["share_hat"]) == (0.8983338861717141, 1279060.706500724,
-                                                                  0.5358053444298526)
+    assert (res["p_win"], res["margin_sd"], res["share_hat"]) == pytest.approx(
+        (0.8983338861717141, 1279060.706500724, 0.5358053444298526), rel=1e-9, abs=1e-15)
 
 
 def test_v2_configs_only_change_the_prior():
