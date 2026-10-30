@@ -33,7 +33,7 @@ overconfident probabilities. Abroad units (uf 'zz') get their own swing and stay
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 import pandas as pd
@@ -64,6 +64,17 @@ class Params:
     # How they scale in: "weight" = w_obs (v3); "any" = fully present from the first counted vote (0 only before
     # the count), because reporting-order bias is largest in the first returns.
     count_scale_mode: str = "weight"
+    # Model v5 ("night Hispanic slope"; off by default: results are then exactly those without these fields). Needs a
+    # per-unit column `h` in the prior (Hispanic share). A unit's expected swing becomes
+    #   state swing + β·(h_i − h̄_region),   h̄_region = expected-vote-weighted mean of h in the unit's region,
+    # with β estimated from the night's own counted units (vote-weighted least squares of the deviations from the
+    # region mean on h_i − h̄_counted) and shrunk by a Normal(0, hisp_slope_tau²) prior; β's posterior variance is
+    # propagated into the margin variance. The slope is never carried over from earlier cycles (its sign flips).
+    hisp_slope: bool = False
+    hisp_slope_tau: float = 0.5
+    # Model v6: weight w in (0, 1) on the v5 predictive distribution; 1 - w on the same model without the slope. The
+    # margin forecast is the mixture of the two normals (win probability = w·P5 + (1-w)·P3). None = no mixture.
+    hisp_blend: float | None = None
 
 
 def prior_from_final(final: pd.DataFrame, cand_a: str, cand_b: str | None = None) -> pd.DataFrame:
@@ -105,8 +116,66 @@ def _post_var(x: np.ndarray, w: np.ndarray, s0: float, nu: float) -> float:
     return (nu * s0**2 + max(n - 1, 0) * _wvar(x, w)) / (nu + max(n - 1, 0))
 
 
+def hisp_dev(df: pd.DataFrame) -> pd.Series:
+    """h_i − h̄ of each unit: the unit's Hispanic share minus the expected-vote (V0) weighted mean of its region (uf).
+    Units without a share get the region mean (0)."""
+    h = df["h"].astype(float)
+    w = df["V0"].astype(float)
+    ok = h.notna() & (w > 0)
+    wh = (h.where(ok, 0.0) * w.where(ok, 0.0)).groupby(df["uf"]).sum()
+    ww = w.where(ok, 0.0).groupby(df["uf"]).sum()
+    mean = (wh / ww.where(ww > 0)).reindex(df["uf"]).to_numpy()
+    return (h - mean).fillna(0.0)
+
+
+def _slope(df: pd.DataFrame, counted: pd.Series, p: Params) -> tuple[float, float]:
+    """Posterior (mean, variance) of the Hispanic slope β from the counted units' deviations d_i (column "d").
+    Weighted least squares with weights n_i of d_i − d̄_region on x_i − x̄_region (means over counted units; one
+    slope, region-specific intercepts), residual variance σ²_mun (posterior blend as in the main model), combined
+    with the Normal(0, tau²) prior: β = β̂ P/(P + 1/τ²), Var β = 1/(P + 1/τ²), P = 1/Var β̂ (0 when the counted
+    units do not vary in h, so β = 0 and Var β = τ²)."""
+    prior_prec = 1.0 / p.hisp_slope_tau**2
+    c = df[counted]
+    if len(c) < 3:
+        return 0.0, 1.0 / prior_prec
+    w = c["n"]
+    g = c["uf"]
+    wsum = w.groupby(g).transform("sum")
+    dt = c["d"] - (w * c["d"]).groupby(g).transform("sum") / wsum
+    xt = c["x"] - (w * c["x"]).groupby(g).transform("sum") / wsum
+    sxx = float((w * xt**2).sum())
+    if sxx <= 1e-12 * float(w.sum()):
+        return 0.0, 1.0 / prior_prec
+    b_hat = float((w * xt * dt).sum()) / sxx
+    s2 = _post_var((dt - b_hat * xt).to_numpy(), w.to_numpy(), p.sigma_mun0, p.nu_mun)
+    var_hat = s2 * float((w**2 * xt**2).sum()) / sxx**2
+    if var_hat <= 0:
+        return 0.0, 1.0 / prior_prec
+    prec = 1.0 / var_hat
+    return b_hat * prec / (prec + prior_prec), 1.0 / (prec + prior_prec)
+
+
+def _mixture(r3: dict, r5: dict, w: float) -> dict:
+    """Mixture w·r5 + (1−w)·r3 of two nowcasts' predictive normals for the final margin."""
+    m = w * r5["margin_hat"] + (1 - w) * r3["margin_hat"]
+    var = w * r5["margin_sd"] ** 2 + (1 - w) * r3["margin_sd"] ** 2 + w * (1 - w) * (r5["margin_hat"] - r3["margin_hat"]) ** 2
+    sd = float(np.sqrt(var))
+    scale = r3["share_sd"] / r3["margin_sd"] if r3["margin_sd"] > 0 else np.nan     # share = 0.5 + margin / (2 total)
+    out = dict(r3)
+    out.update({"p_win": w * r5["p_win"] + (1 - w) * r3["p_win"], "margin_hat": m, "margin_sd": sd,
+                "share_hat": w * r5["share_hat"] + (1 - w) * r3["share_hat"],
+                "share_sd": sd * scale if np.isfinite(scale) else r3["share_sd"],
+                "p_win_v3": r3["p_win"], "p_win_v5": r5["p_win"], "margin_hat_v3": r3["margin_hat"],
+                "margin_hat_v5": r5["margin_hat"], "hisp_blend": w})
+    out.update({k: v for k, v in r5.items() if k.startswith("hisp_")})
+    return out
+
+
 def nowcast(state: pd.DataFrame, prior: pd.DataFrame, p: Params = Params(), uf: str | None = None) -> dict:
     """P(A wins) given the count state. uf restricts the race to one state (e.g. '1st place in SP')."""
+    if p.hisp_blend is not None:
+        return _mixture(nowcast(state, prior, replace(p, hisp_slope=False, hisp_blend=None), uf),
+                        nowcast(state, prior, replace(p, hisp_slope=True, hisp_blend=None), uf), p.hisp_blend)
     df = prior.merge(state, on=["uf", "cd_mun"], how="left").fillna({"n": 0.0, "a": 0.0, "f": 0.0})
     if uf is not None:
         df = df[df["uf"] == uf.lower()]
@@ -118,6 +187,12 @@ def nowcast(state: pd.DataFrame, prior: pd.DataFrame, p: Params = Params(), uf: 
     df["R"] = (1 - df["f"]).clip(lower=0) * df["V0"] * k
 
     df["d"] = np.where(counted, df["a"] / df["n"].where(counted) - df["s0"], np.nan)
+    beta, var_beta, bx = 0.0, 0.0, 0.0
+    if p.hisp_slope:
+        df["x"] = hisp_dev(df)
+        beta, var_beta = _slope(df, counted, p)
+        df["d"] = df["d"] - beta * df["x"]           # deviations net of the slope: everything below is as before
+        bx = beta * df["x"]
     c = df[counted]
     pool = c[~c["uf"].isin(p.unpooled)]
     delta = float(np.average(pool["d"], weights=pool["n"])) if len(pool) else 0.0
@@ -129,7 +204,7 @@ def nowcast(state: pd.DataFrame, prior: pd.DataFrame, p: Params = Params(), uf: 
     df = df.join(by_uf[["delta_u", "W"]], on="uf")
 
     resid = (df["d"] - df["delta_u"]).fillna(0.0)
-    df["s_hat"] = (df["s0"] + df["delta_u"] + p.rho * resid * counted).clip(0, 1)
+    df["s_hat"] = (df["s0"] + df["delta_u"] + p.rho * resid * counted + bx).clip(0, 1)
 
     sigma_mun2 = _post_var(resid[counted].to_numpy(), df.loc[counted, "n"].to_numpy(), p.sigma_mun0, p.nu_mun)
     pooled_uf = (by_uf["W"] > 0) & ~by_uf.index.isin(p.unpooled)
@@ -160,7 +235,7 @@ def nowcast(state: pd.DataFrame, prior: pd.DataFrame, p: Params = Params(), uf: 
         var_post = (1 - w_obs) * s2                 # = 1 / (1/s2 + 1/var_obs)
         df["delta_u"] = df["delta_u"] + (delta_post - delta)
         resid_post = (df["d"] - df["delta_u"]).fillna(0.0)
-        df["s_hat"] = (df["s0"] + df["delta_u"] + p.rho * resid_post * counted).clip(0, 1)
+        df["s_hat"] = (df["s0"] + df["delta_u"] + p.rho * resid_post * counted + bx).clip(0, 1)
         scale = (w_obs if p.count_scale_mode == "weight" else float(np.isfinite(var_obs))) \
             if p.count_scaled_terms else 1.0
         var_uf = var_uf * scale
@@ -169,7 +244,21 @@ def nowcast(state: pd.DataFrame, prior: pd.DataFrame, p: Params = Params(), uf: 
         delta = delta_post
     else:
         extra = {}
-    sd = float(np.sqrt(var_mun + var_uf + var_nat))
+    var_hisp = 0.0
+    if p.hisp_slope:
+        # error of the margin from β's uncertainty: dM/dβ · Var β, where a unit's ŝ moves by (1-ρ·counted)(x_i + dδ_u/dβ)
+        # (β enters the state swing through the counted units' composition: δ_u uses d_i − β x_i)
+        n_x = (df["n"] * df["x"]).where(counted, 0.0)
+        pool_c = counted & ~df["uf"].isin(p.unpooled)
+        xbar_pool = float(n_x[pool_c].sum() / df["n"][pool_c].sum()) if pool_c.any() else 0.0
+        xbar_sum = n_x.groupby(df["uf"]).sum().reindex(df["uf"]).to_numpy()
+        d_delta = -(xbar_sum + p.kappa * xbar_pool) / (df["W"].to_numpy() + p.kappa)
+        if p.swing_prior_sd is not None:
+            d_delta = d_delta + (1 - w_obs) * xbar_pool
+        g = (1 - p.rho * counted) * (df["x"] + d_delta)
+        var_hisp = float((2 * df["R"] * g).sum()) ** 2 * var_beta
+        extra = {**extra, "hisp_beta": beta, "hisp_beta_sd": float(np.sqrt(var_beta)), "hisp_margin_sd": float(np.sqrt(var_hisp))}
+    sd = float(np.sqrt(var_mun + var_uf + var_nat + var_hisp))
 
     counted_margin = float((2 * df["a"] - df["n"]).sum())
     remaining_margin = float((df["R"] * (2 * df["s_hat"] - 1)).sum())

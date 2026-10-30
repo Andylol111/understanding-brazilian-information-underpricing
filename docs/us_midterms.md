@@ -861,6 +861,11 @@ egress, not the server: with a 250 kB timeline, 300 pages pull ~2.7 MB/s (the ta
   within-county vote-type order dominates; Maricopa-only AZ districts are under-covered in the 2024 replay. The prior
   is the 2024 president vote: candidates and incumbency enter only through the count (v2: through the swing sd).
 
+## Model v5 (secondary): night Hispanic slope; v6 mixture option
+
+Optional county-swing slope on the Hispanic share learned from the night's counted counties (`[model] hisp_slope`, `hisp_blend`; off by default,
+registered configs unchanged bit for bit). Method, backtest and decision: `docs/us_hisp_slope.md`.
+
 ## Evidence label
 
 Forward: configs frozen and registered before 2026-11-03 23:00 UTC, outcomes unknown. The Georgia calibration is

@@ -1,0 +1,61 @@
+# US midterms 2026-11-03, New Mexico Senate: model v5 (SECONDARY; the primary stays us2026_nm_sen_v3).
+# Identical to us2026_nm_sen_v3.toml (sha256 cebdbb99e2e3360076e72c245027e00d4c38396e41e4d563b4539095a93cfc89) except the night Hispanic slope: a county's expected swing is
+# the state swing + beta*(its Hispanic share - the state's expected-vote mean), with beta estimated from the
+# night's own counted counties (vote-weighted least squares, Normal(0, hisp_slope_tau^2) prior shrinking it
+# to 0 when few counties have reported) and its uncertainty added to the margin variance. The slope is never
+# carried over from earlier cycles (it changes sign). Hispanic share: Census ACS 2020-24 B03003.
+# Backtest and choice of hisp_slope_tau: docs/us_hisp_slope.md.
+id = "us2026_nm_sen_v5"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "nm-sen"
+name = "New Mexico Senate"
+state = "nm"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "nm"                    # brunder.us.FEEDS (NM SoS results web service GetMapData, race 11185; plain --url)
+poll_close_utc = "2026-11-04T02:00:00Z"
+a = { party = "DEM", name = "Ben Ray Luján", color = "#1f5fbf" }
+b = { party = "REP", name = "Larry E. Marker", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv or data_public/us2026_priors.csv
+share = "nm_sen_2024"        # 2024 Senate (Heinrich v Domenici): same office, latest (NM SoS certified results)
+votes = "nm_gov_2022"        # 2022 governor two-party votes (midterm turnout pattern)
+poll_avg = 0.6           # two-party Dem share, weighted average of 1 polls
+poll_sd = 0.0445            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 1
+poll_last = "2026-09-30"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.9876        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA 2022/2024 replays without a vote-type split (this feed has none), as SC/FL
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0443   # poll_avg - prior statewide share 0.5557 (V-weighted, data_public/us2026_priors.csv)
+swing_prior_sd = 0.0429      # historical RMSE of a poll average with 1 polls (brunder.us.POLL_SD_BINS)
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+hisp_slope = true               # night Hispanic slope (brunder.nowcast): swing = state swing + beta*(h - state h)
+hisp_slope_tau = 0.2           # prior sd of beta, chosen on backtests before 2026 (docs/us_hisp_slope.md)
+
+[count]                    # brunder.us.CountRules
+# NM counties report absentee and early votes on election night; the service gives precincts reporting per county
+# and no vote-type split ('*' until a county reports, read as 0): f = counted / expected votes, capped at 0.95 until
+# every precinct reported, then 98% counted; complete counties re-scale the rest (learned turnout).
+turnout_ratio = 1.0
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = false
+hisp_share = "data_public/us2026_hispanic_share.csv"   # county Hispanic share, ACS 2020-24 B03003
+
+[markets.polymarket]
+event = "new-mexico-senate-election-winner"
+market = "will-the-democrats-win-the-new-mexico-senate-race-in-2026"
+question = "Will the Democrats win the New Mexico Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

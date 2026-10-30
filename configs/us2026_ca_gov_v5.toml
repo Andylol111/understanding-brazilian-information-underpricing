@@ -1,0 +1,59 @@
+# US midterms 2026-11-03, California governor: model v5 (SECONDARY; the primary stays us2026_ca_gov_v3).
+# Identical to us2026_ca_gov_v3.toml (sha256 81ab8f376e46f2a8d1d1ea3b3e463aa9ed3d7e93fe682cdef8379fc3c3613300) except the night Hispanic slope: a county's expected swing is
+# the state swing + beta*(its Hispanic share - the state's expected-vote mean), with beta estimated from the
+# night's own counted counties (vote-weighted least squares, Normal(0, hisp_slope_tau^2) prior shrinking it
+# to 0 when few counties have reported) and its uncertainty added to the margin variance. The slope is never
+# carried over from earlier cycles (it changes sign). Hispanic share: Census ACS 2020-24 B03003.
+# Backtest and choice of hisp_slope_tau: docs/us_hisp_slope.md.
+id = "us2026_ca_gov_v5"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "ca-gov"
+name = "California governor"
+state = "ca"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "ca"                    # brunder.us.FEEDS
+poll_close_utc = "2026-11-04T04:00:00Z"
+a = { party = "DEM", name = "Xavier Becerra", color = "#1f5fbf" }
+b = { party = "REP", name = "Steve Hilton", color = "#c8102e" }
+
+[prior]                    # data/processed/us2026/priors.csv (brunder us priors)
+share = "ca_gov_2022"        # 2022 governor (Newsom v Dahle): same office, last midterm, top-two D v R
+votes = "ca_gov_2022"        # 2022 governor two-party votes (midterm turnout pattern)
+poll_avg = 0.629           # two-party Dem share, weighted average of 5 polls
+poll_sd = 0.0397            # sqrt(POLL_SD_HIST^2 + sampling variance)
+poll_n = 5
+poll_last = "2026-10-24"      # latest field end date
+poll_asof = "2026-11-02"      # window and weights counted back from this day
+poll_p_win = 0.9994        # display only: Phi((avg - 0.5) / sd)
+
+[model]                    # brunder.nowcast.Params; GA no-split value 0.06 widened for a weeks-long count (judgment, not calibrated)
+tau = 0.08
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0372   # poll_avg - prior statewide share 0.5918 (V-weighted, data_public/us2026_priors.csv)
+swing_prior_sd = 0.0334      # historical RMSE of a poll average with 5 polls (brunder.us.POLL_SD_BINS)
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+hisp_slope = true               # night Hispanic slope (brunder.nowcast): swing = state swing + beta*(h - state h)
+hisp_slope_tau = 0.2           # prior sd of beta, chosen on backtests before 2026 (docs/us_hisp_slope.md)
+
+[count]                    # brunder.us.CountRules
+# CA counts vote-by-mail and provisional ballots for weeks: precincts reporting says nothing about
+# ballots left, so f = counted / expected (2022 governor two-party votes × 1.0), capped at 0.90.
+turnout_ratio = 1.0
+f_max = 0.9
+f_complete = 0.0
+use_outstanding = false
+learn_turnout = false
+hisp_share = "data_public/us2026_hispanic_share.csv"   # county Hispanic share, ACS 2020-24 B03003
+
+[markets.polymarket]
+event = "california-governor-election-2026"
+market = "will-xavier-becerra-win-the-california-governor-election-in-2026"
+question = "Will Xavier Becerra win the California Governor Election in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

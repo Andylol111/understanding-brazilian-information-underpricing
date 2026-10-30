@@ -179,6 +179,87 @@ def next_v4() -> None:
         print(q.name, f"from {base.name}")
 
 
+HISP_CSV = "data_public/us2026_hispanic_share.csv"
+PANEL = "data_public/us_county_panel.csv"
+
+
+def hispanic_csv() -> None:
+    """data_public/us2026_hispanic_share.csv (unit_id, hisp): each county's Hispanic or Latino share of the population,
+    Census ACS 2020-24 5-year B03003 (public domain). The same numbers as hispanic_pct in
+    site/data/us2026/hub/census.json (analysis/us_hub.py) and `hisp` in the county panel (analysis/us_fundamentals.py);
+    read from the panel so that no network or SSD data are needed. Counties of every state with a registered race
+    config (Alaska's districts have no share; the model treats a missing share as the state mean). Model v5 reads it."""
+    panel = pd.read_csv(us.ROOT_DIR / PANEL, comment="#", dtype={"fips": str})
+    h = panel[panel["year"] == 2024].set_index("fips")["hisp"]
+    states = sorted({us.load_config(p)["election"]["state"] for p in (us.ROOT_DIR / "configs").glob(f"{us.EID}_*_v1.toml")}
+                    - {"ak"})
+    out = pd.DataFrame({"unit_id": sorted(u for st in states for u in us.counties(st)["unit_id"])})
+    out["hisp"] = out["unit_id"].str[-5:].map(h).round(4)
+    out = out.dropna()
+    (us.ROOT_DIR / HISP_CSV).write_text(
+        "# County Hispanic or Latino share of the population (0-1): US Census Bureau, American Community Survey 2020-2024 "
+        "5-year, table B03003 (public domain; = hispanic_pct in site/data/us2026/hub/census.json). Model v5/v6 "
+        "([count] hisp_share, brunder.us). analysis/us_polls.py hispanic_csv\n" + out.to_csv(index=False))
+    print(HISP_CSV, len(out), "counties")
+
+
+def next_hisp(kind: str, races: list[str], tau: float, weights: dict[str, float] | None = None) -> None:
+    """Model v5 (kind "slope") or v6 (kind "blend", weights = {race_id: weight on v5}) configs: the race's primary poll
+    model (latest version with a swing prior, not secondary; the latest version where there is none) plus exactly the
+    new keys: [count] hisp_share, [model] hisp_slope = true, hisp_slope_tau (+ hisp_blend for v6). Both are role =
+    "secondary" files; the integrator decides which model is primary. Version number: 5 (v6 for the blend), or the next
+    free one where taken (Ohio: 6 / 7). Registered files are never written; idempotent."""
+    frozen = registered_ids()
+    for p in sorted((us.ROOT_DIR / "configs").glob(f"{us.EID}_*_v1.toml")):
+        c1 = us.load_config(p)
+        rid = c1["election"]["race_id"]
+        if rid not in races:
+            continue
+        vs = us._sibling_versions(c1)
+        cfgs = {v: us.load_config(q) for v, q in vs.items()}
+        is_slope = {v: bool(c["model"].get("hisp_slope")) and "hisp_blend" not in c["model"] for v, c in cfgs.items()}
+        is_blend = {v: "hisp_blend" in c["model"] for v, c in cfgs.items()}
+        plain = {v: c for v, c in cfgs.items() if not is_slope[v] and not is_blend[v]}
+        pm = us.poll_model(plain) or max(plain, key=lambda v: int(v[1:]))
+        base, cb = vs[pm], cfgs[pm]
+        top = max(int(v[1:]) for v in plain)
+        slope_n = next((int(v[1:]) for v in cfgs if is_slope[v]), 5 if top < 5 else top + 1)
+        blend_n = next((int(v[1:]) for v in cfgs if is_blend[v]), slope_n + 1)
+        n = slope_n if kind == "slope" else blend_n
+        q = p.with_name(p.name.replace("_v1.toml", f"_v{n}.toml"))
+        if q.stem in frozen:
+            print(q.name, "registered: not regenerated")
+            continue
+        text = base.read_text()
+        body = text[text.index("\nid = ") + 1:].replace(f'id = "{cb["id"]}"', f'id = "{q.stem}"\nrole = "secondary"', 1)
+        body = re.sub(r'^role = "secondary"\n(?=role = )', "", body, flags=re.M)
+        body = _after_block(body, "count", [f'hisp_share = "{HISP_CSV}"   # county Hispanic share, ACS 2020-24 B03003'])
+        keys = ["hisp_slope = true               # night Hispanic slope (brunder.nowcast): swing = state swing + beta*(h - state h)",
+                f"hisp_slope_tau = {tau}           # prior sd of beta, chosen on backtests before 2026 (docs/us_hisp_slope.md)"]
+        if kind == "blend":
+            keys.append(f"hisp_blend = {weights[rid]:.2f}            # weight on the slope model in the v3/v5 mixture "
+                        "(leave-one-cycle-out stacking, docs/us_hisp_slope.md)")
+        body = _after_block(body, "model", keys)
+        sha = hashlib.sha256(base.read_bytes()).hexdigest()
+        if kind == "slope":
+            head = [f"# US midterms 2026-11-03, {c1['election']['name']}: model v{n} (SECONDARY; the primary stays {base.stem}).",
+                    f"# Identical to {base.name} (sha256 {sha}) except the night Hispanic slope: a county's expected swing is",
+                    "# the state swing + beta*(its Hispanic share - the state's expected-vote mean), with beta estimated from the",
+                    "# night's own counted counties (vote-weighted least squares, Normal(0, hisp_slope_tau^2) prior shrinking it",
+                    "# to 0 when few counties have reported) and its uncertainty added to the margin variance. The slope is never",
+                    "# carried over from earlier cycles (it changes sign). Hispanic share: Census ACS 2020-24 B03003.",
+                    "# Backtest and choice of hisp_slope_tau: docs/us_hisp_slope.md."]
+        else:
+            head = [f"# US midterms 2026-11-03, {c1['election']['name']}: model v{n} (SECONDARY; the primary stays {base.stem}).",
+                    f"# Identical to {base.name} (sha256 {sha}) except that its forecast is the mixture hisp_blend * v{slope_n}",
+                    "# (night Hispanic slope) + (1 - hisp_blend) * the plain model: margin = the mixture of the two normal predictive",
+                    "# distributions, win probability = the same mixture of their win probabilities. hisp_blend = the stacking",
+                    "# weight (maximises the leave-one-cycle-out log score of the statewide win probability on the backtests).",
+                    "# Hispanic share: Census ACS 2020-24 B03003. Backtest: docs/us_hisp_slope.md."]
+        q.write_text("\n".join(head) + "\n" + body)
+        print(q.name, f"from {base.name}")
+
+
 def build(day: str | None) -> None:
     out = us.build_polls(us.fetch_polls(day))
     n = sum(v is not None for v in out["races"].values())
@@ -394,8 +475,15 @@ def effect(n_sim: int = 30) -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("step", choices=["error", "errorbins", "build", "configs", "next", "next_v4", "effect", "calib"])
+    ap.add_argument("step", choices=["error", "errorbins", "build", "configs", "next", "next_v4", "effect", "calib", "hispanic_csv",
+                                     "next_hisp", "next_blend"])
+    ap.add_argument("--races", default="", help="next_hisp / next_blend: comma-separated race ids (tx-gov,fl-sen,...)")
+    ap.add_argument("--tau", type=float, default=None, help="next_hisp / next_blend: hisp_slope_tau")
+    ap.add_argument("--weights", default="", help="next_blend: race_id=weight,... (weight on the slope model)")
     ap.add_argument("--day", help="VoteHub cache day YYYYmmdd (default today)")
     a = ap.parse_args()
     {"error": error, "errorbins": errorbins, "build": lambda: build(a.day), "configs": configs,
-     "next": next_versions, "next_v4": next_v4, "effect": effect, "calib": calib}[a.step]()
+     "next": next_versions, "next_v4": next_v4, "effect": effect, "calib": calib, "hispanic_csv": hispanic_csv,
+     "next_hisp": lambda: next_hisp("slope", a.races.split(","), a.tau),
+     "next_blend": lambda: next_hisp("blend", a.races.split(","), a.tau,
+                                     {k: float(v) for k, v in (x.split("=") for x in a.weights.split(","))})}[a.step]()

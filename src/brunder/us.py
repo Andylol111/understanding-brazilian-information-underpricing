@@ -36,7 +36,7 @@ import re
 import tomllib
 import xml.etree.ElementTree as ET
 import zipfile
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -1122,6 +1122,17 @@ def _expected_votes(path: str) -> pd.Series:
     return _EXPECTED[path]
 
 
+_HISP: dict[str, pd.Series] = {}
+
+
+def _hisp_share(path: str) -> pd.Series:
+    """unit_id -> Hispanic share of the population (0-1) from a repo-relative CSV (cached)."""
+    if path not in _HISP:
+        d = pd.read_csv(ROOT_DIR / path, comment="#")
+        _HISP[path] = d.set_index("unit_id")["hisp"].astype(float)
+    return _HISP[path]
+
+
 @dataclass(frozen=True)
 class CountRules:
     """How much of a county's vote is in (f), given what US feeds report. See docs/us_midterms.md."""
@@ -1139,6 +1150,10 @@ class CountRules:
     # "prior": the file only redistributes the statewide expected total of turnout_ratio × V across counties;
     # "file": the file's own totals (statewide level from the previous midterm's drop-off).
     expected_votes_level: str = "prior"
+    # Model v5/v6 (nowcast.Params.hisp_slope / hisp_blend): county Hispanic share from a repo-relative CSV (unit_id,
+    # hisp; data_public/us2026_hispanic_share.csv, Census ACS 2020-24 B03003). Counties missing from it get the
+    # state's expected-vote weighted mean (no slope effect). Only read when the model's slope is on.
+    hisp_share: str = ""
 
 
 def rules(cfg: dict) -> CountRules:
@@ -1149,7 +1164,7 @@ def rules(cfg: dict) -> CountRules:
 def params(cfg: dict) -> nowcast.Params:
     M = cfg.get("model", {})
     keys = ("kappa", "rho", "tau", "sigma_mun0", "nu_mun", "sigma_uf0", "nu_uf", "swing_prior_mean", "swing_prior_sd",
-            "count_scaled_terms", "count_scale_mode")
+            "count_scaled_terms", "count_scale_mode", "hisp_slope", "hisp_slope_tau", "hisp_blend")
     return nowcast.Params(**{k: M[k] for k in keys if k in M})
 
 
@@ -1225,6 +1240,8 @@ def _model_units(cs: pd.DataFrame, pri: pd.DataFrame, st: str, R: CountRules) ->
     extrapolated from early batches (the main count-order bias in GA/TX, docs/us_midterms.md). Falls back to one
     unit per county while the feed reports votes but no early-vote split."""
     base = pd.DataFrame({"county": cs["unit_id"], "s0": pri["s0"].to_numpy()})
+    if "h" in pri:
+        base["h"] = pri["h"].to_numpy()
     if not R.vote_type or (cs["n"].sum() > 0 and cs["ne"].sum() == 0):
         return base.assign(uf=st, cd_mun=cs["unit_id"], n=cs["n"], a=cs["a"], f=cs["f"], V0=cs["E"])
     posted = cs["ne"] > 0
@@ -1238,26 +1255,51 @@ def _model_units(cs: pd.DataFrame, pri: pd.DataFrame, st: str, R: CountRules) ->
     return pd.concat([early, late], ignore_index=True)
 
 
-def project(rows: pd.DataFrame, cfg: dict, pri: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
-    """Race-level nowcast (brunder.nowcast over all units of the state) + per-county projected final Dem share.
-    Model v2 sets [model] swing_prior_mean (poll average − baseline_share) and swing_prior_sd (poll error): the
-    statewide swing is then the poll prior combined with the swing seen in counted votes (brunder.nowcast)."""
-    st, R, p = cfg["election"]["state"], rules(cfg), params(cfg)
-    cs = count_state(rows, cfg, pri)
-    mu = _model_units(cs, pri, st, R)
-    res = nowcast.nowcast(mu[["uf", "cd_mun", "n", "a", "f"]], mu[["uf", "cd_mun", "s0", "V0"]], p)
-    # the same remaining-share projection nowcast uses, per unit, for the map
+def _county_projection(mu: pd.DataFrame, res: dict, p: nowcast.Params, cs: pd.DataFrame) -> pd.DataFrame:
+    """Per county: counted (a, n), projected remaining Dem votes (ra) and votes (r), by the same remaining-share
+    projection nowcast uses per unit. A slope model (p.hisp_slope) uses the deviations net of β·x and adds β·x."""
     counted = mu["n"] > 0
     d = np.where(counted, mu["a"] / mu["n"].where(counted) - mu["s0"], np.nan)
+    bx = 0.0
+    if p.hisp_slope:
+        x = nowcast.hisp_dev(mu.assign(V0=mu["V0"]))
+        bx = res["hisp_beta"] * x.to_numpy()
+        d = d - bx
     w = mu["n"].where(counted, 0.0)
     wd = pd.Series(np.nan_to_num(d) * w).groupby(mu["uf"]).sum()
     W = w.groupby(mu["uf"]).sum()
     obs = res.get("swing_obs", res["swing_nat"])                   # = swing_nat unless a swing prior is set
     delta_u = ((wd + p.kappa * obs) / (W + p.kappa) + (res["swing_nat"] - obs)).reindex(mu["uf"]).to_numpy()
-    s_hat = np.clip(mu["s0"] + delta_u + p.rho * (np.nan_to_num(d) - delta_u) * counted, 0, 1)
+    s_hat = np.clip(mu["s0"] + delta_u + p.rho * (np.nan_to_num(d) - delta_u) * counted + bx, 0, 1)
     Rm = (1 - mu["f"]).clip(lower=0) * mu["V0"] * res["turnout_k"]
     agg = pd.DataFrame({"a": mu["a"], "n": mu["n"], "ra": Rm * s_hat, "r": Rm}).groupby(mu["county"].to_numpy()).sum()
-    agg = agg.reindex(cs["unit_id"])
+    return agg.reindex(cs["unit_id"])
+
+
+def project(rows: pd.DataFrame, cfg: dict, pri: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
+    """Race-level nowcast (brunder.nowcast over all units of the state) + per-county projected final Dem share.
+    Model v2 sets [model] swing_prior_mean (poll average − baseline_share) and swing_prior_sd (poll error): the
+    statewide swing is then the poll prior combined with the swing seen in counted votes (brunder.nowcast).
+    Model v5 sets [model] hisp_slope = true (+ [count] hisp_share): a county's swing also depends on its Hispanic
+    share through a slope learned from the night's counted counties; v6 hisp_blend = w mixes the v5 and v3 forecasts."""
+    st, R, p = cfg["election"]["state"], rules(cfg), params(cfg)
+    slope = p.hisp_slope or p.hisp_blend is not None
+    if slope and "h" not in pri:
+        if not R.hisp_share:
+            raise ValueError("hisp_slope / hisp_blend need [count] hisp_share = <csv of unit_id, hisp>")
+        pri = pri.assign(h=pri["unit_id"].map(_hisp_share(R.hisp_share)).to_numpy())
+    cs = count_state(rows, cfg, pri)
+    mu = _model_units(cs, pri, st, R)
+    pcols = ["uf", "cd_mun", "s0", "V0"] + (["h"] if slope else [])
+    res = nowcast.nowcast(mu[["uf", "cd_mun", "n", "a", "f"]], mu[pcols], p)
+    if p.hisp_blend is None:
+        agg = _county_projection(mu, res, p, cs)
+    else:                                  # the mixture's mean per county: w·(v5 projection) + (1−w)·(v3 projection)
+        res5 = nowcast.nowcast(mu[["uf", "cd_mun", "n", "a", "f"]], mu[pcols], replace(p, hisp_blend=None, hisp_slope=True))
+        res3 = nowcast.nowcast(mu[["uf", "cd_mun", "n", "a", "f"]], mu[pcols], replace(p, hisp_blend=None, hisp_slope=False))
+        a5 = _county_projection(mu, res5, replace(p, hisp_blend=None, hisp_slope=True), cs)
+        a3 = _county_projection(mu, res3, replace(p, hisp_blend=None, hisp_slope=False), cs)
+        agg = a5 * p.hisp_blend + a3 * (1 - p.hisp_blend)
     proj = ((agg["a"] + agg["ra"]) / (agg["n"] + agg["r"]).where(agg["n"] + agg["r"] > 0)).to_numpy()
     res["raw"] = float(cs["a"].sum() / cs["n"].sum()) if cs["n"].sum() > 0 else np.nan
     res["turnout_T"] = float(cs["turnout_T"].iloc[0]) if len(cs) else 1.0
