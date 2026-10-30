@@ -8,7 +8,7 @@ import * as d3 from "./vendor/d3.js";
 import { C, clock, probit } from "./common.js";
 
 const POLLS = "#8d8a82";
-// method hovers for our model's line (US)
+// method hovers for the model's line (US)
 const REG = "v3: poll average prior + county count (registered)";
 const EST = "Estimate: 2024 county results shifted to the poll average";
 
@@ -83,9 +83,9 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     const final = countPanel && last.counted >= 0.999 && last.raw != null ? (2 * last.raw - 1) * 100 : null;
     if (final != null) g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", Y(final)).attr("y2", Y(final)).attr("stroke", C.model).attr("stroke-dasharray", "5,4").attr("opacity", 0.6);
     endLabels(svg, width - m.r + 5, [
-      [lastF(mm), (d) => Y(mm(d)), `${us ? "our model" : "model"}${two ? ", polls" : ""}`, C.model, us ? REG : ""],
+      [lastF(mm), (d) => Y(mm(d)), `model${two ? ", polls" : ""}`, C.model, us ? REG : ""],
       [lastF((d) => d.margin_polls ?? null), (d) => Y(d.margin_polls), "polls", POLLS],
-      [est, (d) => Y(d.margin_estimate), "our model", C.model, EST],
+      [est, (d) => Y(d.margin_estimate), "model", C.model, EST],
       [lastF(mkt), (d) => Y(mkt(d)), "market-implied", C.market],
       [lastF(mktK), (d) => Y(mktK(d)), "Kalshi-implied", C.kalshi],
       [lastF(rawM), (d) => Y(rawM(d)), "raw count", C.raw],
@@ -105,11 +105,11 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     const estP = lastF((d) => d.P_estimate ?? null);
     if (estP) g.append("circle").attr("cx", X(estP)).attr("cy", yP(estP.P_estimate)).attr("r", 4).attr("fill", C.model).attr("stroke", "#fff");
     endLabels(svg, width - m.r + 5, [
-      [lastF(main), (d) => yP(main(d)), `${us ? "our model" : "model"}${two ? ", polls" : ""}`, C.model, us ? REG : ""],
+      [lastF(main), (d) => yP(main(d)), `model${two ? ", polls" : ""}`, C.model, us ? REG : ""],
       [two ? lastF((d) => d.P ?? null) : null, (d) => yP(d.P), "without polls", C.model],
       [lastF((d) => d.pm ?? null), (d) => yP(d.pm), "Polymarket", C.market],
       [lastF((d) => d.kalshi ?? null), (d) => yP(d.kalshi), "Kalshi", C.kalshi],
-      [estP, (d) => yP(d.P_estimate), "our model", C.model, EST],
+      [estP, (d) => yP(d.P_estimate), "model", C.model, EST],
     ]);
   }
 

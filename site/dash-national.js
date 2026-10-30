@@ -6,7 +6,7 @@
 // map: the office toggle, the Senate control bar, the legend, the hover card, the race panel with
 // price history and the office summary beside the map. Clicking a state drills into its county view.
 import * as d3 from "./vendor/d3.js";
-import { C, esc, num, fmtDate, marginText, probit } from "./common.js";
+import { C, esc, num, fmtDate, marginText, probit, thinPolls, thinLabel } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", NORACE = "#e6e4dd";
 // House: the page draws it (dash-house.js); this module only offers the button and steps aside
@@ -187,7 +187,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
       if (vb == null) return -1;
       return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * dir;
     });
-    const cols = [["state", "State"], ["inc", "Incumbent"], ["pm", "Polymarket"], ["k", "Kalshi"], ["polls", "Polls"], ["model", "Our model"], ["market", "Market-implied"]];
+    const cols = [["state", "State"], ["inc", "Incumbent"], ["pm", "Polymarket"], ["k", "Kalshi"], ["polls", "Polls"], ["model", "Model"], ["market", "Market-implied"]];
     const ctlHTML = ctl ? `<h3 class="tab-h">Control of the Senate</h3>
       <p class="nat-sum-ctl"><span style="color:${DEM}"><b>Democrats ${(ctl.holdD + ctl.eD).toFixed(1)}</b></span> seats expected (${ctl.holdD} not up${ctl.hold.I ? `, incl. ${ctl.hold.I} independents` : ""}, + ${ctl.eD.toFixed(1)}),
         <span style="color:${REP}"><b>Republicans ${(ctl.holdR + ctl.eR).toFixed(1)}</b></span> (${ctl.holdR} + ${ctl.eR.toFixed(1)}); ${ctl.maj} seats for control${ctl.unpriced ? `; ${ctl.unpriced} races without a price` : ""}.
@@ -198,9 +198,9 @@ export function createNational(root, { overview, office = "senate", summary = nu
       ${ctlHTML}
       <h3 class="tab-h">${office} races (${rows.length})</h3>
       <table class="races nat-races"><thead><tr>${cols.map(([k, l]) => `<th class="${k === "state" || k === "inc" ? "" : "n"}" aria-sort="${key === k ? (dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${l}</button></th>`).join("")}</tr></thead>
-      <tbody>${rows.map((x) => `<tr tabindex="0" data-key="${esc(x.r.race_key)}" data-state="${esc(x.r.state)}"><td>${esc(x.state)}${x.r.special ? " (special)" : ""}${modelled(x.r) ? ` <span class="mk-live" title="live county model on election night"></span>` : ""}</td><td>${esc(x.inc)}${x.r.incumbent_party ? ` (${esc(x.r.incumbent_party)})` : ""}${x.r.open ? " <small>not running</small>" : ""}</td>
+      <tbody>${rows.map((x) => `<tr tabindex="0" data-key="${esc(x.r.race_key)}" data-state="${esc(x.r.state)}"><td>${esc(x.state)}${x.r.special ? " (special)" : ""}${thinPolls(x.r.polls?.n_polls) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(x.r.polls.n_polls))}">†</sup>` : ""}${modelled(x.r) ? ` <span class="mk-live" title="live county model on election night"></span>` : ""}</td><td>${esc(x.inc)}${x.r.incumbent_party ? ` (${esc(x.r.incumbent_party)})` : ""}${x.r.open ? " <small>not running</small>" : ""}</td>
         <td class="n">${num(x.pm)}</td><td class="n kx">${num(x.k)}</td><td class="n" title="${esc(pollsTitle(x.r.polls))}">${marginText(x.polls)}</td><td class="n m" title="${modelled(x.r) ? "v3: poll average prior + county count (registered)" : "Estimate: 2024 county results shifted to the poll average"}">${marginText(x.model)}</td><td class="n" title="${x.market != null ? esc(`from the price ${num(mg(x.r).market != null ? pmP(x.r) : x.k)}`) : ""}">${marginText(x.market)}</td></tr>`).join("")}</tbody></table>
-      <p class="note">Polymarket, Kalshi: prices (chance the Democratic side wins). Polls, Our model, Market-implied: margins, Democratic minus Republican, in points of the two-party vote. Market-implied: the margin at which our model's uncertainty gives Polymarket's price (Kalshi's where Polymarket has none). <span class="mk-live" aria-hidden="true"></span> marks a live county model on election night. Click a race or a state to open its counties.</p>`;
+      <p class="note">Polymarket, Kalshi: prices (chance the Democratic side wins). Polls, Model, Market-implied: margins, Democratic minus Republican, in points of the two-party vote. Market-implied: the margin at which the model's uncertainty gives Polymarket's price (Kalshi's where Polymarket has none). <span class="mk-live" aria-hidden="true"></span> marks a live county model on election night. † 3 or fewer polls in the poll average. Click a race or a state to open its counties.</p>`;
     if (ctl?.markets.length) {
       const pm = ctl.markets.find((c) => c.platform !== "kalshi"), ks = ctl.markets.find((c) => c.platform === "kalshi");
       const byT = new Map();

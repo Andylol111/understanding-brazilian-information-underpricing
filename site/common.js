@@ -49,6 +49,10 @@ export const votesShort = (v) => {
 };
 // The model's chance in a timeline row: the version with polls (P_v2) where an election has one,
 // else the count-only model (P). Rows with both also show P as "model without polls".
+// A poll average built from this many polls or fewer is "thin": the US page labels it. n: the race's n_polls.
+export const THIN_POLLS = 3;
+export const thinPolls = (n) => (n >= 1 && n <= THIN_POLLS ? n : null);
+export const thinLabel = (n) => `thin polling (${n} poll${n === 1 ? "" : "s"})`;
 export const modelP = (row) => row?.P_v2 ?? row?.P ?? null;
 // Cross-document view transitions (style.css @view-transition): where the browser has them, page
 // links navigate at once and the map box and header carry over; elsewhere a short fade-out first.

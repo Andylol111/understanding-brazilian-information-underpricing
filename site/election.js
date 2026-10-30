@@ -390,6 +390,15 @@ function extraRow(r) {
     margin_market: mk(pm) ?? m.market ?? null, margin_market_kalshi: mk(kx) ?? m.market_kalshi ?? null,
   };
 }
+// Polls in the overview's poll average for a race (US only; null without a poll average).
+function nPollsOf(r) {
+  const id = r?.race_id;
+  for (const off of Object.values(S.overview?.offices ?? {})) {
+    const o = (off.races ?? []).find((x) => x.race_key === id || x.race_id === id);
+    if (o) return o.polls?.n_polls ?? null;
+  }
+  return null;
+}
 // Row of a race's timeline at time t (last row at or before t). Time arrays are built once per load.
 function rowAt(raceId, t) {
   const rows = seriesOf(raceId);
@@ -825,7 +834,7 @@ function render() {
     const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
     const row = rowAt(S.race.race_id, tt) ?? extraRow(S.race);
     if (pre && S.race.estimate) pre.basis = S.race.estimate.note;
-    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row) });
+    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row), nPolls: nPollsOf(S.race) });
     // the turnout chart follows the map's frame
     if (S.tlView === "turnout" && S.tlK !== k) drawChart();
   }
@@ -1735,7 +1744,7 @@ function renderStatsTab() {
   // before any district has a count model, a note
   if (S.office === "house") {
     const hr = houseRaces();
-    if (!hr.length) { $("pane-stats").innerHTML = `<p class="note">The statistics (accuracy, calibration, market comparison, profit) are computed per race once the count is over, for the races with a county count model. No House district has one in this election's files yet: their markets, polls and our model are in the Races, Polls and Markets tabs.</p>`; return; }
+    if (!hr.length) { $("pane-stats").innerHTML = `<p class="note">The statistics (accuracy, calibration, market comparison, profit) are computed per race once the count is over, for the races with a county count model. No House district has one in this election's files yet: their markets, polls and the model are in the Races, Polls and Markets tabs.</p>`; return; }
     const race = raceById(`house:${S.houseSel}`) ?? hr[0];
     renderStats($("pane-stats"), { stats: S.stats, race, races: hr, raceName, tz: S.tz, arb: S.arb, settleOf, profitOf });
     return;
@@ -1786,7 +1795,7 @@ function geometryCredit() {
 
 // The race selector: the office shown first (US: Senate, governor or the House districts), then
 // the rest; elsewhere the national race and each region's races.
-// US: "How our model works" at the top of the Method & sources tab (written once; idempotent)
+// US: "How the model works" at the top of the Method & sources tab (written once; idempotent)
 function addOurModel() {
   const pm = $("pane-method");
   if (pm && !pm.querySelector("#our-model")) pm.insertAdjacentHTML("afterbegin", `<div id="our-model">${ourModelHTML()}</div>`);
@@ -1864,7 +1873,7 @@ function buildRaceList() {
   // US: every race of the office (● live county model), in the open state if one is open
   const list = S.nat ? officeRaces(OFFICE_ID[S.office ?? "senate"] ?? "sen").filter((r) => !S.region || r.region === S.region) : statewide();
   const name = S.nat ? (r) => `${modelled(r) ? "● " : ""}${raceName(r)}` : raceName;
-  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf });
+  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf, nPollsOf });
   S.list.select(S.race?.race_id);
 }
 

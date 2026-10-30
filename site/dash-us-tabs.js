@@ -338,7 +338,7 @@ function drawMarkets(H, el, race) {
   const sd = mg.market_sd_used ?? null;
   const modelM = mg.model_polls ?? mg.model_v2 ?? mg.model ?? mg.estimate ?? null;
   el.innerHTML = `<p class="hub-lede"><b>${esc(nameOf(H, race))}</b>: the chance the Democratic side wins on each venue, and the same prices read as margins next to the polls and the model.</p>
-    <div class="chips">${pm ? fig("Polymarket bid / ask", `${num(pm.bid)} / ${num(pm.ask)}`) + fig("Polymarket volume (total)", usd(pm.volume_total)) : ""}${k ? fig("Kalshi bid / ask", `${num(k.bid)} / ${num(k.ask)}`) : ""}${fig("Our model margin", marginText(modelM), mg.estimate != null && mg.model_polls == null && mg.model_v2 == null && mg.model == null ? "Estimate: 2024 county results shifted to the poll average" : "v3: poll average prior + county count (registered)")}${fig("Polls", marginText(mg.polls))}</div>
+    <div class="chips">${pm ? fig("Polymarket bid / ask", `${num(pm.bid)} / ${num(pm.ask)}`) + fig("Polymarket volume (total)", usd(pm.volume_total)) : ""}${k ? fig("Kalshi bid / ask", `${num(k.bid)} / ${num(k.ask)}`) : ""}${fig("Model margin", marginText(modelM), mg.estimate != null && mg.model_polls == null && mg.model_v2 == null && mg.model == null ? "Estimate: 2024 county results shifted to the poll average" : "v3: poll average prior + county count (registered)")}${fig("Polls", marginText(mg.polls))}</div>
     <h3 class="tab-h">Price (chance the Democratic side wins)</h3><div class="hub-chart" data-slot="price"></div>
     <h3 class="tab-h">As margins</h3><div class="hub-chart" data-slot="margin"></div>
     <p class="note">Market-implied margin: the margin at which the model's uncertainty (sd ${sd != null ? `${sd.toFixed(1)} pt` : "–"}) gives the price, Φ⁻¹(price) × sd. ${esc(MK?.note ?? "")}</p>
@@ -355,7 +355,7 @@ function drawMarkets(H, el, race) {
     { values: toM(pmD), color: C.market, label: "Polymarket-implied" },
     { values: toM(kD), color: C.kalshi, width: 1.2, label: "Kalshi-implied" },
     { values: pollsHist, color: POLLS, dash: "4,3", label: "polls" },
-    ...(modelM != null && span[0] ? [{ values: [[span[0], modelM], [span[1], modelM]], color: C.model, width: 2, label: "our model now" }] : []),
+    ...(modelM != null && span[0] ? [{ values: [[span[0], modelM], [span[1], modelM]], color: C.model, width: 2, label: "model now" }] : []),
   ], { height: 220, fmt: (v) => marginText(v).replace(".0", ""), zero: true });
   drawAccuracy(MK, el);
   drawWallets(H, slot(el, "wallets"), race);
@@ -400,7 +400,7 @@ function drawHouseMarkets(H, el, id) {
   const cands = pm?.cands?.D || pm?.cands?.R ? pm.cands : k?.cands ?? {};
   const who = cands.D && cands.R ? `: ${esc(cands.D)} (D) against ${esc(cands.R)} (R)` : cands.D ? `: ${esc(cands.D)} (D)` : cands.R ? `: ${esc(cands.R)} (R)` : "";
   el.innerHTML = `<p class="hub-lede"><b>${esc(id)}</b>${who}. The chance the Democratic party wins the seat on each venue${pm || k ? "" : ": no market lists it"}.</p>
-    <div class="chips">${pm ? fig("Polymarket", num(pm.p)) + fig("Polymarket spread", num(pm.spread_d, 3)) + fig("Polymarket volume", usd(pm.volume)) : fig("Polymarket", "no market")}${k ? fig("Kalshi", num(k.p)) : fig("Kalshi", "no market")}${base ? fig("Our model", num(base.p_d), `2024 president on the 2026 lines + generic-ballot swing${HM?.generic_ballot?.n_polls != null ? ` (${HM.generic_ballot.n_polls} polls)` : ""}; no district count model`) : ""}</div>
+    <div class="chips">${pm ? fig("Polymarket", num(pm.p)) + fig("Polymarket spread", num(pm.spread_d, 3)) + fig("Polymarket volume", usd(pm.volume)) : fig("Polymarket", "no market")}${k ? fig("Kalshi", num(k.p)) : fig("Kalshi", "no market")}${base ? fig("Model", num(base.p_d), `2024 president on the 2026 lines + generic-ballot swing${HM?.generic_ballot?.n_polls != null ? ` (${HM.generic_ballot.n_polls} polls)` : ""}; no district count model`) : ""}</div>
     <p class="note">No price history is published for House markets.</p>${sources(HM)}`;
 }
 
@@ -443,17 +443,17 @@ function drawTrack(H, el, c, house) {
   const sm = B.summary ?? {};
   const where = c.state ? `<b>${esc(stateName(H, c.state))}</b>: ${rows.length} past Senate or governor race${rows.length === 1 ? "" : "s"} in the published backtest. ` : "";
   const line = (label, k, f) => `<tr><td>${label}</td><td class="n m">${f(sm.model?.[k])}</td><td class="n">${f(sm.baseline?.[k])}</td></tr>`;
-  el.innerHTML = `<p class="hub-lede">${where}Our poll model on past Senate and governor races, against past results only. ${esc(B.label ?? "")}</p>
-    ${c.state ? "" : `<div class="hub-pair"><table class="races hub-table"><thead><tr><th></th><th class="n">Our model</th><th class="n">Past results</th></tr></thead><tbody>
+  el.innerHTML = `<p class="hub-lede">${where}The poll model on past Senate and governor races, against past results only. ${esc(B.label ?? "")}</p>
+    ${c.state ? "" : `<div class="hub-pair"><table class="races hub-table"><thead><tr><th></th><th class="n">Model</th><th class="n">Past results</th></tr></thead><tbody>
       ${line("Races", "races", (v) => v ?? "–")}${line("Result inside the 68% band", "cover68", (v) => pct(v, 0))}${line("Result inside the 90% band", "cover90", (v) => pct(v, 0))}
       ${line("Mean absolute error (pt)", "mae_margin", (v) => num(v, 1))}${line("Brier score (lower is better)", "brier", (v) => num(v, 3))}${line("Log loss (lower is better)", "log_loss", (v) => num(v, 3))}
-    </tbody></table><div><div data-slot="cal"></div><p class="note">Chance given against how often the Democrat won: <span class="m">our model</span>, <span style="color:${POLLS}">past results</span>. On the dashed line the chances were right on average.</p></div></div>`}
+    </tbody></table><div><div data-slot="cal"></div><p class="note">Chance given against how often the Democrat won: <span class="m">model</span>, <span style="color:${POLLS}">past results</span>. On the dashed line the chances were right on average.</p></div></div>`}
     <h3 class="tab-h">${c.state ? `${esc(stateName(H, c.state))} races` : "Every race"}</h3><div class="hub-scroll" data-slot="table"></div>
     <p class="note">Past results: ${esc(typeof B.baseline === "string" ? B.baseline : JSON.stringify(B.baseline))}.</p>${sources(B)}`;
-  if (!c.state) calibration(slot(el, "cal"), [{ bins: sm.baseline?.calibration ?? [], color: POLLS, label: "past results" }, { bins: sm.model?.calibration ?? [], color: C.model, label: "our model" }]);
+  if (!c.state) calibration(slot(el, "cal"), [{ bins: sm.baseline?.calibration ?? [], color: POLLS, label: "past results" }, { bins: sm.model?.calibration ?? [], color: C.model, label: "model" }]);
   sortable(slot(el, "table"), "track", [
     ["cycle", "Year", true], ["state", "State", false], ["office", "Office", false, (r) => (r.office === "gov" ? "governor" : "Senate")], ["n_polls", "Polls", true],
-    ["pred_margin", "Our model", true, (r) => `${marginText(r.pred_margin)} <small>± ${num(r.sd_margin, 1)}</small>`],
+    ["pred_margin", "Model", true, (r) => `${marginText(r.pred_margin)} <small>± ${num(r.sd_margin, 1)}</small>`],
     ["actual_margin", "Result", true, (r) => marginText(r.actual_margin)],
     ["error", "Error (pt)", true, (r) => num(r.error, 1)],
     ["base_margin", "Past results", true, (r) => marginText(r.base_margin)],

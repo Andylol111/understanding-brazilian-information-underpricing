@@ -1,7 +1,7 @@
 // Right-hand panels of the dashboard: the readout at the current time, and the three tabs
 // (races, statistics, method & sources). Pure rendering from values the controller passes in.
 import * as d3 from "./vendor/d3.js";
-import { C, esc, pct, num, usd, votesShort, modelP, marginText, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
+import { C, esc, pct, num, usd, votesShort, modelP, marginText, thinPolls, thinLabel, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
 
 const PLATFORM = { polymarket: "Polymarket", kalshi: "Kalshi" };
 const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}`);
@@ -14,7 +14,7 @@ const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−"
 // the model has no pre-count figure for the race, { live } "Polymarket live · 12 s ago" for the
 // latest row, { basis } the estimate's own note. ev: { short, full } early vote for the race's state.
 // turnout: { text, title } the race's projected turnout against expected.
-export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null, ev = null, turnout = null }) {
+export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null, ev = null, turnout = null, nPolls = null }) {
   const a = esc(race.a.name);
   const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)} · figures for ${a}</span></p>${race.source ? `<p class="note ro-src">Results: <a href="${esc(race.source.url)}">${esc(race.source.name)}</a> (secondary source)</p>` : ""}`;
   if (!row) { el.innerHTML = `${head}<p class="note">No data for this race at this time.</p>`; return; }
@@ -29,7 +29,7 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   const margins = mm != null || row.margin_market != null || row.margin_polls != null;
   const mmSd = row.margin_v2 != null && row.sd_v2 != null ? 200 * row.sd_v2 : row.margin_model_sd;
   const mkt = row.margin_market ?? row.margin_market_kalshi ?? null, mktP = row.margin_market != null ? row.pm : row.kalshi;
-  const who = "Our model", whoTip = row.estimate ? "Estimate: 2024 county results shifted to the poll average" : "v3: poll average prior + county count (registered)";
+  const who = "Model", whoTip = row.estimate ? "Estimate: 2024 county results shifted to the poll average" : "v3: poll average prior + county count (registered)";
   if (margins) {
     chips.push(chip(`${who}${row.margin_v2 != null ? ", polls" : ""}`, marginText(mm), "m", mm != null && mmSd != null ? `± ${mmSd.toFixed(1)}` : "", `${whoTip}. Margin, Democratic minus Republican, points; ± one standard deviation`));
     chips.push(chip("Polls", marginText(row.margin_polls)));
@@ -41,8 +41,8 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   }
   // chances: the model (with polls where it has them), Polymarket, Kalshi
   const P = modelP(row), two = row.P_v2 != null && row.P != null;
-  const ch = [[P, "m", margins ? "our model" : "model"], [row.pm, "k", "PM"], [row.kalshi, "kx", "Kalshi"]].filter(([v]) => v != null);
-  if (ch.length) chips.push(chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", "", `chance ${race.a.name} wins: ${P != null ? `${margins ? "our model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
+  const ch = [[P, "m", "model"], [row.pm, "k", "PM"], [row.kalshi, "kx", "Kalshi"]].filter(([v]) => v != null);
+  if (ch.length) chips.push(chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : "", `chance ${race.a.name} wins: ${P != null ? `${margins ? "model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
   if (row.rem_total > 0) {
     const lean = row.rem_margin_total;
     chips.push(chip("Votes left (est.)", `≈ ${votesShort(row.rem_total)}`, "", lean != null ? `lean ${esc(lean >= 0 ? race.a.name : race.b.name)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)}` : "", "the model's estimate of the votes still to count and how they lean"));
@@ -73,23 +73,24 @@ const SORT = { key: "order", dir: 1 }; // kept across rebuilds (live refresh)
 // race's entry in stats.profit_model_limit.by_race, or null; the Profit column shows when any race has one.
 const profitText = (p) => (p == null ? "–" : `${p.bankroll_pnl > 0 ? "+" : p.bankroll_pnl < 0 ? "−" : ""}$${Math.abs(Math.round(p.bankroll_pnl ?? 0)).toLocaleString("en-US")}`);
 const profitTitle = (p) => (p == null ? "" : p.eligible_trades ? `${p.eligible_trades.toLocaleString("en-US")} trades at least 5¢ below the model, $${Math.round(p.eligible_volume).toLocaleString("en-US")} in all; the $10,000 put $${Math.round(p.bankroll_stake ?? 0).toLocaleString("en-US")} into this race` : p.reason ? `No trade qualified: ${p.reason}` : "No trade qualified");
-export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalshi = false, profitOf = () => null }) {
+export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalshi = false, profitOf = () => null, nPollsOf = () => null }) {
   const st = { values: new Map() };
   const lead = (r) => leadOf(r);
   const hasProfit = races.some((r) => profitOf(r));
+  const anyThin = races.some((r) => thinPolls(nPollsOf(r)) != null);
   const cols = [
     ["name", "Race", false], ["P", "Model", true], ["pm", "Polymarket", true], ...(hasKalshi ? [["k", "Kalshi", true]] : []), ["gap", "Gap", true], ["lead", "Lead from 1% counted (min)", true],
     ...(hasProfit ? [["profit", "Profit on $10,000", true]] : []),
   ];
   el.innerHTML = `<table class="races"><thead><tr>${cols.map(([k, label, n]) => `<th class="${n ? "n" : ""}" aria-sort="${SORT.key === k ? (SORT.dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${label}</button></th>`).join("")}</tr></thead><tbody></tbody></table>
-    <p class="note">Model: the model's probability that the first-named candidate wins, at the scrubber time. Polymarket${hasKalshi ? " and Kalshi: each venue's price" : ": the price"} for the same outcome (–: not listed there). Gap: model minus the Polymarket price (or Kalshi's, where only Kalshi lists the race). Lead: minutes by which the model reached 90% on the winner before Polymarket did, both counted from the moment the race reached 1% counted (negative: after).${hasProfit ? " Profit on $10,000: what the election's $10,000 made in this race under the buying rule in the Statistics tab (hover for the trades that qualified)." : ""}</p>`;
+    <p class="note">${anyThin ? "† 3 or fewer polls in the poll average.<br>" : ""}Model: the model's probability that the first-named candidate wins, at the scrubber time. Polymarket${hasKalshi ? " and Kalshi: each venue's price" : ": the price"} for the same outcome (–: not listed there). Gap: model minus the Polymarket price (or Kalshi's, where only Kalshi lists the race). Lead: minutes by which the model reached 90% on the winner before Polymarket did, both counted from the moment the race reached 1% counted (negative: after).${hasProfit ? " Profit on $10,000: what the election's $10,000 made in this race under the buying rule in the Statistics tab (hover for the trades that qualified)." : ""}</p>`;
   const tbody = el.querySelector("tbody");
   const rows = races.map((r, order) => {
     const tr = document.createElement("tr");
     tr.tabIndex = 0;
     tr.dataset.race = r.race_id;
     const pr = hasProfit ? profitOf(r) : null;
-    tr.innerHTML = `<td>${esc(raceName(r))}</td><td class="n m"></td><td class="n"></td>${hasKalshi ? `<td class="n kx"></td>` : ""}<td class="n"><span class="gapbar"><i></i></span></td><td class="n">${lead(r) == null ? "–" : signed(lead(r), 0)}</td>${hasProfit ? `<td class="n" title="${esc(profitTitle(pr))}">${profitText(pr)}</td>` : ""}`;
+    tr.innerHTML = `<td>${esc(raceName(r))}${thinPolls(nPollsOf(r)) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(nPollsOf(r)))}">†</sup>` : ""}</td><td class="n m"></td><td class="n"></td>${hasKalshi ? `<td class="n kx"></td>` : ""}<td class="n"><span class="gapbar"><i></i></span></td><td class="n">${lead(r) == null ? "–" : signed(lead(r), 0)}</td>${hasProfit ? `<td class="n" title="${esc(profitTitle(pr))}">${profitText(pr)}</td>` : ""}`;
     tr.addEventListener("click", () => onSelect(r));
     tr.addEventListener("keydown", (e) => { if (e.key === "Enter") onSelect(r); });
     return { r, tr, order, cells: tr.children };
