@@ -140,6 +140,12 @@ results are labelled **not pre-registered**: settings chosen on earlier election
 with post-run data fixes. The only 2026 count available is third-party (private research use), so no
 2026 count data or derived per-minute series is published; see `docs/israel.md`.
 
+## Bulgaria 2026 runoff (`configs/bg2026r2_v1.toml`): registered, not run
+
+Decided 2026-10-30, before the runoff (2026-11-01): the official results site (CIK) blocks automated access and
+no result pages will be saved by hand during the count, so the registered model is not run and is not scored.
+The registration stays in the registry unchanged.
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap
