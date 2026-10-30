@@ -1,3 +1,3 @@
 [Unit]
 Description=brunder election night: live model + dashboard server + public tunnel
-Wants=brunder-us-live.service brunder-site.service brunder-tunnel.service brunder-us-house-live.service brunder-us-national.service
+Wants=brunder-us-live.service brunder-site.service brunder-tunnel.service brunder-us-house-live.service brunder-us-national.service brunder-us-civic-live.service

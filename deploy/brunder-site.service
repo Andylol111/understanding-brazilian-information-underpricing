@@ -9,7 +9,7 @@ Description=brunder live dashboard data server (localhost)
 User=brunder
 WorkingDirectory=/srv/brunder/repo
 Environment=PYTHONPATH=/srv/brunder/repo/src PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
-ExecStart=/usr/bin/python3 -m brunder.liveserve --root /srv/brunder/repo/site/data --election us2026 --election nz2026 \
+ExecStart=/usr/bin/python3 -m brunder.liveserve --root /srv/brunder/repo/site/data --election us2026 --election nz2026 --election civic \
   --host 127.0.0.1 --port 8790
 Restart=on-failure
 RestartSec=5

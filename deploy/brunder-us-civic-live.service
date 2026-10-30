@@ -1,0 +1,28 @@
+# civicAPI races (secondary source, scored separately from the registered official-feed test): the same live model as
+# brunder-us-live, in its own process with its own caps and output folder (site/data/civic/us2026/), so a slow or
+# failing civicAPI parse can never delay or crash the primary forward test. Reads the brunder-civic-us recorder's
+# snapshots from the shared archive; v2/v3 siblings load from configs/us2026_civic/. Started by the night target.
+[Unit]
+Description=brunder live model, civicAPI secondary-source races: US midterms 2026-11-03
+After=brunder-civic-us.service
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder us live \
+  configs/us2026_civic/us2026_civic_sc_sen_v1.toml configs/us2026_civic/us2026_civic_sc_gov_v1.toml \
+  configs/us2026_civic/us2026_civic_ia_sen_v1.toml configs/us2026_civic/us2026_civic_ia_gov_v1.toml \
+  configs/us2026_civic/us2026_civic_mi_sen_v1.toml configs/us2026_civic/us2026_civic_mi_gov_v1.toml \
+  configs/us2026_civic/us2026_civic_wi_gov_v1.toml configs/us2026_civic/us2026_civic_ny_gov_v1.toml \
+  configs/us2026_civic/us2026_civic_co_sen_v1.toml configs/us2026_civic/us2026_civic_co_gov_v1.toml \
+  configs/us2026_civic/us2026_civic_ks_sen_v1.toml configs/us2026_civic/us2026_civic_ks_gov_v1.toml \
+  configs/us2026_civic/us2026_civic_oh_sen_v1.toml configs/us2026_civic/us2026_civic_oh_gov_v1.toml \
+  --out /srv/brunder/repo/site/data/civic --interval 30 \
+  --updates /srv/brunder/repo/logs/us2026_civic_updates.jsonl --until 2026-11-20T00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=15
+CPUQuota=20%
+MemoryMax=768M
+IOSchedulingClass=idle

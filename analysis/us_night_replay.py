@@ -65,9 +65,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from us_house_rehearsal import HouseRehearsal  # noqa: E402  (House contests in the TX/NC/FL bodies; GA/AZ/OH/SC keys)
 
 ROOT = us.ROOT_DIR                    # the checkout the brunder package runs from (this file may live elsewhere)
-# the v1 configs of the live unit's ExecStart (deploy/brunder-us-live.service), so the rehearsal runs what the VM runs
-CONFIGS = [ROOT / p for p in __import__("re").findall(r"configs/us2026_(?:civic/us2026_civic_)?\w+_v1\.toml",
-                                                      (ROOT / "deploy" / "brunder-us-live.service").read_text())]
+# the v1 configs of the live units' ExecStart, so the rehearsal runs what the VM runs: PRIMARY = the registered
+# official-feed process (deploy/brunder-us-live.service), CIVIC = the separate civicAPI process
+# (deploy/brunder-us-civic-live.service). Feeds are generated for both (CONFIGS); live/export runs use PRIMARY.
+_RX = r"configs/us2026_(?:civic/us2026_civic_)?\w+_v1\.toml"
+PRIMARY = [ROOT / p for p in __import__("re").findall(_RX, (ROOT / "deploy" / "brunder-us-live.service").read_text())]
+CIVIC = [ROOT / p for p in __import__("re").findall(_RX, (ROOT / "deploy" / "brunder-us-civic-live.service").read_text())]
+CONFIGS = PRIMARY + CIVIC
 GA_EID = "2022NovGen"
 TX_SOURCES = {"sen": ("tx_sen_2024", "U. S. Senator", "Federal", ("Colin Allred", "Ted Cruz")),
               "gov": ("tx_gov_2022", "Governor", "StateWide", ("Beto O'Rourke", "Greg Abbott"))}
@@ -691,7 +695,7 @@ def run(a) -> None:
     ft.start()
     time.sleep(5)
     until = (datetime.now(timezone.utc) + timedelta(minutes=a.minutes + a.tail)).strftime("%Y-%m-%dT%H:%MZ")
-    cmd = [*a.cmd.split(), "brunder", "us", "live", *map(str, CONFIGS), "--out", str(out), "--snap", str(snap),
+    cmd = [*a.cmd.split(), "brunder", "us", "live", *map(str, PRIMARY), "--out", str(out), "--snap", str(snap),
            "--interval", "30", "--until", until]
     live = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                             env={**{k: v for k, v in os.environ.items() if k != "BRUNDER_DATA"},   # as the unit
@@ -919,7 +923,7 @@ def ab(a) -> None:
     env = {**{k: v for k, v in os.environ.items() if k != "BRUNDER_DATA"}, "PYTHONUNBUFFERED": "1"}
     procs, servers, logs = {}, {}, {}
     for i, (k, root) in enumerate(sides.items()):
-        cfgs = [str(root / Path(c).relative_to(ROOT)) for c in CONFIGS]
+        cfgs = [str(root / Path(c).relative_to(ROOT)) for c in PRIMARY]
         extra = ["--updates", str(work / f"updates_{k}.jsonl")] if k == "new" else []
         logs[k] = open(work / f"live_{k}.log", "w")
         procs[k] = subprocess.Popen([*a.cmd.split(), "brunder", "us", "live", *cfgs, "--out", str(outs[k]), "--snap",
@@ -981,7 +985,7 @@ def ab(a) -> None:
                            "versions_served": len(seen[k])}
     ex_out = work / "site_export"
     shutil.copytree(src / "us2026", ex_out / "us2026", dirs_exist_ok=True)
-    subprocess.run([*a.cmd.split(), "brunder", "us", "export", *map(str, CONFIGS), "--out", str(ex_out), "--snap",
+    subprocess.run([*a.cmd.split(), "brunder", "us", "export", *map(str, PRIMARY), "--out", str(ex_out), "--snap",
                     str(snap)], cwd=ROOT, env=env, check=True, stdout=subprocess.DEVNULL)
     tls = {k: json.loads((o / "us2026" / "timeline.json").read_text()) for k, o in
            {**outs, "export": ex_out}.items()}

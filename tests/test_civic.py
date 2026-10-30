@@ -432,7 +432,7 @@ def test_compare_reads_recorded_archives(tmp_path):
 # ------------------------------------------------------------------ live unit and rehearsal replay
 
 def _unit_civic_configs() -> list[Path]:
-    text = (ROOT / "deploy" / "brunder-us-live.service").read_text()
+    text = (ROOT / "deploy" / "brunder-us-civic-live.service").read_text()
     return [ROOT / p for p in re.findall(r"configs/us2026_civic/us2026_civic_\w+_v1\.toml", text)]
 
 
