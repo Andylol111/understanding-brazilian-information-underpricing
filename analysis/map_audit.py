@@ -71,6 +71,12 @@ def elections() -> list[dict[str, Any]]:
     return doc if isinstance(doc, list) else doc["elections"]
 
 
+def mapless(eid: str) -> bool:
+    """An election published without geometry (retrospective NZ replays: their electorate boundaries are not available)."""
+    p = DATA / eid / "meta.json"
+    return p.exists() and json.loads(p.read_text()).get("geometry") is None
+
+
 async def settle(page: Page, ms: int = 350) -> None:
     await page.wait_for_timeout(ms)
 
@@ -434,7 +440,7 @@ async def run(base: str, engines: list[str], shots: Path | None, only: set[str] 
             page.on("pageerror", lambda err: errors.append(str(err)))
             if not only or "home" in only:
                 out += [(engine, r) for r in await audit_home(page, base, shots, engine)]
-            for e in elections():
+            for e in (x for x in elections() if not mapless(x["id"])):
                 if only and e["id"] not in only:
                     continue
                 out += [(engine, r) for r in await audit_election(page, base, e, shots, engine)]

@@ -229,3 +229,28 @@ uv run brunder nz live configs/nz2026_v3.toml --out <dir containing a copy of si
 
 processes the whole night and rewrites `meta.json`, `timeline.json`, `timeline_tail.json`, `units.json` without errors. Because the
 wall clock is before the real poll close, meta.json is labelled `pre-count`.
+
+## Published retrospective replays (`nz2023`, `nz2020`)
+
+`uv run python analysis/nz_export_replay.py 2023` (and `2020`) writes `site/data/nz<year>/` (about 1.3 MB each) and the dashboard
+lists them as **retrospective, not pre-registered** replays. Each is the v3 model (`configs/nz2026_v3.toml` settings) run minute by
+minute over the official voting-place results of that night.
+
+* **Simulated count order.** The Commission keeps no timestamped count archive, so the clock is simulated: `nz_replay.Order(..., "night")`
+  (seed 1) with `nz_rehearsal.release_minutes` (every advance place 4-14 minutes after the 19:00 close, election-day places to
+  minute 225). The page title, notes and `elections.json` entry say so; nothing on it measures speed against the real night.
+* **Settings source.** v3 settings were chosen on the 2017 and 2020 nights only. **2023 is out of sample** (poll prior = polls ending in
+  the 21 days before 2023-10-14; special-vote shift = mean of 2017 and 2020; prior = 2020 electorates). **2020 is in sample**
+  (evidence label `in-sample`; shift from 2017 only; prior = 2017 electorates). Truth is the FINAL official result, special votes included.
+* **No market.** A Polymarket search (events closed before 2025, queries "new zealand 2023", "Luxon", "Hipkins", "new zealand election")
+  and the Kalshi `KXNEWZEALANDPARLI` series returned no market on either election, so the pages are model only (evidence label
+  `model-only` for 2023); the market columns are empty. The market list is the 2026 family evaluated on the replayed night.
+* **No map.** The 2023 electorate boundaries are not in the repo (the geometry is the 2025 map), so `geometry` is `null`.
+* **Licences.** Official results: Crown copyright, reproduction permitted with acknowledgement; raw files stay in `~/nz_v3_local`,
+  only derived model series are published. Polls: Wikipedia, CC BY-SA.
+
+Headline (2023, 46 markets, simulated clock): the poll-tilted model already gave National the most seats 94.8% before any count and
+99.5% once 39% of places were in, 99.98% at the end of the night (final: National 48, Labour 34, Green 15, ACT 11, NZ First 8,
+Te Pāti Māori 6). The mean Brier score over the 46 outcomes was 0.028 at 5% of places, 0.021 at 50%, 0.019 at 75% and 0.032 at 100% of
+ordinary places (the last rise is the special-vote shift: the night count excludes special votes the final result includes).
+Run `nz_export_replay.py` for the full table per stage.

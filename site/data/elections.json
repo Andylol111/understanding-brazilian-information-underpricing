@@ -22,6 +22,28 @@
   "summary": "A model frozen before polls close will follow the official count by electorate, project party votes and seats, and run live against Polymarket and Kalshi."
  },
  {
+  "id": "nz2023",
+  "name": "New Zealand general election 2023 (retrospective replay, simulated count order)",
+  "date": "2023-10-14",
+  "country": "NZ",
+  "status": "replay",
+  "unit_level": "electorate",
+  "n_units": 72,
+  "evidence": "model-only",
+  "summary": "Retrospective replay with a SIMULATED count order and no market. Before any count the poll-tilted model already gave the eventual most-seats winner 95%; with the first advance places in it passed 95% at simulated minute 5. Out of sample: settings chosen on 2017 and 2020."
+ },
+ {
+  "id": "nz2020",
+  "name": "New Zealand general election 2020 (retrospective replay, simulated count order)",
+  "date": "2020-10-17",
+  "country": "NZ",
+  "status": "replay",
+  "unit_level": "electorate",
+  "n_units": 72,
+  "evidence": "in-sample",
+  "summary": "Retrospective replay with a SIMULATED count order and no market. Before any count the poll-tilted model already gave the eventual most-seats winner 98%; with the first advance places in it passed 95% at simulated minute 4. In sample: the settings were tuned on this night."
+ },
+ {
   "id": "br2026r2",
   "name": "Brazil presidential runoff",
   "date": "2026-10-25",

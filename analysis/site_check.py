@@ -38,6 +38,8 @@ ELECTIONS = (
     "br2022r2",
     "il2026",
     "hu2026",
+    "nz2023",
+    "nz2020",
     "mx2024",
     "ca2025",
     "qc2026",
@@ -78,7 +80,7 @@ def cases() -> list[Case]:
     out.append(Case("us-hub-redirect", "us.html?tab=markets&race=tx-sen", "election"))
     # Map checks (desktop only): the homepage's maps, then every election's map
     out.append(Case("maps-home", "", "maps"))
-    out.extend(Case(f"maps-{e['id']}", e["id"], "maps") for e in map_audit.elections())
+    out.extend(Case(f"maps-{e['id']}", e["id"], "maps") for e in map_audit.elections() if not map_audit.mapless(e["id"]))
     return out
 
 
@@ -122,14 +124,14 @@ async def state(page: Page, kind: str) -> dict[str, Any]:
     )
 
 
-def ready(s: dict[str, Any]) -> bool:
+def ready(s: dict[str, Any], mapless: bool = False) -> bool:
     if s["loadError"] or s["loading"]:
         return False
     if s["kind"] == "index":
         return s["rows"] >= len(ELECTIONS)
     if s["kind"] == "article":
         return s["articlePaths"] > 10
-    return bool(s["title"] and s["raceOptions"] and s["readout"] and (s["visiblePaths"] or (s["visibleCanvas"] and s["painted"])))
+    return bool(s["title"] and s["raceOptions"] and s["readout"] and (mapless or s["visiblePaths"] or (s["visibleCanvas"] and s["painted"])))
 
 
 async def canvas_has_drawing(page: Page) -> bool:
@@ -195,7 +197,7 @@ async def check_page(
             await page.goto(base + case.path, wait_until="load", timeout=timeout * 1000)
             deadline = time.monotonic() + timeout
             current = await state(page, case.kind)
-            while not ready(current) and time.monotonic() < deadline:
+            while not ready(current, case.kind == "election" and map_audit.mapless(case.path.split("id=")[-1].split("&")[0])) and time.monotonic() < deadline:
                 await page.wait_for_timeout(250)
                 current = await state(page, case.kind)
             if current["loadError"]:
@@ -213,7 +215,7 @@ async def check_page(
                     result.failures.append("race picker is empty")
                 if not current["readout"]:
                     result.failures.append("race/national readout is empty")
-                if current["visiblePaths"] == 0 and not await canvas_has_drawing(page):
+                if current["visiblePaths"] == 0 and not map_audit.mapless(case.path.split("id=")[-1].split("&")[0]) and not await canvas_has_drawing(page):
                     result.failures.append("map has neither visible SVG paths nor non-background canvas pixels")
                 if case.path == "election.html?id=us2026":
                     # no parameters: the national overview, no race preselected, no missing-file requests
