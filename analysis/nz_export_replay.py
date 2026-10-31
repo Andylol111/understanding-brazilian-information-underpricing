@@ -189,11 +189,10 @@ def build(year: int, out: Path, draws: int) -> dict:
     nz._write_json(d / "stats.json", nz._empty_stats("no market prices exist for this election"))
     nz._write_json(d / "arb.json", [])
     ev = "in-sample" if tuned else "model-only"
-    pre = head["pre_count_P"]
-    summ = ("Retrospective replay with a SIMULATED count order and no market. "
-            f"Before any count the poll-tilted model already gave the eventual most-seats winner {pre:.0%}; "
-            f"with {'the first advance places in' if head['min_to_90'] is not None else 'the count'} it passed 95% at simulated minute {head['min_to_95']}. "
-            + ("In sample: the settings were tuned on this night." if tuned else "Out of sample: settings chosen on 2017 and 2020."))
+    winner = head["winner_market"].removeprefix("most-").title()
+    summ = (f"Replay of the {year} count in a simulated order. No market existed. "
+            + ("Settings were tuned on this election (in sample)." if tuned
+               else f"The model favoured {winner} from the start; settings from 2017 and 2020."))
     nz._write_json(d / "entry.json", {"id": f"nz{year}", "name": f"New Zealand general election {year} (retrospective replay, simulated count order)",
                                       "date": DATE[year], "country": "NZ", "status": "replay", "unit_level": "electorate",
                                       "n_units": len(units), "evidence": ev, "summary": summ})
