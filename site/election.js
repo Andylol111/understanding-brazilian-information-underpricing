@@ -489,7 +489,7 @@ function noBaseline() {
 // at the region level -> click a region (zoom) -> that region's units; Back goes up one step.
 const LEVEL_NAMES = {
   US: ["States", "Counties"], BR: ["States", "Municipalities"], CA: ["Provinces", "Ridings"],
-  MX: ["States", "Districts"], HU: ["Counties", "Districts"], IL: ["Districts", "Localities"],
+  MX: ["States", "Districts"], HU: ["Counties", "Districts"], IL: ["Districts", "Localities"], NL: ["Provinces", "Municipalities"],
 };
 const levelNames = () => LEVEL_NAMES[countryCode()] ?? ["Regions", "Local units"];
 const levelsOn = () => !!S.map && (!!S.nat || pickerRegions().length >= 2);

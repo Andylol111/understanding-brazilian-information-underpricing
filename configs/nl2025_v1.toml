@@ -1,0 +1,26 @@
+# RETROSPECTIVE replay, NOT pre-registered (written 2026-10-30, a year after the 2025-10-29 election; the
+# result and the market prices were known). There is no count model for this election: no timestamped count
+# exists (docs/netherlands.md). This file freezes the settings of the prior-only projection that is shown against
+# the market. They come only from the 2017, 2021 and 2023 Tweede Kamer elections (previous results 2012, 2017,
+# 2021) via analysis/nl_calibrate.py, never from 2025. Not registered (`brunder register` was not run).
+id = "nl2025_v1"
+election = "Tweede Kamer, 2025-10-29; polls closed 20:00 UTC (21:00 CET)"
+poll_close_utc = "2025-10-29T20:00:00Z"
+seed = 20251029
+
+[model]                      # brunder.netherlands.Settings
+w_prev = 0.0                 # weight of the previous result vs the final polls: RMS share error 1.41 pt at 0, 1.44 at 0.05, 2.82 at 0.5
+err = 0.048                  # sd of a list's share error = err * sqrt(b(1-b)); RMS of 42 standardised poll-average errors 2017/21/23
+err_prev = 0.174             # same for a projection from the previous result alone (39 errors), used for the 'without polls' line
+other = 0.018                # share of valid votes for lists that win no seat: 1.53% 2017, 1.98% 2021, 1.87% 2023
+draws = 20000
+
+[polls]
+# English Wikipedia, "Opinion polling for the 2025 Dutch general election" (CC BY-SA 4.0): each pollster's last poll
+# that ended 1-7 days before the vote (election-day exit polls excluded), averaged over pollsters.
+source = "https://en.wikipedia.org/wiki/Opinion_polling_for_the_2025_Dutch_general_election"
+window_days = 7
+
+[prior]
+# 2023 Tweede Kamer, final result by gemeente: Kiesraad, CC0 (data.overheid.nl, verkiezingsuitslag-tweede-kamer-2023)
+source = "https://data.overheid.nl/dataset/verkiezingsuitslag-tweede-kamer-2023"

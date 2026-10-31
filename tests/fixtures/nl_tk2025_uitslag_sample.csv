@@ -1,0 +1,154 @@
+Regio;RegioCode;OuderRegioCode;GrootOuderRegioCode;Partij;LijstNummer;LijstNaam;KandidaatNummer;KandidaatInitialen;KandidaatVoornaam;KandidaatTussenvoegsel;KandidaatAchternaam;KandidaatWoonplaats;KandidaatGeslacht;VeldType;Waarde
+Nederland;L528;;;;;50PLUS;;;;;;;;LijstAantalZetels;2
+Nederland;L528;;;;;BBB;;;;;;;;LijstAantalZetels;4
+Nederland;L528;;;;;CDA;;;;;;;;LijstAantalZetels;18
+Nederland;L528;;;;;ChristenUnie;;;;;;;;LijstAantalZetels;3
+Nederland;L528;;;;;D66;;;;;;;;LijstAantalZetels;26
+Nederland;L528;;;;;DENK;;;;;;;;LijstAantalZetels;3
+Nederland;L528;;;;;Forum voor Democratie;;;;;;;;LijstAantalZetels;7
+Nederland;L528;;;;;GROENLINKS / Partij van de Arbeid (PvdA);;;;;;;;LijstAantalZetels;20
+Nederland;L528;;;;;JA21;;;;;;;;LijstAantalZetels;9
+Nederland;L528;;;;;PVV (Partij voor de Vrijheid);;;;;;;;LijstAantalZetels;26
+Nederland;L528;;;;;Partij voor de Dieren;;;;;;;;LijstAantalZetels;3
+Nederland;L528;;;;;SP (Socialistische Partij);;;;;;;;LijstAantalZetels;3
+Nederland;L528;;;;;Staatkundig Gereformeerde Partij (SGP);;;;;;;;LijstAantalZetels;3
+Nederland;L528;;;;;VVD;;;;;;;;LijstAantalZetels;22
+Nederland;L528;;;;;Volt;;;;;;;;LijstAantalZetels;1
+Groningen;G0014;K1;P20;;1;PVV (Partij voor de Vrijheid);;;;;;;;LijstAantalStemmen;12369
+Groningen;G0014;K1;P20;;2;GROENLINKS / Partij van de Arbeid (PvdA);;;;;;;;LijstAantalStemmen;35537
+Groningen;G0014;K1;P20;;3;VVD;;;;;;;;LijstAantalStemmen;15186
+Groningen;G0014;K1;P20;;4;Nieuw Sociaal Contract (NSC);;;;;;;;LijstAantalStemmen;533
+Groningen;G0014;K1;P20;;5;D66;;;;;;;;LijstAantalStemmen;36070
+Groningen;G0014;K1;P20;;6;BBB;;;;;;;;LijstAantalStemmen;1760
+Groningen;G0014;K1;P20;;7;CDA;;;;;;;;LijstAantalStemmen;12795
+Groningen;G0014;K1;P20;;8;SP (Socialistische Partij);;;;;;;;LijstAantalStemmen;6751
+Groningen;G0014;K1;P20;;9;DENK;;;;;;;;LijstAantalStemmen;1167
+Groningen;G0014;K1;P20;;10;Partij voor de Dieren;;;;;;;;LijstAantalStemmen;5967
+Groningen;G0014;K1;P20;;11;Forum voor Democratie;;;;;;;;LijstAantalStemmen;4437
+Groningen;G0014;K1;P20;;12;Staatkundig Gereformeerde Partij (SGP);;;;;;;;LijstAantalStemmen;855
+Groningen;G0014;K1;P20;;13;ChristenUnie;;;;;;;;LijstAantalStemmen;3312
+Groningen;G0014;K1;P20;;14;Volt;;;;;;;;LijstAantalStemmen;3113
+Groningen;G0014;K1;P20;;15;JA21;;;;;;;;LijstAantalStemmen;5202
+Groningen;G0014;K1;P20;;16;Vrede voor Dieren;;;;;;;;LijstAantalStemmen;282
+Groningen;G0014;K1;P20;;17;Belang Van Nederland (BVNL);;;;;;;;LijstAantalStemmen;188
+Groningen;G0014;K1;P20;;18;BIJ1;;;;;;;;LijstAantalStemmen;833
+Groningen;G0014;K1;P20;;19;LP (Libertaire Partij);;;;;;;;LijstAantalStemmen;141
+Groningen;G0014;K1;P20;;20;50PLUS;;;;;;;;LijstAantalStemmen;1115
+Groningen;G0014;K1;P20;;21;Piratenpartij;;;;;;;;LijstAantalStemmen;208
+Groningen;G0014;K1;P20;;22;FNP;;;;;;;;LijstAantalStemmen;127
+Almere;G0034;K5;P24;;1;PVV (Partij voor de Vrijheid);;;;;;;;LijstAantalStemmen;20380
+Almere;G0034;K5;P24;;2;GROENLINKS / Partij van de Arbeid (PvdA);;;;;;;;LijstAantalStemmen;14920
+Almere;G0034;K5;P24;;3;VVD;;;;;;;;LijstAantalStemmen;15089
+Almere;G0034;K5;P24;;4;Nieuw Sociaal Contract (NSC);;;;;;;;LijstAantalStemmen;581
+Almere;G0034;K5;P24;;5;D66;;;;;;;;LijstAantalStemmen;17711
+Almere;G0034;K5;P24;;6;BBB;;;;;;;;LijstAantalStemmen;1619
+Almere;G0034;K5;P24;;7;CDA;;;;;;;;LijstAantalStemmen;6678
+Almere;G0034;K5;P24;;8;SP (Socialistische Partij);;;;;;;;LijstAantalStemmen;2498
+Almere;G0034;K5;P24;;9;DENK;;;;;;;;LijstAantalStemmen;5689
+Almere;G0034;K5;P24;;10;Partij voor de Dieren;;;;;;;;LijstAantalStemmen;2522
+Almere;G0034;K5;P24;;11;Forum voor Democratie;;;;;;;;LijstAantalStemmen;5299
+Almere;G0034;K5;P24;;12;Staatkundig Gereformeerde Partij (SGP);;;;;;;;LijstAantalStemmen;485
+Almere;G0034;K5;P24;;13;ChristenUnie;;;;;;;;LijstAantalStemmen;1661
+Almere;G0034;K5;P24;;14;Volt;;;;;;;;LijstAantalStemmen;969
+Almere;G0034;K5;P24;;15;JA21;;;;;;;;LijstAantalStemmen;6059
+Almere;G0034;K5;P24;;16;Vrede voor Dieren;;;;;;;;LijstAantalStemmen;241
+Almere;G0034;K5;P24;;17;Belang Van Nederland (BVNL);;;;;;;;LijstAantalStemmen;232
+Almere;G0034;K5;P24;;18;BIJ1;;;;;;;;LijstAantalStemmen;1189
+Almere;G0034;K5;P24;;19;LP (Libertaire Partij);;;;;;;;LijstAantalStemmen;111
+Almere;G0034;K5;P24;;20;50PLUS;;;;;;;;LijstAantalStemmen;1881
+Almere;G0034;K5;P24;;21;Piratenpartij;;;;;;;;LijstAantalStemmen;201
+Almere;G0034;K5;P24;;22;FNP;;;;;;;;LijstAantalStemmen;30
+Almere;G0034;K5;P24;;23;Vrij Verbond;;;;;;;;LijstAantalStemmen;20
+Almere;G0034;K5;P24;;26;ELLECT;;;;;;;;LijstAantalStemmen;31
+NBSB;G9010;K12;P28;;1;PVV (Partij voor de Vrijheid);;;;;;;;LijstAantalStemmen;7451
+NBSB;G9010;K12;P28;;2;GROENLINKS / Partij van de Arbeid (PvdA);;;;;;;;LijstAantalStemmen;25110
+NBSB;G9010;K12;P28;;3;VVD;;;;;;;;LijstAantalStemmen;8346
+NBSB;G9010;K12;P28;;4;Nieuw Sociaal Contract (NSC);;;;;;;;LijstAantalStemmen;331
+NBSB;G9010;K12;P28;;5;D66;;;;;;;;LijstAantalStemmen;16049
+NBSB;G9010;K12;P28;;6;BBB;;;;;;;;LijstAantalStemmen;1193
+NBSB;G9010;K12;P28;;7;CDA;;;;;;;;LijstAantalStemmen;8916
+NBSB;G9010;K12;P28;;8;SP (Socialistische Partij);;;;;;;;LijstAantalStemmen;1517
+NBSB;G9010;K12;P28;;9;DENK;;;;;;;;LijstAantalStemmen;308
+NBSB;G9010;K12;P28;;10;Partij voor de Dieren;;;;;;;;LijstAantalStemmen;3334
+NBSB;G9010;K12;P28;;11;Forum voor Democratie;;;;;;;;LijstAantalStemmen;3076
+NBSB;G9010;K12;P28;;12;Staatkundig Gereformeerde Partij (SGP);;;;;;;;LijstAantalStemmen;643
+NBSB;G9010;K12;P28;;13;ChristenUnie;;;;;;;;LijstAantalStemmen;1134
+NBSB;G9010;K12;P28;;14;Volt;;;;;;;;LijstAantalStemmen;3635
+NBSB;G9010;K12;P28;;15;JA21;;;;;;;;LijstAantalStemmen;3921
+NBSB;G9010;K12;P28;;16;Vrede voor Dieren;;;;;;;;LijstAantalStemmen;149
+NBSB;G9010;K12;P28;;17;Belang Van Nederland (BVNL);;;;;;;;LijstAantalStemmen;184
+NBSB;G9010;K12;P28;;18;BIJ1;;;;;;;;LijstAantalStemmen;378
+NBSB;G9010;K12;P28;;19;LP (Libertaire Partij);;;;;;;;LijstAantalStemmen;106
+NBSB;G9010;K12;P28;;20;50PLUS;;;;;;;;LijstAantalStemmen;470
+NBSB;G9010;K12;P28;;21;Piratenpartij;;;;;;;;LijstAantalStemmen;98
+NBSB;G9010;K12;P28;;22;FNP;;;;;;;;LijstAantalStemmen;50
+NBSB;G9010;K12;P28;;23;Vrij Verbond;;;;;;;;LijstAantalStemmen;12
+NBSB;G9010;K12;P28;;24;DE LINIE;;;;;;;;LijstAantalStemmen;10
+NBSB;G9010;K12;P28;;25;NL PLAN;;;;;;;;LijstAantalStemmen;5
+NBSB;G9010;K12;P28;;26;ELLECT;;;;;;;;LijstAantalStemmen;2
+Nederland;L528;;;;1;PVV (Partij voor de Vrijheid);;;;;;;;LijstAantalStemmen;1760966
+Nederland;L528;;;;2;GROENLINKS / Partij van de Arbeid (PvdA);;;;;;;;LijstAantalStemmen;1352163
+Nederland;L528;;;;3;VVD;;;;;;;;LijstAantalStemmen;1505829
+Nederland;L528;;;;4;Nieuw Sociaal Contract (NSC);;;;;;;;LijstAantalStemmen;39408
+Nederland;L528;;;;5;D66;;;;;;;;LijstAantalStemmen;1790634
+Nederland;L528;;;;6;BBB;;;;;;;;LijstAantalStemmen;279916
+Nederland;L528;;;;7;CDA;;;;;;;;LijstAantalStemmen;1246874
+Nederland;L528;;;;8;SP (Socialistische Partij);;;;;;;;LijstAantalStemmen;199585
+Nederland;L528;;;;9;DENK;;;;;;;;LijstAantalStemmen;250368
+Nederland;L528;;;;10;Partij voor de Dieren;;;;;;;;LijstAantalStemmen;219371
+Nederland;L528;;;;11;Forum voor Democratie;;;;;;;;LijstAantalStemmen;480393
+Nederland;L528;;;;12;Staatkundig Gereformeerde Partij (SGP);;;;;;;;LijstAantalStemmen;238093
+Nederland;L528;;;;13;ChristenUnie;;;;;;;;LijstAantalStemmen;201361
+Nederland;L528;;;;14;Volt;;;;;;;;LijstAantalStemmen;116468
+Nederland;L528;;;;15;JA21;;;;;;;;LijstAantalStemmen;628517
+Nederland;L528;;;;16;Vrede voor Dieren;;;;;;;;LijstAantalStemmen;16819
+Nederland;L528;;;;17;Belang Van Nederland (BVNL);;;;;;;;LijstAantalStemmen;18477
+Nederland;L528;;;;18;BIJ1;;;;;;;;LijstAantalStemmen;40360
+Nederland;L528;;;;19;LP (Libertaire Partij);;;;;;;;LijstAantalStemmen;8248
+Nederland;L528;;;;20;50PLUS;;;;;;;;LijstAantalStemmen;151053
+Nederland;L528;;;;21;Piratenpartij;;;;;;;;LijstAantalStemmen;10575
+Nederland;L528;;;;22;FNP;;;;;;;;LijstAantalStemmen;9331
+Nederland;L528;;;;23;Vrij Verbond;;;;;;;;LijstAantalStemmen;1048
+Nederland;L528;;;;24;DE LINIE;;;;;;;;LijstAantalStemmen;3478
+Nederland;L528;;;;25;NL PLAN;;;;;;;;LijstAantalStemmen;2299
+Nederland;L528;;;;26;ELLECT;;;;;;;;LijstAantalStemmen;205
+Nederland;L528;;;;27;Partij voor de Rechtsstaat;;;;;;;;LijstAantalStemmen;151
+Bonaire;O9001;K20;P99;;1;PVV (Partij voor de Vrijheid);;;;;;;;LijstAantalStemmen;388
+Bonaire;O9001;K20;P99;;2;GROENLINKS / Partij van de Arbeid (PvdA);;;;;;;;LijstAantalStemmen;407
+Bonaire;O9001;K20;P99;;3;VVD;;;;;;;;LijstAantalStemmen;366
+Bonaire;O9001;K20;P99;;4;Nieuw Sociaal Contract (NSC);;;;;;;;LijstAantalStemmen;15
+Bonaire;O9001;K20;P99;;5;D66;;;;;;;;LijstAantalStemmen;746
+Bonaire;O9001;K20;P99;;6;BBB;;;;;;;;LijstAantalStemmen;43
+Bonaire;O9001;K20;P99;;7;CDA;;;;;;;;LijstAantalStemmen;239
+Bonaire;O9001;K20;P99;;8;SP (Socialistische Partij);;;;;;;;LijstAantalStemmen;64
+Bonaire;O9001;K20;P99;;9;DENK;;;;;;;;LijstAantalStemmen;11
+Bonaire;O9001;K20;P99;;10;Partij voor de Dieren;;;;;;;;LijstAantalStemmen;58
+Bonaire;O9001;K20;P99;;11;Forum voor Democratie;;;;;;;;LijstAantalStemmen;165
+Bonaire;O9001;K20;P99;;12;Staatkundig Gereformeerde Partij (SGP);;;;;;;;LijstAantalStemmen;17
+Bonaire;O9001;K20;P99;;13;ChristenUnie;;;;;;;;LijstAantalStemmen;516
+Bonaire;O9001;K20;P99;;14;Volt;;;;;;;;LijstAantalStemmen;82
+Bonaire;O9001;K20;P99;;15;JA21;;;;;;;;LijstAantalStemmen;109
+Bonaire;O9001;K20;P99;;16;Vrede voor Dieren;;;;;;;;LijstAantalStemmen;10
+Bonaire;O9001;K20;P99;;17;Belang Van Nederland (BVNL);;;;;;;;LijstAantalStemmen;15
+Bonaire;O9001;K20;P99;;18;BIJ1;;;;;;;;LijstAantalStemmen;38
+Bonaire;O9001;K20;P99;;22;FNP;;;;;;;;LijstAantalStemmen;4
+Groningen;G0014;K1;P20;;;;;;;;;;;AantalBlancoStemmen;598
+Groningen;G0014;K1;P20;;;;;;;;;;;AantalGeldigeStemmen;147948
+Groningen;G0014;K1;P20;;;;;;;;;;;AantalOngeldigeStemmen;331
+Groningen;G0014;K1;P20;;;;;;;;;;;Kiesgerechtigden;182700
+Groningen;G0014;K1;P20;;;;;;;;;;;Opkomst;148877
+Almere;G0034;K5;P24;;;;;;;;;;;AantalBlancoStemmen;632
+Almere;G0034;K5;P24;;;;;;;;;;;AantalGeldigeStemmen;106096
+Almere;G0034;K5;P24;;;;;;;;;;;AantalOngeldigeStemmen;460
+Almere;G0034;K5;P24;;;;;;;;;;;Kiesgerechtigden;158693
+Almere;G0034;K5;P24;;;;;;;;;;;Opkomst;107188
+NBSB;G9010;K12;P28;;;;;;;;;;;AantalBlancoStemmen;59
+NBSB;G9010;K12;P28;;;;;;;;;;;AantalGeldigeStemmen;86428
+NBSB;G9010;K12;P28;;;;;;;;;;;AantalOngeldigeStemmen;407
+NBSB;G9010;K12;P28;;;;;;;;;;;Kiesgerechtigden;133589
+NBSB;G9010;K12;P28;;;;;;;;;;;Opkomst;86894
+Bonaire;O9001;K20;P99;;;;;;;;;;;AantalBlancoStemmen;40
+Bonaire;O9001;K20;P99;;;;;;;;;;;AantalGeldigeStemmen;3293
+Bonaire;O9001;K20;P99;;;;;;;;;;;AantalOngeldigeStemmen;22
+Bonaire;O9001;K20;P99;;;;;;;;;;;Kiesgerechtigden;15578
+Bonaire;O9001;K20;P99;;;;;;;;;;;Opkomst;3355

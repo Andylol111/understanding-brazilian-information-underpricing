@@ -40,7 +40,7 @@ const DEM = "#1f5fbf", REP = "#c8102e";
 const STATUS_LABEL = { live: "Live", scheduled: "Before the count", replay: "Replay" };
 const RANK = { live: 0, scheduled: 1, replay: 2 };
 const ZOOM_MS = 900, FADE_MS = 350;
-const REGION_MAPS = new Set(["US", "BR", "CA", "MX", "HU", "NZ", "IL"]); // geo/<cc>_regions.topo.json
+const REGION_MAPS = new Set(["US", "BR", "CA", "MX", "HU", "NZ", "IL", "NL"]); // geo/<cc>_regions.topo.json
 const UNIT_MAPS = new Set(["NZ", "IL"]); // whose region file is the unit map itself (ids = unit ids)
 const RAD = Math.PI / 180;
 const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;

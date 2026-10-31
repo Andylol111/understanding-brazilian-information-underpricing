@@ -1,0 +1,11 @@
+{
+ "id": "nl2025",
+ "name": "Netherlands, Tweede Kamer election",
+ "date": "2025-10-29",
+ "country": "NL",
+ "status": "replay",
+ "unit_level": "gemeente",
+ "n_units": 342,
+ "evidence": "not-preregistered",
+ "summary": "Retrospective, not pre-registered; no count history exists, so this compares market prices with the final result only. Polymarket's D66 'most seats' price was 0.36 at 18:00 UTC, 0.86 when the exit poll came out at 20:00, fell to 0.54 by 00:07 UTC and stayed above 0.9 only from 00:59 UTC; the result was a 26-26 tie with PVV that D66 won on the alphabetical tie-break. A projection from the final polls made before any votes gave D66 24% and PVV 45%; from the 2023 result alone, D66 0.2%."
+}
