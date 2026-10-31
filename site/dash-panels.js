@@ -43,7 +43,7 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   // chances: the model (with polls where it has them), Polymarket, Kalshi
   const P = modelP(row), two = row.P_v2 != null && row.P != null;
   const ch = [[P, "m", "model"], [row.pm, "k", "PM"], [row.kalshi, "kx", "Kalshi"]].filter(([v]) => v != null);
-  if (ch.length) chips.push(settled && winner ? chip("Chance", `settled — ${esc(winner)} won`, "ro-ch") : chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : "", `chance ${race.a.name} wins: ${P != null ? `${margins ? "model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
+  if (ch.length) chips.push(settled ? chip("Chance", `settled${winner ? ` — ${esc(winner)} won` : ""}`, "ro-ch") : chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : "", `chance ${race.a.name} wins: ${P != null ? `${margins ? "model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
   if (row.rem_total > 0) {
     const lean = row.rem_margin_total;
     chips.push(chip("Votes left (est.)", `≈ ${votesShort(row.rem_total)}`, "", lean != null ? `lean ${esc(lean >= 0 ? race.a.name : race.b.name)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)}` : "", "the model's estimate of the votes still to count and how they lean"));
@@ -91,7 +91,7 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalsh
     tr.tabIndex = 0;
     tr.dataset.race = r.race_id;
     const pr = hasProfit ? profitOf(r) : null, decision = decisionOf(r), winner = winnerOf(r);
-    tr.innerHTML = `<td>${esc(raceName(r))}${winner ? ` — ${esc(winner)} won ✓` : ""}${decision?.decided ? ` <span class="label decided">decided before count</span>` : ""}${thinPolls(nPollsOf(r)) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(nPollsOf(r)))}">†</sup>` : ""}</td><td class="n m"></td><td class="n"></td>${hasKalshi ? `<td class="n kx"></td>` : ""}<td class="n"><span class="gapbar"><i></i></span></td><td class="n">${decision?.decided ? "not meaningful" : lead(r) == null ? "–" : signed(lead(r), 0)}</td>${hasProfit ? `<td class="n" title="${esc(profitTitle(pr))}">${profitText(pr)}</td>` : ""}`;
+    tr.innerHTML = `<td>${esc(raceName(r))}${winner ? ` ${esc(winner)}` : ""}${decision?.decided ? ` <span class="label decided">decided before count</span>` : ""}${thinPolls(nPollsOf(r)) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(nPollsOf(r)))}">†</sup>` : ""}</td><td class="n m"></td><td class="n"></td>${hasKalshi ? `<td class="n kx"></td>` : ""}<td class="n"><span class="gapbar"><i></i></span></td><td class="n">${decision?.decided ? "not meaningful" : lead(r) == null ? "–" : signed(lead(r), 0)}</td>${hasProfit ? `<td class="n" title="${esc(profitTitle(pr))}">${profitText(pr)}</td>` : ""}`;
     tr.addEventListener("click", () => onSelect(r));
     tr.addEventListener("keydown", (e) => { if (e.key === "Enter") onSelect(r); });
     return { r, tr, order, cells: tr.children };

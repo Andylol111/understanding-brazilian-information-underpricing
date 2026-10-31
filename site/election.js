@@ -16,7 +16,7 @@ import { createNational, stateName as usStateName } from "./dash-national.js";
 import { createOverlay, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, ourModelHTML, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { regionAgg, regionWinner, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
-import { decidedBeforeCount, outcomeA, winnerName, winnerProbability, settledAt } from "./decided.js";
+import { decidedBeforeCount, outcomeA, winnerName, winnerProbability, settledAt, staysAbove } from "./decided.js";
 
 const EID = param("id");
 const $ = (id) => document.getElementById(id);
@@ -127,7 +127,8 @@ const raceBase = (r) => (r.region && !r.name.includes(regionName(r.region)) ? `$
 const raceName = (r) => raceBase(r) + (r.civic ? " · secondary source (civicAPI)" : "");
 const replay = () => S.entry?.status === "replay" && !LIVE && !PRE();
 const outcomeOf = (r) => replay() ? outcomeA(S.rows?.get(r.race_id), S.stats?.settle?.[r.race_id]) : null;
-const winnerOf = (r) => winnerName(r, outcomeOf(r));
+// The Races table's result tag: the main race names its winner; any other race gets ✓ only when its first-named outcome resolved YES.
+const winnerOf = (r) => { const w = outcomeOf(r); return r === mainRace() ? (winnerName(r, w) ? `— ${winnerName(r, w)} won` : "") : w === true ? "✓" : ""; };
 const decisionOf = (r) => replay() && S.meta.poll_close_utc
   ? decidedBeforeCount(r, S.rows?.get(r.race_id), S.meta.poll_close_utc, S.stats?.settle?.[r.race_id])
   : null;
@@ -706,10 +707,11 @@ function defaultTime() {
   if (Number.isFinite(explicit)) return clampT(explicit);
   if (!replay() || !S.countTimeline) return S.domain[1];
   const r = mainRace(), rows = S.rows.get(r?.race_id) ?? [], aWon = outcomeOf(r);
-  const hit = rows.find((d) => winnerProbability(d, aWon, "model") >= 0.9 || winnerProbability(d, aWon, "pm") >= 0.9);
-  if (hit) return clampT(hit.tms);
-  const gate = rows.find((d) => d.counted >= 0.01);
-  return gate ? clampT(gate.tms) : S.domain[1];
+  const g = rows.findIndex((d) => d.counted >= 0.01);
+  if (g < 0) return S.domain[1];
+  // from 1% counted, the first minute from which the model or Polymarket stays at 0.90+ on the eventual winner
+  const hits = ["model", "pm"].map((k) => staysAbove(rows, aWon, k, g)).filter(Boolean);
+  return clampT(hits.length ? Math.min(...hits.map((d) => d.tms)) : rows[g].tms);
 }
 
 function frameIndex(t) {
