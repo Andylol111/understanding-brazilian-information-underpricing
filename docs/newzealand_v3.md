@@ -254,3 +254,31 @@ Headline (2023, 46 markets, simulated clock): the poll-tilted model already gave
 Te Pāti Māori 6). The mean Brier score over the 46 outcomes was 0.028 at 5% of places, 0.021 at 50%, 0.019 at 75% and 0.032 at 100% of
 ordinary places (the last rise is the special-vote shift: the night count excludes special votes the final result includes).
 Run `nz_export_replay.py` for the full table per stage.
+
+## Pre-registration checks (2026-10-31)
+
+Run before any 2026 count, on the unregistered v3 config; nothing in config or model code was changed
+(`analysis/nz_v3_check.py 2023`; 2023 is out of sample: settings from 2017/2020, special shift from 2017+2020, poll = 2023 polls).
+
+**(A) Prior mismatch: none found.** 2017, 2020 and 2023 all use the same construction as 2026: previous election's electorates tilted to
+the mean of the polls ending in the final 21 days (`nz_backtest.poll_shares` → `tilt_to_poll`, shifted to the night scale by the special
+shift), poll weight fading with `prior_votes`, error `count_log_sd = 0.12` at nothing counted (pooled historical poll RMS 0.112). The
+2026 block has 4 polls (refresh will add more); the training windows had 8 (2017), 4 (2020) and 9 (2023), so the width is inside the tested
+range. Re-running 2023 with a 2026-style as-of prior (only polls ending at least 12 days before election day) leaves the results unchanged.
+
+**(B) Party vote shares vs party seats, 2023 test** (90% intervals, parties with >= 3% of the final vote for shares, all seat-winning parties
+for seats; six count orders x 3 seeds x 2000 draws; share cover has only about 6 parties per cell, so it is noisy):
+
+| places counted | share cover | seat cover | seat-bracket Brier | bracket log loss | most-seats Brier |
+|---|---|---|---|---|---|
+| 5% | 0.972 | 0.833 | 0.350 | 0.604 | 0.005 |
+| 25% | 0.926 | 0.870 | 0.266 | 0.487 | 0.012 |
+| 50% | 0.861 | 0.907 | 0.239 | 0.427 | 0.004 |
+| 75% | 0.861 | 0.954 | 0.219 | 0.346 | 0.000 |
+| 95% | 0.917 | 0.981 | 0.191 | 0.266 | 0.000 |
+| 100% | 1.000 | 1.000 | 0.159 | 0.213 | 0.000 |
+| all stages | 0.923 | 0.924 | 0.237 | 0.391 | 0.004 |
+
+2026-style prior (as-of 12 days): share 0.931, seat 0.924, Brier 0.238, log loss 0.390, most-seats 0.002. Night order only: seat cover
+0.83 / 0.89 at 5% / 25%, 1.0 from 50%. Seat coverage is at or above 0.85 from 25% counted, and 0.83 at the 5% stage; the overall figure
+is above the 0.85 threshold, so v3 is left as drafted.
