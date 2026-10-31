@@ -244,5 +244,27 @@
   "n_units": 150,
   "evidence": "not-preregistered",
   "summary": "Retrospective replay from the AEC's own election-night count (365 messages, polling place by polling place). Of 41 questions, 17 were already at 90% or more on the right answer before the count, including the $8.6M prime minister market. On the 24 contested questions the model reached 90% on the right answer first on 21, the market first on 0, a median 109 minutes earlier. But it was too sure of itself: its 90% range for Labor's seats held 10% of the time."
+ },
+ {
+  "id": "fr2022r1",
+  "name": "France, presidential election 2022, first round",
+  "date": "2022-04-10",
+  "country": "FR",
+  "status": "replay",
+  "unit_level": "national total",
+  "n_units": null,
+  "evidence": "not-preregistered",
+  "summary": "Retrospective replay from the ministry's own results page (32 archived versions, national totals with the real times) with settings taken from the earlier 2017 nights. No market price history exists for this night, so the model is shown alone. Its 90% range for the main question held in 29% of the 29 versions from 1% to 95% counted."
+ },
+ {
+  "id": "fr2022r2",
+  "name": "France, presidential election 2022, runoff",
+  "date": "2022-04-24",
+  "country": "FR",
+  "status": "replay",
+  "unit_level": "national total",
+  "n_units": null,
+  "evidence": "not-preregistered",
+  "summary": "Retrospective replay from the ministry's own results page (12 archived versions, national totals with the real times) with settings taken from the earlier 2017 nights. No market price history exists for this night, so the model is shown alone. Its 90% range for the main question held in 100% of the 8 versions from 1% to 95% counted."
  }
 ]
