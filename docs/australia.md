@@ -43,9 +43,11 @@ update, every 90 seconds on election night and every 15 minutes after. The archi
   was not used. Simplified (`analysis/au_geo.py`, mapshaper; 440 kB divisions, 76 kB regions) and **clipped to the coast**: the
   boundaries run out over the sea (Gulf of Carpentaria, Torres Strait, Moreton Bay...), so each division is clipped to Natural
   Earth 1:10m land (public domain, https://www.naturalearthdata.com/about/terms-of-use/), and state borders are cleaned so
-  neighbours share arcs. The clip step was run on the committed topojson, not end to end (the build needs the raw download on
-  the external drive); the 2024-25 offshore and island parts of some divisions are therefore not drawn (Herbert, Dawson and
-  Leichhardt lose most of their nominal area, which is sea) while every division, id and result is unchanged. Credit: "This product incorporates data that is (c)
+  neighbours share arcs. Rebuild: `BRUNDER_DATA=~/brunder-data-local uv run python analysis/au_geo.py build` (every
+  step writes to a temporary file; the two topojson files are replaced only after all checks pass; `--out-dir` writes elsewhere).
+  A full rebuild from the raw downloads reproduced the committed files byte for byte. Herbert, Dawson and Leichhardt lose most
+  of their nominal area, which is sea, and small offshore parts of some divisions are not drawn; every division, id and result is
+  unchanged. Credit: "This product incorporates data that is (c)
   Commonwealth of Australia (Australian Electoral Commission) 2025." Note the AEC's copyright page excludes "AEC's maps"
   from its CC BY grant; the boundary data's own AEC licence permits derivative products with that credit.
 

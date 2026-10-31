@@ -8,14 +8,17 @@ Commission). The AEC's own download sits behind a click-through licence form, so
 Each division is joined by normalised name to the AEC media feed's PollingDistrictIdentifier (id + state); the build
 fails if any of the 150 feed divisions lacks a geometry or any geometry lacks a feed id.
 
-    BRUNDER_DATA=/Users/andreh./brunder-data-local uv run python analysis/au_geo.py
+    BRUNDER_DATA=~/brunder-data-local uv run python analysis/au_geo.py build [--out-dir DIR]
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
+import tempfile
 import time
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -35,6 +38,7 @@ STATES = {"NSW": "New South Wales", "VIC": "Victoria", "QLD": "Queensland", "WA"
 RAW = DATA / "raw" / "australia" / "geo"
 OUT = ROOT / "site" / "data" / "geo" / "au_divisions.topo.json"
 OUT_REG = ROOT / "site" / "data" / "geo" / "au_regions.topo.json"
+TMP = DATA / "tmp"
 UA = {"User-Agent": "brunder/0.1 (research; recorder)"}
 NS = {"m": "http://www.aec.gov.au/xml/schema/mediafeed"}
 N = 150
@@ -110,8 +114,10 @@ def land_json(ms: list[str]) -> Path:
         if z.testzip() is not None:
             raise ValueError("bad Natural Earth zip")
         z.extractall(RAW / "ne_10m_land")
-    subprocess.run(ms + ["-i", str(RAW / "ne_10m_land" / "ne_10m_land.shp"), "name=land", "-clip", "bbox=105,-45,160,-8",
-                         "-simplify", "weighted", "20%", "keep-shapes", "-o", "format=geojson", str(out)], check=True)
+    tmp_out = out.with_suffix(".part")
+    run(ms, "-i", str(RAW / "ne_10m_land" / "ne_10m_land.shp"), "name=land", "-clip", "bbox=105,-45,160,-8",
+        "-simplify", "weighted", "20%", "keep-shapes", "-o", "format=geojson", str(tmp_out))
+    tmp_out.rename(out)
     return out
 
 
@@ -130,7 +136,24 @@ def feed_ids() -> dict[str, tuple[int, str, str, str]]:
     return out
 
 
-def main() -> None:
+def run(ms: list[str], *args: str) -> None:
+    TMP.mkdir(parents=True, exist_ok=True)       # node's scratch files go to the data drive, not the system disk
+    subprocess.run(ms + list(args), check=True, env={**os.environ, "TMPDIR": str(TMP)})
+
+
+def topo_clean(path: Path) -> None:
+    """Compact the topojson mapshaper wrote and drop its FID property."""
+    doc = json.loads(path.read_text())
+    for obj in doc["objects"].values():
+        for g in obj["geometries"]:
+            g["properties"].pop("FID", None)
+    path.write_text(json.dumps(doc, separators=(",", ":")))
+
+
+def build(out_div: Path = OUT, out_reg: Path = OUT_REG) -> None:
+    """Rebuild the two topojson files from the raw sources. Every step writes a new temporary file (mapshaper never reads
+    and writes the same path), and the results replace `out_div` / `out_reg` only after all checks have passed."""
+    from brunder import australia as au
     ids = feed_ids()
     doc = json.loads(download().read_text())
     seen = set()
@@ -146,56 +169,68 @@ def main() -> None:
         seen.add(key)
     if seen != set(ids):
         raise ValueError(f"feed divisions without geometry: {sorted(set(ids) - seen)}")
-    work = RAW / "au_divisions_joined.geojson"
-    work.write_text(json.dumps(doc, ensure_ascii=False))
-
     exe = os.environ.get("MAPSHAPER")
     ms = [exe] if exe else ["npx", "--yes", "mapshaper@0.6.121"]
-    # Topology-preserving, area-weighted; keep-shapes retains every ring of every division (Tasmania, islands).
-    # The source's state borders are separate copies that differ by about 0.001 degree, which leaves hairline gaps and
-    # overlaps between states: -clean (500 km2 threshold) closes them so adjacent divisions share their border arcs.
-    subprocess.run(ms + ["-i", str(work), "name=divisions", "-simplify", "weighted", "4%", "keep-shapes",
-                         "-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(OUT)], check=True)
-    subprocess.run(ms + ["-i", str(OUT), "name=divisions", "-clean", "gap-fill-area=5e8", "sliver-control=0",
-                         "-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(OUT)], check=True)
-    doc = json.loads(OUT.read_text())
-    for g in doc["objects"]["divisions"]["geometries"]:
-        g["properties"].pop("FID", None)
-    OUT.write_text(json.dumps(doc, separators=(",", ":")))
-    # Electoral divisions run out over the sea (the Gulf of Carpentaria, Torres Strait, Moreton Bay...): clip every division to
-    # the land polygon (Natural Earth 10 m land, public domain) and clean again so the shared arcs stay shared.
-    land = land_json(ms)
-    subprocess.run(ms + ["-i", str(OUT), "name=divisions", "-clip", str(land), "-clean", "gap-fill-area=5e8",
-                         "sliver-control=0", "-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(OUT)],
-                   check=True)
-    doc = json.loads(OUT.read_text())
-    for g in doc["objects"]["divisions"]["geometries"]:
-        g["properties"].pop("FID", None)
-    OUT.write_text(json.dumps(doc, separators=(",", ":")))
-    # The regions are dissolved from the cleaned divisions topology, so region borders coincide with division borders
-    # and with each other (no gaps between regions on the maps).
-    subprocess.run(ms + ["-i", str(OUT), "name=divisions", "-dissolve", "region", "-simplify", "weighted", "25%",
-                         "keep-shapes", "-rename-layers", "regions", "-o", "format=topojson", "quantization=50000",
-                         "id-field=region", str(OUT_REG)], check=True)
+    TMP.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=TMP) as td:
+        t = Path(td)
+        work = t / "joined.geojson"
+        work.write_text(json.dumps(doc, ensure_ascii=False))
+        # 1. Topology-preserving, area-weighted; keep-shapes retains every ring of every division (Tasmania, islands).
+        run(ms, "-i", str(work), "name=divisions", "-simplify", "weighted", "4%", "keep-shapes", *topo_clean_args(t / "s1.json"))
+        # 2. The source's state borders are separate copies that differ by about 0.001 degree, which leaves hairline gaps
+        #    and overlaps between states: -clean (500 km2 threshold) closes them so adjacent divisions share border arcs.
+        run(ms, "-i", str(t / "s1.json"), "name=divisions", "-clean", "gap-fill-area=5e8", "sliver-control=0",
+            *topo_clean_args(t / "s2.json"))
+        # 3. Divisions run out over the sea (Gulf of Carpentaria, Torres Strait, Moreton Bay...): clip every division to the
+        #    land polygon (Natural Earth 10 m land, public domain) and clean again so the shared arcs stay shared.
+        land = land_json(ms)
+        run(ms, "-i", str(t / "s2.json"), "name=divisions", "-clip", str(land), "-clean", "gap-fill-area=5e8",
+            "sliver-control=0", *topo_clean_args(t / "s3.json"))
+        topo_clean(t / "s3.json")
+        # 4. Regions are dissolved from the cleaned divisions topology, so region borders coincide with division borders
+        #    and with each other (no gaps between regions on the maps).
+        run(ms, "-i", str(t / "s3.json"), "name=divisions", "-dissolve", "region", "-simplify", "weighted", "25%",
+            "keep-shapes", "-rename-layers", "regions", "-o", "format=topojson", "quantization=50000", "id-field=region",
+            str(t / "r1.json"))
+        reg = json.loads((t / "r1.json").read_text())
+        for g in reg["objects"]["regions"]["geometries"]:
+            code = g["properties"]["region"]
+            g["id"] = code
+            g["properties"] = {"region": code, "name": au.REGION_NAMES[code]}
+        topo = json.loads((t / "s3.json").read_text())
+        geoms = topo["objects"]["divisions"]["geometries"]
+        got = {g["properties"]["unit_id"] for g in geoms}
+        if len(geoms) != N or got != {f"au-{v[3]}-{v[0]}" for v in ids.values()} \
+                or any(g["id"] != g["properties"]["unit_id"] for g in geoms) or not all(g.get("arcs") for g in geoms):
+            raise ValueError("bad output: divisions missing or emptied by simplification")
+        if len(reg["objects"]["regions"]["geometries"]) != len(au.REGION_NAMES):
+            raise ValueError("bad output: wrong number of regions")
+        (t / "regions.json").write_text(json.dumps(reg, separators=(",", ":")))
+        for src, dst in ((t / "s3.json", out_div), (t / "regions.json", out_reg)):
+            if src.stat().st_size >= MAX_BYTES:
+                raise ValueError(f"{dst.name}: {src.stat().st_size} bytes exceeds {MAX_BYTES}")
+        out_div.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(t / "s3.json"), out_div)
+        shutil.move(str(t / "regions.json"), out_reg)
+    print(f"{out_div}: {len(geoms)}/{N} divisions matched to feed ids, {out_div.stat().st_size:,} bytes; "
+          f"{out_reg}: {out_reg.stat().st_size:,} bytes; CC BY 4.0, (c) Commonwealth of Australia (AEC)")
 
-    from brunder import australia as au
-    reg = json.loads(OUT_REG.read_text())
-    for g in reg["objects"]["regions"]["geometries"]:
-        code = g["properties"]["region"]
-        g["id"] = code
-        g["properties"] = {"region": code, "name": au.REGION_NAMES[code]}
-    OUT_REG.write_text(json.dumps(reg, separators=(",", ":")))
 
-    topo = json.loads(OUT.read_text())
-    geoms = topo["objects"]["divisions"]["geometries"]
-    got = {g["properties"]["unit_id"] for g in geoms}
-    if len(geoms) != N or got != {f"au-{v[3]}-{v[0]}" for v in ids.values()} \
-            or any(g["id"] != g["properties"]["unit_id"] for g in geoms) or not all(g.get("arcs") for g in geoms):
-        raise ValueError("bad output: divisions missing or emptied by simplification")
-    if OUT.stat().st_size >= MAX_BYTES:
-        raise ValueError(f"{OUT.stat().st_size} bytes exceeds {MAX_BYTES}")
-    print(f"{OUT}: {len(geoms)}/{N} divisions matched to feed ids, {OUT.stat().st_size:,} bytes; "
-          f"{OUT_REG}: {OUT_REG.stat().st_size:,} bytes; CC BY 4.0, (c) Commonwealth of Australia (AEC)")
+def topo_clean_args(path: Path) -> list[str]:
+    return ["-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(path)]
+
+
+def main(argv: list[str] | None = None) -> None:
+    ap = argparse.ArgumentParser(description="Build the Australian division and region maps (site/data/geo/au_*.topo.json) "
+                                             "from the AEC boundaries, the AEC feed's division ids and Natural Earth land.")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    b = sub.add_parser("build", help="download (cached) sources, rebuild both topojson files")
+    b.add_argument("--out-dir", type=Path, help="write au_divisions.topo.json / au_regions.topo.json here instead of site/data/geo")
+    a = ap.parse_args(argv)
+    if a.cmd == "build":
+        d = a.out_dir
+        build(d / OUT.name if d else OUT, d / OUT_REG.name if d else OUT_REG)
 
 
 if __name__ == "__main__":
