@@ -11,6 +11,12 @@ not-preregistered: settings frozen from the 2022 count after the 2026 market res
 scored once) by `analysis/hu_score.py` (`results/hungary/stats.json`); their numbers are quoted here but not
 produced by this script.
 
+The newer retrospective replays that overlapped a Polymarket market during the count are scored by this script
+through small adapters (see "Newer replays" below): Germany 2025 (`de2025`), Poland 2025 first round and
+runoff (`pl2025r1`, `pl2025r2`) and Australia 2025 (`au2025`), all not-preregistered. France 2022
+(`fr2022r1`, `fr2022r2`) has no Polymarket price history, so there is nothing to trade against; the Netherlands
+2025 (`nl2025`) has no count over time, so no model ran. The homepage shows both as such.
+
 Evidence labels: **in-sample** = settings were chosen on this night (Brazil first round);
 **pre-specified** = settings frozen and registered before the count data were examined, outcome already
 known (Brazil runoff and governors); **not-preregistered** = no frozen config or trading rule existed before
@@ -186,6 +192,41 @@ is everything that qualified: an upper bound for one trader, since other traders
   rows twice; the 4% taker fee of the first-round markets, included here, accounts for a few hundred dollars
   more (without it: $22,065 / $15,007 / $11,186).
 
+### Newer replays (Germany, Poland, Australia)
+
+Inputs, all v1 (the headline settings of each replay; the v2 / mix sensitivities are never used): per-minute model
+P and Polymarket YES price from `results/germany/v1/ticks.parquet`, `results/australia/v1/ticks.parquet`,
+`results/poland/pl2025r1/ticks.parquet`, `results/poland/pl2025r2/ticks.parquet` (written by `analysis/de_score.py`
+with `DE_OUT=results/germany/v1`, and the Australia and Poland scorers), the share counted from the same
+replay's `releases.csv` (Poland: in the ticks). Every Polymarket market the replay scored is included (Germany 46,
+Australia 41, Poland 2 + 7), Kalshi excluded. Each market's resolution, YES token, condition id, close time
+(price dropped after it) and fee come from the archived `markets.parquet` / `event.json` (`feeSchedule`; 0 for
+all of these 2025 markets). Taker trades come from the public data API for each market's condition id, cached on
+the data drive (`$BRUNDER_DATA/processed/edge_audit_trades/`); the model-limit read starts at each market's 1% gate.
+The unchanged frozen rule (`edge_audit.new_signals`: favoured side, edge ≥ 5¢ after the 1¢ half-spread and fee,
+≥ 1% counted, first signal per market) and the unchanged model-limit rule then run on them, exactly as for Hungary.
+
+| | eligible volume, 5¢ / 60 s | its P&L | $10,000 → (10% of each trade) | all of each trade | signal price | markets with eligible trades / read |
+|---|---|---|---|---|---|---|
+| Germany 2025 | $15,060 | +$4,602 | **$10,460** | $12,452 | $9,942 (8 signals, 4 bets) | 6 / 46 |
+| Australia 2025 | $85,439 | +$21,458 | **$12,146** | $11,304 | $10,034 (25 signals, 3 bets) | 23 / 41 |
+| Poland first round | $8,522 | +$2,770 | **$10,277** | $12,770 | $9,089 (2 bets, both lost) | 2 / 2 |
+| Poland runoff | $4,536,664 | +$1,519,506 | **$46,132** | $69,255 | $21,241 (5 bets) | 6 / 7 |
+
+With these four the pooled model-limit result over ten elections is $156,435 of $100,000 (+56.4%) and the
+signal-price pooled result $110,001 (+10.0%); the Brazil / Israel / Hungary / Mexico rows above are unchanged.
+Caveats: each election is one event, so these are four more outcomes, not hundreds. The Polish runoff is almost
+all of the four elections' eligible volume ($4.54M of $4.65M) and of the new gain: its two sides of the same
+bet (Nawrocki YES +$18,946, Trzaskowski NO +$16,286 of the +$36,132) are 63% of its eligible volume in the
+Nawrocki market alone, so the +361% is mostly one night and one pair of markets.
+**Germany: most markets were decided before the count.** 30 of the 46 Germany markets were already priced at
+least 0.90 on the eventual outcome at poll close and never fell below 0.80 afterwards, and 44 of 46 were at the
+model's first publication (19:38 UTC; the count only reached the model then). So the rule had little to buy: 6
+markets had an eligible trade (the BSW 5% market holds 78% of the $15,060; the rest are small vote-share bands)
+and 40 had none, with the reason per market in `profit_model_limit.by_race` and `coverage.csv`. Australia
+(17 of 41 decided at poll close) and the Polish runoff (3 of 7) show the same pattern in their long-shot and
+seat-band markets. Where the market was already right, the model agrees and gives no edge.
+
 **Signal price** (the earlier headline): each signal of the frozen rule stakes min($1,000, cash left, the real
 taker trades at or better than the signal minute's price from 60 s to 30 min after it; Israel: the recorded
 book 60 s after the signal at the average cost of a $1,000 limit walk) and is held to resolution:
@@ -316,7 +357,7 @@ USD; shares in percentage points.
   "pwin_window": "<sentence>",
   "outcome": "<sentence>"                                                  // il2026
 }
-"profit": {                                                                // br2026r1, br2026r2, br2026r2gov, il2026
+"profit": {                                                                // br2026r1, br2026r2, br2026r2gov, il2026, de2025, au2025, pl2025r1, pl2025r2
   "evidence", "rule", "execution", "outcome" (il2026),
   "signals", "won", "hit_rate", "hit_rate_ci",
   "max_deployed", "max_profit", "max_profit_ci", "max_return_per_usd", "p_market_fair",
@@ -416,7 +457,7 @@ count and are kept in `results/edge_audit/landing_summary.json` only.
 `brazil2026_all`, `brazil2026_prespecified`, `all_with_market`), `accuracy_pwin_by_race.csv`,
 `accuracy_reliability.csv`, `profit_signals_brazil.csv` (one row per signal × execution variant),
 `profit_signals_israel.csv` (private: contains model P from the 2026 count), `profit_by_size.csv`,
-`reconcile.csv`, `summary.json`, `profit_model_limit.csv` (every election × edge × delay × bankroll mode),
+`reconcile.csv`, `profit_signals_{de2025,au2025,pl2025r1,pl2025r2}.csv`, `profit_by_size_new_replays.csv`, `summary.json`, `profit_model_limit.csv` (every election × edge × delay × bankroll mode),
 `landing_summary.json` (full, incl. Israel's paths; the site copy drops those), `il_fees.json`, `trades/` (taker
 trades fetched from the Polymarket data API for markets without an archived trades file).
 
@@ -428,7 +469,10 @@ Run from the repository root; no environment variables are needed. Brazil inputs
 `$BRUNDER_DATA/raw/snap/israel_2026/polymarket_books` if present, else from `$BRUNDER_IL_DATA` (default
 `~/brunder-data-local`). Taker trades come from an archived `trades/<slug>.parquet` (with `is_taker`) under
 `$BRUNDER_DATA`, `$BRUNDER_IL_DATA` or a stage when one exists, else from the public data API (first run only;
-cached). The script only adds or replaces its own `accuracy`, `profit`, `invest10k` and `profit_model_limit` keys
+cached). The newer replays (de2025, au2025, pl2025r1, pl2025r2) read their v1 `ticks.parquet` / `releases.csv` from
+`results/germany/v1`, `results/australia/v1` and `results/poland/pl2025r{1,2}`, and cache their data-API taker trades
+under `$BRUNDER_DATA/processed/edge_audit_trades/`; they also add `capacity` and refresh `reasons` in their
+`stats.json`. The script only adds or replaces its own `accuracy`, `profit`, `invest10k` and `profit_model_limit` keys
 and rewrites `site/data/summary.json`, so it can run before or after `analysis/export_brazil.py` /
 `analysis/il_export.py` / `analysis/hu_score.py` / `analysis/mx_score.py`; exporters that rewrite `stats.json`
 drop the audit's keys, so run the audit again after them.

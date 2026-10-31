@@ -302,6 +302,7 @@ const usd0 = (x) => (x == null ? "–" : `$${Math.round(x).toLocaleString("en-US
 const signedPct = (x) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(1)}%`);
 const SHARED_NOTES = [/Single event:[^.]*\.\s*/i, /Eligible volume is an upper bound:[^.]*\.\s*/i, /\d+% of the eligible volume was in one market \([^)]*\)\.\s*/i];
 const shareOfGain = (s) => (s >= 0.995 && s < 1 ? `Almost all (${(100 * s).toFixed(1)}%)` : pct(s, 0));
+const overconfident = (b) => (b?.coverage90_headline?.coverage90 != null && b.coverage90_headline.coverage90 < 0.7 && b.return_pct > 0 ? `This model was overconfident: its 90% range held the final result only ${Math.round(100 * b.coverage90_headline.coverage90)}% of the time, so part of this gain is luck.` : "");
 function profitHTML(inv, mlGrid, old, races, raceBlock = "") {
   // no evidence label here: the headline buying rule was defined after the outcomes were known
   const head = (ans) => `<h3 class="tab-h">Was there profit after costs?</h3>${raceBlock}${ans ? `<p class="answer">${ans}</p>` : ""}`;
@@ -316,7 +317,8 @@ function profitHTML(inv, mlGrid, old, races, raceBlock = "") {
   const facts = [];
   if (inv.bets) facts.push(`${inv.bets.toLocaleString("en-US")} trades in ${inv.markets} ${inv.markets === 1 ? "market" : "markets"}, ${inv.won.toLocaleString("en-US")} of them on the winning side; ${usd0(inv.deployed)} spent.`);
   if (sp) facts.push(`Buying only at each signal's own price: ${usd0(sp.ending_value)} (${signedPct(sp.return_pct)})${sp.signals === 0 ? ", no signal fired" : sp.signals != null ? `, ${sp.bets} of ${sp.signals} signals filled` : ""}.`);
-  if (inv.largest_market_share != null && inv.largest_market_share >= 0.5 && inv.markets > 1) facts.push(`${shareOfGain(inv.largest_market_share)} of the gain came from one market${question(inv.largest_market) ? `: “${esc(question(inv.largest_market).replace(/\?$/, ""))}”` : ""}.`);
+  if (inv.largest_market_share != null && inv.largest_market_share >= 0.5 && inv.markets > 1) facts.push(`${inv.largest_market_share > 1 ? "More than the whole gain" : `${shareOfGain(inv.largest_market_share)} of the gain`} came from one market${question(inv.largest_market) ? `: “${esc(question(inv.largest_market).replace(/\?$/, ""))}”` : ""}${inv.largest_market_share > 1 ? "; the other markets lost money" : ""}.`);
+  if (overconfident(inv)) facts.push(overconfident(inv));
   facts.push("The election is one outcome: all of its markets ride on the same count.");
   if (inv.eligible_volume) facts.push(`Trades that qualified: ${usd0(inv.eligible_volume)}, with a P&amp;L of ${money(inv.eligible_pnl)}. That is an upper bound for one trader, since other traders took them.`);
   facts.push("This buying rule was defined after the outcomes were known.");

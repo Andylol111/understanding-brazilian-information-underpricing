@@ -46,6 +46,7 @@ Writes results/edge_audit/*.csv + summary.json and adds "accuracy" / "profit" bl
 from __future__ import annotations
 
 import argparse
+import functools
 import itertools
 import json
 import math
@@ -635,7 +636,8 @@ def _gamma_meta(event: str, slug: str) -> dict | None:
     return cache.get(slug)
 
 
-def night_trades(event: str, slug: str, cid: str, lo: pd.Timestamp, hi: pd.Timestamp) -> tuple[pd.DataFrame, str]:
+def night_trades(event: str, slug: str, cid: str, lo: pd.Timestamp, hi: pd.Timestamp,
+                 cache_dir: Path | None = None) -> tuple[pd.DataFrame, str]:
     """Taker trades in [lo, hi): an archived trades file with is_taker rows if any root has one, else the data API
     (cached in results/edge_audit/trades/). Returns (trades, source)."""
     for root in PM_ROOTS:
@@ -646,7 +648,7 @@ def night_trades(event: str, slug: str, cid: str, lo: pd.Timestamp, hi: pd.Times
                 t["time"] = pd.to_datetime(t["time"], utc=True)
                 return t[t["is_taker"] & (t["time"] >= lo) & (t["time"] < hi)].reset_index(drop=True), "archive"
     from night_capacity import _fetch_takers
-    cache = OUT / "trades" / f"{slug}_{int(lo.timestamp())}_{int(hi.timestamp())}.parquet"
+    cache = (cache_dir or OUT / "trades") / f"{slug}_{int(lo.timestamp())}_{int(hi.timestamp())}.parquet"
     if cache.exists():
         return pd.read_parquet(cache), "api"
     t = _fetch_takers(cid, int(lo.timestamp()), int(hi.timestamp()))
@@ -696,6 +698,18 @@ def ml_markets(eid: str, meta: dict) -> list[dict]:
                 out.append({"scope": sc, "race": sc, "slug": m["market"], "event": m["event"], "t0": t0, "fee": fee,
                             "y": int(m["outcome"]),
                             "ticks": g[["t", "P", "scope_counted", "price"]].rename(columns={"scope_counted": "counted"})})
+    elif eid in NEW_DIR:
+        TK, info = new_replay(eid)
+        t0 = _poll_close(eid, TK["t"].min())
+        for sc, g in TK.groupby("scope"):
+            g = g.dropna(subset=["P"])
+            gate = g.loc[g["scope_counted"] >= 0.01, "t"]
+            if g.empty or info[sc]["y"] is None:
+                continue
+            # trades are only read from the 1% gate on (nothing earlier can be bought under the rule)
+            out.append({"scope": sc, "race": sc, "slug": sc, "event": info[sc]["event"], "t0": t0, "fee": info[sc]["fee"],
+                        "y": info[sc]["y"], "trade_lo": gate.iloc[0] if len(gate) else g["t"].max(), "cache_dir": TRADE_CACHE / "model_limit",
+                        "ticks": g[["t", "P", "scope_counted", "price"]].rename(columns={"scope_counted": "counted"})})
     return out
 
 
@@ -713,9 +727,9 @@ def ml_candidates(mk: dict, meta: dict, delay: int) -> tuple[pd.DataFrame, dict]
     if md is None:
         diag["reason"] = "no market metadata (condition id / YES token) found"
         return empty, diag
-    lo = min(mk["t0"], mk["ticks"]["t"].min())
+    lo = mk.get("trade_lo") or min(mk["t0"], mk["ticks"]["t"].min())
     hi = mk["ticks"]["t"].max() + pd.Timedelta(minutes=1)
-    tr, diag["source"] = night_trades(mk["event"], mk["slug"], md["condition_id"], lo, hi)
+    tr, diag["source"] = night_trades(mk["event"], mk["slug"], md["condition_id"], lo, hi, mk.get("cache_dir"))
     diag["trades_read"] = int(len(tr))
     if len(tr):
         diag["first_trade"], diag["last_trade"] = _iso(tr["time"].min()), _iso(tr["time"].max())
@@ -1122,6 +1136,30 @@ def _evidence(eid: str) -> str | None:
     return s.get("evidence") if isinstance(s.get("evidence"), str) else (s.get("accuracy") or {}).get("evidence")
 
 
+HEADLINE_RACE = {"br2026r1": "br", "br2026r2": "br", "hu2026": "list", "mx2024": "mx", "pl2025r1": "winner",
+                 "pl2025r2": "winner", "au2025": "most-alp", "de2025": "most-union"}
+
+
+def _headline_cov(eid: str) -> dict | None:
+    """90%-band coverage (minutes with 1-95% counted) of the election's headline race, from its published
+    stats.json accuracy block; the minutes-weighted mean over all races when no headline race is named. None when missing."""
+    f = SITE / eid / "stats.json"
+    cv = (json.loads(f.read_text()).get("accuracy") or {}).get("coverage90") if f.exists() else None
+    if not cv or "1-95%" in cv:
+        return None
+    rows = {r: {"coverage90": w["1-95%"].get("coverage90", w["1-95%"].get("coverage90_1_95")), "n": w["1-95%"].get("n")}
+            for r, w in cv.items() if w.get("1-95%") and w["1-95%"].get("n")}
+    rows = {r: c for r, c in rows.items() if c["coverage90"] is not None}
+    r = HEADLINE_RACE.get(eid)
+    if r in rows:
+        c = rows[r]
+        return {"race": r, "coverage90": c["coverage90"], "n": c["n"]}
+    n = sum(c["n"] for c in rows.values())
+    if not n:
+        return None
+    return {"race": None, "coverage90": round(sum(c["coverage90"] * c["n"] for c in rows.values()) / n, 3), "n": n}
+
+
 def _extra_races() -> dict[str, list[dict]]:
     """Hungary and Mexico races in the same shape as brazil_races (share / sd / raw / counted rows)."""
     out = {}
@@ -1159,6 +1197,178 @@ def _hu_pwin_minutes() -> pd.DataFrame:
             w = w[w["t"] <= end]
         parts.append(w.assign(race=f"hu2026:{sc}", y=y))
     return pd.concat(parts, ignore_index=True)
+
+
+# ============================================================== newer replays (retrospective, v1 only)
+# Germany, Poland (both rounds) and Australia were replayed after the fact (analysis/{de,pl,au}_*.py; headline v1 outputs,
+# never the v2 / mix sensitivities). Their per-minute model P and Polymarket price are read from those replays'
+# ticks.parquet / releases.csv; the frozen night rule and the real-trade fills are then run exactly as for Hungary
+# (analysis/hu_score.py). France 2022 has no Polymarket price history; the Netherlands has no count model.
+
+NEW_DIR = {"de2025": RES / "germany" / "v1", "au2025": RES / "australia" / "v1",
+           "pl2025r1": RES / "poland" / "pl2025r1", "pl2025r2": RES / "poland" / "pl2025r2"}
+NEW_IDS = tuple(NEW_DIR)
+TRADE_CACHE = RAW.parent / "processed" / "edge_audit_trades"      # data-API taker trades, on the data drive
+NEW_RULE = {"min_edge": 0.05, "min_counted": 0.01, "favoured_only": True, "half_spread": 0.01}   # configs/night_r2_v1.toml [trade]
+NEW_LAT, NEW_HOR, NEW_SLIP = (0, 60), (5, 30), (0.0, 0.02, 0.05)
+
+
+def _pm_info(slugs: list[str]) -> dict[str, dict]:
+    """Per Polymarket market: event, condition id, YES token, taker fee rate (event.json feeSchedule), close time and
+    the Polymarket resolution (YES won = 1) from the archived markets.parquet."""
+    meta, frames, out = _pm_meta(), {}, {}
+    for s in slugs:
+        m = meta[s]
+        if m["event"] not in frames:
+            f = next(root / m["event"] / "markets.parquet" for root in PM_ROOTS if (root / m["event"] / "markets.parquet").exists())
+            frames[m["event"]] = pd.read_parquet(f).set_index("slug")
+        mk = frames[m["event"]].loc[s]
+        lp = list(mk["last_prices"])
+        out[s] = {"event": m["event"], "condition_id": m["condition_id"], "yes_token": m["yes_token"], "fee": m["fee"] or 0.0,
+                  "closed": pd.Timestamp(mk["closed_time"]) if pd.notna(mk["closed_time"]) else pd.NaT,
+                  "y": int(round(lp[0])) if lp else None}
+    return out
+
+
+@functools.lru_cache(maxsize=None)
+def new_replay(eid: str) -> tuple[pd.DataFrame, dict]:
+    """Minute ticks (t, scope = Polymarket slug, P of YES, YES price, scope_counted, outcome, costs, edges) of one newer
+    replay, plus the per-market info. Markets are Polymarket only; minutes before the model's first publication have
+    no P; the price is dropped after the market closed."""
+    d = NEW_DIR[eid]
+    tk = pd.read_parquet(d / "ticks.parquet")
+    tk["t"] = pd.to_datetime(tk["t"], utc=True)
+    if eid.startswith("pl"):
+        tk = tk[tk["platform"] == "polymarket"]
+        tk = tk.assign(P=tk["P_yes"], price=tk["price_yes"], scope_counted=tk["counted"])
+    else:
+        tk = tk[tk["scope"].str.startswith("polymarket:")] if eid == "au2025" else tk
+        tk = tk.assign(scope=tk["scope"].str.removeprefix("polymarket:"))
+        rel = pd.read_csv(d / "releases.csv", usecols=["t", "counted"])
+        rel["t"] = pd.to_datetime(rel["t"], utc=True)
+        rel = rel.drop_duplicates("t", keep="last").set_index("t").sort_index()["counted"]
+        grid = pd.DatetimeIndex(sorted(tk["t"].unique()))
+        cnt = rel.reindex(rel.index.union(grid)).ffill().reindex(grid).fillna(0.0)
+        tk = tk.assign(scope_counted=tk["t"].map(cnt))
+    info = _pm_info(sorted(tk["scope"].unique()))
+    hs = NEW_RULE["half_spread"]
+    parts = []
+    for sc, g in tk[["t", "scope", "P", "price", "scope_counted"]].groupby("scope"):
+        g = g.sort_values("t").copy()
+        m = info[sc]
+        if pd.notna(m["closed"]):
+            g.loc[g["t"] > m["closed"], "price"] = np.nan
+        p = g["price"]
+        g["outcome"] = m["y"]
+        g["yes_cost"] = p + hs + m["fee"] * p * (1 - p)
+        g["no_cost"] = (1 - p) + hs + m["fee"] * p * (1 - p)
+        g["edge_yes"] = g["P"] - g["yes_cost"]
+        g["edge_no"] = (1 - g["P"]) - g["no_cost"]
+        parts.append(g)
+    return pd.concat(parts, ignore_index=True), info
+
+
+@functools.lru_cache(maxsize=None)
+def new_signals(eid: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Frozen-rule entries (night.evaluate: favoured side, edge >= 5c after costs, >= 1% of the race counted, first
+    signal per market) and their real taker fills in every execution variant (same as hu_score.signals).
+    Returns (signals, evaluate output)."""
+    from night_capacity import _fetch_takers
+    TK, info = new_replay(eid)
+    truth = {s: m["y"] for s, m in info.items() if m["y"] is not None}
+    ev = night.evaluate(TK.dropna(subset=["P", "price"]), truth, NEW_RULE["min_edge"], NEW_RULE["min_counted"],
+                        NEW_RULE["favoured_only"])
+    sig = ev.dropna(subset=["entry"]).merge(TK, left_on=["scope", "entry"], right_on=["scope", "t"], how="left")
+    cache = TRADE_CACHE / "signals"
+    cache.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for r in sig.itertuples():
+        m = info[r.scope]
+        entry = pd.Timestamp(r.entry)
+        lo, hi = int(entry.timestamp()), int((entry + pd.Timedelta(minutes=120)).timestamp())
+        f = cache / f"{r.scope}_{lo}_{hi}.parquet"
+        if f.exists():
+            trades = pd.read_parquet(f)
+        else:
+            trades = _fetch_takers(m["condition_id"], lo, hi)
+            trades.to_parquet(f)
+        side_yes = r.side == "YES"
+        cost = r.yes_cost if side_yes else r.no_cost
+        p_fav = r.P if side_yes else 1 - r.P
+        won = int((truth[r.scope] == 1) == side_yes)
+        base = {"eid": eid, "market_key": f"{eid}:{r.scope}", "scope": r.scope, "market": r.scope, "side": r.side,
+                "entry": entry, "price": r.price, "cost": cost, "P_fav": p_fav, "edge": p_fav - cost, "won": won,
+                "fee_rate": m["fee"], "counted": r.scope_counted, "trades_in_2h": len(trades)}
+        for L, N, s in itertools.product(NEW_LAT, NEW_HOR, NEW_SLIP):
+            lim = r.price + s if side_yes else r.price - s
+            fs = same_side_fills(trades, m["yes_token"], side_yes, lim) if len(trades) else trades.assign(notional=[])
+            w = (fs["time"] >= entry + pd.Timedelta(seconds=L)) & (fs["time"] < entry + pd.Timedelta(minutes=N)) if len(fs) else []
+            avail = float(fs.loc[w, "notional"].sum()) if len(fs) else 0.0
+            c = cost + s
+            rows.append({**base, "latency_s": L, "horizon_min": N, "slip": s, "avail": avail, "all_in": c,
+                         "ret": (1 / c - 1) if won else -1.0, "rule_ok": bool(p_fav - c >= NEW_RULE["min_edge"] - 1e-12)})
+    return pd.DataFrame(rows), ev
+
+
+def summarize_variant(sig: pd.DataFrame, table: list[dict]) -> dict:
+    n, k = len(sig), int(sig["won"].sum()) if len(sig) else 0
+    mx = next(t for t in table if t["size"] == "max")
+    return {"signals": n, "won": k, "hit_rate": _r(k / n, 3) if n else None, "hit_rate_ci": _cp(k, n),
+            "max_deployed": mx["deployed"], "max_profit": mx["pnl"], "max_profit_ci": mx["pnl_ci"],
+            "max_return_per_usd": mx["return_per_usd"], "p_market_fair": mx["p_market_fair"],
+            "largest_trade_share": mx.get("largest_trade_share"), "pnl_without_largest": mx.get("pnl_without_largest"),
+            "by_size": {str(t["size"]): {kk: t.get(kk) for kk in ("fillable", "filled_any", "deployed", "pnl", "return_per_usd",
+                                                                  "pnl_ci", "return_ci", "p_market_fair",
+                                                                  "largest_trade_share")} for t in table if t["size"] != "max"}}
+
+
+def new_profit(eid: str) -> tuple[dict, dict, list[dict]]:
+    """Site `profit` block (headline execution + variants) and `capacity` block for one newer replay, plus the per-size rows."""
+    sig, _ = new_signals(eid)
+    prof, rows = {}, []
+    for L, N, s in itertools.product(NEW_LAT, NEW_HOR, NEW_SLIP):
+        for rule_only in ((False, True) if s > 0 else (False,)):
+            x = sig[(sig.latency_s == L) & (sig.horizon_min == N) & (sig.slip == s)].copy() if len(sig) else sig
+            if rule_only and len(x):
+                x.loc[~x["rule_ok"], "avail"] = 0.0
+            x = x.reset_index(drop=True)
+            key = f"trades_lat{L}s_{N}min_slip{int(round(s * 100))}c" + ("_rule" if rule_only else "")
+            if len(x) == 0:
+                prof[key] = {"signals": 0}
+                continue
+            tab = size_table(x, "avail", "ret", "all_in")
+            prof[key] = summarize_variant(x, tab)
+            rows += [{"eid": eid, "execution": key, **{a: (json.dumps(b) if isinstance(b, list) else b) for a, b in t.items()}}
+                     for t in tab]
+    L, N, s = HEAD_BR
+    head = prof.get(f"trades_lat{L}s_{N}min_slip{int(s * 100)}c", {"signals": 0})
+    profit = {"evidence": _evidence(eid),
+              "rule": "frozen night rule: favoured side only, edge >= 5c after costs, >= 1% of the market counted, "
+                      "first signal per market, held to resolution",
+              "execution": f"real taker trades on our side at or better than the signal price, from {L} s to {N} min after "
+                           "the signal; return at the signal's all-in cost (price + 1c half-spread + taker fee)",
+              **head, "variants": {k: {kk: v.get(kk) for kk in ("max_deployed", "max_profit")} for k, v in prof.items()}}
+
+    def cap(slip: float) -> float:
+        return _r(float(sig.loc[(sig.latency_s == 0) & (sig.horizon_min == 30) & (sig.slip == slip), "avail"].sum()), 2) if len(sig) else 0.0
+    capacity = {"polymarket": {"signal": cap(0.0), "slip2c": cap(0.02), "slip5c": cap(0.05)}, "kalshi": None}
+    return profit, capacity, rows
+
+
+def new_invest_signal_price() -> dict:
+    """invest10k at the signal price for the newer replays (same execution as Hungary/Brazil)."""
+    L, N, s = HEAD_BR
+    out = {}
+    for eid in NEW_IDS:
+        TK, _ = new_replay(eid)
+        sig, _ = new_signals(eid)
+        x = sig[(sig.latency_s == L) & (sig.horizon_min == N) & (sig.slip == s)] if len(sig) else sig
+        bets = pd.DataFrame({"t": x["entry"] + pd.Timedelta(seconds=L), "market": x["market"], "scope": x["scope"], "side": x["side"],
+                             "cap": x["avail"], "cost": x["all_in"], "won": x["won"]}) if len(x) else \
+            pd.DataFrame(columns=["t", "market", "scope", "side", "cap", "cost", "won"])
+        out[eid] = invest10k(eid, bets, TK[["t", "scope", "price"]], _poll_close(eid, TK["t"].min()), TK["t"].max(),
+                             _evidence(eid), EXEC_TRADES + " (retrospective replay, v1)")
+    return out
 
 
 def landing_summary(races: dict, ila: dict, COV: pd.DataFrame, mins: dict, inv: dict) -> dict:
@@ -1265,7 +1475,7 @@ def landing_summary(races: dict, ila: dict, COV: pd.DataFrame, mins: dict, inv: 
             "deployed": round(sum(v["deployed"] for v in inv.values()), 2),
             "bets": sum(v["bets"] for v in inv.values()), "won": sum(v["won"] for v in inv.values())}
     pool["return_pct"] = round(100 * (pool["ending_value"] / pool["bankroll"] - 1), 2)
-    eids = [e for e in ("br2026r2", "br2026r2gov", "br2026r1", "hu2026", "mx2024", "il2026", "br2022r2", "br2022r1")
+    eids = [e for e in ("br2026r2", "br2026r2gov", "br2026r1", "hu2026", "mx2024", "il2026", *NEW_IDS, "br2022r2", "br2022r1")
             if e in pe or e in inv]
     return {"generated": pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%M:%SZ"), "doc": "docs/edge_audit.md",
             "elections": [{"id": e, "name": names.get(e, (None,))[0],
@@ -1493,8 +1703,9 @@ def main(site: bool) -> None:
 
     # ---------------- $10,000 per election and the homepage summary
     inv = invest_all(BR, il)                                            # "signal price" execution
+    inv.update(new_invest_signal_price())
     land = landing_summary(races, ila, COV, mins, inv)
-    ml_res, ml_head, ML, CVG = model_limit([*NIGHTS, "il2026", "hu2026", "mx2024"])
+    ml_res, ml_head, ML, CVG = model_limit([*NIGHTS, "il2026", "hu2026", "mx2024", *NEW_IDS])
     _write("profit_model_limit.csv", ML)
     _write("coverage.csv", CVG)
     e5 = f"edge{int(ML_HEAD[0] * 100)}c_delay{ML_HEAD[1]}s"
@@ -1503,6 +1714,8 @@ def main(site: bool) -> None:
                     "by_race": {r: {k: x[k] for k in ("market", "eligible_volume", "eligible_pnl", "bankroll_stake", "bankroll_pnl")}
                                 for r, x in (ml_res[eid].get("by_race") or {}).items() if x["eligible_trades"] > 0}}
               for eid in ml_res}
+    for eid, v in inv_ml.items():
+        v["coverage90_headline"] = _headline_cov(eid)
     land["invest10k"] = {"rule": ML_RULE, "headline": "model_limit", "by_election": inv_ml, "pooled": _pool(inv_ml),
                          "signal_price": land["invest10k"],
                          "grid": {eid: {k: {"eligible_volume": g["eligible_volume"], "eligible_pnl": g["eligible_pnl"],
@@ -1526,6 +1739,19 @@ def main(site: bool) -> None:
             if (SITE / eid / "stats.json").exists():
                 blk = {**(pub_ml.get(eid) or {}), "signal_price": pub_sp.get(eid)}
                 _site_update(eid, {"invest10k": blk, "profit_model_limit": pub_res.get(eid)})
+        size_new = []
+        for eid in NEW_IDS:
+            profit, capacity, rows = new_profit(eid)
+            size_new += rows
+            f = SITE / eid / "stats.json"
+            reasons = {**json.loads(f.read_text()).get("reasons", {}),
+                       "capacity": "dollars of real taker trades on our side at or better than the signal price in the 30 min "
+                                   "after each frozen-rule signal (0 s latency); the trades come from Polymarket's public data API",
+                       "profit": "the frozen night rule run unchanged on this replay (analysis/edge_audit.py); decided-before-count "
+                                 "markets were already priced near 0 or 1, so the rule finds few trades there"}
+            _site_update(eid, {"profit": profit, "capacity": capacity, "reasons": reasons})
+            new_signals(eid)[0].to_csv(OUT / f"profit_signals_{eid}.csv", index=False)
+        _write("profit_by_size_new_replays.csv", pd.DataFrame(size_new))
         print(f"site summary.json {len(site_text) / 1024:.0f} kB")
         # One shared post-export rule keeps every election's lead fields on contested
         # markets only, regardless of which country-specific exporter wrote stats.json.

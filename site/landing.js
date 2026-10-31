@@ -60,15 +60,17 @@ function stateOf(e, m) {
   return { head: "Not run", note: "The rule has not been run on this election." };
 }
 
+const overconfident = (b) => (b?.coverage90_headline?.coverage90 != null && b.coverage90_headline.coverage90 < 0.7 && b.return_pct > 0 ? `This model was overconfident: its 90% range held the final result only ${Math.round(100 * b.coverage90_headline.coverage90)}% of the time, so part of this gain is luck.` : "");
 function moneySentence(b) {
   const parts = [];
   if (!b.bets) parts.push("The rule found nothing to buy.");
   else if (b.markets) {
     parts.push(`${fmtInt(b.bets)} ${b.bets === 1 ? "trade" : "trades"} in ${b.markets} ${b.markets === 1 ? "market" : "markets"}. ${b.won === b.bets ? (b.bets === 1 ? "It was" : "All were") : `${fmtInt(b.won)} were`} on the winning side.`);
-    if (b.largest_market_share != null && b.largest_market_share >= 0.5 && b.markets > 1) parts.push(`${shareOfGain(b.largest_market_share)} of the gain came from one market.`);
+    if (b.largest_market_share != null && b.largest_market_share >= 0.5 && b.markets > 1) parts.push(b.largest_market_share > 1 ? "One market made more than the whole gain; the others lost money." : `${shareOfGain(b.largest_market_share)} of the gain came from one market.`);
     else if (b.return_pct < 0 && b.largest_market_pnl != null && b.largest_market_pnl < 0) parts.push(`The largest loss was ${money(-b.largest_market_pnl)} in one market.`);
   } else parts.push(`${fmtInt(b.bets)} ${b.bets === 1 ? "trade" : "trades"}. ${fmtInt(b.won)} on the winning side.`);
   if (b.outcome && /provisional|not yet/i.test(b.outcome)) parts.push("The result is provisional: the markets have not settled.");
+  if (overconfident(b)) parts.push(overconfident(b));
   if (b.value_path == null) parts.push("Totals only: bet times and the bankroll path are not published, because the count data is licensed for private research.");
   else {
     let note = b.note ?? "";
