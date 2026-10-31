@@ -1,0 +1,5 @@
+ElectionNumber	ElectionDate	ElectionName	CountyName	StatType	TotalRep	TotalDem	TotalOth	TotalNpa	GrandTotal	CompileDate
+49894	11/03/2026	2026 General	State Totals	Voted Early	1,102,078	886,053	63,773	452,880	2,504,784	10/30/2026  8:08AM
+49894	11/03/2026	2026 General	Alachua	Voted Early	9,148	18,762	734	5,689	34,333	10/30/2026  8:08AM
+49894	11/03/2026	2026 General	Baker	Voted Early	2,482	491	43	187	3,203	10/30/2026  8:08AM
+49894	11/03/2026	2026 General	Leon	Voted Early	9,761	19,025	772	5,095	34,653	10/30/2026  8:08AM

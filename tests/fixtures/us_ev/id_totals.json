@@ -1,0 +1,26 @@
+[
+  {
+    "name": "total_issued",
+    "value": "156879"
+  },
+  {
+    "name": "returned",
+    "value": "111827"
+  },
+  {
+    "name": "return_rate",
+    "value": "71"
+  },
+  {
+    "name": "update_time",
+    "value": "10/30 06:14 AM MDT"
+  },
+  {
+    "name": "early_voting",
+    "value": "122372"
+  },
+  {
+    "name": "total_voted",
+    "value": "234199"
+  }
+]

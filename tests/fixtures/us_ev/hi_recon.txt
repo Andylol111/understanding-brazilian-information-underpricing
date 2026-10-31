@@ -1,0 +1,76 @@
+ELECTRONIC (Email & Fax 
+Combined)
+EARLY 
+VOTING
+MAIL (SAB & PAB Combined)
+County
+ELECT 
+Sent (a)
+ELECT Voted 
+(b)
+ELECT 
+Invalid (c)
+EV Voted (d)
+MAIL 
+Sent (e)
+MAIL Voted 
+(f)
+MAIL 
+Invalid 
+(g)
+VOTED (b + 
+d + f)
+TOTAL  (a + d 
++ e)
+Hawai'i
+525
+215
+0
+944
+111958
+40544
+244
+41703
+113427
+Maui
+477
+130
+0
+363
+97109
+27098
+313
+27591
+97949
+Kaua'i
+126
+30
+0
+379
+41300
+15107
+205
+15516
+41805
+Honolulu
+2645
+670
+0
+2757
+475237
+142487
+743
+145914
+480639
+3773
+1045
+0
+4443
+725604
+225236
+1505
+230724
+733820
+Absentee Reconcillation
+10/31/2026 3:12:08 AM
+2026 General Election

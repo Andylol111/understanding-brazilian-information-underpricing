@@ -1,0 +1,9 @@
+﻿COUNTY_CODE,COUNTY_NAME,congressional_district_code,legislative_district_code,councilmanic_district_code,Precinct,VOTER_STATUS,GENDER_CODE,AgeGroup,PARTY_CODE,EARLY_VOTE_CENTER,Day1,Day2,Day3,Day4,Day5,Day6,Day7,Day8
+1,Allegany,06,01A,,000-000,A,F,65 and older,DEM,Allegany County Office Complex,,,,,,3,4,1
+1,Allegany,06,01B,,000-000,A,M,45-64,OTH,Allegany County Office Complex,,,,,,,1,1
+1,Allegany,06,01A,,000-000,A,F,25-44,REP,Allegany County Office Complex,,,,,,1,1,1
+1,Allegany,06,01A,,000-000,A,F,45-64,UNA,Allegany County Office Complex,,,,,,,,1
+15,Kent,01,36,,000-000,A,F,25-44,DEM,Kent County Public Library,,,,,,1,2,2
+15,Kent,01,36,,000-000,A,F,18-24,OTH,Kent County Public Library,,,,,,,,1
+15,Kent,01,36,,000-000,A,F,25-44,REP,Kent County Public Library,,,,,,,,1
+15,Kent,01,36,,000-000,A,F,18-24,UNA,Kent County Public Library,,,,,,,,1

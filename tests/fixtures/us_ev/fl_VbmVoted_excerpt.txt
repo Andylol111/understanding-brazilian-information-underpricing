@@ -1,0 +1,5 @@
+ElectionNumber	ElectionDate	ElectionName	CountyName	StatType	TotalRep	TotalDem	TotalOth	TotalNpa	GrandTotal	CompileDate
+49894	11/03/2026	2026 General	State Totals	Voted Vote-by-Mail	622,664	762,012	43,181	341,393	1,769,250	10/30/2026  8:08AM
+49894	11/03/2026	2026 General	Alachua	Voted Vote-by-Mail	4,262	12,103	430	3,112	19,907	10/30/2026  8:08AM
+49894	11/03/2026	2026 General	Baker	Voted Vote-by-Mail	583	220	13	64	880	10/30/2026  8:08AM
+49894	11/03/2026	2026 General	Leon	Voted Vote-by-Mail	5,940	14,470	407	3,218	24,035	10/30/2026  8:08AM
