@@ -197,10 +197,13 @@ def races(cfg: dict, R: pd.DataFrame, TK: pd.DataFrame, F: dict, sett: pd.DataFr
     return out
 
 
-def signals(cfg: dict, TK: pd.DataFrame, MM: pd.DataFrame, truth: dict) -> pd.DataFrame:
-    """Frozen-rule entries (night.evaluate, favoured side only) and their real-trade fills in every variant."""
+def signals(cfg: dict, TK: pd.DataFrame, MM: pd.DataFrame, truth: dict, fetch: bool = True) -> pd.DataFrame:
+    """Frozen-rule entries (night.evaluate, favoured side only) and their real-trade fills in every variant.
+    fetch=False (sensitivity replays): settle times only, no trade download and no profit rows."""
     T = cfg["trade"]
     ev = night.evaluate(TK.dropna(subset=["P", "price"]), truth, T["min_edge"], T["min_counted"], T["favoured_only"])
+    if not fetch:
+        return pd.DataFrame(), ev
     sig = ev.dropna(subset=["entry"]).merge(TK, left_on=["scope", "entry"], right_on=["scope", "t"], how="left")
     cache = OUT / "capacity_trades"
     cache.mkdir(parents=True, exist_ok=True)
@@ -267,7 +270,13 @@ def catchup(TK: pd.DataFrame) -> dict | None:
 
 
 def main(cfg_path: Path) -> None:
+    global OUT, EVIDENCE, EV_NOTE
     cfg = hu.load_config(cfg_path)
+    sens = bool(cfg.get("sensitivity"))
+    if sens:                                            # v2: settings chosen after the result was known
+        OUT = ROOT / "results" / f"hungary_{cfg['_id'].split('_')[-1]}"
+        EVIDENCE = "sensitivity-after-result"
+        EV_NOTE = cfg["sensitivity"]["label"]
     OUT.mkdir(parents=True, exist_ok=True)
     pf = RAW / cfg["prior"]["file"]
     assert hashlib.sha256(pf.read_bytes()).hexdigest() == cfg["prior"]["sha256"], "prior file changed"
@@ -288,7 +297,7 @@ def main(cfg_path: Path) -> None:
     # ---- minute ticks, settle, races
     TK = ticks(cfg, R, MM, truth)
     TK.to_parquet(OUT / "ticks.parquet")
-    sig, ev = signals(cfg, TK, MM, truth)
+    sig, ev = signals(cfg, TK, MM, truth, fetch=not sens)
     sig.to_csv(OUT / "signals.csv", index=False)
     t_first = R["t"].min()
     srows = []

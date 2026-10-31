@@ -1,0 +1,425 @@
+# SENSITIVITY version, chosen AFTER the 2026 result was known (2026-10-30); v1 (configs/hu2026_v1.toml, 2022 night
+# only) stays the headline. Only the uncertainty settings change: district tau/sigma_mun0/kappa and list tau were
+# re-chosen by the common multi-night rule written in docs/hungary.md ("v2") BEFORE analysis/hu_calibrate_v2.py was
+# run: nights 2022 (real archived order; 2018 prior) and 2018 (simulated orders of the official station results;
+# 2014 prior) for the district model, plus 2014 (simulated; 2010 county prior) for the list model. Results are in
+# results/hungary/calibration_v2.json. Every other setting is v1's (2022-only: postal, envelope, turnout).
+# Evidence label: sensitivity (settings chosen after the result was known); not pre-registered.
+id = "hu2026_v2"
+election = "Hungary, National Assembly, 2026-04-12; polls closed 17:00 UTC (19:00 CEST)"
+poll_close_utc = "2026-04-12T17:00:00Z"
+year = 2026
+prior_year = 2022
+seed = 20260412
+
+[model.district]             # brunder.nowcast.Params for the 106 districts in 20 county groups
+tau = 0.015                  # smallest tau meeting the multi-night rule (docs/hungary.md v2): pooled coverage >= 0.90, worst night >= 0.75
+sigma_mun0 = 0.03            # lowest mean district MAE (2022: 1.29 pt, 2018 simulated: 2.45 pt) among passing settings at that tau
+kappa = 200000.0             # same
+rho = 0.8                    # nowcast default, not tuned
+nu_mun = 20.0
+sigma_uf0 = 0.03
+nu_uf = 5.0
+
+[model.list]                 # brunder.nowcast.Params for the national list vote over the 20 counties
+tau = 0.03                   # smallest tau meeting the multi-night rule on the national list share (2022 / 2018 / 2014 coverage 0.80 / 0.92 / 0.98)
+
+[model.other]
+mail_kappa = 20000.0         # default, not tuned
+mail_tau = 0.02              # default, not tuned
+mail_return = 0.5892         # 2022 final valid postal ballots / registered postal voters (268,766 / 456,129)
+mail_two_way = 0.9801        # 2022 A+B share of valid postal list votes
+envelope_rate = 0.9280       # 2022 envelope votes / registered transferred + consular voters (206,980 / 223,031)
+env_shift = 0.1899           # 2022: A two-way share of domestic votes counted after the night minus the night share
+env_sd = 0.10                # judgment (one past election), not fitted
+turnout_sd = 0.0179          # RMS error of the projected turnout over the 2022 night frames
+other_tau = 0.10             # default, not tuned
+draws = 4000
+
+[prior]                      # 2022 official final, mapped onto the 2026 districts (brunder.hungary.crosswalk)
+source = "https://vtr.valasztas.hu/ogy2022/data/04161400/szavossz/OevkJkv.json"
+file = "hungary/ogy2022/04161400/szavossz/OevkJkv.json"
+sha256 = "88a1dfc8b61df5782580268a72e2035527f83b6a715cd93e8f69acce9b3d3b06"
+list_file = "hungary/ogy2022/04161400/szavossz/ListasJkv.json"
+list_sha256 = "cca16395d828829d948e924e6172419a80796413f614ffc7962fa8c77ab77da7"
+
+[groups]                     # nominating-group (jlcs) codes of the official site; A = Tisza, B = Fidesz-KDNP
+a = 3600                     # TISZA (list tl_id 1934)
+b = 3644                     # FIDESZ-KDNP (joint list, tl_id 1930)
+tl_a = 1934
+tl_b = 1930
+prior_a = [1803]             # 2022: DK-JOBBIK-MOMENTUM-MSZP-LMP-PÁRBESZÉD (joint opposition)
+prior_b = [1798]             # 2022: FIDESZ-KDNP
+min_list_share = 0.01        # third-party lists below this share of the counted list vote are not simulated
+
+[prices]                     # Polymarket 1-minute history window archived by analysis/hu_fetch.py markets
+start_utc = "2026-04-12T15:00:00Z"
+end_utc = "2026-04-19T00:00:00Z"
+
+[trade]                      # the frozen Brazil night rule (configs/night_r2_v1.toml), unchanged
+min_edge = 0.05
+min_counted = 0.01
+favoured_only = true
+half_spread = 0.01
+
+# Scored markets. kind: most_seats {party}; list_winner {party}; list_margin {party, lo, hi} (party's list
+# vote minus the runner-up's, in points of all valid party-list votes, lo <= x < hi); seats_band {lo, hi} and
+# seats_atleast {n} for Tisza; turnout {lo, hi} (percent, lo <= x < hi); pm {party}: next prime minister,
+# priced as "party wins the most seats" (model mapping, not the market's resolution rule).
+[[markets]]
+id = "most_seats_tisza"
+event = "hungary-parliamentary-election-winner"
+market = "will-tisza-respect-and-freedom-party-tisza-win-the-most-seats-in-the-next-hungarian-parliamentary-election"
+kind = "most_seats"
+party = "a"
+race = "seats"
+
+[[markets]]
+id = "most_seats_fidesz"
+event = "hungary-parliamentary-election-winner"
+market = "will-fideszkdnp-win-the-most-seats-in-the-next-hungarian-parliamentary-election"
+kind = "most_seats"
+party = "b"
+race = "seats"
+
+[[markets]]
+id = "list_winner_tisza"
+event = "hungary-parliamentary-election-popular-vote-winner"
+market = "will-tisza-win-the-most-national-list-votes-in-the-2026-hungarian-parliamentary-election"
+kind = "list_winner"
+party = "a"
+race = "list"
+
+[[markets]]
+id = "list_winner_fidesz"
+event = "hungary-parliamentary-election-popular-vote-winner"
+market = "will-fideszkdnp-win-the-most-national-list-votes-in-the-2026-hungarian-parliamentary-election"
+kind = "list_winner"
+party = "b"
+race = "list"
+
+[[markets]]
+id = "pm_magyar"
+event = "next-prime-minister-of-hungary"
+market = "will-the-next-prime-minister-of-hungary-be-pter-magyar"
+kind = "pm"
+party = "a"
+race = "seats"
+
+[[markets]]
+id = "pm_orban"
+event = "next-prime-minister-of-hungary"
+market = "will-the-next-prime-minister-of-hungary-be-viktor-orbn"
+kind = "pm"
+party = "b"
+race = "seats"
+
+[[markets]]
+id = "margin_tisza_9plus"
+event = "hungary-parliamentary-election-popular-vote-margin-of-victory"
+market = "will-tisza-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-9"
+kind = "list_margin"
+party = "a"
+lo = 9.0
+hi = 100.0
+race = "list"
+
+[[markets]]
+id = "margin_tisza_6_9"
+event = "hungary-parliamentary-election-popular-vote-margin-of-victory"
+market = "will-tisza-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-6-9"
+kind = "list_margin"
+party = "a"
+lo = 6.0
+hi = 9.0
+race = "list"
+
+[[markets]]
+id = "margin_tisza_3_6"
+event = "hungary-parliamentary-election-popular-vote-margin-of-victory"
+market = "will-tisza-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-3-6"
+kind = "list_margin"
+party = "a"
+lo = 3.0
+hi = 6.0
+race = "list"
+
+[[markets]]
+id = "margin_tisza_0_3"
+event = "hungary-parliamentary-election-popular-vote-margin-of-victory"
+market = "will-tisza-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-0-3"
+kind = "list_margin"
+party = "a"
+lo = 0.0
+hi = 3.0
+race = "list"
+
+[[markets]]
+id = "margin_fidesz_0_3"
+event = "hungary-parliamentary-election-popular-vote-margin-of-victory"
+market = "will-fidesz-kdnp-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-0-3"
+kind = "list_margin"
+party = "b"
+lo = 0.0
+hi = 3.0
+race = "list"
+
+[[markets]]
+id = "margin_fidesz_3_6"
+event = "hungary-parliamentary-election-popular-vote-margin-of-victory"
+market = "will-fidesz-kdnp-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-3-6"
+kind = "list_margin"
+party = "b"
+lo = 3.0
+hi = 6.0
+race = "list"
+
+[[markets]]
+id = "margin_fidesz_6_9"
+event = "hungary-parliamentary-election-popular-vote-margin-of-victory"
+market = "will-fidesz-kdnp-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-6-9"
+kind = "list_margin"
+party = "b"
+lo = 6.0
+hi = 9.0
+race = "list"
+
+[[markets]]
+id = "margin_fidesz_9plus"
+event = "hungary-parliamentary-election-popular-vote-margin-of-victory"
+market = "will-fidesz-kdnp-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-9"
+kind = "list_margin"
+party = "b"
+lo = 9.0
+hi = 100.0
+race = "list"
+
+[[markets]]
+id = "margin_tisza_lt9"
+event = "hungary-election-popular-vote-margin-of-victory-higher-strikes-for-tisza"
+market = "will-tisza-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-9-635"
+kind = "list_margin"
+party = "a"
+lo = 0.0
+hi = 9.0
+race = "list"
+
+[[markets]]
+id = "margin_tisza_9_12"
+event = "hungary-election-popular-vote-margin-of-victory-higher-strikes-for-tisza"
+market = "will-tisza-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-9-12"
+kind = "list_margin"
+party = "a"
+lo = 9.0
+hi = 12.0
+race = "list"
+
+[[markets]]
+id = "margin_tisza_12_15"
+event = "hungary-election-popular-vote-margin-of-victory-higher-strikes-for-tisza"
+market = "will-tisza-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-12-15"
+kind = "list_margin"
+party = "a"
+lo = 12.0
+hi = 15.0
+race = "list"
+
+[[markets]]
+id = "margin_tisza_15_18"
+event = "hungary-election-popular-vote-margin-of-victory-higher-strikes-for-tisza"
+market = "will-tisza-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-15-18"
+kind = "list_margin"
+party = "a"
+lo = 15.0
+hi = 18.0
+race = "list"
+
+[[markets]]
+id = "margin_tisza_18plus"
+event = "hungary-election-popular-vote-margin-of-victory-higher-strikes-for-tisza"
+market = "will-tisza-win-the-national-list-vote-in-the-2026-hungarian-parliamentary-election-by-18"
+kind = "list_margin"
+party = "a"
+lo = 18.0
+hi = 100.0
+race = "list"
+
+[[markets]]
+id = "tisza_seats_lt70"
+event = "of-seats-won-by-tisza-in-hungary-parliamentary-election"
+market = "will-tisza-win-70-seats-in-the-hungarian-national-assembly-in-this-election"
+kind = "seats_band"
+lo = 0
+hi = 69
+race = "seats"
+
+[[markets]]
+id = "tisza_seats_70_79"
+event = "of-seats-won-by-tisza-in-hungary-parliamentary-election"
+market = "will-tisza-win-7079-seats-in-the-hungarian-national-assembly-in-this-election"
+kind = "seats_band"
+lo = 70
+hi = 79
+race = "seats"
+
+[[markets]]
+id = "tisza_seats_80_89"
+event = "of-seats-won-by-tisza-in-hungary-parliamentary-election"
+market = "will-tisza-win-8089-seats-in-the-hungarian-national-assembly-in-this-election"
+kind = "seats_band"
+lo = 80
+hi = 89
+race = "seats"
+
+[[markets]]
+id = "tisza_seats_90_99"
+event = "of-seats-won-by-tisza-in-hungary-parliamentary-election"
+market = "will-tisza-win-9099-seats-in-the-hungarian-national-assembly-in-this-election"
+kind = "seats_band"
+lo = 90
+hi = 99
+race = "seats"
+
+[[markets]]
+id = "tisza_seats_100_109"
+event = "of-seats-won-by-tisza-in-hungary-parliamentary-election"
+market = "will-tisza-win-100109-seats-in-the-hungarian-national-assembly-in-this-election"
+kind = "seats_band"
+lo = 100
+hi = 109
+race = "seats"
+
+[[markets]]
+id = "tisza_seats_110_119"
+event = "of-seats-won-by-tisza-in-hungary-parliamentary-election"
+market = "will-tisza-win-110119-seats-in-the-hungarian-national-assembly-in-this-election"
+kind = "seats_band"
+lo = 110
+hi = 119
+race = "seats"
+
+[[markets]]
+id = "tisza_seats_120_129"
+event = "of-seats-won-by-tisza-in-hungary-parliamentary-election"
+market = "will-tisza-win-120-129-seats-in-the-hungarian-national-assembly-in-this-election"
+kind = "seats_band"
+lo = 120
+hi = 129
+race = "seats"
+
+[[markets]]
+id = "tisza_seats_130plus"
+event = "of-seats-won-by-tisza-in-hungary-parliamentary-election"
+market = "will-tisza-win-130-seats-in-the-hungarian-national-assembly-in-this-election"
+kind = "seats_band"
+lo = 130
+hi = 199
+race = "seats"
+
+[[markets]]
+id = "tisza_atleast_90"
+event = "hungary-election-tisza-wins-at-least-seats"
+market = "will-tisza-win-at-least-90-seats"
+kind = "seats_atleast"
+n = 90
+race = "seats"
+
+[[markets]]
+id = "tisza_atleast_100"
+event = "hungary-election-tisza-wins-at-least-seats"
+market = "will-tisza-win-at-least-100-seats"
+kind = "seats_atleast"
+n = 100
+race = "seats"
+
+[[markets]]
+id = "tisza_atleast_110"
+event = "hungary-election-tisza-wins-at-least-seats"
+market = "will-tisza-win-at-least-110-seats"
+kind = "seats_atleast"
+n = 110
+race = "seats"
+
+[[markets]]
+id = "tisza_atleast_120"
+event = "hungary-election-tisza-wins-at-least-seats"
+market = "will-tisza-win-at-least-120-seats"
+kind = "seats_atleast"
+n = 120
+race = "seats"
+
+[[markets]]
+id = "tisza_atleast_130"
+event = "hungary-election-tisza-wins-at-least-seats"
+market = "will-tisza-win-at-least-130-seats"
+kind = "seats_atleast"
+n = 130
+race = "seats"
+
+[[markets]]
+id = "turnout_lt65"
+event = "turnout-in-2026-hungary-parliamentary-election"
+market = "will-voter-turnout-be-65-in-the-2026-hungarian-parliamentary-election"
+kind = "turnout"
+lo = 0.0
+hi = 65.0
+race = "turnout"
+
+[[markets]]
+id = "turnout_65_68"
+event = "turnout-in-2026-hungary-parliamentary-election"
+market = "will-voter-turnout-be-6568-in-the-2026-hungarian-parliamentary-election"
+kind = "turnout"
+lo = 65.0
+hi = 68.0
+race = "turnout"
+
+[[markets]]
+id = "turnout_68_71"
+event = "turnout-in-2026-hungary-parliamentary-election"
+market = "will-voter-turnout-be-6871-in-the-2026-hungarian-parliamentary-election"
+kind = "turnout"
+lo = 68.0
+hi = 71.0
+race = "turnout"
+
+[[markets]]
+id = "turnout_71_74"
+event = "turnout-in-2026-hungary-parliamentary-election"
+market = "will-voter-turnout-be-7174-in-the-2026-hungarian-parliamentary-election"
+kind = "turnout"
+lo = 71.0
+hi = 74.0
+race = "turnout"
+
+[[markets]]
+id = "turnout_74_77"
+event = "turnout-in-2026-hungary-parliamentary-election"
+market = "will-voter-turnout-be-7477-in-the-2026-hungarian-parliamentary-election"
+kind = "turnout"
+lo = 74.0
+hi = 77.0
+race = "turnout"
+
+[[markets]]
+id = "turnout_77_80"
+event = "turnout-in-2026-hungary-parliamentary-election"
+market = "will-voter-turnout-be-7780-in-the-2026-hungarian-parliamentary-election-448"
+kind = "turnout"
+lo = 77.0
+hi = 80.0
+race = "turnout"
+
+[[markets]]
+id = "turnout_80plus"
+event = "turnout-in-2026-hungary-parliamentary-election"
+market = "will-voter-turnout-be-80-in-the-2026-hungarian-parliamentary-election"
+kind = "turnout"
+lo = 80.0
+hi = 100.0
+race = "turnout"
+
+[sensitivity]
+label = "v2: settings from the 2022 and 2018 nights (district) and the 2022, 2018 and 2014 nights (list) (chosen after the result was known)"
+config = "configs/hu2026_v2.toml"
+base = "configs/hu2026_v1.toml"

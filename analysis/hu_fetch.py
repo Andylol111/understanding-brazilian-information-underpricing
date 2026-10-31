@@ -21,6 +21,12 @@ Hungary (Act LXXVI of 1999 on copyright, s. 1(4)) and public data of public inte
 brunder.polymarket.download_event. Trades are fetched later, per signal window, by analysis/hu_score.py.
 
     BRUNDER_DATA=~/brunder-data-local uv run python analysis/hu_fetch.py meta|scan|night|stations|wayback|markets [year]
+
+v2 calibration (docs/hungary.md): `nvi` downloads the NVI results archive valasztasi_eredmenyek_1990-2024.zip
+(309 MB, official, polling-station results of 2014 and 2018, county list results of 2010) into
+raw/hungary/nvi_archive/ and unpacks the 2010/2014/2018/2022 parliamentary zips (accents dropped from file names);
+`wayback2018` saves the Internet Archive's captures of the 2018 election-night national list page (orszlist.html),
+the only 2018 count timeline that exists (national totals from 22:43 CEST), used as an order check.
 """
 
 from __future__ import annotations
@@ -36,8 +42,7 @@ from brunder import polymarket as pm
 from brunder.hungary import ELECTIONS, RAW_HU, load_config
 from brunder.paths import POLYMARKET, ROOT
 
-UA = {"User-Agent": "brunder-research/0.1 (election-count replay; github.com/Andylol111/"
-                    "understanding-brazilian-information-underpricing; 1 request/s)"}
+UA = {"User-Agent": "brunder/0.1 (research; recorder)"}
 BASE = "https://vtr.valasztas.hu/ogy{year}/data/"
 CDX = "https://web.archive.org/cdx/search/cdx"
 PAUSE = 1.1
@@ -160,6 +165,64 @@ def stations(c: httpx.Client, year: int) -> None:
             fetch(c, year, f"{E['ver']}/ver/{d['maz']}/Szavazokorok-{d['maz']}-{d['taz']}.json")
 
 
+NVI_ZIP = "https://static.valasztas.hu/dyn/letoltesek/valasztasi_eredmenyek_1990-2024.zip"
+
+
+def nvi(c: httpx.Client, year: int) -> None:
+    """Official results archive 1990-2024 (309 MB): keep it and unpack the parliamentary zips of 2014, 2018 and 2022
+    (accents dropped from member names, which are not valid on macOS) next to it, as hu_calibrate_v2 expects."""
+    import re
+    import unicodedata
+    import zipfile
+    d = RAW_HU / "nvi_archive"
+    top = d / "valasztasi_eredmenyek_1990-2024.zip"
+    d.mkdir(parents=True, exist_ok=True)
+    if not top.exists():
+        with c.stream("GET", NVI_ZIP) as r:
+            r.raise_for_status()
+            with open(top.with_suffix(".part"), "wb") as f:
+                for chunk in r.iter_bytes():
+                    f.write(chunk)
+        top.with_suffix(".part").rename(top)
+    out = d / "valasztasi_eredmenyek_1990-2024"
+    out.mkdir(exist_ok=True)
+    z = zipfile.ZipFile(top)
+    for y in (2010, 2014, 2018, 2022):
+        name = f"valasztasi_eredmenyek_1990-2024/{y}_parlamenti.zip"
+        (out / f"{y}_parlamenti.zip").write_bytes(z.read(name))
+        if y == 2010:
+            continue
+        inner = zipfile.ZipFile(out / f"{y}_parlamenti.zip")
+        for i in inner.infolist():
+            if i.is_dir():
+                continue
+            try:
+                n = i.filename.encode("cp437").decode("cp1250")
+            except UnicodeError:
+                n = i.filename
+            n = unicodedata.normalize("NFKD", n).encode("ascii", "ignore").decode()
+            if re.search(r"\.(jpg|png|gif|inf|ico|exe|htm|html|pdf|css)$", n, re.I):
+                continue
+            f = out / str(y) / n
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_bytes(inner.read(i))
+
+
+def wayback2018(c: httpx.Client, year: int) -> None:
+    """Internet Archive captures of the 2018 election-night national list page (the only 2018 timeline): saved as
+    ogy2018_wb/orszlist_<capture timestamp>.html (raw page bytes)."""
+    r = _get(c, CDX + "?" + str(httpx.QueryParams({
+        "url": "valasztas.hu/dyn/pv18/szavossz/hu/orszlist.html", "from": "20180408170000", "to": "20180409070000",
+        "output": "json", "fl": "timestamp,original", "filter": "statuscode:200"})), pause=3.0)
+    r.raise_for_status()
+    out = RAW_HU / "ogy2018_wb"
+    out.mkdir(parents=True, exist_ok=True)
+    for ts, orig in r.json()[1:]:
+        f = out / f"orszlist_{ts}.html"
+        if not f.exists():
+            f.write_bytes(_get(c, f"https://web.archive.org/web/{ts}id_/{orig}", pause=3.0).content)
+
+
 def markets(cfg_path=ROOT / "configs" / "hu2026_v1.toml") -> None:
     cfg = load_config(cfg_path)
     lo, hi = pd.Timestamp(cfg["prices"]["start_utc"]), pd.Timestamp(cfg["prices"]["end_utc"])
@@ -183,7 +246,8 @@ def main(what: str, years: list[int]) -> None:
         return
     with httpx.Client(headers=UA, timeout=60, follow_redirects=True) as c:
         for y in years:
-            {"meta": meta, "scan": scan, "night": night, "wayback": wayback, "stations": stations}[what](c, y)
+            {"meta": meta, "scan": scan, "night": night, "wayback": wayback, "stations": stations, "nvi": nvi,
+             "wayback2018": wayback2018}[what](c, y)
     print(RAW_HU)
 
 

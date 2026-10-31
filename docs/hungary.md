@@ -38,10 +38,11 @@ It reads JSON from `https://vtr.valasztas.hu/ogy2026/data/`:
 |---|---|---|
 | 2026 metadata, 52 count publications (OevkJkv, ListasJkv, LevelJkv), final, station lists of split settlements | `raw/hungary/ogy2026/` | 19 MB |
 | 2022 metadata, final, 9 archived night publications, station lists | `raw/hungary/ogy2022/` | 6.5 MB |
+| NVI results archive 1990-2024 (309 MB zip; 2014 and 2018 station results, 2010 county list results) and 5 Internet Archive copies of the 2018 night list page | `raw/hungary/nvi_archive/`, `raw/hungary/ogy2018_wb/` | 0.6 GB |
 | Polymarket: 8 events, 54 markets, 1-minute YES prices 12–19 Apr | `raw/polymarket/<event>/` | 3.5 MB |
 | taker trades per signal window, all outputs | `results/hungary/` | 2.8 MB |
 
-Fetch the data with `analysis/hu_fetch.py meta|night|stations|wayback|markets`.
+Fetch the data with `analysis/hu_fetch.py meta|night|stations|wayback|markets` and, for v2, `nvi|wayback2018`.
 
 ## Seat law (`brunder.hungary.allocate_many`, `comp_votes`)
 
@@ -96,6 +97,124 @@ Settings were chosen on 2022 only (`analysis/hu_calibrate.py`, `results/hungary/
 | envelope rate, env_shift | 0.928, +0.190 | 2022 final vs the last 2022 night frame |
 | env_sd | 0.10 | judgment, not fitted |
 | turnout sd | 0.018 | RMS projection error over the 2022 frames |
+
+## v2 (sensitivity): uncertainty settings from more than one earlier night
+
+**v1 used one night only** (2022: 9 archived district frames, 5 list frames). Poland 2025 and Mexico 2024 showed that
+an uncertainty setting (tau) chosen on one night can be overconfident, and v1's district tau was calibrated to 0.
+`configs/hu2026_v2.toml` redoes the choice over every earlier night that can be replayed. It is labelled **chosen after
+the result was known (sensitivity)**: the 2026 count and result had been seen when it was written, and v1 stays the
+headline. The rule below was written on 2026-10-30 before `analysis/hu_calibrate_v2.py` was run, and is not changed
+after seeing its results (any change would be disclosed here).
+
+**Earlier nights found** (all official or openly licensed; the NVI publishes results as official communications, no
+terms of use, robots.txt allows everything):
+
+| night | what exists | used as |
+|---|---|---|
+| 2022-04-03 | 9 Internet Archive copies of the NVI JSON count (district votes, 20:53 to 07:00 CEST), 5 with list votes | real order; prior = 2018 on the same districts (as v1) |
+| 2018-04-08 | the NVI site kept no timeline. The Internet Archive has 5 to 7 captures of the national list page and the district leader table from 22:43 CEST (69% counted), with national totals only and no district votes. Official final polling-station results (NVI `valasztasi_eredmenyek_1990-2024.zip`) | **simulated orders** of the 2018 stations; prior = 2014 on the same 106 districts |
+| 2014-04-06 | same: no timeline; official station-level final | list model only (county prior = 2010 list votes by county); no district prior exists (2010 used a different 176-district map) |
+
+The 2018 and 2014 simulated frames take the stations of every district in one of two orders, five seeds each:
+**random**, and **smallest first** (by registered voters times a lognormal(0, 0.3) draw). The same fraction of
+stations is counted in every district: 2%, 5%, 10%, 20%, 30%, 45%, 60%, 75%, 90%. This is not the real 2018 order
+(none is archived); it is the stated stand-in, as for Poland, Taiwan and NZ. The A side is the whole opposition
+(Jobbik, MSZP and its partners, DK, LMP, Momentum, Egyutt) against Fidesz-KDNP, as in v1's 2018 prior. Postal and
+envelope votes did not exist in a comparable form in 2014 and 2018, so the postal and envelope settings
+(`mail_*`, `envelope_rate`, `env_*`, `turnout_sd`) stay as v1's 2022-only values.
+
+**Selection rule** (each night weighted equally; a night's coverage is the share of its frames, or district-frames,
+with the final inside the 90% interval, over frames with 1 to 95% of stations counted):
+
+1. **District model.** tau is the smallest value on the grid {0, 0.005, 0.01, 0.015, 0.02, 0.03, 0.05} for which the
+   pooled coverage (mean of the nights' coverages) is at least 0.90 and the worst night's coverage is at least 0.75,
+   **both** for the 106 district shares and for the national two-way district share, which drives the seats.
+   `sigma_mun0` and `kappa` are the grid values with the lowest mean (over nights) absolute district error at that tau.
+2. **List model.** The same rule for tau, on the national list share: pooled coverage at least 0.90 and worst night
+   at least 0.75, over the 2022 frames and the 2018 and 2014 simulated frames.
+3. Everything else is as in v1.
+
+The 2026 replay then runs with v2 and is reported next to v1 (coverage of the final, MAE by share counted, minutes to
+90% and 95% against the market and against the markets that were decided before the count, Brier).
+
+### v2 result: what the rule chose (`results/hungary/calibration_v2.json`, `analysis/hu_calibrate_v2.py`)
+
+| district model (sigma_mun0 0.10 in the v1 row, the lowest-error setting at that tau otherwise) | 2022 district / national coverage | 2018 district / national coverage | MAE 2022 / 2018 |
+|---|---|---|---|
+| v1: tau 0, sigma_mun0 0.10 | 0.93 / 1.00 | 0.91 / **0.54** | 1.29 / 2.45 pt |
+| **v2: tau 0.015, sigma_mun0 0.03**, kappa 200k | 0.93 / 1.00 | 0.90 / 0.80 | 1.29 / 2.45 pt |
+| tau 0.03, sigma_mun0 0.10 (not chosen) | 0.96 / 1.00 | 0.93 / 0.94 | 1.29 / 2.44 pt |
+
+| list model: coverage of the national list share | 2022 (5 frames) | 2018 (90 simulated) | 2014 (90 simulated) |
+|---|---|---|---|
+| v1: tau 0.05 (all 5 of 2022) | 1.00 | 0.98 | 1.00 |
+| **v2: tau 0.03** | 0.80 | 0.92 | 0.98 |
+| tau 0.02 (fails the rule) | 0.80 | 0.58 | 0.89 |
+
+- **v1's district tau of 0 would have failed the multi-night rule:** the national district share was inside its 90%
+  interval in only 54% of the 2018 frames. The district-level share was fine in both nights.
+- **Chosen:** district tau 0.015 (sigma_mun0 0.03, kappa 200,000); list tau 0.03. Nothing else changes.
+- **Disclosures** (made after the results were seen; the rule was not changed):
+  - The written rule did not say whether the coverage test is applied per (sigma_mun0, kappa) setting or to the mean over
+    them. The script follows v1's procedure: tau is the smallest value that any setting passes, then the lowest-error
+    passing setting is taken. The mean-over-settings reading would have chosen tau 0.03 instead (2018 national coverage
+    0.94).
+  - Both choices are on the edge: the pooled national district coverage is exactly 0.90 (1.00 and 0.80) and the pooled
+    list coverage is exactly 0.90 (0.80, 0.92 and 0.98).
+  - The 2018 simulation weights two orders equally. The five archived 2018 national list pages (from 22:43 CEST) give
+    the real order's early bias: the raw domestic opposition share was short of the final by 1.9, 1.6, 1.3, 1.0 and 0.7
+    points at 69%, 75%, 85%, 92% and 97.5% of stations counted. The simulated smallest-first order is short by 1.7 / 1.2
+    / 0.85 points at 60% / 75% / 90%, the random order by 0. The real 2018 order was therefore at least as biased as
+    smallest-first, so the random order is optimistic. Under smallest-first alone the v2 settings cover 0.82 of districts
+    and 0.60 of the national district shares (list tau 0.03: 0.84): **v2 is still not conservative against a
+    realistic order**. Under it, tau 0.03 would cover 0.86 / 0.89.
+  - The 2018 and 2014 frames leave out postal and envelope ballots (not comparable then), so the postal and envelope
+    settings remain 2022-only values from v1. 2014 cannot calibrate the district model (no prior on the same map).
+
+### v2 result: the 2026 replay against v1 (`configs/hu2026_v2.toml`, `analysis/hu_score.py`, `analysis/hu_export_v2.py`)
+
+Same 40 night publications, same prior, same markets. Only the uncertainty settings differ. Evidence label:
+**sensitivity, chosen after the result was known**; v1 stays the headline. The site shows v1 and v2 for the six
+dashboard races (`P_sensitivity` in the timeline, `stats.sensitivity`).
+
+**v1 already used one night (2022), so v2 is the first multi-night version. It changes very little:**
+
+| | v1 | v2 |
+|---|---|---|
+| 90% coverage of the final, 1-95% counted: list / seats | 0.998 / 1.00 | 0.998 / 1.00 |
+| list share error at 1% / 5% / 10% / 25% counted (model, pts) | -10.20 / -3.83 / -2.91 / -1.60 | the same (the point estimate does not depend on tau) |
+| seats share error at 1-5% / 10% / 25% counted (model, pts; raw -6.64 / -3.97 / -2.12) | -2.23 / -0.66 / +0.13 | -2.22 / -0.67 / +0.13 |
+| first publication: Tisza seats | 115 ± 6 | 115 ± 8 |
+| first publication: P(Tisza ≥ 120) / P(≥ 130) (outcome: yes; market 0.69 / 0.34) | 0.23 / 0.006 | 0.32 / 0.044 |
+| contested markets (20): model settled first / market first; median lead | 13 / 5; +11.5 min | 12 / 6; +14.0 min |
+| Brier over all 39 markets: model / market | 0.0794 / 0.0072 | 0.0789 / 0.0072 |
+
+- **Coverage did not move.** The final two-way shares were already inside v1's 90% intervals in every minute window
+  that counts (seats) or nearly every one (list 0.998), including the first publication (district share 57.9 ± 2.3
+  against a final of 60.1). The miss in 2026 is the seat count, which v2 only partly widens: at the first publication
+  141 seats is 3.1 sd above v2's 115.5 (it was 4.3 sd above v1's 115 ± 6), so the 130+ markets still start at 4%.
+- The widest changes are on the list race: with the lower list tau (0.03 against 0.05) the model settles on the
+  list winner 20 minutes earlier (-115 to -95 min against a market that was at 0.95 before the count), and on the
+  9+ margin 10 minutes earlier.
+- **Minutes to 0.90 / 0.95 on the outcome against Polymarket** (positive = model first; within the 19:00-08:00 CEST
+  window; v1 / v2):
+
+  | race | market before the count | to 0.90 | to 0.95 |
+  |---|---|---|---|
+  | most seats Tisza | 0.895 (contested) | +11 / +11 | +30 / +30 |
+  | tisza 130+ seats | 0.34 (contested) | +37 / +27 | +54 / +44 |
+  | tisza 120+ seats | 0.69 (contested) | +27 / +27 | +51 / +51 |
+  | list winner Tisza | 0.95 (**decided before the count**) | -115 / -95 | -41 / -21 |
+  | list margin 9+ | 0.70 (contested) | -67 / -57 | -69 / -49 |
+  | turnout 77-80% | 0.675 (contested) | neither settles in the window | neither |
+
+  Nineteen of the 39 markets were already ≥ 0.90 or ≤ 0.10 at the first publication, so "minutes ahead" there is
+  not information the count supplied.
+- The two-race Brier of the edge-audit window rises from 0.144 to 0.230, but its window shrinks from 58 to 38 minutes
+  (it ends when model and market have both settled, and the v2 list model settles sooner), so the two numbers are
+  not comparable. The all-market figure is the one to read.
+- No profit test was run for v2 (`signals` is skipped for sensitivity configs). v1's result stands.
 
 ## Evidence: not pre-registered
 
@@ -187,9 +306,10 @@ The results:
 
 - **Code:**
   - `src/brunder/hungary.py`
-  - `analysis/hu_fetch.py`, `hu_calibrate.py`, `hu_score.py`, `hu_export.py`, `hu_geo.py`
+  - `analysis/hu_fetch.py`, `hu_calibrate.py`, `hu_calibrate_v2.py`, `hu_score.py`, `hu_export.py`, `hu_export_v2.py`, `hu_geo.py`
   - `tests/test_hungary.py`
-- **Config:** `configs/hu2026_v1.toml`, to be registered by the integrator.
+- **Config:** `configs/hu2026_v1.toml`, to be registered by the integrator; `configs/hu2026_v2.toml` (sensitivity: not
+  to be registered as a headline; settings chosen after the result was known).
 - **Site:**
   - `site/data/hu2026/{meta,timeline,units,stats,entry}.json`. Timeline rows and map frames cover poll close (19:00
     CEST) to 08:00 CEST, i.e. the 40 night publications. The official final is a meta note and `stats.final`; later
@@ -206,6 +326,11 @@ uv run python analysis/hu_fetch.py markets
 uv run python analysis/hu_calibrate.py          # 2022 only
 uv run python analysis/hu_score.py configs/hu2026_v1.toml
 uv run python analysis/hu_geo.py && uv run python analysis/hu_export.py
+# v2 (sensitivity)
+uv run python analysis/hu_fetch.py nvi && uv run python analysis/hu_fetch.py wayback2018
+uv run python analysis/hu_calibrate_v2.py       # rule in the "v2" section; writes results/hungary/calibration_v2.json
+uv run python analysis/hu_score.py configs/hu2026_v2.toml    # results/hungary_v2/; no profit test
+uv run python analysis/hu_export_v2.py          # adds the v2 fields to site/data/hu2026 (run after hu_export.py)
 ```
 
 ## Limitations
@@ -213,7 +338,11 @@ uv run python analysis/hu_geo.py && uv run python analysis/hu_export.py
 - The unit is the district, not the polling station: there is no station-level count over time without about 3,200
   requests per publication.
 - The 2022 calibration rests on 9 archived frames and one election. `env_sd` is a judgment.
-- The district τ was calibrated to 0. The first 2026 publication's seat interval was too narrow.
+- The district τ of v1 was calibrated to 0 on one night. The first 2026 publication's seat interval was too narrow;
+  v2 (τ 0.015, from two nights) widens it only partly.
+- v2's 2018 and 2014 nights use simulated counting orders (no timeline exists); the real 2018 order was at least as
+  biased as the "smallest first" order, which v2's intervals do not cover well (0.82 of districts, 0.60 of national
+  shares). v2's choice is on the edge of the rule.
 - Third-party votes are projected at their counted share with a 10% shared error.
 - The next-PM price is mapped to "most seats".
 - The 2018 postal split used as the 2022 calibration prior is an assumption (5% opposition). It affects only the 2022
