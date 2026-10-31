@@ -41,6 +41,30 @@ export const pct = (x, d = 1) => (x == null || Number.isNaN(x) ? "–" : `${(100
 export const num = (x, d = 2) => (x == null || Number.isNaN(x) ? "–" : x.toFixed(d));
 export const usd = (x) => (x == null ? "–" : `$${Math.round(x).toLocaleString("en-US")}`);
 export const pts = (x, d = 1) => (x == null ? "–" : `${x.toFixed(d)} pt`);
+// A probability is stored for side a. Presentation can instead name whichever side leads while
+// preserving that underlying value. `compact` uses party initials for US races and otherwise lets
+// CSS truncate the side's name.
+export const sideLabel = (side, compact = false) => {
+  if (!side) return "–";
+  if (compact && side.id === "dem") return "D";
+  if (compact && side.id === "rep") return "R";
+  return side.name ?? side.id ?? "–";
+};
+export const probabilityLead = (p, a, b) => {
+  if (p == null || !Number.isFinite(p)) return null;
+  const aLeads = p >= 0.5;
+  return { side: aLeads ? a : b, other: aLeads ? b : a, chance: aLeads ? p : 1 - p, aLeads };
+};
+// Compact two-colour probability bar. Text names the leader; the bar keeps side a on the left and
+// side b on the right, so every source can be compared without mentally reversing the probability.
+export function splitChanceHTML(p, a, b, { compact = false, cls = "", source = "" } = {}) {
+  const lead = probabilityLead(p, a, b);
+  if (!lead) return `<span class="chance-est empty">–</span>`;
+  const ap = Math.max(0, Math.min(1, p));
+  const name = sideLabel(lead.side, compact);
+  const full = `${source ? `${source}: ` : ""}${lead.side?.name ?? name} ${pct(lead.chance, 0)}; ${a?.name ?? "side a"} ${pct(ap, 0)}, ${b?.name ?? "side b"} ${pct(1 - ap, 0)}`;
+  return `<span class="chance-est ${cls}" data-p="${p}" title="${esc(full)}"><span class="chance-est-value"><i style="background:${esc(lead.side?.color ?? C.muted)}"></i><b>${esc(name)}</b> ${pct(lead.chance, 0)}</span><span class="chance-split" role="img" aria-label="${esc(full)}"><i style="width:${(100 * ap).toFixed(1)}%;background:${esc(a?.color ?? C.muted)}"></i><i style="width:${(100 * (1 - ap)).toFixed(1)}%;background:${esc(b?.color ?? C.muted)}"></i><b></b></span></span>`;
+}
 // a vote count in short form: "1.2M", "45k", "8.3k", "830"
 export const votesShort = (v) => {
   if (v == null || Number.isNaN(v)) return "–";

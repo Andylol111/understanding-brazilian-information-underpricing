@@ -382,18 +382,17 @@ SENS_CHECK = r"""async ({ id, keys }) => {
   if (!rows.some((d) => keys.every((k) => d[col(k)] != null))) return [...fails, `${id}: no timeline row of ${raceId} carries ${keys.map(col)}`];
   if (row) {
     window.__dashAudit.setTime(Date.parse(row.t));
-    const chip = await until(() => { const c = document.querySelector("#readout .chip.ro-ch"); return c && /^Chance:/.test(c.querySelector("small")?.textContent ?? "") ? c : null; });
-    if (!chip) return [...fails, `${id}: no Chance chip with values at ${row.t} (readout: ${document.querySelector("#readout").innerText.slice(0, 120)})`];
-    const names = chip.querySelector("small").textContent.replace(/^Chance:\s*/, "").split(" · ").map((x) => x.trim());
-    const vals = [...chip.querySelectorAll("b > span")].map((x) => x.textContent.trim());
-    const byName = Object.fromEntries(names.map((n, i) => [n, vals[i]]));
+    const chip = await until(() => { const c = document.querySelector("#readout .chip.ro-ch"); return c && /^Chance of winning$/.test(c.querySelector("small")?.textContent ?? "") ? c : null; });
+    if (!chip) return [...fails, `${id}: no chance split bars at ${row.t} (readout: ${document.querySelector("#readout").innerText.slice(0, 120)})`];
+    const byName = Object.fromEntries([...chip.querySelectorAll("b > span[data-source]")].map((x) => [x.dataset.source, Number(x.dataset.p).toFixed(2)]));
+    const names = Object.keys(byName);
     const f2 = (x) => x.toFixed(2);
-    if (byName.model !== f2(row.P_v2 ?? row.P)) fails.push(`${id}: chip model ${byName.model} is not the timeline's ${f2(row.P_v2 ?? row.P)} at ${row.t}`);
+    if (byName.model !== f2(row.P_v2 ?? row.P)) fails.push(`${id}: chance bar model ${byName.model} is not the timeline's ${f2(row.P_v2 ?? row.P)} at ${row.t}`);
     for (const k of keys) {
-      if (!(k in byName)) fails.push(`${id}: chip has no ${k} (${names})`);
-      else if (byName[k] !== f2(row[col(k)])) fails.push(`${id}: chip ${k} ${byName[k]} is not the timeline's ${f2(row[col(k)])} at ${row.t}`);
+      if (!(k in byName)) fails.push(`${id}: chance bars have no ${k} (${names})`);
+      else if (byName[k] !== f2(row[col(k)])) fails.push(`${id}: chance bar ${k} ${byName[k]} is not the timeline's ${f2(row[col(k)])} at ${row.t}`);
     }
-    if (keys.length === 1 && names.includes("mix")) fails.push(`${id}: chip shows mix for an election without it`);
+    if (keys.length === 1 && names.includes("mix")) fails.push(`${id}: chance bars show mix for an election without it`);
   } else if (keys.includes("mix")) fails.push(`${id}: no unsettled minute to compare the chip with the timeline`);
   // races table: one sortable column per key, headed by the key
   const heads = [...document.querySelectorAll("#pane-races table.races thead th button")];
@@ -401,10 +400,10 @@ SENS_CHECK = r"""async ({ id, keys }) => {
     const b = heads.find((h) => h.dataset.key === `sens_${k}`);
     if (!b || b.textContent.trim() !== k) { fails.push(`${id}: races table has no "${k}" column`); continue; }
     const idx = heads.indexOf(b);
-    const cellsOf = () => [...document.querySelectorAll("#pane-races table.races tbody tr")].map((tr) => tr.children[idx]?.textContent.trim());
-    await until(() => cellsOf().some((c) => /^\d(\.\d+)?$/.test(c)), 30); // the list refreshes at most every 200 ms
+    const cellsOf = () => [...document.querySelectorAll("#pane-races table.races tbody tr")].map((tr) => tr.children[idx]?.querySelector(".chance-est")?.dataset.p);
+    await until(() => cellsOf().some((c) => c != null && Number.isFinite(+c)), 30); // the list refreshes at most every 200 ms
     const cells = cellsOf();
-    if (!cells.some((c) => /^\d(\.\d+)?$/.test(c))) fails.push(`${id}: the ${k} column has no numbers (${cells.slice(0, 4)})`);
+    if (!cells.some((c) => c != null && Number.isFinite(+c))) fails.push(`${id}: the ${k} column has no probability bars (${cells.slice(0, 4)})`);
     b.click();
     if (b.parentElement.getAttribute("aria-sort") === "none") fails.push(`${id}: the ${k} column does not sort`);
   }
@@ -598,7 +597,7 @@ async def check_page(
                     )
                     if not replay["domain"] or not (replay["domain"][0] < replay["now"] < replay["domain"][1]):
                         result.failures.append(f"pl2025r2 did not open mid-night: {replay}")
-                    if not replay["hint"] or not re.search(r"Chance.*(?:0\.[1-9]|[1-9]\.\d)", replay["readout"], re.S):
+                    if not replay["hint"] or not re.search(r"(?:Chance of winning|leads).*[0-9]+%", replay["readout"], re.S):
                         result.failures.append(f"pl2025r2 replay hint/readout is missing or all-zero: {replay}")
                     if not replay["decidedTags"]:
                         result.failures.append("pl2025r2 Races table has no decided-before-count tag")
@@ -643,12 +642,12 @@ async def check_page(
                     expected_layers = {"Model", "Polls", "Polymarket", "Kalshi", "Turnout", "Early vote"}
                     if not expected_layers.issubset(set(us_layers["layers"])) or not us_layers["allOn"]:
                         result.failures.append(f"us2026 pre-count layer chips are incomplete: {us_layers}")
-                    expected_chips = ("Model, polls", "Polls", "Market-implied", "Chance:", "Turnout", "Early vote")
+                    expected_chips = ("Model, polls", "Polls", "Market-implied", "Chance of winning", "Turnout", "Early vote")
                     if any(not any(label.startswith(want) for label in us_layers["chips"]) for want in expected_chips):
                         result.failures.append(f"us2026 pre-count readout chips are incomplete: {us_layers}")
                 if "id=us2026" in case.path:
                     bad = await page.evaluate(
-                        """() => { const re = /baseline|model only|not a forecast|not traded|rough/i;
+                        """() => { const re = /\\b(?:baseline|model only|not a forecast|not traded|rough)\\b/i;
                           const hits = new Set();
                           for (const el of document.body.querySelectorAll('*')) {
                             if (['SCRIPT', 'STYLE'].includes(el.tagName)) continue;

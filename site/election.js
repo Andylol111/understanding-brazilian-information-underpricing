@@ -410,7 +410,7 @@ async function loadHouseLive() {
 }
 // after a House read: the district's readout and chart, the House races and statistics
 function houseLiveShown() {
-  if (houseShown()) { $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel)); drawChart(); }
+  if (houseShown()) { $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel), showOf()); drawChart(); }
   S.ov?.resize(); // refresh the House map's registered-model colours and hover figures
   if (S.office === "house" && S.rows) {
     if (!$("pane-races").querySelector(".hr-filter")?.value) buildRaceList(); // not under a reader's filter
@@ -919,7 +919,7 @@ function render() {
   $("scrub-time").innerHTML = S.preview != null
     ? `<b>${clock(S.preview, S.tz)}</b> preview · scrubber at ${clock(S.t, S.tz)}`
     : `${PRE() ? `${esc(dayOf(S.t))} ` : ""}<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing && !PRE() ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
-  if (houseShown() && seriesOf(`house:${S.houseSel}`)) $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel));
+  if (houseShown()) $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel), showOf());
   if (S.race && !houseShown() && !S.overviewDefault) {
     refreshLayers();
     const show = showOf();
@@ -1563,7 +1563,7 @@ function drawChart() {
     $("tl-view").hidden = true; $("tl-feed").hidden = true;
     return;
   }
-  if (houseShown()) { $("tl-feed").hidden = true; districtChart($("timeline"), S.houseSel, districtModel(S.houseSel)); return; } // a House district: its chances
+  if (houseShown()) { $("tl-feed").hidden = true; districtChart($("timeline"), S.houseSel, districtModel(S.houseSel), showOf()); return; } // a House district: its chances
   const extra = !!S.race.ov && !rowsOf(S.race.race_id)?.length;
   if (extra && S.nat && !S.hubPolls) {
     // the poll average's history: from the hub's polls file, then this chart again
@@ -1636,8 +1636,13 @@ function updateReplayHint(show = showOf()) {
 // A chip or Reset in the "Show:" bar: everything that draws a layer is drawn again.
 function layersChanged() {
   if (S.overviewDefault || !S.race) return;
-  if (!houseShown()) {
-    if (S.office !== "house") { buildRaceList(); updateLists(S.preview ?? S.t); }
+  if (S.office === "house") {
+    buildRaceList();
+    if (houseShown()) drawChart();
+    else houseSummary();
+  } else {
+    buildRaceList();
+    updateLists(S.preview ?? S.t);
     drawChart();
     updateScrubber();
   }
@@ -1991,7 +1996,7 @@ async function refresh() {
 function buildRaceList() {
   if (S.office === "house") {
     S.list = null;
-    houseRaceTable($("pane-races"), { state: S.ov?.state ?? null, selected: S.houseSel, onPick: (id) => selectDistrict(id), modelOf: (id) => districtModel(id) });
+    houseRaceTable($("pane-races"), { state: S.ov?.state ?? null, selected: S.houseSel, onPick: (id) => selectDistrict(id), modelOf: (id) => districtModel(id), show: showOf() });
     return;
   }
   const show = showOf();
@@ -2275,7 +2280,7 @@ function setLayer(k) {
 // House: the district list beside the map (the whole country, or the open state)
 function houseSummary() {
   if (S.office !== "house") return;
-  houseList($("nat-summary"), { state: S.ov.state, onPick: (id) => selectDistrict(id) });
+  houseList($("nat-summary"), { state: S.ov.state, onPick: (id) => selectDistrict(id), modelOf: (id) => districtModel(id), show: showOf() });
 }
 // pick a district from a list or a tab: open its state, then select it
 function selectDistrict(id) {
@@ -2289,10 +2294,10 @@ function showDistrict(id) {
   S.houseSel = id;
   $("race").value = `house:${id}`;
   S.list?.select(null);
-  $("readout").innerHTML = districtReadout(id, districtModel(id));
+  $("readout").innerHTML = districtReadout(id, districtModel(id), showOf());
   $("tl-view").hidden = true;
   $("tl-feed").hidden = true;
-  districtChart($("timeline"), id, districtModel(id));
+  districtChart($("timeline"), id, districtModel(id), showOf());
   showNational();
   renderCrumbs();
   refreshUsTab();

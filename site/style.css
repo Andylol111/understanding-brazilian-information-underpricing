@@ -325,13 +325,48 @@ table.kv td { padding: 2px 6px 2px 0; border-bottom: 1px solid var(--rule); }
 .chip.m b { color: var(--model); }
 .chip.r b { color: var(--raw); }
 .chip.k b { color: var(--market); }
-.chip.ro-ch b { font-size: 15px; }
+.chip.ro-ch { flex: 1 1 260px; }
+.chip.ro-ch > b { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 2px; white-space: normal; }
+.chip.ro-ch .chance-est { width: 120px; color: var(--ink); font-weight: 400; }
 .thin-poll { color: var(--muted); }
 .thin-mark { color: var(--muted); font-size: 0.8em; cursor: help; }
 .chip .m { color: var(--model); }
 .ro-gap { font: 13px/1.4 var(--sans); margin: 6px 0 0; }
 .ro-gap b { font-size: 14px; }
 .ro-frame { font: 12px var(--sans); color: var(--muted); margin: 2px 0 0; }
+/* Leader-first probability: the text names the favoured side; the bar still reserves one side for
+   each candidate, making 50–50 and disagreements between sources visible at a glance. */
+.lead-call { margin: 1px 0 6px; font: 700 19px/1.2 var(--serif); }
+.lead-call .lead-side { border-bottom: 3px solid var(--side); padding-bottom: 1px; }
+.lead-sources { display: flex; flex-wrap: wrap; gap: 2px 7px; margin-top: 5px; font: 600 13px/1.25 var(--sans); color: var(--ink); }
+.lead-sources > span { white-space: nowrap; }
+.lead-sources > span + span::before { content: "·"; margin-right: 7px; color: var(--muted); }
+.race-context { margin: -1px 0 7px; font: 12.5px/1.35 var(--sans); color: var(--muted); }
+.chance-est { display: inline-grid; grid-template-rows: auto 5px; gap: 2px; width: 96px; max-width: 100%; vertical-align: middle; font: 11.5px/1.1 var(--sans); font-variant-numeric: tabular-nums; text-align: left; }
+.chance-est.empty { display: inline; color: var(--muted); }
+.chance-est-value { display: flex; align-items: baseline; gap: 3px; min-width: 0; white-space: nowrap; }
+.chance-est-value > i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.chance-est-value > b { overflow: hidden; text-overflow: ellipsis; }
+.chance-split { position: relative; display: flex; width: 100%; height: 5px; overflow: hidden; border-radius: 3px; background: var(--rule); }
+.chance-split > i { display: block; height: 100%; }
+.chance-split > b { position: absolute; left: calc(50% - .5px); top: -1px; width: 1px; height: 7px; background: var(--paper); box-shadow: 0 0 0 .5px #777; }
+.estimate-bars { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 6px 10px; margin: 4px 0 7px; }
+.estimate-row { display: grid; grid-template-columns: minmax(58px, auto) 1fr; align-items: end; gap: 7px; min-width: 0; }
+.estimate-row > small { font: 11px/1.1 var(--sans); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.estimate-row .chance-est { width: 100%; }
+.chance-chart { margin: 7px 0 4px; }
+.chance-chart .tab-h { margin: 0 0 7px; }
+.chance-chart-row { display: grid; grid-template-columns: 88px 1fr; gap: 9px; align-items: center; margin: 7px 0; }
+.chance-chart-source { font: 12px var(--sans); color: var(--muted); text-align: right; }
+.chance-chart-row .chance-est { width: 100%; grid-template-rows: auto 10px; }
+.chance-chart-row .chance-split { height: 10px; }
+.chance-chart-sides { display: flex; justify-content: space-between; gap: 16px; margin: 0 0 1px 97px; font: 11px/1.2 var(--sans); }
+.chance-chart-sides span:last-child { text-align: right; }
+.chance-chart-polls { margin: 6px 0 0; padding-top: 6px; border-top: 1px solid var(--rule); }
+.chance-gap { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.chance-gap small { display: block; color: var(--muted); font-size: 10px; }
+.races td .chance-est { width: 78px; }
+.races td .chance-est-value { justify-content: flex-end; }
 
 /* the "Show:" bar over the readout (dash-layers.js): one toggle chip per layer; wraps on narrow screens */
 .layer-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 8px; font: 12px/1 var(--sans); }

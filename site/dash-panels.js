@@ -1,7 +1,7 @@
 // Right-hand panels of the dashboard: the readout at the current time, and the three tabs
 // (races, statistics, method & sources). Pure rendering from values the controller passes in.
 import * as d3 from "./vendor/d3.js";
-import { C, esc, pct, num, usd, votesShort, modelP, sensP, marginText, thinPolls, thinLabel, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes } from "./common.js";
+import { C, esc, pct, num, usd, votesShort, modelP, sensP, marginText, thinPolls, thinLabel, clock, tzName, evidenceLabel, EVIDENCE, leadMinutes, probabilityLead, splitChanceHTML, sideLabel } from "./common.js";
 
 const PLATFORM = { polymarket: "Polymarket", kalshi: "Kalshi" };
 const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}`);
@@ -18,17 +18,27 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   // show: which layers are on (election.js showOf); a missing field counts as on
   const S = (k) => show[k] !== false, SENS = (k) => show.sens?.[k] !== false;
   const mExists = show.marketExists !== false;
-  const a = esc(race.a.name);
   const won = winner ? ` — ${esc(winner)} won` : "";
-  const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)}${won} · figures for ${a}</span></p>${race.source ? `<p class="note ro-src">Results: <a href="${esc(race.source.url)}">${esc(race.source.name)}</a> (secondary source)</p>` : ""}`;
+  const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)}${won}</span></p>${race.source ? `<p class="note ro-src">Results: <a href="${esc(race.source.url)}">${esc(race.source.name)}</a> (secondary source)</p>` : ""}`;
   if (!row) { el.innerHTML = `${head}<p class="note">No data for this race at this time.</p>`; return; }
   const chip = (label, value, cls = "", sub = "", title = "") => `<span class="chip ${cls}"${title ? ` title="${esc(title)}"` : ""}><small>${label}</small><b>${value}</b>${sub ? `<i>${sub}</i>` : ""}</span>`;
   const chips = [];
+  const sideName = (side, compact = false) => `${sideLabel(side, compact)}${side?.id === "dem" ? " (D)" : side?.id === "rep" ? " (R)" : ""}`;
+  const leadShare = (share, compact = false) => {
+    const lead = probabilityLead(share, race.a, race.b);
+    return lead ? `<span style="color:${esc(lead.side.color)}">${esc(sideName(lead.side, compact))} ${pct(lead.chance)}</span>` : "–";
+  };
+  const leadMargin = (v, compact = false) => {
+    if (v == null) return "–";
+    if (Math.abs(v) < 0.05) return "even";
+    const side = v > 0 ? race.a : race.b;
+    return `<span style="color:${esc(side.color)}">${esc(sideName(side, compact))} +${Math.abs(v).toFixed(1)}</span>`;
+  };
   if (countTimeline && !pre) {
     chips.push(chip("Counted", pct(row.counted, 0)));
-    if (S("raw")) chips.push(chip("Raw count", pct(row.raw), "r"));
+    if (S("raw")) chips.push(chip("Raw count", leadShare(row.raw), "r"));
   }
-  // US rows carry margins (Democratic minus Republican, points); other races show the share
+  // US rows carry margins for side a minus side b, in points; other races show two-candidate share.
   const mm = row.margin_v2 ?? row.margin_model ?? null;
   const margins = mm != null || row.margin_market != null || row.margin_polls != null;
   const mmSd = row.margin_v2 != null && row.sd_v2 != null ? 200 * row.sd_v2 : row.margin_model_sd;
@@ -36,39 +46,47 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   const mkt = mkP ?? mkK ?? null, mktP = mkP != null ? row.pm : row.kalshi;
   const who = "Model", whoTip = row.estimate ? "Estimate: 2024 county results shifted to the poll average" : "v3: poll average prior + county count (registered)";
   if (margins) {
-    if (S("model")) chips.push(chip(`${who}${row.margin_v2 != null ? ", polls" : ""}`, marginText(mm), "m", mm != null && mmSd != null ? `± ${mmSd.toFixed(1)}` : "", `${whoTip}. Margin, Democratic minus Republican, points; ± one standard deviation`));
-    if (S("polls")) chips.push(chip("Polls", marginText(row.margin_polls)));
-    if (mExists && (S("pm") || S("kalshi"))) chips.push(chip("Market-implied", marginText(mkt), "k", mkt != null ? `from ${num(mktP)}` : "", `the margin at which the model's uncertainty gives the ${mkP != null ? "Polymarket" : "Kalshi"} price${mkK != null && mkP != null ? `; Kalshi-implied ${marginText(mkK)}` : ""}`));
+    if (S("model")) chips.push(chip(`${who}${row.margin_v2 != null ? ", polls" : ""}`, leadMargin(mm), "m", mm != null && mmSd != null ? `± ${mmSd.toFixed(1)}` : "", `${whoTip}. Two-candidate margin; ± one standard deviation`));
+    if (S("polls")) chips.push(chip("Polls", leadMargin(row.margin_polls)));
+    if (mExists && (S("pm") || S("kalshi"))) chips.push(chip("Market-implied", leadMargin(mkt), "k", mkt != null ? `from ${num(mktP)}` : "", `the margin at which the model's uncertainty gives the ${mkP != null ? "Polymarket" : "Kalshi"} price${mkK != null && mkP != null ? `; Kalshi-implied ${marginText(mkK)}` : ""}`));
   } else if (S("model")) {
     const v2 = row.share_v2 != null, share = v2 ? row.share_v2 : row.share, sd = v2 ? row.sd_v2 : row.sd;
     const label = pre ? "Model, before votes" : "Model projection";
-    if (share != null || pre?.note) chips.push(chip(`${label}${v2 ? ", polls" : ""}`, share != null ? pct(share) : "–", "m", share != null && sd != null ? `± ${(164.5 * sd).toFixed(1)}` : "", share != null ? `${race.a.name}'s share of the two-candidate vote; ± the 90% band` : pre.note));
+    if (share != null || pre?.note) chips.push(chip(`${label}${v2 ? ", polls" : ""}`, share != null ? leadShare(share) : "–", "m", share != null && sd != null ? `± ${(164.5 * sd).toFixed(1)}` : "", share != null ? "Leader's projected share of the two-candidate vote; ± the 90% band" : pre.note));
   }
-  // Chances: headline model, optional post-result sensitivity, Polymarket and Kalshi.
-  const P = S("model") ? modelP(row) : null, two = row.P_v2 != null && row.P != null, sens = sensitivities.filter((s) => SENS(s.key)).map((s) => [sensP(row, s), s.key]);
+  // Each source gets a two-colour bar; the stored value remains P(side a) in data-p.
+  const P = S("model") ? modelP(row) : null, two = row.P_v2 != null && row.P != null;
+  const sens = sensitivities.filter((s) => SENS(s.key)).map((s) => [sensP(row, s), s.key]);
   const pmV = S("pm") ? row.pm : null, kxV = S("kalshi") ? row.kalshi : null;
-  const ch = [[P, "m", "model"], ...sens.map(([v, k]) => [v, "m", k]), [pmV, "k", "PM"],
-              [kxV, "kx", "Kalshi"]].filter(([v]) => v != null);
-  const chTip = `chance ${race.a.name} wins: ${P != null ? `${margins ? "model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}${sens.filter(([v]) => v != null).map(([v, k]) => `, ${k} sensitivity ${num(v)}`).join("")}${pmV != null || kxV != null ? "; " : ""}` : ""}${[pmV != null ? `Polymarket ${num(pmV)}` : "", kxV != null ? `Kalshi ${num(kxV)}` : ""].filter(Boolean).join("; ")}`;
-  if (ch.length) chips.push(settled ? chip("Chance", `settled${winner ? ` — ${esc(winner)} won` : ""}`, "ro-ch") : chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : "", chTip));
+  const chances = [[P, "m", "model"], ...sens.map(([v, k]) => [v, "m", k]), [pmV, "k", "Polymarket"], [kxV, "kx", "Kalshi"]].filter(([v]) => v != null);
+  const lead = probabilityLead(P ?? pmV ?? kxV ?? sens.find(([v]) => v != null)?.[0], race.a, race.b);
+  let leadCall = "";
+  if (settled) leadCall = `<p class="lead-call">${winner ? `${esc(winner)} won` : "Settled"}</p>`;
+  else if (lead) {
+    const figures = chances.map(([v, , label]) => `<span>${esc(label === "model" ? "Model" : label)} ${pct(lead.aLeads ? v : 1 - v, 0)}</span>`).join("");
+    leadCall = `<p class="lead-call"><span class="lead-side" style="--side:${esc(lead.side.color)}">${esc(sideName(lead.side))}</span> leads<span class="lead-sources">${figures}</span></p>`;
+  }
+  if (chances.length) {
+    const bars = chances.map(([v, cls, label]) => `<span class="${cls}" data-source="${esc(label)}" data-p="${v}">${splitChanceHTML(v, race.a, race.b, { compact: true, source: label })}</span>`).join("");
+    chips.push(chip("Chance of winning", bars, "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : ""));
+  }
   if (row.rem_total > 0 && S("model")) {
     const lean = row.rem_margin_total;
     chips.push(chip("Votes left (est.)", `≈ ${votesShort(row.rem_total)}`, "", lean != null ? `lean ${esc(lean >= 0 ? race.a.name : race.b.name)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)}` : "", "the model's estimate of the votes still to count and how they lean"));
   }
   if (turnout && S("turnout")) chips.push(chip("Turnout", esc(turnout.text), "", "", turnout.title));
   if (ev && S("early")) chips.push(chip("Early vote", esc(ev.short), "", "", ev.full));
-  // one line: the model against the market
   const market = pmV ?? kxV, marketName = pmV != null ? "Polymarket" : "Kalshi";
   let gap = "";
   if (margins && S("model") && mm != null && mkt != null) {
     const g = mkt - mm;
-    gap = `${who} ${marginText(mm)}, market-implied ${marginText(mkt)}: ${Math.abs(g) < 0.05 ? "the same margin" : `the market is <b>${Math.abs(g).toFixed(1)} pt</b> more ${g > 0 ? "Democratic" : "Republican"}`}.`;
+    gap = `${who} ${leadMargin(mm)}, market-implied ${leadMargin(mkt)}: ${Math.abs(g) < 0.05 ? "the same margin" : `<b>${Math.abs(g).toFixed(1)} pt</b> apart`}.`;
   } else if (P != null && market != null) {
-    const g = P - market;
-    gap = `Model ${num(P)}, ${marketName} ${num(market)}: gap <b>${num(Math.abs(g))}</b>${Math.abs(g) >= 0.005 ? `, model ${g > 0 ? "higher" : "lower"}` : ""}.`;
+    const fav = probabilityLead(P, race.a, race.b), marketOnFav = fav.aLeads ? market : 1 - market, g = marketOnFav - fav.chance;
+    gap = `${marketName} vs model on ${esc(fav.side.name)}: <b>${Math.abs(100 * g).toFixed(0)} point${Math.abs(100 * g) >= 1.5 ? "s" : ""}</b> ${Math.abs(g) < 0.005 ? "apart" : g > 0 ? "more confident" : "less confident"}.`;
   } else if (P != null && mExists && (S("pm") || S("kalshi"))) gap = "No market price at this time.";
   const notes = [frameT != null && countTimeline && !pre ? `Map: ${clock(frameT, tz)} frame` : "", pre && row.live && pre.live ? esc(pre.live) : "", pre?.basis ? esc(pre.basis) : ""].filter(Boolean).join(" · ");
-  el.innerHTML = `${head}<div class="chips">${chips.join("")}</div>${gap || notes ? `<p class="ro-gap">${gap}${notes ? ` <span class="ro-frame">${notes}</span>` : ""}</p>` : ""}`;
+  el.innerHTML = `${head}${leadCall}<div class="chips">${chips.join("")}</div>${gap || notes ? `<p class="ro-gap">${gap}${notes ? ` <span class="ro-frame">${notes}</span>` : ""}</p>` : ""}`;
 }
 
 /* ---------------------------------------------------------------- races tab */
@@ -99,7 +117,7 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, sensitiv
     ...sens.map((s) => [`sens_${s.key}`, esc(s.key), true]),
     ...(hasPm ? [["pm", "Polymarket", true]] : []),
     ...(hasKx ? [["k", "Kalshi", true]] : []),
-    ...(hasGap ? [["gap", "Gap", true]] : []),
+    ...(hasGap ? [["gap", "Market vs model", true]] : []),
     ...(hasLead ? [["lead", "Lead from 1% counted (min)", true]] : []),
     ...(hasProfit ? [["profit", "Profit on $10,000", true]] : []),
   ];
@@ -107,10 +125,10 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, sensitiv
   if (SORT.key !== "order" && !cols.some((c) => c[0] === SORT.key)) { SORT.key = "order"; SORT.dir = 1; } // the sorted column is not shown
   const note = [
     anyThin ? "† 3 or fewer polls in the poll average.<br>" : "",
-    hasModel ? "Model: the model's probability that the first-named candidate wins, at the scrubber time." : "",
+    hasModel ? "Each probability cell names the leading side and shows both sides in its split bar." : "",
     ...sens.map((s) => ` ${esc(s.key)}: ${esc(s.text)}.`),
     hasPm || hasKx ? ` ${hasPm && hasKx ? "Polymarket and Kalshi: each venue's price" : hasPm ? "Polymarket: the price" : "Kalshi: the price"} for the same outcome (–: not listed there).` : "",
-    hasGap ? ` Gap: model minus the ${hasPm ? `Polymarket price${hasKx ? " (or Kalshi's, where only Kalshi lists the race)" : ""}` : "Kalshi price"}.` : "",
+    hasGap ? ` Market vs model: the market's confidence in the model leader, minus the model's, in percentage points.` : "",
     hasLead ? " Lead: minutes by which the model reached 90% on the winner before Polymarket did, both counted from the moment the race reached 1% counted (negative: after). A “decided before count” market was already at least 90% on the winner at poll close and stayed at least 80%; its lead is not meaningful." : "",
     hasProfit ? " Profit on $10,000: what the election's $10,000 made in this race under the buying rule in the Statistics tab (hover for the trades that qualified)." : "",
   ].join("");
@@ -126,7 +144,7 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, sensitiv
       if (k === "name") return `<td>${esc(raceName(r))}${winner ? ` ${esc(winner)}` : ""}${decision?.decided ? ` <span class="label decided">decided before count</span>` : ""}${thinPolls(nPollsOf(r)) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(nPollsOf(r)))}">†</sup>` : ""}</td>`;
       if (k === "P" || k.startsWith("sens_")) return `<td class="n m"></td>`;
       if (k === "k") return `<td class="n kx"></td>`;
-      if (k === "gap") return `<td class="n"><span class="gapbar"><i></i></span></td>`;
+      if (k === "gap") return `<td class="n chance-gap"></td>`;
       if (k === "lead") return `<td class="n">${decision?.decided ? "not meaningful" : lead(r) == null ? "–" : signed(lead(r), 0)}</td>`;
       if (k === "profit") return `<td class="n" title="${esc(profitTitle(pr))}">${profitText(pr)}</td>`;
       return `<td class="n"></td>`;
@@ -164,27 +182,25 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, sensitiv
   }
   const [iP, iPm, iK, iGap] = ["P", "pm", "k", "gap"].map(at);
   const iSens = sens.map((s) => at(`sens_${s.key}`));
+  const setChance = (cell, p, race, source) => {
+    cell.innerHTML = splitChanceHTML(p, race.a, race.b, { compact: true, source });
+  };
   return {
     update(valuesByRace) {
       st.values = valuesByRace;
       for (const x of rows) {
         const v = valuesByRace.get(x.r.race_id) ?? {};
         const c = x.cells;
-        if (iP >= 0) c[iP].textContent = num(v.P);
-        sens.forEach((s, i) => { c[iSens[i]].textContent = num(v.sens?.[s.key]); });
-        if (iPm >= 0) c[iPm].textContent = num(v.pm);
-        if (iK >= 0) c[iK].textContent = num(v.k);
+        if (iP >= 0) setChance(c[iP], v.P, x.r, "Model");
+        sens.forEach((s, i) => setChance(c[iSens[i]], v.sens?.[s.key], x.r, s.key));
+        if (iPm >= 0) setChance(c[iPm], v.pm, x.r, "Polymarket");
+        if (iK >= 0) setChance(c[iK], v.k, x.r, "Kalshi");
         if (iGap >= 0) {
-          const gapCell = c[iGap];
-          const bar = gapCell.firstChild.firstChild;
-          const m = market(v);
-          if (v.P != null && m != null) {
-            const g = v.P - m;
-            bar.style.width = `${Math.min(50, Math.abs(g) * 50)}%`;
-            bar.style.left = g >= 0 ? "50%" : `${50 - Math.min(50, Math.abs(g) * 50)}%`;
-            bar.style.background = g >= 0 ? C.model : C.market;
-            gapCell.title = `gap ${signed(g, 2)}`;
-          } else bar.style.width = "0";
+          const gapCell = c[iGap], m = market(v), fav = probabilityLead(v.P, x.r.a, x.r.b);
+          if (fav && m != null) {
+            const marketOnFav = fav.aLeads ? m : 1 - m, points = 100 * (marketOnFav - fav.chance);
+            gapCell.innerHTML = `<span title="${esc(`${marketOnFav >= fav.chance ? "Market" : "Model"} is more confident in ${fav.side.name}`)}">${Math.abs(points) < 0.5 ? "0" : `${points > 0 ? "+" : "−"}${Math.abs(points).toFixed(0)}`}<small>pt</small></span>`;
+          } else gapCell.textContent = "–";
         }
       }
       if (!["order", "name", "lead", "profit"].includes(SORT.key)) sort();

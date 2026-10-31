@@ -8,7 +8,7 @@
 // race: a Senate/governor key ("tx-sen"), a House district ("house:TX-07") or null; state: "tx"
 // or null (national); onRace(key): the reader clicked a race in a table.
 import * as d3 from "./vendor/d3.js";
-import { C, getJSON, esc, num, pct, fmtDate, marginText, probit, plural } from "./common.js";
+import { C, getJSON, esc, num, pct, fmtDate, marginText, probit, plural, splitChanceHTML, probabilityLead } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", POLLS = "#8d8a82";
 const SORT = {}; // each table's sort, kept across renders: { [table id]: { key, dir } }
@@ -56,6 +56,13 @@ export function renderUsTab(H, tab, el, ctx = {}) {
 const nameOf = (H, k) => H.names.get(k) ?? k.toUpperCase();
 const stateOf = (H, k) => H.ov.get(k)?.state ?? k.split("-")[0];
 const stateName = (H, st) => H.stateNames.get(st) ?? st.toUpperCase();
+const usSides = (H, race) => {
+  const r = H.ov.get(race) ?? {};
+  return {
+    a: { id: "dem", name: r.dem_side?.name ?? "Democratic side", color: DEM },
+    b: { id: "rep", name: r.incumbent_party === "R" ? r.incumbent : "Republican side", color: REP },
+  };
+};
 
 /* ---------------------------------------------------------------- small charts */
 
@@ -337,9 +344,10 @@ function drawMarkets(H, el, race) {
   const pm = M?.pm, k = M?.kalshi;
   const sd = mg.market_sd_used ?? null;
   const modelM = mg.model_polls ?? mg.model_v2 ?? mg.model ?? mg.estimate ?? null;
-  el.innerHTML = `<p class="hub-lede"><b>${esc(nameOf(H, race))}</b>: the chance the Democratic side wins on each venue, and the same prices read as margins next to the polls and the model.</p>
-    <div class="chips">${pm ? fig("Polymarket bid / ask", `${num(pm.bid)} / ${num(pm.ask)}`) + fig("Polymarket volume (total)", usd(pm.volume_total)) : ""}${k ? fig("Kalshi bid / ask", `${num(k.bid)} / ${num(k.ask)}`) : ""}${fig("Model margin", marginText(modelM), mg.estimate != null && mg.model_polls == null && mg.model_v2 == null && mg.model == null ? "Estimate: 2024 county results shifted to the poll average" : "v3: poll average prior + county count (registered)")}${fig("Polls", marginText(mg.polls))}</div>
-    <h3 class="tab-h">Price (chance the Democratic side wins)</h3><div class="hub-chart" data-slot="price"></div>
+  const sides = usSides(H, race);
+  el.innerHTML = `<p class="hub-lede"><b>${esc(nameOf(H, race))}</b>: market history and two-party margins for ${esc(sides.a.name)} (D) and ${esc(sides.b.name)} (R).</p>
+    <div class="chips">${pm ? fig("Polymarket leader", splitChanceHTML(price(pm), sides.a, sides.b, { compact: true, source: "Polymarket" })) + fig("Polymarket volume (total)", usd(pm.volume_total)) : ""}${k ? fig("Kalshi leader", splitChanceHTML(price(k), sides.a, sides.b, { compact: true, source: "Kalshi" })) : ""}${fig("Model margin", marginText(modelM), mg.estimate != null && mg.model_polls == null && mg.model_v2 == null && mg.model == null ? "Estimate: 2024 county results shifted to the poll average" : "v3: poll average prior + county count (registered)")}${fig("Polls", marginText(mg.polls))}</div>
+    <h3 class="tab-h">Market chance over time</h3><div class="hub-chart" data-slot="price"></div>
     <h3 class="tab-h">As margins</h3><div class="hub-chart" data-slot="margin"></div>
     <p class="note">Market-implied margin: the margin at which the model's uncertainty (sd ${sd != null ? `${sd.toFixed(1)} pt` : "–"}) gives the price, Φ⁻¹(price) × sd. ${esc(MK?.note ?? "")}</p>
     <div data-slot="wallets"></div>
@@ -398,9 +406,12 @@ function drawHouseMarkets(H, el, id) {
   if (!m && !d) { el.innerHTML = `<p class="note">No House district ${esc(id)}.</p>`; return; }
   const pm = m?.pm, k = m?.kalshi, base = m?.baseline ?? d?.baseline;
   const cands = pm?.cands?.D || pm?.cands?.R ? pm.cands : k?.cands ?? {};
-  const who = cands.D && cands.R ? `: ${esc(cands.D)} (D) against ${esc(cands.R)} (R)` : cands.D ? `: ${esc(cands.D)} (D)` : cands.R ? `: ${esc(cands.R)} (R)` : "";
-  el.innerHTML = `<p class="hub-lede"><b>${esc(id)}</b>${who}. The chance the Democratic party wins the seat on each venue${pm || k ? "" : ": no market lists it"}.</p>
-    <div class="chips">${pm ? fig("Polymarket", num(pm.p)) + fig("Polymarket spread", num(pm.spread_d, 3)) + fig("Polymarket volume", usd(pm.volume)) : fig("Polymarket", "no market")}${k ? fig("Kalshi", num(k.p)) : fig("Kalshi", "no market")}${base ? fig("Model", num(base.p_d), `2024 president on the 2026 lines + generic-ballot swing${HM?.generic_ballot?.n_polls != null ? ` (${HM.generic_ballot.n_polls} polls)` : ""}; no district count model`) : ""}</div>
+  const sides = { a: { id: "dem", name: cands.D ?? "Democratic side", color: DEM }, b: { id: "rep", name: cands.R ?? "Republican side", color: REP } };
+  const pts = [["Model", base?.p_d], ["Polymarket", pm?.p], ["Kalshi", k?.p]].filter((x) => x[1] != null);
+  const fav = probabilityLead(pts[0]?.[1], sides.a, sides.b);
+  el.innerHTML = `<p class="hub-lede"><b>${esc(id)}</b>: ${esc(sides.a.name)} (D) v ${esc(sides.b.name)} (R).</p>
+    ${fav ? `<p class="lead-call"><span class="lead-side" style="--side:${esc(fav.side.color)}">${esc(fav.side.name)} (${fav.aLeads ? "D" : "R"})</span> leads<span class="lead-sources">${pts.map(([label, p]) => `<span>${esc(label)} ${pct(fav.aLeads ? p : 1 - p, 0)}</span>`).join("")}</span></p>` : ""}
+    <div class="estimate-bars">${pts.map(([label, p]) => `<span class="estimate-row"><small>${esc(label)}</small>${splitChanceHTML(p, sides.a, sides.b, { compact: true, source: label })}</span>`).join("")}</div>
     <p class="note">No price history is published for House markets.</p>${sources(HM)}`;
 }
 
@@ -413,8 +424,8 @@ function drawAllMarkets(H, el, c) {
   });
   const where = c.state ? stateName(H, c.state) : null;
   const lede = where
-    ? (rows.length ? `<b>${esc(where)}</b>: the chance the Democratic side wins on each venue. Click a race for its price history.` : `<b>${esc(where)}</b>: no Senate or governor market.`)
-    : `Every Senate and governor market: the chance the Democratic side wins on Polymarket and Kalshi. Click a race for its price history, the implied margins and who trades it.`;
+    ? (rows.length ? `<b>${esc(where)}</b>: each split bar names the market leader. Click a race for its price history.` : `<b>${esc(where)}</b>: no Senate or governor market.`)
+    : `Every Senate and governor market, with both party sides represented. Click a race for its price history, implied margins and traders.`;
   el.innerHTML = `<p class="hub-lede">${lede}</p>${rows.length ? `<div class="hub-scroll" data-slot="races"></div>
     <p class="note">Price: the midpoint of the best bid and ask, else the last daily price. Gap: Polymarket minus Kalshi. ${esc(MK?.note ?? "")}</p>` : ""}
     ${W ? `<h3 class="tab-h">Who trades on Polymarket</h3><p class="note">Do large orders move the price first? ${walletPooled(W)}</p>${walletPrivacy(W)}` : ""}
@@ -423,9 +434,9 @@ function drawAllMarkets(H, el, c) {
     const box = slot(el, "races");
     sortable(box, "all-markets", [
       ["name", "Race", false, (r) => `<button type="button" class="linkish" data-race="${esc(r.race)}">${esc(r.name)}</button>`],
-      ["pm", "Polymarket", true, (r) => num(r.pm)],
-      ["kalshi", "Kalshi", true, (r) => num(r.kalshi)],
-      ["diff", "Gap", true, (r) => signed(r.diff, 2)],
+      ["pm", "Polymarket", true, (r) => { const s = usSides(H, r.race); return splitChanceHTML(r.pm, s.a, s.b, { compact: true, source: "Polymarket" }); }],
+      ["kalshi", "Kalshi", true, (r) => { const s = usSides(H, r.race); return splitChanceHTML(r.kalshi, s.a, s.b, { compact: true, source: "Kalshi" }); }],
+      ["diff", "Gap", true, (r) => signed(r.diff == null ? null : 100 * r.diff, 0)],
       ["vol", "Polymarket volume", true, (r) => usd(r.vol)],
     ], rows, { key: "vol", dir: -1 }, (r) => r.race);
     raceClicks(box, c.onRace);

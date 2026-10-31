@@ -2,7 +2,7 @@
 //  - "margin": the model's margin (side a minus side b, points) with its 90% band, the raw
 //    count's margin once counting starts, the polls (US) and the market-implied margin (the
 //    margin at which the model's uncertainty gives the market's price);
-//  - "chance": the model's probability that side a wins against the market prices.
+//  - "chance": each source's split probability between the two named sides.
 // A solid cursor marks the scrubber time, a dashed one the hover. Labels sit at the line ends.
 import * as d3 from "./vendor/d3.js";
 import { C, clock, probit, sensP } from "./common.js";
@@ -103,7 +103,9 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     const yP = d3.scaleLinear().domain([0, 1]).range([m.t + h, m.t]);
     Y = yP;
     svg.insert("g", "g").attr("class", "grid").selectAll("line").data([0, 0.5, 1]).join("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", yP).attr("y2", yP);
-    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yP).tickValues([0, 0.5, 0.9]).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(yP).tickValues([0, 0.5, 1]).tickFormat(d3.format(".0%")).tickSize(0).tickPadding(5)).call((s) => s.select(".domain").remove());
+    svg.append("text").attr("x", m.l + 5).attr("y", m.t + 11).attr("class", "chart-note").attr("fill", race.a.color).text(`${race.a.name} ↑`);
+    svg.append("text").attr("x", m.l + 5).attr("y", m.t + h - 5).attr("class", "chart-note").attr("fill", race.b.color).text(`${race.b.name} ↓`);
     for (const v of [0.1, 0.9]) hline(yP(v));
     const main = two ? (d) => d.P_v2 ?? null : (d) => d.P ?? null;
     if (two) path(C.model, 1, (d) => d.P ?? null, "3,2").attr("opacity", 0.75);
