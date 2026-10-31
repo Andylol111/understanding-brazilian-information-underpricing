@@ -21,6 +21,14 @@ poll_close_utc = "2026-11-29T20:00:00Z"
 # 2023 province results (official, final) are the base; the poll medians below set the national level.
 date = "2023-07-23"
 public_file = "data_public/es_congreso_province_2016_2023.csv"
+# AMENDED 2026-10-31 (unregistered, before any count): the lane structure follows the candidacies presented for 2026 (BOE of
+# 2026-10-28, BOE-A-2026-22607, as republished by votomunicipal.es; proclamation is 2-3 November, so this is the presented list).
+# A lane with no list in a province starts at 0 there; joint lists (Compromis-IU-Podem in the Valencian provinces, NC-Podemos-IU-Sumar
+# in the Canaries, UPN-PP in Navarra) sit on their first lane; the 2023 Teruel Existe and Nueva Canarias lists move to their new lanes.
+lists_file = "data_public/es_candidacies_2026_presented.csv"
+# Adelante Andalucia (Teresa Rodriguez) has no Congress history: it starts at its share of the 2022 Andalusian election
+# (168,960 votes, 4.58% of valid votes; BOJA) in each Andalusian province. Polls published before the freeze give it 2-3 seats.
+adelante_share = 0.0458
 
 [poll]
 # Median of the latest poll of each pollster published before the freeze (nine polls; a missing figure is skipped).

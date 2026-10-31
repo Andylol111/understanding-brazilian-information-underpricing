@@ -41,16 +41,17 @@ UA = "brunder/0.1 (research; recorder)"
 # Lanes: one "list" per party family. History lanes keep the left-of-PSOE parties together (LEFT) because the
 # lists changed every election; 2026 splits them into Frente Amplio (FA, the Sumar successor) and Podemos.
 HIST_LANES = ("PP", "PSOE", "VOX", "CS", "LEFT", "ERC", "JUNTS", "BILDU", "PNV", "BNG", "CCA", "UPN", "CUP", "OTHER")
-LANES = ("PP", "PSOE", "VOX", "FA", "PODEMOS", "ERC", "JUNTS", "BILDU", "PNV", "BNG", "CCA", "UPN", "CUP", "OTHER")
+LANES = ("PP", "PSOE", "VOX", "FA", "PODEMOS", "ERC", "JUNTS", "BILDU", "PNV", "BNG", "CCA", "UPN", "CUP", "ADELANTE", "EXISTE", "OTHER")
 NO_SEATS = ("OTHER",)          # the OTHER lane is many small lists; it is never given seats
 THRESHOLD = 0.03               # share of valid votes (blank included) a list needs in a province to win seats
 COLORS = {"PP": "#1d84ce", "PSOE": "#e30613", "VOX": "#63be21", "FA": "#e51c55", "PODEMOS": "#6b2c91",
           "ERC": "#ffb232", "JUNTS": "#00c3b2", "BILDU": "#a3c940", "PNV": "#008135", "BNG": "#76b3dd",
-          "CCA": "#f2c200", "UPN": "#1f4e9c", "CUP": "#ffd800", "OTHER": "#777777",
+          "CCA": "#f2c200", "UPN": "#1f4e9c", "CUP": "#ffd800", "ADELANTE": "#24c87e", "EXISTE": "#8c6d46", "OTHER": "#777777",
           "CS": "#eb6109", "LEFT": "#e51c55"}
 LANE_NAMES = {"PP": "PP", "PSOE": "PSOE", "VOX": "Vox", "FA": "Frente Amplio", "PODEMOS": "Podemos", "ERC": "ERC",
               "JUNTS": "Junts", "BILDU": "EH Bildu", "PNV": "PNV", "BNG": "BNG", "CCA": "Coalición Canaria",
-              "UPN": "UPN", "CUP": "CUP", "OTHER": "Other lists", "CS": "Ciudadanos", "LEFT": "Left lists"}
+              "UPN": "UPN", "CUP": "CUP", "ADELANTE": "Adelante Andalucía", "EXISTE": "Teruel Existe", "OTHER": "Other lists",
+              "CS": "Ciudadanos", "LEFT": "Left lists"}
 
 PROVINCES = {
     "01": "Araba/Álava", "02": "Albacete", "03": "Alicante/Alacant", "04": "Almería", "05": "Ávila", "06": "Badajoz",
@@ -125,6 +126,10 @@ def lane_2026(text: str, patterns: dict[str, str] | None = None) -> str:
     t = _norm(text)
     for lane, pat in (patterns or {}).items():
         if re.search(pat, t, re.I):
+            return lane
+    # Lists with their own lane in 2026: UPN-PP is one joint list headed by UPN (the history patterns would read it as PP).
+    for lane, pat in (("UPN", r"\bUPN\b|UNION DEL PUEBLO NAVARRO"), ("ADELANTE", r"ADELANTE ANDALUCIA"), ("EXISTE", r"\bEXISTE\b")):
+        if re.search(pat, t):
             return lane
     lane = hist_lane(text)
     if lane in ("CS",):
@@ -218,6 +223,42 @@ def poll_target(cfg: dict, shares: pd.DataFrame, volume: pd.Series, blank: float
     return t
 
 
+def apply_lists_2026(shares: pd.DataFrame, base: pd.DataFrame, cands: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Make the 2023-based lane shares match the candidacies PRESENTED for 2026 (data_public/es_candidacies_2026_presented.csv,
+    from the BOE of 2026-10-28): a lane with no list in a province gets share 0 (it cannot win seats or votes there); a joint
+    list of several lanes (Compromís-IU-Podem in the Valencian provinces, NC-Podemos-IU-Sumar in the Canaries, UPN-PP in Navarra)
+    carries the summed share on its first lane; the 2023 Teruel Existe and Nueva Canarias lists, which sat in OTHER, move to the
+    EXISTE lane and to the Canarian joint list; Adelante Andalucía (no Congress history) starts at its 2022 Andalusian share.
+    Mutates `shares`; returns the (province, lane) mask of lanes that run."""
+    ls = pd.read_csv(LISTS, comment="#", dtype={"prov": str})
+    ls = ls[ls["election"] == cfg["prior"]["date"]]
+    V, blank = base["V"], base["blank_frac"]
+    ran = pd.DataFrame(False, index=shares.index, columns=shares.columns)
+    ran["OTHER"] = True
+    for _, r in cands.iterrows():
+        uid = uid_of(r["prov"])
+        first, *merged = r["lanes"].split("+")
+        if first == "OTHER":
+            continue
+        ran.loc[uid, first] = True
+        for b in merged:
+            shares.loc[uid, first] += shares.loc[uid, b]
+            shares.loc[uid, b] = 0.0
+    for _, r in ls.iterrows():
+        uid = uid_of(r["prov"])
+        moved = r["votes"] / V[uid]
+        name = _norm(r["list"])
+        for pattern, lane in (("TERUEL EXISTE", "EXISTE"), ("NUEVA CANARIAS", "FA")):
+            if re.search(pattern, name) and ran.loc[uid, lane]:
+                shares.loc[uid, lane] += moved
+                shares.loc[uid, "OTHER"] -= moved
+    for uid in shares.index:
+        if ran.loc[uid, "ADELANTE"]:
+            shares.loc[uid, "ADELANTE"] = float(cfg["prior"]["adelante_share"]) / (1 - blank[uid])
+    shares[~ran] = 0.0
+    return ran
+
+
 def prior_units(cfg: dict, history: pd.DataFrame | None = None) -> pd.DataFrame:
     """2026 prior: 2023 province lane shares (Sumar split into Frente Amplio and Podemos by the polls' ratio, Ciudadanos
     folded into OTHER), raked to the frozen poll medians. V0 = 2023 candidacy votes; seats = 2026 allocation.
@@ -239,7 +280,11 @@ def prior_units(cfg: dict, history: pd.DataFrame | None = None) -> pd.DataFrame:
     shares["FA"] = base["LEFT"] * (1 - rho)
     shares["PODEMOS"] = base["LEFT"] * rho
     shares["OTHER"] = base["OTHER"] + base["CS"]
-    prof = shares.to_numpy(float) + 1e-6
+    running = pd.DataFrame(True, index=base.index, columns=list(LANES))
+    if cfg["prior"].get("lists_file"):
+        cands = pd.read_csv(ROOT_DIR / cfg["prior"]["lists_file"], comment="#", dtype={"prov": str})
+        running = apply_lists_2026(shares, base, cands, cfg)
+    prof = shares.to_numpy(float) + 1e-6 * running.to_numpy(float)
     prof /= prof.sum(axis=1, keepdims=True)
     if rake:
         blank = float((base["blank_frac"] * base["V"]).sum() / base["V"].sum())
@@ -332,11 +377,13 @@ def project(units: pd.DataFrame, count: pd.DataFrame, st: Settings, lanes=LANES)
     votes = cv + remaining
     counted_frac = float(n.sum() / votes.sum())
     ia, ib = L.index("PP"), L.index("PSOE")
+    iu = L.index("UPN") if "UPN" in L else None
+    pp_c, pp_v = cv[:, ia] + (cv[:, iu] if iu is not None else 0), votes[:, ia] + (votes[:, iu] if iu is not None else 0)   # UPN-PP is one list in Navarra
     u = pd.DataFrame(index=units.index)
     u["f"] = f
-    two = cv[:, ia] + cv[:, ib]
-    u["raw"] = np.divide(cv[:, ia], two, out=np.full(len(n), np.nan), where=two > 0)   # PP's share of the PP+PSOE vote
-    u["projected"] = votes[:, ia] / (votes[:, ia] + votes[:, ib])
+    two = pp_c + cv[:, ib]
+    u["raw"] = np.divide(pp_c, two, out=np.full(len(n), np.nan), where=two > 0)   # PP's share of the PP+PSOE vote
+    u["projected"] = pp_v / (pp_v + votes[:, ib])
     return Projection(tuple(L), votes, cv, remaining, f, units["blank_frac"].to_numpy(float),
                       units["seats"].to_numpy(int), counted_frac, u)
 
@@ -631,7 +678,8 @@ def entry() -> dict:
 
 def _two_way(units: pd.DataFrame) -> np.ndarray:
     """PP's share of the PP + PSOE vote in each province (the map's 'side a' value)."""
-    return (units["PP"] / (units["PP"] + units["PSOE"])).to_numpy(float)
+    pp = units["PP"] + (units["UPN"] if "UPN" in units else 0)       # UPN-PP is one list in Navarra
+    return (pp / (pp + units["PSOE"])).to_numpy(float)
 
 
 def _timeline_row(cfg, race, t, p, d, probs, pp, kp, counted=True):

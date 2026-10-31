@@ -127,6 +127,40 @@ def test_frozen_prior_has_52_provinces_exact_poll_target_and_350_seats(cfg):
     assert abs(units[list(es.LANES)].sum(axis=1) - 1).max() < 1e-9
 
 
+def test_2026_candidacy_table_and_prior_follow_the_presented_lists(cfg):
+    c = pd.read_csv(ROOT / "data_public" / "es_candidacies_2026_presented.csv", comment="#", dtype={"prov": str})
+    assert len(c) == 556 and c["prov"].nunique() == 52
+    assert {(r.prov, r.lanes) for r in c.itertuples() if "+" in r.lanes} == {
+        ("03", "FA+PODEMOS"), ("12", "FA+PODEMOS"), ("46", "FA+PODEMOS"), ("35", "FA+PODEMOS"), ("38", "FA+PODEMOS"), ("31", "UPN+PP")}
+    units = es.prior_units(cfg)
+    s = lambda prov, lane: float(units.loc[f"es-{prov}", lane])                       # noqa: E731
+    assert s("44", "EXISTE") > .1 and s("44", "FA") == 0 and s("44", "PODEMOS") > 0     # Teruel: Existe runs, Frente Amplio does not
+    assert all(s(p, "PODEMOS") == 0 and s(p, "FA") > 0 for p in ("03", "12", "46", "35", "38"))   # joint lists sit on FA
+    assert s("31", "PP") == 0 and s("31", "UPN") > .3                                   # UPN-PP is one list
+    assert all(s(p, "PODEMOS") == 0 for p in ("08", "17", "25", "43")) and units["CUP"].max() == 0   # ERC list with Podemos; no CUP
+    andalusia = ("04", "11", "14", "18", "21", "23", "29", "41")
+    assert all(s(p, "ADELANTE") > .04 for p in andalusia) and (units["ADELANTE"] > 0).sum() == 8
+    assert (units["EXISTE"] > 0).sum() == 1
+    assert abs(units[list(es.LANES)].sum(axis=1) - 1).max() < 1e-9
+
+
+def test_2026_lane_of_special_lists():
+    for text, lane in (("UPN-PP UNION DEL PUEBLO NAVARRO - PARTIDO POPULAR", "UPN"), ("ADELANTE ANDALUCÍA", "ADELANTE"),
+                       ("TERUEL EXISTE", "EXISTE"), ("COMPROMIS-EUPV-PODEM-ERPV", "FA"), ("NC-BC, PODEMOS, IU, SUMAR", "FA"),
+                       ("PODEMOS", "PODEMOS"), ("SALF SE ACABÓ LA FIESTA", "OTHER"), ("PP", "PP")):
+        assert es.lane_2026(text) == lane, text
+    assert es.NO_SEATS == ("OTHER",) and {"ADELANTE", "EXISTE"} <= set(es.LANES)
+
+
+def test_regional_lists_win_seats_in_the_simulation():
+    units = pd.DataFrame({"V0": [1e6], "PP": [.35], "PSOE": [.30], "ADELANTE": [.12], "OTHER": [.23], "blank_frac": [0.0], "seats": [8]},
+                         index=["es-11"])
+    lanes = ("PP", "PSOE", "ADELANTE", "OTHER")
+    p = es.project(units, es.empty_counts(units, lanes), es.Settings(cera_frac=0.0, draws=200), lanes)
+    d = es.simulate(p, es.Settings(draws=200, precount_sd=0.0, tau_nat=0.0, tau_prov=0.0), 1)
+    assert abs(d.seats[:, 2].mean() - 1) < 1e-9 and d.seats[:, 3].sum() == 0
+
+
 def test_poll_medians_are_the_frozen_values(cfg):
     med = es.poll_medians(cfg)
     assert {k: round(v, 4) for k, v in med.items()} == {"PP": .315, "PSOE": .264, "VOX": .189, "FA": .065, "PODEMOS": .027}

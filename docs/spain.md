@@ -126,7 +126,7 @@ Frente Amplio 6.5, Podemos 2.7), then follows the count:
 2. each province's own counted composition is blended in (`own_votes`);
 3. uncounted votes and the votes abroad are projected from that composition;
 4. 4,000 draws add a national and a province-level error to the uncounted part; every draw allocates seats province by
-   province (D'Hondt, 3% of valid votes including blank, lists without a lane are "other" and win nothing);
+   province (D'Hondt, 3% of valid votes including blank; every lane except "other" can win seats, and only where it has a list in 2026);
 5. each market's probability is the share of draws in which it resolves Yes (rank by seats, ties by votes; a vote-share
    line is reached at the rounded two-decimal share of valid votes, blank included).
 
@@ -135,6 +135,28 @@ counts simulated): `own_votes` 10,000, `swing_votes` 1,000,000, `sd_votes` 1,000
 [0.06, 0.045, 0.06] (point baseline `tau_nat` 0.06, `tau_prov` 0.12; see the mixture section below),
 `cera_frac` 0.0083; `precount_sd` 0.12 is a judgement: the last-week poll median missed by 0.076 (RMS log error, ten party-elections
 2019-2023; `analysis/es_poll_error.py`) and the 2026 polls are 5-7 weeks old.
+
+### 2026 candidacies and lanes (changed 2026-10-31, before any count)
+
+The 2023-based lane shares are made to match the lists **presented** for 2026 in each province (556 lists; BOE of 2026-10-28,
+BOE-A-2026-22607, read through the press republication votomunicipal.es; `data_public/es_candidacies_2026_presented.csv`,
+built by `analysis/es_lists_2026.py`). What the lists show against the old lane mapping:
+
+| List | Was | Now |
+|---|---|---|
+| Frente Amplio (IU, Movimiento Sumar, Más Madrid, Comuns, CHA, Ara Més) and Podemos | two lanes everywhere | FA in 49 provinces (none in Teruel, Ceuta, Melilla); Podemos in 45, not in Catalonia (it is on ERC's list as independents), Baleares, Asturias, Melilla |
+| Compromís-EUPV-Podem-ERPV (Alicante, Castellón, Valencia) and NC-Podemos-IU-Sumar "Unidad del Pueblo Canario" (both Canarian provinces) | Podemos got its own 3% threshold and seats | one list on the FA lane; Podemos 0; 2023 Nueva Canarias votes in Las Palmas moved from OTHER to FA |
+| UPN-PP (Navarra) | PP and UPN separate lanes | one list on the UPN lane; PP 0 in Navarra |
+| Adelante Andalucía (all 8 Andalusian provinces) | OTHER, no seats | own lane, 4.58% prior |
+| Teruel Existe (Coalición Existe) | OTHER, no seats | own lane, 2023 Teruel Existe share |
+| CUP (not on any list), ERC in the Valencian provinces (inside Compromís) | prior share | 0 |
+| SALF, PACMA, FO, D21 (Democracia 21-Cs), PCTE and 30 more | OTHER | OTHER (see open items) |
+
+A lane with no list in a province starts at 0 there and its 2023 votes spread over the other lanes. PRC does not appear on
+any 2026 list (Cantabria has none). Effect on the pre-count model (4,000 draws, same seed): P(PP first) 0.826 to 0.842, PP seats
+128.1 to 129.3, PSOE 103.4 to 102.7, Vox 66.3 to 66.4; second and third place probabilities move by at most 0.02. Podemos 1.5 to
+2.0 seats, Frente Amplio 9.0 to 9.7, UPN 1.2 to 2.9 (it now holds Navarra's PP seat), Adelante 0.6, Teruel Existe 0.5.
+Rehearsals of 2019-11 and 2023 use no 2026 list file and are unchanged. The calibration is not re-run (it uses history lanes).
 
 ### Calibration on earlier nights (retrospective, simulated count order, not pre-registered)
 
@@ -220,7 +242,7 @@ so it showed the pre-count state. The recorder-over-HTTP test was not repeated (
 ## Files and commands
 
 * `src/brunder/spain.py`, `configs/es2026_v1.toml`, `tests/test_spain.py` (+ fixtures `tests/fixtures/es_feed_*.json`)
-* `analysis/es_history.py` (writes both history CSVs), `es_snapshot.py`, `es_poll_error.py`, `es_calibrate.py`, `es_rehearsal.py`, `es_settle.py`, `es_geo.py`
+* `analysis/es_history.py` (writes both history CSVs), `es_lists_2026.py` (2026 presented candidacies), `es_snapshot.py`, `es_poll_error.py`, `es_calibrate.py`, `es_rehearsal.py`, `es_settle.py`, `es_geo.py`
 * `deploy/brunder-es-{record,live}.{service,timer}`: recorder starts 19:00 UTC (one hour before the first results), live
   model 19:30 UTC, both stop 2026-11-30 03:00 UTC.
 * `brunder spain preelection|record|live|export configs/es2026_v1.toml`; after the count:
@@ -231,6 +253,17 @@ so it showed the pre-count state. The recorder-over-HTTP test was not repeated (
   for the seat check: `data_public/es_congreso_lists_2016_2023.csv`.
 
 ## Risks and open items
+
+* **Candidacies are the presented lists, not the proclaimed ones.** The lane structure uses the BOE list of 2026-10-28; boards
+  proclaim on 2-3 November and a list can still drop out (re-run `analysis/es_lists_2026.py` then).
+* **Lists still in OTHER.** SALF (Alvise) runs in 46 provinces but no seat is polled for it: the Electomanía average of 2026-10-27 lists
+  no SALF seat and Sociométrica puts it ahead of Podemos (2%) in votes but without a seat. Soria ¡YA!, Democracia 21-Ciudadanos and
+  the León/Zamora/Salamanca regionalists had no seat in 2023 and I found no poll that gives them one. If a poll shows one of them above 3% in a
+  province, it needs its own lane.
+* **Adelante Andalucía starts at a flat 4.58% in each Andalusian province** (2022 regional result); the polls give it 2-3 seats,
+  which need a concentration (Cádiz, Sevilla) that a flat share does not give: the pre-count mean is 0.6 seats.
+* **Joint-list seats go to one lane.** UPN-PP seats are counted as UPN (the list is headed by UPN); if the markets count them as PP the
+  PP total is higher by about 2.9 seats. Joint FA-Podemos lists (Valencian provinces, Canaries) count as Frente Amplio.
 
 * **Third-party relay.** The only reachable public copy of the provisional count is a private site. It could lag, change schema, or go
   down. The recorder logs every publication and rejects unparsable files; the live exporter keeps the last good state.
