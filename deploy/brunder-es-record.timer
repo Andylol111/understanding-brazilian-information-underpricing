@@ -1,0 +1,10 @@
+[Unit]
+Description=Start Spain's recorder one hour before the first results (20:00 UTC)
+
+[Timer]
+OnCalendar=2026-11-29 19:00:00 UTC
+Persistent=true
+Unit=brunder-es-record.service
+
+[Install]
+WantedBy=timers.target

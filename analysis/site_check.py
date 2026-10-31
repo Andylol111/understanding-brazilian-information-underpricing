@@ -50,6 +50,7 @@ ELECTIONS = (
     "nl2025",
     "qc2026",
     "us2026",
+    "es2026",
 )
 VIEWPORTS = {"desktop": {"width": 1512, "height": 900}, "mobile": {"width": 390, "height": 844}}
 

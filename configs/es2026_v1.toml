@@ -1,0 +1,400 @@
+# FROZEN 2026-10-31, before the Spanish count. Evidence label: FORWARD once registered (not registered yet).
+# Integrator: commit and hash-register this file before the first results at 2026-11-29T20:00:00Z.
+# Settings use only official 2016-2023 Congress results, polls published before this freeze, and the
+# simulated-count calibration in analysis/es_calibrate.py (results in docs/spain.md). Do not edit after registration;
+# later changes need a new versioned file.
+id = "es2026_v1"
+seed = 20261129
+
+[election]
+eid = "es2026"
+name = "Spain general election 2026"
+date = "2026-11-29"
+tz = "Europe/Madrid"
+# First results are published when the polls close in the Canary Islands: 20:00 there = 21:00 in Madrid = 20:00 UTC.
+poll_close_utc = "2026-11-29T20:00:00Z"
+
+[prior]
+# 2023 province results (official, final) are the base; the poll medians below set the national level.
+date = "2023-07-23"
+public_file = "data_public/es_congreso_province_2016_2023.csv"
+
+[poll]
+# Median of the latest poll of each pollster published before the freeze (nine polls; a missing figure is skipped).
+# Figures are shares of the vote in percent. Sources: https://www.datosclaros.es/resultados-29n/ (table of the last
+# polls before the ban) and ABC, 2026-10-26 (Sigma Dos Frente Amplio 7.2; GAD3 Podemos 2.3; CIS Podemos 3.1).
+# The CIS is kept: the median ignores outliers, and dropping a pollster by hand after seeing the numbers would be a choice.
+[[poll.polls]]
+pollster = "Sigma Dos (El Mundo)"
+published = "2026-10-19"
+pp = 31.5
+psoe = 25.3
+vox = 19.5
+fa = 7.2
+url = "https://www.abc.es/espana/encuestas-elecciones-generales-29n-resultados-psoe-pp-20261026051500-nt.html"
+
+[[poll.polls]]
+pollster = "CIS"
+published = "2026-10-14"
+pp = 22.2
+psoe = 34.0
+vox = 17.1
+fa = 6.1
+podemos = 3.1
+url = "https://www.datosclaros.es/resultados-29n/"
+
+[[poll.polls]]
+pollster = "Target Point (El Debate)"
+published = "2026-10-11"
+pp = 32.0
+psoe = 25.9
+vox = 18.7
+fa = 6.9
+url = "https://www.datosclaros.es/resultados-29n/"
+
+[[poll.polls]]
+pollster = "40dB (El País / Cadena SER)"
+published = "2026-10-09"
+pp = 31.9
+psoe = 28.1
+vox = 18.9
+fa = 5.3
+url = "https://www.datosclaros.es/resultados-29n/"
+
+[[poll.polls]]
+pollster = "GAD3 (ABC)"
+published = "2026-10-12"
+pp = 31.4
+psoe = 26.4
+podemos = 2.3
+url = "https://www.abc.es/espana/encuestas-elecciones-generales-29n-resultados-psoe-pp-20261026051500-nt.html"
+
+[[poll.polls]]
+pollster = "GESOP (Prensa Ibérica)"
+published = "2026-10-12"
+pp = 28.7
+psoe = 26.1
+vox = 18.9
+fa = 8.0
+url = "https://www.datosclaros.es/resultados-29n/"
+
+[[poll.polls]]
+pollster = "Hamalgama Métrica (Vozpópuli)"
+published = "2026-10-11"
+pp = 33.4
+psoe = 25.3
+vox = 19.6
+fa = 5.4
+url = "https://www.datosclaros.es/resultados-29n/"
+
+[[poll.polls]]
+pollster = "IMOP Insights (El Confidencial)"
+published = "2026-10-09"
+pp = 30.4
+psoe = 26.5
+vox = 19.0
+fa = 7.6
+url = "https://www.datosclaros.es/resultados-29n/"
+
+[[poll.polls]]
+pollster = "DYM (Henneo / 20minutos)"
+published = "2026-10-09"
+pp = 34.0
+psoe = 28.2
+vox = 18.2
+fa = 3.6
+url = "https://www.datosclaros.es/resultados-29n/"
+
+[model]
+# Chosen by analysis/es_calibrate.py on the three EARLIER elections (2016->2019, 2019->2019, 2019->2023) with simulated
+# count orders; see docs/spain.md. own_votes: a province's own counted votes count against the prior composition as
+# if the prior were 10,000 votes (the counted composition is trusted almost fully). swing_votes: pseudo-votes of prior
+# for the pooled national swing. sd_votes/tau_nat/tau_prov: the error model (narrowest 90% interval that covered
+# >= 90% of true shares from 20% counted, on all three elections). cera_frac: abroad votes in 2023 (205,553 of
+# 24,688,087 valid; not in the night count). precount_sd: log error of the poll-median prior. The last-week poll median
+# missed by 0.076 (RMS log error, 10 party-elections in 2019-2023, analysis/es_poll_error.py); the 2026 polls are 5-7
+# weeks old, so 0.12 is used (a judgement, not a fit).
+own_votes = 10000.0
+swing_votes = 1000000.0
+sd_votes = 1000000.0
+turnout_votes = 20000.0
+cera_frac = 0.0083
+tau_nat = 0.06
+precount_sd = 0.12
+tau_prov = 0.12
+draws = 4000
+
+[feed]
+# Elecciones 29N republishes the Interior Ministry's provisional count as public JSON (no key; reuse with the source named).
+# The Ministry's own repository is a media-only service behind a login, which this project does not use.
+# The manifest gives the current publication number (seq); each seq has a national file and one file per province.
+base = "https://datos.generales29n.com/v1/congreso-2026-11"
+interval_seconds = 30
+request_delay_seconds = 1.1
+
+[markets]
+polymarket_events = [
+  "spain-general-election-winner",
+  "spain-general-election-2nd-place",
+  "spain-general-election-3rd-place",
+  "spain-general-election-pp-vox-get-50-of-vote",
+]
+kalshi_events = [
+  "KXSPAINPARLI-27",
+  "KXSPAIN2ND-26NOV29-2",
+  "KXSPAIN3RD-26NOV29-3",
+  "KXVOTESPAIN-26NOV29PPVOX",
+  "KXVOTESPAIN-26NOV29PP",
+  "KXVOTESPAIN-26NOV29VOX",
+  "KXVOTESPAIN-26NOV29PSOE",
+]
+
+[[races]]
+id = "es-first-pp"
+name = "Spain: PP wins most seats"
+short = "PP first"
+kind = "rank"
+lane = "PP"
+rank = 1
+question = "Will PP win the most seats in Spain's 2026 general election?"
+kalshi = "KXSPAINPARLI-27-PP"
+pm_event = "spain-general-election-winner"
+polymarket = "will-pp-win-the-most-seats-in-the-2026-spanish-general-election"
+pm_token = "16776682188052117519689891208085293054849422310072397287583657274883056961244"
+
+[[races]]
+id = "es-first-psoe"
+name = "Spain: PSOE wins most seats"
+short = "PSOE first"
+kind = "rank"
+lane = "PSOE"
+rank = 1
+question = "Will PSOE win the most seats in Spain's 2026 general election?"
+kalshi = "KXSPAINPARLI-27-PSOE"
+pm_event = "spain-general-election-winner"
+polymarket = "will-psoe-win-the-most-seats-in-the-2026-spanish-general-election"
+pm_token = "25832552647557838111946249126827390264485440304971811900387354937650418146262"
+
+[[races]]
+id = "es-first-vox"
+name = "Spain: Vox wins most seats"
+short = "Vox first"
+kind = "rank"
+lane = "VOX"
+rank = 1
+question = "Will Vox win the most seats in Spain's 2026 general election?"
+kalshi = "KXSPAINPARLI-27-VOX"
+pm_event = "spain-general-election-winner"
+polymarket = "will-vox-win-the-most-seats-in-the-2026-spanish-general-election"
+pm_token = "111769758629580928322095867893723388121727082352763910806693244912294508423669"
+
+[[races]]
+id = "es-second-pp"
+name = "Spain: PP wins the second-most seats"
+short = "PP second"
+kind = "rank"
+lane = "PP"
+rank = 2
+question = "Will PP win the second-most seats in Spain's 2026 general election?"
+kalshi = "KXSPAIN2ND-26NOV29-2-PP"
+pm_event = "spain-general-election-2nd-place"
+polymarket = "will-pp-win-the-second-most-seats-in-the-2026-spanish-general-election"
+pm_token = "83324847508225740097565568045444975254586593732651462910162312715061067896189"
+
+[[races]]
+id = "es-second-psoe"
+name = "Spain: PSOE wins the second-most seats"
+short = "PSOE second"
+kind = "rank"
+lane = "PSOE"
+rank = 2
+question = "Will PSOE win the second-most seats in Spain's 2026 general election?"
+kalshi = "KXSPAIN2ND-26NOV29-2-PSOE"
+pm_event = "spain-general-election-2nd-place"
+polymarket = "will-psoe-win-the-second-most-seats-in-the-2026-spanish-general-election"
+pm_token = "607244323607346944883953880160605378924789353579851051793155712404482725501"
+
+[[races]]
+id = "es-second-vox"
+name = "Spain: Vox wins the second-most seats"
+short = "Vox second"
+kind = "rank"
+lane = "VOX"
+rank = 2
+question = "Will Vox win the second-most seats in Spain's 2026 general election?"
+kalshi = "KXSPAIN2ND-26NOV29-2-VOX"
+pm_event = "spain-general-election-2nd-place"
+polymarket = "will-vox-win-the-second-most-seats-in-the-2026-spanish-general-election"
+pm_token = "114812493721779036530111279318009692046713670037324106572352267146176277925776"
+
+[[races]]
+id = "es-third-pp"
+name = "Spain: PP wins the third-most seats"
+short = "PP third"
+kind = "rank"
+lane = "PP"
+rank = 3
+question = "Will PP win the third-most seats in Spain's 2026 general election?"
+kalshi = "KXSPAIN3RD-26NOV29-3-PP"
+pm_event = "spain-general-election-3rd-place"
+polymarket = "will-pp-win-the-third-most-seats-in-the-2026-spanish-general-election"
+pm_token = "92295668179981666720029907989952927266237071785134100118231729511767226576892"
+
+[[races]]
+id = "es-third-psoe"
+name = "Spain: PSOE wins the third-most seats"
+short = "PSOE third"
+kind = "rank"
+lane = "PSOE"
+rank = 3
+question = "Will PSOE win the third-most seats in Spain's 2026 general election?"
+kalshi = "KXSPAIN3RD-26NOV29-3-PSOE"
+pm_event = "spain-general-election-3rd-place"
+polymarket = "will-psoe-win-the-third-most-seats-in-the-2026-spanish-general-election"
+pm_token = "103101167308628170490288076065679109023642089371012073018354866616877312224847"
+
+[[races]]
+id = "es-third-vox"
+name = "Spain: Vox wins the third-most seats"
+short = "Vox third"
+kind = "rank"
+lane = "VOX"
+rank = 3
+question = "Will Vox win the third-most seats in Spain's 2026 general election?"
+kalshi = "KXSPAIN3RD-26NOV29-3-VOX"
+pm_event = "spain-general-election-3rd-place"
+polymarket = "will-vox-win-the-third-most-seats-in-the-2026-spanish-general-election"
+pm_token = "86688452452513398559575278460106976342904996398682374499331845540642104673483"
+
+[[races]]
+id = "es-ppvox-50"
+name = "Spain: PP and Vox together get 50% or more of the vote"
+short = "PP + Vox 50%+"
+kind = "share"
+lanes = ["PP", "VOX"]
+threshold = 50.0
+question = "Will PP and Vox together receive at least 50% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29PPVOX-50"
+pm_event = "spain-general-election-pp-vox-get-50-of-vote"
+polymarket = "spain-general-election-pp-vox-get-50-of-vote"
+pm_token = "110054483148663433619261017655150680070683731726425503021867203811654487514256"
+
+[[races]]
+id = "es-vox-19"
+name = "Spain: Vox gets 19% or more of the vote"
+short = "Vox 19%+"
+kind = "share"
+lanes = ["VOX"]
+threshold = 19.0
+question = "Will Vox receive at least 19% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29VOX-19"
+
+[[races]]
+id = "es-vox-17"
+name = "Spain: Vox gets 17% or more of the vote"
+short = "Vox 17%+"
+kind = "share"
+lanes = ["VOX"]
+threshold = 17.0
+question = "Will Vox receive at least 17% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29VOX-17"
+
+[[races]]
+id = "es-vox-15"
+name = "Spain: Vox gets 15% or more of the vote"
+short = "Vox 15%+"
+kind = "share"
+lanes = ["VOX"]
+threshold = 15.0
+question = "Will Vox receive at least 15% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29VOX-15"
+
+[[races]]
+id = "es-vox-13"
+name = "Spain: Vox gets 13% or more of the vote"
+short = "Vox 13%+"
+kind = "share"
+lanes = ["VOX"]
+threshold = 13.0
+question = "Will Vox receive at least 13% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29VOX-13"
+
+[[races]]
+id = "es-pp-37"
+name = "Spain: PP gets 37% or more of the vote"
+short = "PP 37%+"
+kind = "share"
+lanes = ["PP"]
+threshold = 37.0
+question = "Will PP receive at least 37% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29PP-37"
+
+[[races]]
+id = "es-pp-36"
+name = "Spain: PP gets 36% or more of the vote"
+short = "PP 36%+"
+kind = "share"
+lanes = ["PP"]
+threshold = 36.0
+question = "Will PP receive at least 36% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29PP-36"
+
+[[races]]
+id = "es-pp-31"
+name = "Spain: PP gets 31% or more of the vote"
+short = "PP 31%+"
+kind = "share"
+lanes = ["PP"]
+threshold = 31.0
+question = "Will PP receive at least 31% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29PP-31"
+
+[[races]]
+id = "es-pp-28"
+name = "Spain: PP gets 28% or more of the vote"
+short = "PP 28%+"
+kind = "share"
+lanes = ["PP"]
+threshold = 28.0
+question = "Will PP receive at least 28% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29PP-28"
+
+[[races]]
+id = "es-psoe-30"
+name = "Spain: PSOE gets 30% or more of the vote"
+short = "PSOE 30%+"
+kind = "share"
+lanes = ["PSOE"]
+threshold = 30.0
+question = "Will PSOE receive at least 30% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29PSOE-30"
+
+[[races]]
+id = "es-psoe-27"
+name = "Spain: PSOE gets 27% or more of the vote"
+short = "PSOE 27%+"
+kind = "share"
+lanes = ["PSOE"]
+threshold = 27.0
+question = "Will PSOE receive at least 27% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29PSOE-27"
+
+[[races]]
+id = "es-psoe-25"
+name = "Spain: PSOE gets 25% or more of the vote"
+short = "PSOE 25%+"
+kind = "share"
+lanes = ["PSOE"]
+threshold = 25.0
+question = "Will PSOE receive at least 25% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29PSOE-25"
+
+[[races]]
+id = "es-psoe-24"
+name = "Spain: PSOE gets 24% or more of the vote"
+short = "PSOE 24%+"
+kind = "share"
+lanes = ["PSOE"]
+threshold = 24.0
+question = "Will PSOE receive at least 24% of the popular vote in Spain's 2026 general election?"
+kalshi = "KXVOTESPAIN-26NOV29PSOE-24"

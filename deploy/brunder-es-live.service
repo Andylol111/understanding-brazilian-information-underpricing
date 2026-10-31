@@ -1,0 +1,16 @@
+# Reads the recorder archive only; never requests the results feed itself. See docs/spain.md.
+[Unit]
+Description=brunder live model: Spain general election 2026-11-29
+After=brunder-es-record.service
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+Environment=BRUNDER_DATA=/home/brunder/brunder-data-local
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder spain live configs/es2026_v1.toml --out /srv/brunder/repo/site/data --interval 60 --until 2026-11-30T03:00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=10
+CPUQuota=30%
+MemoryMax=1G

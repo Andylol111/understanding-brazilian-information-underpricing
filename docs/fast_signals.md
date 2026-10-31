@@ -53,6 +53,7 @@ Sources: [Wahlrecht.de archive](https://www.wahlrecht.de/news/2025/bundestagswah
 - `us2026` — **No official fast estimate.** US election offices publish counts; AP race calls and AP VoteCast are proprietary media products, not official signals.
 - `nz2026` — **No official fast estimate known.** The Electoral Commission publishes preliminary count updates after 19:00, not an exit poll or quick estimate.
 - `tw2026_taipei` — **No official fast estimate known.** The CEC publishes the official live count; television vote estimates are not CEC releases.
+- `es2026` — **No official fast estimate known.** The Interior Ministry publishes the provisional count from 21:00 Madrid time (when the Canary Islands polls close) and bans polls from 24 to 28 November; television exit polls are broadcaster products, not Ministry releases.
 - `nz2023` — **None.** The Electoral Commission released only the preliminary count; no official exit poll/quick count.
 - `nz2020` — **None.** Same Electoral Commission practice.
 - `br2026r2` — **None separate from the count.** TSE live totals and its later mathematical declaration are official, but there is no official exit poll/quick estimate.

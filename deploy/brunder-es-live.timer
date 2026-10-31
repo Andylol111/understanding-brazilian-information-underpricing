@@ -1,0 +1,10 @@
+[Unit]
+Description=Start Spain's live model 30 minutes before the first results (20:00 UTC)
+
+[Timer]
+OnCalendar=2026-11-29 19:30:00 UTC
+Persistent=true
+Unit=brunder-es-live.service
+
+[Install]
+WantedBy=timers.target

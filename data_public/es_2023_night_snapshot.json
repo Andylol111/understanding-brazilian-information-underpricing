@@ -1,0 +1,50 @@
+{
+ "partial": {
+  "PP": 4935370,
+  "PSOE": 5140262,
+  "VOX": 1945752,
+  "CS": 0,
+  "LEFT": 1887974,
+  "ERC": 327544,
+  "JUNTS": 298114,
+  "BILDU": 297587,
+  "PNV": 255780,
+  "BNG": 97301,
+  "CCA": 22967,
+  "UPN": 38180,
+  "CUP": 70604,
+  "OTHER": 286095,
+  "total_parties": 15603530,
+  "tables_counted": 41711,
+  "tables_total": 60314,
+  "stamp": "2023-07-23T20:03:13.004+00:00",
+  "envio": 43
+ },
+ "final_night": {
+  "PP": 8091840,
+  "PSOE": 7760970,
+  "VOX": 3033744,
+  "CS": 0,
+  "LEFT": 3014247,
+  "ERC": 462883,
+  "JUNTS": 424321,
+  "BILDU": 333362,
+  "PNV": 275782,
+  "BNG": 152327,
+  "CCA": 114718,
+  "UPN": 51764,
+  "CUP": 98794,
+  "OTHER": 468390,
+  "total_parties": 24283142,
+  "tables_counted": 60314,
+  "tables_total": 60314,
+  "stamp": "2023-07-24T00:24:13.003+00:00",
+  "envio": 130
+ },
+ "tables_counted_share": 0.6915641476274165,
+ "source": {
+  "partial": "https://web.archive.org/web/20230723200439id_/https://resultados.generales23j.es/backend-difu/scope/data/getScopeDataTopPartidosGanadores/00000000000000000000000b/1/2/1/1/20",
+  "final_night": "https://web.archive.org/web/20230724080004id_/https://resultados.generales23j.es/backend-difu/scope/data/getScopeDataTopPartidosGanadores/00000000000000000000000b/1/2/1/1/20"
+ },
+ "note": "Counted party votes by lane at the two archived states of the Ministry's 2023 results site. The 20:03 UTC state had PSOE ahead of PP in the counted votes; PP finished ahead."
+}

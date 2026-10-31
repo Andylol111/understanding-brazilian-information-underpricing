@@ -156,6 +156,14 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("--until", help="record/live/export stop time (UTC)")
     s.add_argument("--interval", type=float, default=600.0)
     s.add_argument("--force", action="store_true")
+    s = sub.add_parser("spain", help="Spain general election 2026: feed recorder, preelection, live and replay")
+    s.add_argument("step", choices=["record", "preelection", "export", "live"])
+    s.add_argument("config", nargs="?", type=Path, default=Path("configs/es2026_v1.toml"))
+    s.add_argument("--out", type=Path, default=Path("site/data"))
+    s.add_argument("--snap", type=Path, help="recorder directory (default data/raw/snap/spain_2026)")
+    s.add_argument("--until", help="record/live/export stop time (UTC)")
+    s.add_argument("--interval", type=float, default=30.0)
+    s.add_argument("--force", action="store_true")
     s = sub.add_parser("bulgaria", help="Bulgaria presidential runoff 2026-11-01: MIR nowcast from saved CIK pages")
     s.add_argument("step", choices=["prior", "ingest"])
     s.add_argument("config", type=Path, help="configs/bg2026r2_v1.toml")
@@ -267,6 +275,9 @@ def main(argv: list[str] | None = None) -> None:
         case "taiwan":
             from . import taiwan
             taiwan.cli(a)
+        case "spain":
+            from . import spain
+            spain.cli(a)
         case "bulgaria":
             from . import bulgaria
             bulgaria.cli(a)

@@ -1,0 +1,17 @@
+# Records the Spanish provisional count (public JSON republication of the Interior Ministry feed) plus Polymarket and Kalshi books. See docs/spain.md.
+[Unit]
+Description=brunder recorder: Spain general election 2026-11-29
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=PYTHONUNBUFFERED=1
+Environment=BRUNDER_DATA=/home/brunder/brunder-data-local
+ExecStart=/srv/brunder/.local/bin/uv run --frozen brunder spain record configs/es2026_v1.toml --interval 30 --until 2026-11-30T03:00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=10
+CPUQuota=15%
+MemoryMax=512M
