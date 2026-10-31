@@ -132,7 +132,7 @@ Frente Amplio 6.5, Podemos 2.7), then follows the count:
 
 Frozen settings (`[model]` in the config) are chosen on the three earlier elections only (each projected from the one before,
 counts simulated): `own_votes` 10,000, `swing_votes` 1,000,000, `sd_votes` 1,000,000, `tau_prov_ratio` 2, `tau_mixture`
-[0.06, 0.045, 0.06] (point baseline `tau_nat` 0.06, `tau_prov` 0.12; see the mixture section below),
+[0.09, 0.09, 0.09] (point baseline `tau_nat` 0.06, `tau_prov` 0.12; see the two tau sections below),
 `cera_frac` 0.0083; `precount_sd` 0.12 is a judgement: the last-week poll median missed by 0.076 (RMS log error, ten party-elections
 2019-2023; `analysis/es_poll_error.py`) and the 2026 polls are 5-7 weeks old.
 
@@ -197,8 +197,9 @@ settings as chosen. Every draw uses one component (draw *i*: component *i* mod *
 | 2019-04>2019-11 (same) | 0.045 | 0.88 / 0.90 / 0.93 |
 | 2019-11>2023 (same) | 0.06 | 0.88 / 0.90 / 0.91 |
 
-2026 mixture, from nights before 2026 only: `tau_mixture = [0.06, 0.045, 0.06]`; the point rule gave 0.06. The needed values
-sit right at the 0.90 line (0.893-0.912 at 0.045), so the grid step decides between 0.045 and 0.06.
+2026 mixture as first adopted, from nights before 2026 only: `tau_mixture = [0.06, 0.045, 0.06]`; the point rule gave 0.06. The needed values
+sit right at the 0.90 line (0.893-0.912 at 0.045), so the grid step decides between 0.045 and 0.06. **Replaced the same day by
+[0.09, 0.09, 0.09]** (next section); the tables below are the carried-forward-prior calibration.
 
 2023 holdout, settings and mixture from the two earlier nights only (mixture {0.045, 0.045}, point 0.06; 12 seeds x 8
 milestones x 3 parties; coverage and width from 20% counted; interval score = width + 20 x miss, 90% band, points):
@@ -223,6 +224,42 @@ twice the real one) gives needed `tau` 0 and 0.12 (the top of the grid) and a si
 on the 2023 holdout at the real bias it covers 0.944 with width 3.89 and interval score 4.09 (worse than both arms above) and
 at twice the bias 0.778 / 3.89 / 6.06. It would hedge the order-bias level, which the data cannot identify.
 
+### Seat-count calibration and the poll-prior re-check of `tau` (adopted 2026-10-31)
+
+**Disclosure:** on 2026-10-31, before any 2026 count, `tau_mixture` was changed from [0.06, 0.045, 0.06] to **[0.09, 0.09, 0.09]**.
+Reason: the calibration above starts each night from the previous election carried forward (`precount_sd` 0.32-0.35), but the
+2026 config starts from poll medians (`precount_sd` 0.12), so for the same `tau` its bands are about half as wide. The check below
+used this config's own settings on a 2026-like prior, and the earlier `tau` failed it. The change followed seeing that result.
+The seat check was asked for after Australia 2025 (vote-share bands held, seat-count bands did not); it did not need a fix.
+
+Method (`analysis/es_seat_calibrate.py`, `data_public/es_seat_calibration_v1.json`, retrospective, simulated orders at the real 2023
+snapshot bias; 24 seeds x 8 checkpoints x PP, PSOE, Vox, Sumar/FA; 600 draws): the prior is the previous election's province shapes
+raked to the night's true national lane shares times a log-normal poll error of 0.12 (the last-week median missed by 0.076).
+Seats are the lane-level D'Hondt of the night's final votes (exact for 2023). Intervals are the 5-95% of the draws.
+
+2023 holdout, settings and `tau` from the two earlier nights only; from 20% counted:
+
+| Order bias | `tau` mixture | Share coverage | Seat coverage | Share band (pt) | Seat band | Rank Brier | Brier PP+Vox >= 176 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| real snapshot | {0.045, 0.045} (before) | 0.76 | 0.90 | 1.8 | 8.7 | 0.083 | 0.034 |
+| real snapshot | {0.09, 0.09} (adopted) | 0.94 | 0.96 | 3.0 | 13.4 | 0.094 | 0.043 |
+| half | before / adopted | 0.95 / 0.995 | 0.98 / 0.998 | | | | |
+| twice | before / adopted | 0.55 / 0.74 | 0.62 / 0.79 | | | | |
+
+By lane, seat coverage at the real bias (adopted): PP 0.95, PSOE 0.93, Vox 0.99, Sumar/FA 0.97. By share counted (shares / seats):
+up to 50% 1.00 / 1.00; 70% 0.90 / 0.93; 85% 0.90 / 0.90; 95% 0.82 / 0.94. In sample, 2016>2019-04 and 2019-04>2019-11 with the
+2026 mixture: share 0.94, seats 0.97 and 0.96. 'PP + Vox >= 176' never happened on these nights (2023: 170), so its Brier only
+measures how much probability the model puts on a thing that did not occur; it is not a calibration test.
+
+Needed `tau_nat` per night under the poll-quality prior: 0.09 on all three nights (coverage at 0.06: 0.83; at 0.09: 0.91-0.92), against
+0.045-0.06 under the carried-forward prior. The mixture is again a point, for the reason given above (one simulated order bias).
+
+**Seat bands were not worse than share bands, so no regional or common swing component was added.** The rule set beforehand was: add
+one if seat coverage is below 0.85 while share coverage is fine. Seat coverage is at or above share coverage (seat counts move by
+whole seats and the leaders' lead is large). At twice the real order bias both fail (0.74 shares, 0.79 seats); extra province
+correlation would not fix that, since the error there is the count order. Effect on the pre-count probabilities: P(PP first) 0.842
+to 0.807, P(PSOE second) 0.805 to 0.754, P(Vox third) 0.960 to 0.938.
+
 ## Software rehearsal (retrospective, not pre-registered)
 
 `analysis/es_rehearsal.py` replays **real final official province results** of 2019-11-10 and 2023-07-23 in the feed's JSON
@@ -242,7 +279,7 @@ so it showed the pre-count state. The recorder-over-HTTP test was not repeated (
 ## Files and commands
 
 * `src/brunder/spain.py`, `configs/es2026_v1.toml`, `tests/test_spain.py` (+ fixtures `tests/fixtures/es_feed_*.json`)
-* `analysis/es_history.py` (writes both history CSVs), `es_lists_2026.py` (2026 presented candidacies), `es_snapshot.py`, `es_poll_error.py`, `es_calibrate.py`, `es_rehearsal.py`, `es_settle.py`, `es_geo.py`
+* `analysis/es_history.py` (writes both history CSVs), `es_lists_2026.py` (2026 presented candidacies), `es_snapshot.py`, `es_poll_error.py`, `es_calibrate.py`, `es_seat_calibrate.py`, `es_rehearsal.py`, `es_settle.py`, `es_geo.py`
 * `deploy/brunder-es-{record,live}.{service,timer}`: recorder starts 19:00 UTC (one hour before the first results), live
   model 19:30 UTC, both stop 2026-11-30 03:00 UTC.
 * `brunder spain preelection|record|live|export configs/es2026_v1.toml`; after the count:

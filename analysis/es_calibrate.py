@@ -76,13 +76,28 @@ def simulate_counts(final, milestone, rng, bias_nat, bias_prov, cera, speed_sd=0
     return counted, f
 
 
-def evaluate(st: es.Settings, cases, seeds, bias_nat, bias_prov, draws=300, milestones=MILESTONES) -> pd.DataFrame:
+def poll_quality_prior(units: pd.DataFrame, final: np.ndarray, rng, poll_sd: float) -> pd.DataFrame:
+    """Prior of a 2026-like night: the previous election's province shapes raked to the night's true national lane shares times a
+    log-normal poll error (the poll median's national miss, es_poll_error.py: 0.076 last week, 0.12 used for 2026)."""
+    nat = final.sum(axis=0) / final.sum()
+    t = nat * np.exp(rng.normal(0, poll_sd, len(nat)) * (nat > 0))
+    prof = units[list(LANES)].to_numpy(float) + 1e-6
+    out = units.copy()
+    out[list(LANES)] = es._rake(prof / prof.sum(axis=1, keepdims=True), units["V0"].to_numpy(float), t / t.sum())
+    return out
+
+
+def evaluate(st: es.Settings, cases, seeds, bias_nat, bias_prov, draws=300, milestones=MILESTONES, poll_sd=None) -> pd.DataFrame:
+    """Rows per case x seed x milestone x lane (PP, PSOE, Vox, LEFT): share interval and SEAT interval (5-95% of the draws) vs truth,
+    plus one 'PPVOX176' row per frame (P(PP + Vox >= 176) and the truth). poll_sd: use a poll-quality prior (see above)."""
     rows = []
     for ci, (prior_date, target_date) in enumerate(cases):
         units, final, target = make_case(prior_date, target_date)
         tr = truth(final, target)
+        units0 = units
         for seed in range(seeds):
             rng = np.random.default_rng(1000 * ci + seed)
+            units = poll_quality_prior(units0, final, rng, poll_sd) if poll_sd else units0
             for m in milestones:
                 counted, f = simulate_counts(final, m, rng, bias_nat, bias_prov, st.cera_frac)
                 cnt = pd.DataFrame(counted, index=units.index, columns=list(LANES))
@@ -102,8 +117,19 @@ def evaluate(st: es.Settings, cases, seeds, bias_nat, bias_prov, draws=300, mile
                                  "cover": float(lo <= y <= hi), "width": float(hi - lo),
                                  "iscore": float((hi - lo) + 20 * max(lo - y, 0) + 20 * max(y - hi, 0)),    # 90% interval score
                                  "rank_true": tr["rank"][lane],
+                                 **_seat_fields(d.seats[:, i], tr["seats"][i]),
                                  **{f"P{r}": float(np.mean(rank == r)) for r in (1, 2, 3)}})
+                ip, iv = LANES.index("PP"), LANES.index("VOX")
+                rows.append({"prior": prior_date, "target": target_date, "seed": seed, "milestone": m, "lane": "PPVOX176",
+                             "p_event": float(np.mean(d.seats[:, ip] + d.seats[:, iv] >= 176)),
+                             "event": float(tr["seats"][ip] + tr["seats"][iv] >= 176)})
     return pd.DataFrame(rows)
+
+
+def _seat_fields(draws: np.ndarray, y: float) -> dict:
+    lo, hi = np.quantile(draws, [.05, .95])
+    return {"seat_cover": float(lo <= y <= hi), "seat_width": float(hi - lo), "seat_err": float(draws.mean() - y),
+            "seat_iscore": float((hi - lo) + 20 * max(lo - y, 0) + 20 * max(y - hi, 0))}
 
 
 
@@ -118,6 +144,22 @@ def summary(df: pd.DataFrame) -> dict:
             "width90_pts_from_20pct": float(100 * late["width"].mean()),
             "interval_score_pts": float(100 * top["iscore"].mean()), "interval_score_pts_from_20pct": float(100 * late["iscore"].mean()),
             "rank_brier": float(brier), "n": int(len(top))}
+
+
+def seat_summary(df: pd.DataFrame) -> dict:
+    """SEAT-count scores for PP, PSOE, Vox and LEFT (Sumar/FA): 90% interval coverage, width, interval score, by lane and from 20%
+    counted, and the Brier score of the event 'PP + Vox >= 176 seats'."""
+    s = df[df["lane"].isin((*TOP, "LEFT"))]
+    late = s[s["milestone"] >= 0.2]
+    ev = df[df["lane"] == "PPVOX176"]
+    return {"seat_coverage90": float(s["seat_cover"].mean()), "seat_coverage90_from_20pct": float(late["seat_cover"].mean()),
+            "seat_coverage90_before_20pct": float(s[s["milestone"] < 0.2]["seat_cover"].mean()),
+            "seat_coverage90_by_lane_from_20pct": {k: float(v) for k, v in late.groupby("lane")["seat_cover"].mean().items()},
+            "seat_width_from_20pct": float(late["seat_width"].mean()), "seat_interval_score_from_20pct": float(late["seat_iscore"].mean()),
+            "seat_mae_from_20pct": float(late["seat_err"].abs().mean()),
+            "ppvox176_brier": float(((ev["p_event"] - ev["event"]) ** 2).mean()),
+            "ppvox176_truth": float(ev["event"].mean()),
+            "seat_coverage90_by_milestone": {f"{m:g}": float(v) for m, v in s.groupby("milestone")["seat_cover"].mean().items()}}
 
 
 def by_milestone(df: pd.DataFrame) -> dict:
@@ -177,7 +219,7 @@ def choose(cases, seeds, bias_nat, bias_prov):
     return final, {"carry_forward_sd": pre, "grid": grid, "best_trust": best, "error_models": errs, "chosen": chosen}
 
 
-def night_taus(st: es.Settings, cases, seeds, bias_nat, bias_prov, level: float = 0.90) -> dict:
+def night_taus(st: es.Settings, cases, seeds, bias_nat, bias_prov, level: float = 0.90, poll_sd=None) -> dict:
     """Each night's own needed tau: one night = one earlier transition (simulated orders, real-snapshot bias). Its tau is the
     smallest TAU_GRID value of tau_nat (tau_prov = tau_prov_ratio x tau_nat, everything else as `st`) at which that night alone
     has pooled 90% coverage >= level for PP/PSOE/Vox from 20% counted (the criterion of the point rule in `choose`)."""
@@ -186,7 +228,7 @@ def night_taus(st: es.Settings, cases, seeds, bias_nat, bias_prov, level: float 
         curve = {}
         for t in TAU_GRID:
             s = replace(st, tau_nat=t, tau_prov=st.tau_prov_ratio * t, tau_mixture=())
-            curve[t] = summary(evaluate(s, [case], seeds, bias_nat, bias_prov, milestones=NEED_MILESTONES))["coverage90_from_20pct"]
+            curve[t] = summary(evaluate(s, [case], seeds, bias_nat, bias_prov, milestones=NEED_MILESTONES, poll_sd=poll_sd))["coverage90_from_20pct"]
             print("night", case, "tau", t, "coverage", round(curve[t], 3), flush=True)
         ok = [t for t in TAU_GRID if curve[t] >= level]
         out[f"{case[0]}>{case[1]}"] = {"tau": ok[0] if ok else TAU_GRID[-1], "coverage_by_tau": {str(k): v for k, v in curve.items()}}

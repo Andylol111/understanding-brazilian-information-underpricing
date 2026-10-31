@@ -4,7 +4,7 @@
 # simulated-count calibration in analysis/es_calibrate.py (results in docs/spain.md).
 # AMENDED 2026-10-31 (still unregistered, before any 2026 count): the reporting-order error tau is now an equal-weight mixture
 # over earlier nights' needed tau (cross-election model review, docs/model_review.md) instead of one point; the point values
-# are kept below as the documented baseline (docs/spain.md). No 2026 data entered this change.
+# are kept below as the documented baseline (docs/spain.md). No 2026 data entered this change. Re-amended 2026-10-31 for the seat/poll-prior check below.
 # Do not edit after registration; later changes need a new versioned file.
 id = "es2026_v1"
 seed = 20261129
@@ -139,7 +139,11 @@ tau_prov = 0.12
 # nights = the transitions 2016->2019-04, 2019-04->2019-11, 2019-11->2023 with simulated orders at the real-snapshot bias,
 # analysis/es_calibrate.py, data_public/es_calibration_v1.json): {0.06, 0.045, 0.06}. Component j uses tau_nat = tau_mixture[j]
 # and tau_prov = tau_prov_ratio * tau_mixture[j] (the 1:2 ratio of the calibration grid); draw i uses component i mod k.
-tau_mixture = [0.06, 0.045, 0.06]
+# RE-DERIVED 2026-10-31 (still before any 2026 count; analysis/es_seat_calibrate.py, data_public/es_seat_calibration_v1.json): those
+# taus were needed under a carried-forward prior (precount_sd 0.32-0.35). Under this config's own poll-quality prior (precount_sd
+# 0.12) the 2023 holdout covered only 76% of vote shares and 90% of seat counts from 20% counted. Needed tau per night under the
+# poll-quality prior: 0.09, 0.09, 0.09 (2023 check from the two earlier nights: 0.09, 0.09; share coverage 94%, seat coverage 96%).
+tau_mixture = [0.09, 0.09, 0.09]
 tau_prov_ratio = 2.0
 draws = 4000
 

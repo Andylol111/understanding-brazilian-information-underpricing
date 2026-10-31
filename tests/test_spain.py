@@ -190,7 +190,7 @@ def test_counted_votes_are_kept_in_every_draw(cfg):
 
 def test_tau_mixture_config_and_simulation_between_components(cfg):
     st = es.settings(cfg)
-    assert st.tau_mixture == (0.06, 0.045, 0.06) and st.tau_nat == 0.06 and st.tau_prov == 0.12 and st.tau_prov_ratio == 2.0
+    assert st.tau_mixture == (0.09, 0.09, 0.09) and st.tau_nat == 0.06 and st.tau_prov == 0.12 and st.tau_prov_ratio == 2.0
     units = es.prior_units(cfg)
     count = es.empty_counts(units)
     count["PP"], count["PSOE"], count["f"] = 60_000.0, 40_000.0, 0.5
@@ -368,3 +368,19 @@ def test_map_values_are_pp_share_of_pp_plus_psoe(cfg):
     two = es._two_way(units)
     assert len(two) == 52 and (two > 0).all() and (two < 1).all()
     assert two[list(units.index).index("es-28")] > .5 > two[list(units.index).index("es-08")]     # Madrid leans PP, Barcelona PSOE
+
+
+def test_seat_calibration_scores_and_poll_quality_prior():
+    import es_calibrate as ec
+    case = ec.TRANSITIONS[2]
+    units, final, _ = ec.make_case(*case)
+    u = ec.poll_quality_prior(units, final, np.random.default_rng(1), 0.12)
+    assert abs(u[list(ec.LANES)].sum(axis=1) - 1).max() < 1e-9
+    nat = (u[list(ec.LANES)].to_numpy() * u["V0"].to_numpy()[:, None]).sum(axis=0) / u["V0"].sum()
+    true = final.sum(axis=0) / final.sum()
+    assert abs(np.log(nat[ec.LANES.index("PP")] / true[ec.LANES.index("PP")])) < 0.5          # a poll-sized miss, not the 2023 prior's
+    df = ec.evaluate(es.Settings(precount_sd=0.12, tau_mixture=(0.09, 0.09), draws=50), [case], 1, 0.03, 0.03, draws=60,
+                     milestones=(0.5,), poll_sd=0.12)
+    s = ec.seat_summary(df)
+    assert set(df["lane"]) == {"PP", "PSOE", "VOX", "LEFT", "PPVOX176"} and 0 <= s["seat_coverage90"] <= 1
+    assert 0 <= s["ppvox176_brier"] <= 1 and s["ppvox176_truth"] == 0.0
