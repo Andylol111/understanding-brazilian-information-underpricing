@@ -1,0 +1,57 @@
+# Poland, presidential election round 1, 2025-05-18 (most votes: Trzaskowski vs Nawrocki). RETROSPECTIVE REPLAY, NOT
+# PRE-REGISTERED, not registered: written on 2026-10-30, after the election and after the archived PKW count versions
+# were downloaded, decoded and used for the runoff model. The settings below come only from the 2020 runoff counted in
+# a simulated reporting order (the 2020 election night is not archived; the 2020 round-1 result is the prior):
+# analysis/pl_calibrate.py -> results/poland/calibration.json ("round1_from_2020r2_simulated"). The 2025 round-1
+# night count was not used for any setting of this config (it was used for the runoff config, an election held later).
+# New versions get new files; do not edit the settings in this one.
+id = "pl2025r1_v1"
+election = "Poland, presidential election round 1, 2025-05-18; polls closed 19:00 UTC (21:00 CEST)"
+round = 1
+poll_close_utc = "2025-05-18T19:00:00Z"
+
+[model]                      # brunder.nowcast.Params over 128 cells (16 voivodeships x 8 gmina-size classes) + abroad
+tau = 0.04                   # smallest tau with 90% coverage >= 0.90 over 48 simulated 2020 runoff frames at 1-95% counted
+sigma_mun0 = 0.06            # nowcast default, held fixed (see analysis/pl_calibrate.py)
+kappa = 100000.0             # lowest MAE at that tau (simulation)
+rho = 0.5                    # same
+nu_mun = 20.0
+sigma_uf0 = 0.03
+nu_uf = 5.0
+
+[prior]                      # 2020 round 1, Trzaskowski vs Duda, by cell (brunder.poland.prior)
+source = "https://prezydent20200628.pkw.gov.pl/prezydent20200628/data/1/csv/wyniki_gl_na_kand_po_gminach_csv.zip"
+
+[prices]
+start_utc = "2025-05-18T04:00:00Z"
+end_utc = "2025-05-19T08:00:00Z"
+
+# ---- A = Trzaskowski, B = Nawrocki. The model compares their two-way share; Mentzen (14.8%) finished a distant third.
+[[race]]
+id = "winner"
+name = "Most votes in round 1: Trzaskowski vs Nawrocki"
+kind = "winner"
+a = "Trzaskowski"
+b = "Nawrocki"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election-1st-round-winner"
+  market = "will-rafa-trzaskowski-win-the-most-votes-in-the-first-round-of-the-polish-presidential-election"
+  yes_is = "a"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election-1st-round-winner"
+  market = "will-karol-nawrocki-win-the-most-votes-in-the-first-round-of-the-polish-presidential-election"
+  yes_is = "b"
+  [[race.market]]
+  platform = "kalshi"
+  event = "KXPOLANDROUND1-25"
+  market = "KXPOLANDROUND1-25-RTRZ"
+  yes_is = "a"
+  wording = "Trzaskowski wins the most votes in round 1"
+  [[race.market]]
+  platform = "kalshi"
+  event = "KXPOLANDROUND1-25"
+  market = "KXPOLANDROUND1-25-KNAW"
+  yes_is = "b"
+  wording = "Nawrocki wins the most votes in round 1"

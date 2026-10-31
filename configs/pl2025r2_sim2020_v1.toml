@@ -1,0 +1,146 @@
+# SENSITIVITY RUN, not the headline: the runoff replay with the settings the 2020 simulation chose (the same
+# earlier-election source as the round-1 config) instead of the round-1 night. Everything else as pl2025r2_v1.toml.
+# Same status: retrospective, not pre-registered, not registered.
+id = "pl2025r2_sim2020_v1"
+election = "Poland, presidential runoff, 2025-06-01; polls closed 19:00 UTC (21:00 CEST); settings from the 2020 simulation"
+round = 2
+poll_close_utc = "2025-06-01T19:00:00Z"
+
+[model]
+tau = 0.04
+sigma_mun0 = 0.06
+kappa = 100000.0
+rho = 0.5
+nu_mun = 20.0
+sigma_uf0 = 0.03
+nu_uf = 5.0
+
+[prior]                      # 2020 runoff, Trzaskowski vs Duda, by cell (brunder.poland.prior)
+source = "https://prezydent20200628.pkw.gov.pl/prezydent20200628/data/2/csv/wyniki_gl_na_kand_po_gminach_csv.zip"
+
+[prices]
+start_utc = "2025-05-31T04:00:00Z"
+end_utc = "2025-06-02T08:00:00Z"   # before the markets resolved (Polymarket 08:55 UTC)
+
+# ---- dashboard races. A = Trzaskowski. Band markets: margin of victory in points of valid votes.
+[[race]]
+id = "winner"
+name = "Presidency: Trzaskowski vs Nawrocki"
+kind = "winner"
+a = "Trzaskowski"
+b = "Nawrocki"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election"
+  market = "will-rafa-trzaskowski-be-the-next-president-of-poland"
+  yes_is = "a"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election"
+  market = "will-karol-nawrocki-be-the-next-president-of-poland"
+  yes_is = "b"
+  [[race.market]]
+  platform = "kalshi"
+  event = "KXPRESPOLAND"
+  market = "KXPRESPOLAND-RT"
+  yes_is = "a"
+  wording = "Trzaskowski wins the presidency"
+  [[race.market]]
+  platform = "kalshi"
+  event = "KXPRESPOLAND"
+  market = "KXPRESPOLAND-KN"
+  yes_is = "b"
+  wording = "Nawrocki wins the presidency"
+
+[[race]]
+id = "n04"
+name = "Nawrocki wins by 0-4 points"
+kind = "band"
+side = "n"
+lo = 0.0
+hi = 4.0
+a = "0-4 points"
+b = "other"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election-margin-of-victory"
+  market = "will-karol-nawrocki-win-by-0-4"
+  yes_is = "a"
+  [[race.market]]
+  platform = "kalshi"
+  event = "KXPOLANDMOV-25"
+  market = "KXPOLANDMOV-25-KNAW-B-2.0"
+  yes_is = "a"
+  wording = "Nawrocki wins by under 4 points"
+
+[[race]]
+id = "n48"
+name = "Nawrocki wins by 4-8 points"
+kind = "band"
+side = "n"
+lo = 4.0
+hi = 8.0
+a = "4-8 points"
+b = "other"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election-margin-of-victory"
+  market = "will-karol-nawrocki-win-by-4-8"
+  yes_is = "a"
+  [[race.market]]
+  platform = "kalshi"
+  event = "KXPOLANDMOV-25"
+  market = "KXPOLANDMOV-25-KNAW-B-6.0"
+  yes_is = "a"
+  wording = "Nawrocki wins by 4 to 8 points"
+
+[[race]]
+id = "t04"
+name = "Trzaskowski wins by 0-4 points"
+kind = "band"
+side = "t"
+lo = 0.0
+hi = 4.0
+a = "0-4 points"
+b = "other"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election-margin-of-victory"
+  market = "will-rafa-trzaskowski-win-by-0-4"
+  yes_is = "a"
+  [[race.market]]
+  platform = "kalshi"
+  event = "KXPOLANDMOV-25"
+  market = "KXPOLANDMOV-25-RTRZ-B2.0"
+  yes_is = "a"
+  wording = "Trzaskowski wins by under 4 points"
+
+[[race]]
+id = "n8p"
+name = "Nawrocki wins by more than 8 points"
+kind = "band"
+side = "n"
+lo = 8.0
+hi = 100.0
+a = "over 8 points"
+b = "other"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election-margin-of-victory"
+  market = "will-karol-nawrocki-win-by-over-8"
+  yes_is = "a"
+
+[[race]]
+id = "t48"
+name = "Trzaskowski wins by 4-8 points"
+kind = "band"
+side = "t"
+lo = 4.0
+hi = 8.0
+a = "4-8 points"
+b = "other"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election-margin-of-victory"
+  market = "will-rafa-trzaskowski-win-by-4-8"
+  yes_is = "a"

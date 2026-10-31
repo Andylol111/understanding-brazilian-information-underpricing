@@ -176,5 +176,27 @@
   "n_units": 106,
   "evidence": "not-preregistered",
   "summary": "The district model projected Tisza's seats within one of the final from 22:30 and settled first on 13 of 20 contested markets (median lead 11.5 minutes), but the market's probabilities were far better overall and the trading rule lost $16,618 on $78,364 of real fills, almost all on one early seat-band bet."
+ },
+ {
+  "id": "pl2025r2",
+  "name": "Poland, presidential runoff",
+  "date": "2025-06-01",
+  "country": "PL",
+  "status": "replay",
+  "unit_level": "voivodeship",
+  "n_units": 16,
+  "evidence": "not-preregistered",
+  "summary": "Retrospective replay. With settings fixed on the 2025 round-1 night the model was 90% sure of Nawrocki's win at 23:28 CEST, 46 minutes before Polymarket (00:14), but its 90% band held the final share in only 46% of minutes; with settings from a simulated 2020 count it settled at 02:20, 126 minutes after the market."
+ },
+ {
+  "id": "pl2025r1",
+  "name": "Poland, presidential election, first round",
+  "date": "2025-05-18",
+  "country": "PL",
+  "status": "replay",
+  "unit_level": "voivodeship",
+  "n_units": 16,
+  "evidence": "not-preregistered",
+  "summary": "Retrospective replay. Polymarket had Trzaskowski at 95% to win the most votes when the count began and stayed above 90% from 03:46 CEST; the model, with settings fixed on a simulated 2020 count, settled at 05:16 CEST, 90 minutes later (its 90% band held the final share in 100% of minutes)."
  }
 ]
