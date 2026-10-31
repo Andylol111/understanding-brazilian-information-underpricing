@@ -30,7 +30,7 @@ OUT = ROOT / "site" / "data" / "au2025"
 CFG = ROOT / "configs" / "au2025_v1.toml"
 CFG2 = ROOT / "configs" / "au2025_v2.toml"
 COL = {"ALP": "#d9353c", "LNC": "#1d4f9c", "GRN": "#2ca24a", "IND": "#d98c1f", "OTH": "#8a8a8a"}
-PNAME = {"ALP": "Labor", "LNC": "Coalition", "GRN": "Greens", "IND": "Independent", "OTH": "Other party"}
+PNAME = {"ALP": "Labor", "LNC": "Coalition", "GRN": "Greens", "IND": "Independent", "OTH": "Katter / Centre Alliance"}
 NO = "#9a9a9a"
 STATE_NAMES = {"ACT": "Australian Capital Territory", "NSW": "New South Wales", "NT": "Northern Territory",
                "QLD": "Queensland", "SA": "South Australia", "TAS": "Tasmania", "VIC": "Victoria", "WA": "Western Australia"}
@@ -162,8 +162,11 @@ def main() -> None:
         winner.append(party_id(w))
         v = sorted(tcp.values(), reverse=True)
         margin.append(int(round(1000 * (v[0] - v[1]) / sum(v))) if len(v) > 1 else 0)
-    sid = lambda i: f"au-{St['divs'][i]['state'].lower()}-{i}"  # noqa: E731
-    dump("units.json", {"unit_ids": [sid(i) for i in ids], "region": [St["divs"][i]["state"].lower() for i in ids],
+    zp = sorted((DATA / "au" / "31496" / "Detailed-Preload").glob("*.zip"))[-1]
+    dem = au.parse_districts(au.read_zip(zp, "pollingdistricts"))
+    reg_of = {i: au.map_region(St["divs"][i]["state"], dem.get(i, ""), St["divs"][i]["name"]) for i in ids}
+    sid = lambda i: f"au-{reg_of[i]}-{i}"  # noqa: E731
+    dump("units.json", {"unit_ids": [sid(i) for i in ids], "region": [reg_of[i] for i in ids],
                         "names": [St["divs"][i]["name"] for i in ids], "prior": prior,
                         "V0": [int(sum(tot_hist[i].values())) if tot_hist[i] else 0 for i in ids],
                         "winner": winner, "margin": margin,
@@ -256,6 +259,7 @@ def main() -> None:
         note,
         "Two model versions are shown. v1 is the headline (solid line). v2 is a sensitivity (thin dashed line). It was written "
         "after v1 had been scored on the 2025 count and its misses looked at. Its settings still come only from 2022 and 2019.",
+        "Reading the map: country seats cover most of the land, but about half of the 150 seats are in the five big cities. Click a city or state in the table beside the map (Greater Sydney, Greater Melbourne, Greater Brisbane, Greater Perth, Greater Adelaide) to zoom to its seats. Far islands (Christmas, Cocos, Norfolk, Lord Howe) are left off the map; their seats still count.",
         f"The map has 150 divisions, on the 2025 boundaries. The count is replayed from the AEC's own election-night feed: "
         f"{S['n_frames']} messages, each used from the time the AEC created it. Times are Canberra time (AEST). The first "
         f"two-candidate count came at {pd.Timestamp(S['first_count']).tz_convert(AEST):%H:%M}. The last message shown is "
@@ -300,7 +304,7 @@ def main() -> None:
     meta = {"id": "au2025", "name": "Australia, House of Representatives election", "date": "2025-05-03",
             "tz": AEST, "poll_close_utc": cfg["poll_close_utc"], "geometry": "geo/au_divisions.topo.json",
             "geometry_object": "divisions", "unit_key": "unit_id", "count_timeline": True,
-            "regions": [{"id": s.lower(), "name": STATE_NAMES[s]} for s in sorted({v["state"] for v in St["divs"].values()})],
+            "regions": [{"id": r, "name": au.REGION_NAMES[r]} for r in au.REGION_NAMES if r in set(reg_of.values())],
             "parties": [{"id": k, "name": PNAME[k], "color": COL[k]} for k in ("ALP", "LNC", "GRN", "IND", "OTH")],
             "races": mk_races,
             "sensitivity": {"label": "v2: added after the 2025 count was scored",

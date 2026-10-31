@@ -490,3 +490,33 @@ def seats_of_final(fin: dict[int, dict], ids: list[int]):
 
     win = np.array([SEAT_GROUPS.index(seat_group(fin[i]["winner"])) if fin[i]["winner"] else 3 for i in ids], dtype=np.int8)
     return np.array([(win == k).sum() for k in range(4)]), win
+
+
+# ----------------------------------------------------------------------------------------------- map regions
+
+REGION_NAMES = {"syd": "Greater Sydney", "nsw": "Rest of New South Wales", "mel": "Greater Melbourne",
+                "vic": "Rest of Victoria", "bne": "Greater Brisbane", "qld": "Rest of Queensland", "per": "Greater Perth",
+                "wa": "Rest of Western Australia", "adl": "Greater Adelaide", "sa": "Rest of South Australia",
+                "tas": "Tasmania", "act": "Australian Capital Territory", "nt": "Northern Territory"}
+CITY = {"NSW": "syd", "VIC": "mel", "QLD": "bne", "WA": "per", "SA": "adl"}
+# divisions the AEC classes as metropolitan but that reach far into the country: they stay with the rest of the state
+NOT_CITY = {"Hume"}
+
+
+def parse_districts(xml: bytes) -> dict[int, str]:
+    """Polling-districts message -> {division id: AEC demographic class (InnerMetropolitan, Provincial, ...)}."""
+    root = ET.fromstring(xml)
+    out = {}
+    for d in root.iter(M + "PollingDistrict"):
+        i = d.find(M + "PollingDistrictIdentifier")
+        dem = d.find(M + "Demographic")
+        if i is not None:
+            out[int(i.get("Id"))] = dem.text if dem is not None else ""
+    return out
+
+
+def map_region(state: str, demographic: str, name: str) -> str:
+    """Region code of a division on the map: the capital city for metropolitan divisions, else the rest of the state."""
+    if state in CITY and demographic.endswith("Metropolitan") and name not in NOT_CITY:
+        return CITY[state]
+    return state.lower()

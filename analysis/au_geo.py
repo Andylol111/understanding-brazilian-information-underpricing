@@ -70,13 +70,38 @@ def download() -> Path:
     return path
 
 
-def feed_ids() -> dict[str, tuple[int, str, str]]:
+# Outlying islands are left off the map, so they do not stretch the fitted view (as NZ leaves off the Chatham Islands):
+# Christmas and Cocos (Keeling) Islands (Lingiari), Norfolk Island (Bean), Lord Howe Island (NSW), Macquarie and Heard
+# Islands, and the far northern Torres Strait islands (Leichhardt). Every division keeps its mainland or main-island
+# polygons and its results; only these polygons are dropped (about 40 of ~600 rings).
+LON, LAT = (112.5, 154.0), (-44.0, -10.4)
+
+
+def keep_polygon(poly: list) -> bool:
+    ring = poly[0]
+    lon = sum(p[0] for p in ring) / len(ring)
+    lat = sum(p[1] for p in ring) / len(ring)
+    return LON[0] <= lon <= LON[1] and LAT[0] <= lat <= LAT[1]
+
+
+def drop_far_islands(geom: dict) -> dict:
+    polys = geom["coordinates"] if geom["type"] == "MultiPolygon" else [geom["coordinates"]]
+    kept = [p for p in polys if keep_polygon(p)]
+    if not kept:
+        raise ValueError("every polygon of a division is outside the map window")
+    return {"type": "MultiPolygon", "coordinates": kept}
+
+
+def feed_ids() -> dict[str, tuple[int, str, str, str]]:
     from brunder import australia as au
     zips = sorted(PRELOAD.glob("*.zip"))
     if not zips:
         raise FileNotFoundError(f"no Preload zip in {PRELOAD}")
-    divs = au.parse_preload(au.read_zip(zips[-1]))["divs"]
-    out = {norm(d["name"]): (int(i), d["name"], d["state"]) for i, d in divs.items()}
+    z = zips[-1]
+    divs = au.parse_preload(au.read_zip(z))["divs"]
+    dem = au.parse_districts(au.read_zip(z, "pollingdistricts"))
+    out = {norm(d["name"]): (int(i), d["name"], d["state"], au.map_region(d["state"], dem.get(int(i), ""), d["name"]))
+           for i, d in divs.items()}
     if len(out) != N:
         raise ValueError(f"expected {N} feed divisions, got {len(out)}")
     return out
@@ -92,8 +117,9 @@ def main() -> None:
             raise ValueError(f"boundary division absent from AEC feed: {f['properties']['elect_div']!r}")
         if not f.get("geometry") or not f["geometry"].get("coordinates"):
             raise ValueError(f"no geometry: {key}")
-        aec_id, name, state = ids[key]
-        f["properties"] = {"unit_id": f"au-{state.lower()}-{aec_id}", "aec_id": aec_id, "name": name, "state": state}
+        aec_id, name, state, region = ids[key]
+        f["geometry"] = drop_far_islands(f["geometry"])
+        f["properties"] = {"unit_id": f"au-{region}-{aec_id}", "aec_id": aec_id, "name": name, "state": state, "region": region}
         seen.add(key)
     if seen != set(ids):
         raise ValueError(f"feed divisions without geometry: {sorted(set(ids) - seen)}")
@@ -105,21 +131,22 @@ def main() -> None:
     # Topology-preserving, area-weighted; keep-shapes retains every ring of every division (Tasmania, islands).
     subprocess.run(ms + ["-i", str(work), "name=divisions", "-simplify", "weighted", "4%", "keep-shapes",
                          "-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(OUT)], check=True)
-    subprocess.run(ms + ["-i", str(work), "name=regions", "-dissolve", "state", "-simplify", "weighted", "0.5%",
-                         "keep-shapes", "-o", "format=topojson", "quantization=50000", "id-field=state",
+    subprocess.run(ms + ["-i", str(work), "name=regions", "-dissolve", "region", "-simplify", "weighted", "0.5%",
+                         "keep-shapes", "-o", "format=topojson", "quantization=50000", "id-field=region",
                          str(OUT_REG)], check=True)
 
+    from brunder import australia as au
     reg = json.loads(OUT_REG.read_text())
     for g in reg["objects"]["regions"]["geometries"]:
-        code = g["properties"]["state"]
-        g["id"] = code.lower()
-        g["properties"] = {"region": code.lower(), "name": STATES[code]}
+        code = g["properties"]["region"]
+        g["id"] = code
+        g["properties"] = {"region": code, "name": au.REGION_NAMES[code]}
     OUT_REG.write_text(json.dumps(reg, separators=(",", ":")))
 
     topo = json.loads(OUT.read_text())
     geoms = topo["objects"]["divisions"]["geometries"]
     got = {g["properties"]["unit_id"] for g in geoms}
-    if len(geoms) != N or got != {f"au-{v[2].lower()}-{v[0]}" for v in ids.values()} \
+    if len(geoms) != N or got != {f"au-{v[3]}-{v[0]}" for v in ids.values()} \
             or any(g["id"] != g["properties"]["unit_id"] for g in geoms) or not all(g.get("arcs") for g in geoms):
         raise ValueError("bad output: divisions missing or emptied by simplification")
     if OUT.stat().st_size >= MAX_BYTES:
