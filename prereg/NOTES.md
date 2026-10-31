@@ -182,6 +182,34 @@ of counted results (it used only its prior), and it is neither registered nor di
 - **Not registered:** `configs/us2026_national/national_v1.toml` (worse than the separate state models on the
   2022 and 2024 test years; experimental, not displayed).
 
+## US midterms 2026: known limitations (disclosed 2026-10-31, before any 2026 result)
+
+From an audit of the registered configs (`docs/us_model_audit.md`). No registered file changes; this entry
+only states limits known before the count.
+
+- **House:** the v2 starting estimate is the 2024 presidential vote on the 2026 district lines plus a
+  generic-ballot swing of +5.5 points from two VoteHub polls (latest 2026-10-04). Candidates and incumbency
+  enter only through the count, so the model is expected to disagree with markets where an incumbent runs
+  well ahead of the party (e.g. PA-01: model 0.86, market 0.47). In districts made of one or two counties the
+  starting estimate is barely corrected during the night. The House results are a descriptive study.
+- **Count settings** come from Georgia 2022/2024 replays with simulated count orders. Coverage of 99–100% at a
+  90% level there means the bands are wide, not that probabilities are calibrated. In those replays v3 leaned
+  toward the Democrat by about 2–4 points of margin between 5% and 50% counted.
+- **Polls** are not corrected for the 1.4-point pro-Democratic poll error of 2016–2022. The spread used for
+  races with 11 or more polls rests on 57 past races. Poll snapshots are as of 2026-10-29/30 and are not
+  refreshed on the night.
+- **Races where the model is expected to differ from markets** for known reasons: large swings from the last
+  result (Vermont governor, South Carolina Senate, Nebraska governor) and races with three polls or fewer.
+- **New Mexico governor** has no polls, so v2 is identical to v1; it is scored as v1.
+- **Senate control** is computed from poll averages (market price where unpolled), not from the live count.
+- **Ohio civicAPI versions** are numbered differently from the official Ohio configs (civic v3 = official v4);
+  civicAPI results are always reported separately.
+- **Not modelled:** Alaska (top-four ranked-choice voting) and Maine. Michigan governor is modelled as a
+  two-party race although Mike Duggan (independent) is on the ballot; the market resolves on plurality.
+- **Feeds:** Ohio's official feed has refused our server since 2026-10-30 and South Carolina's returns a bot
+  check, so up to four registered statewide races (OH and SC, Senate and governor) may have no scored count.
+  Any bot check on the night ends that series; none is bypassed.
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap
