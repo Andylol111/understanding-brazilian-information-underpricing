@@ -198,5 +198,16 @@
   "n_units": 16,
   "evidence": "not-preregistered",
   "summary": "Retrospective replay. Polymarket had Trzaskowski at 95% to win the most votes when the count began and stayed above 90% from 03:46 CEST; the model, with settings fixed on a simulated 2020 count, settled at 05:16 CEST, 90 minutes later (its 90% band held the final share in 100% of minutes)."
+ },
+ {
+  "id": "de2025",
+  "name": "Germany, Bundestag election",
+  "date": "2025-02-23",
+  "country": "DE",
+  "status": "replay",
+  "unit_level": "Wahlkreis",
+  "n_units": 299,
+  "evidence": "not-preregistered",
+  "summary": "Retrospective replay from the Bundeswahlleiterin's archived night pages (15 national pages, 177 Wahlkreis pages). Polymarket was already above 0.9 on the outcome at poll close on 42 of 46 markets; on the 4 it had not settled, the count model settled first on 1 (BSW under 5%: +6 min) and its probabilities scored worse than the market's on 37 of 46."
  }
 ]

@@ -1,0 +1,124 @@
+﻿(c) Die Bundeswahlleiterin, Wiesbaden 2025;;;;;;;;;;;;;;;;
+Datenlizenz Deutschland – Namensnennung – Version 2.0 (https://www.govdata.de/dl-de/by-2-0);;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;
+Ergebnisse nach Wahlkreisen;;;;;;;;;;;;;;;;
+Status:;Endgültig;;;;;;;;;;;;;;;
+Stand:;14.03.2025;10:50;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;
+Format: CSV. Trennzeichen: Semikolon. Zeichensatz: UTF-8 mit BOM;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;
+Wahlart;Wahltag;Gebietsart;Gebietsnummer;Gebietsname;UegGebietsart;UegGebietsnummer;Gruppenart;Gruppenname;Gruppenreihenfolge;Stimme;Anzahl;Prozent;VorpAnzahl;VorpProzent;DiffProzent;DiffProzentPkt;Bemerkung;Gewählt
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;System-Gruppe;Wahlberechtigte;-4;;216618;;220204;;-1,62849;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;System-Gruppe;Wählende;-3;;173656;80,16693;163495;74,247062;6,214869;5,919868;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;System-Gruppe;Ungültige;-2;1;1511;0,870111;1526;0,933362;-0,982962;-0,063251;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;System-Gruppe;Ungültige;-2;2;1082;0,623071;1277;0,781064;-15,270164;-0,157993;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;System-Gruppe;Gültige;-1;1;172145;99,129889;161969;99,066638;6,282684;0,063251;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;System-Gruppe;Gültige;-1;2;172574;99,376929;162218;99,218936;6,384002;0,157993;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;SPD;1;1;47237;27,440239;52852;32,630936;-10,624007;-5,190696;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;SPD;1;2;34679;20,095148;48196;29,710636;-28,045896;-9,615489;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;CDU;2;1;55860;32,449389;44778;27,646031;24,748761;4,803358;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;CDU;2;2;49129;28,468367;39413;24,296317;24,651765;4,17205;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;GRÜNE;3;1;14997;8,711842;20967;12,94507;-28,473315;-4,233228;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;GRÜNE;3;2;19322;11,196356;24296;14,977376;-20,472506;-3,78102;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;FDP;4;1;5555;3,226931;17406;10,746501;-68,085718;-7,51957;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;FDP;4;2;8171;4,73478;20256;12,4869;-59,661335;-7,75212;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;AfD;5;1;31911;18,53728;12335;7,615655;158,702878;10,921625;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;AfD;5;2;31539;18,275638;12506;7,709379;152,190948;10,56626;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Die Linke;6;1;12886;7,48555;5099;3,148133;152,716219;4,337417;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Die Linke;6;2;14540;8,425371;6076;3,745577;139,302172;4,679794;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Tierschutzpartei;7;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Tierschutzpartei;7;2;2328;1,348987;2521;1,554082;-7,655692;-0,205095;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Die PARTEI;8;1;;;3398;2,097932;;-2,097932;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Die PARTEI;8;2;1140;0,660586;2044;1,260033;-44,227006;-0,599447;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;dieBasis;9;1;;;2233;1,378659;;-1,378659;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;dieBasis;9;2;404;0,234102;1913;1,179277;-78,881338;-0,945175;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Team Todenhöfer;10;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Team Todenhöfer;10;2;418;0,242215;1312;0,808788;-68,140244;-0,566573;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;FREIE WÄHLER;11;1;;;1662;1,026122;;-1,026122;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;FREIE WÄHLER;11;2;668;0,38708;1086;0,669469;-38,489871;-0,282389;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Volt;12;1;2646;1,537076;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Volt;12;2;1331;0,771263;470;0,289734;183,191489;0,48153;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;MLPD;13;1;429;0,249209;169;0,104341;153,846154;0,144868;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;MLPD;13;2;110;0,063741;80;0,049316;37,5;0,014424;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;PdF;14;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;PdF;14;2;305;0,176736;70;0,043152;335,714286;0,133584;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;BÜNDNIS DEUTSCHLAND;15;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;BÜNDNIS DEUTSCHLAND;15;2;215;0,124584;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;BSW;16;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;BSW;16;2;8115;4,702331;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;MERA25;17;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;MERA25;17;2;81;0,046936;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;WerteUnion;18;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;WerteUnion;18;2;79;0,045777;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Einzelbewerber/Wählergruppe;EB:Link;19;1;624;0,362485;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Einzelbewerber/Wählergruppe;EB:Link;19;2;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Bündnis C;20;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Bündnis C;20;2;;;83;0,051166;;-0,051166;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;ÖDP;21;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;ÖDP;21;2;;;99;0,061029;;-0,061029;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;PdH;22;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;PdH;22;2;;;174;0,107263;;-0,107263;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Verjüngungsforschung;23;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;Verjüngungsforschung;23;2;;;194;0,119592;;-0,119592;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;PIRATEN;24;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;PIRATEN;24;2;;;624;0,384668;;-0,384668;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;SGP;25;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;Partei;SGP;25;2;;;13;0,008014;;-0,008014;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;System-Gruppe;Übrige;1000;1;;;1070;0,66062;;-0,66062;;CDU
+BT;23.02.2025;Wahlkreis;102;Solingen – Remscheid – Wuppertal II;LAND;05;System-Gruppe;Übrige;1000;2;;;792;0,488232;;-0,488232;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;System-Gruppe;Wahlberechtigte;-4;;200860;;203030;;-1,068808;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;System-Gruppe;Wählende;-3;;167587;83,434731;159457;78,53864;5,098553;4,896091;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;System-Gruppe;Ungültige;-2;1;1365;0,814502;1561;0,978947;-12,556054;-0,164445;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;System-Gruppe;Ungültige;-2;2;883;0,526891;1149;0,72057;-23,150566;-0,19368;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;System-Gruppe;Gültige;-1;1;166222;99,185498;157896;99,021053;5,273091;0,164445;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;System-Gruppe;Gültige;-1;2;166704;99,473109;158308;99,27943;5,303585;0,19368;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;SPD;1;1;37459;22,535525;39326;24,906267;-4,747495;-2,370743;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;SPD;1;2;31482;18,88497;42385;26,773757;-25,723723;-7,888788;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;CDU;2;1;60813;36,58541;47326;29,972894;28,498077;6,612516;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;CDU;2;2;53516;32,102409;43354;27,385855;23,43959;4,716554;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;GRÜNE;3;1;20705;12,456233;36095;22,859984;-42,637484;-10,403751;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;GRÜNE;3;2;21284;12,76754;25430;16,063623;-16,303578;-3,296083;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;FDP;4;1;7482;4,501209;14873;9,419491;-49,694077;-4,918282;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;FDP;4;2;9419;5,650134;21083;13,31771;-55,324195;-7,667575;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;AfD;5;1;26187;15,754232;10704;6,779146;144,646861;8,975087;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;AfD;5;2;25921;15,549117;10658;6,732446;143,206981;8,816671;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Die Linke;6;1;10713;6,444995;4252;2,692912;151,952023;3,752083;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Die Linke;6;2;11506;6,902054;4956;3,130606;132,163035;3,771448;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Tierschutzpartei;7;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Tierschutzpartei;7;2;2259;1,355096;2260;1,427597;-0,044248;-0,0725;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Die PARTEI;8;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Die PARTEI;8;2;825;0,494889;1474;0,931096;-44,029851;-0,436207;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;dieBasis;9;1;;;1845;1,168491;;-1,168491;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;dieBasis;9;2;340;0,203954;1632;1,030902;-79,166667;-0,826947;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Team Todenhöfer;10;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Team Todenhöfer;10;2;338;0,202755;1321;0,834449;-74,413323;-0,631695;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;FREIE WÄHLER;11;1;;;1818;1,151391;;-1,151391;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;FREIE WÄHLER;11;2;680;0,407909;1117;0,705587;-39,12265;-0,297678;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Volt;12;1;2863;1,722395;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Volt;12;2;1401;0,840412;571;0,360689;145,359019;0,479722;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;MLPD;13;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;MLPD;13;2;38;0,022795;22;0,013897;72,727273;0,008898;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;PdF;14;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;PdF;14;2;350;0,209953;77;0,048639;354,545455;0,161314;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;BÜNDNIS DEUTSCHLAND;15;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;BÜNDNIS DEUTSCHLAND;15;2;188;0,112775;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;BSW;16;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;BSW;16;2;6983;4,188862;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;MERA25;17;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;MERA25;17;2;57;0,034192;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;WerteUnion;18;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;WerteUnion;18;2;117;0,070184;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Bündnis C;19;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Bündnis C;19;2;;;98;0,061905;;-0,061905;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;ÖDP;20;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;ÖDP;20;2;;;104;0,065695;;-0,065695;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;PdH;21;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;PdH;21;2;;;94;0,059378;;-0,059378;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Verjüngungsforschung;22;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;Verjüngungsforschung;22;2;;;208;0,131389;;-0,131389;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;PIRATEN;23;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;PIRATEN;23;2;;;652;0,411855;;-0,411855;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;SGP;24;1;;;;;;;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;Partei;SGP;24;2;;;14;0,008844;;-0,008844;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;System-Gruppe;Übrige;1000;1;;;1657;1,049425;;-1,049425;;CDU
+BT;23.02.2025;Wahlkreis;103;Mettmann I;LAND;05;System-Gruppe;Übrige;1000;2;;;798;0,504081;;-0,504081;;CDU
