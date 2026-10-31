@@ -1,5 +1,7 @@
 // Time scrubber: a native range input (keyboard + screen readers) over a small area chart of the
-// share counted, with event markers for the selected race.
+// share counted, with event markers for the selected race. An event is { t, label, color, dash }: a
+// line at its time; with edge -1 / 1 (it happened before / after the axis) its label sits at that
+// edge with no line, and the label carries the time.
 import * as d3 from "./vendor/d3.js";
 import { C } from "./common.js";
 
@@ -40,9 +42,9 @@ export function createScrubber(root, { onInput }) {
     const ticks = days ? d3.utcDay.every(everyDay).range(st.wall(st.domain[0]), st.wall(st.domain[1]))
       : every === 24 ? d3.utcDay.range(st.wall(st.domain[0]), st.wall(st.domain[1])) : d3.utcHour.every(every).range(st.wall(st.domain[0]), st.wall(st.domain[1]));
     svg.append("g").selectAll("text").data(ticks).join("text").attr("class", "scrub-tick")
-      .attr("x", (d) => x(+d - (+st.wall(0)))).attr("y", h - 0).attr("text-anchor", "middle").text(d3.utcFormat(days ? "%-d %b" : long ? "%-d %b %H:%M" : "%H:%M"));
+      .attr("x", (d) => x(+d - (+st.wall(0)))).attr("y", h - 0).attr("text-anchor", (d) => { const px = x(+d - (+st.wall(0))); return px < 18 ? "start" : px > w - 18 ? "end" : "middle"; }).text(d3.utcFormat(days ? "%-d %b" : long ? "%-d %b %H:%M" : "%H:%M"));
     // event markers: labels on two rows; markers within 40 px of the previous one go on the other row
-    const ev = st.events.filter((e) => e.t != null).map((e) => ({ ...e, x: x(Math.max(st.domain[0], Math.min(st.domain[1], e.t))) })).sort((a, b) => a.x - b.x);
+    const ev = st.events.filter((e) => e.t != null).map((e) => ({ ...e, x: e.edge ? (e.edge < 0 ? pad : w - pad) : x(Math.max(st.domain[0], Math.min(st.domain[1], e.t))) })).sort((a, b) => a.x - b.x);
     const rowsEnd = [-Infinity, -Infinity];
     let prev = null;
     for (const e of ev) {
@@ -55,7 +57,7 @@ export function createScrubber(root, { onInput }) {
       prev = e;
     }
     const gE = svg.append("g").selectAll("g").data(ev).join("g");
-    gE.append("line").attr("x1", (d) => d.x).attr("x2", (d) => d.x).attr("y1", (d) => d.ly + 2).attr("y2", yBot).attr("stroke", (d) => d.color).attr("stroke-width", 1.2);
+    gE.filter((d) => !d.edge).append("line").attr("x1", (d) => d.x).attr("x2", (d) => d.x).attr("y1", (d) => d.ly + 2).attr("y2", yBot).attr("stroke", (d) => d.color).attr("stroke-width", 1.2).attr("stroke-dasharray", (d) => d.dash ?? null);
     gE.append("text").attr("class", "scrub-event").attr("x", (d) => d.lx).attr("y", (d) => d.ly).attr("fill", (d) => d.color).text((d) => d.label);
   }
 

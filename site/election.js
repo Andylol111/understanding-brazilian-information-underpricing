@@ -759,6 +759,14 @@ function computeDomain() {
     const before = S.rows.get(mainRace().race_id).filter((d) => d.tms < start);
     S.gateCut = { gate: gate.t, start, maxBefore: d3.max(before, (d) => d.counted) };
   }
+  // A mark of the main race (market or model 90%, raw count settling) that falls before that start but
+  // after poll close: the axis reaches back to poll close so the mark sits where it happened. Marks
+  // before poll close are drawn as edge labels instead (updateScrubber).
+  const main = mainRace(), close = closeOf(main?.region);
+  if (S.countTimeline && main && Number.isFinite(close) && close < start && marksOf(main.race_id).some((m) => m.t >= close && m.t < start)) {
+    start = close;
+    if (S.gateCut) S.gateCut.start = start;
+  }
   // US, once counting has started: the election night (an hour before the first poll close, to now)
   // or the whole series ("Last 14 days")
   S.counting = !!S.nat && S.countTimeline && statewide().some((r) => (S.rows.get(r.race_id)?.at(-1)?.counted ?? 0) > 0);
@@ -1652,32 +1660,63 @@ function layersChanged() {
 const gateOf = (id) => (S.countTimeline ? rowsOf(id)?.find((d) => d.counted >= 0.01)?.t ?? null : null);
 const settleOf = (id) => gatedSettle(S.stats, id, gateOf(id));
 
-function updateScrubber() {
-  const id = S.race?.race_id;
+// A race's 90% marks (the scrubber's events), as { t (ms), label, color, dash, layer }. show: the Show bar
+// (election.js showOf), or null for every layer (what the axis must make room for). Each model version
+// has its own mark: the headline model's from the statistics, a sensitivity's (v2, v3, mix, …) from its
+// own chance series on the eventual winner, by the same rule (the first minute from which the winner's
+// chance stays at or above 0.9 to the end). A version already confident from its first row (a poll prior)
+// marks at that row, which the axis then reaches back to.
+function marksOf(id, show = null) {
   const rows = rowsOf(id) ?? [];
   const settle = S.stats?.settle?.[id] ?? {};
-  const ev = (iso, label, color) => {
-    if (!iso) return null;
-    const t = Date.parse(iso);
-    const out = t < S.domain[0] || t > S.domain[1];
-    return { t, label: out ? `${label} (${clock(iso, S.tz)})` : label, color };
-  };
-  const gate = gateOf(id), show = showOf();
-  updateReplayHint(show);
+  const on = (k) => !show || show[k];
+  const ms = (iso) => (iso ? Date.parse(iso) : null);
+  const gate = gateOf(id);
   // The model is never shown as settled before the 1% gate: if it was already at 0.9 then, its
   // marker sits on the gate.
   const gatedModel = settleOf(id)?.model ?? settle.model;
-  const modelAtGate = gate && settle.model && Date.parse(settle.model) <= Date.parse(gate);
-  S.scrub.set({
-    domain: S.domain, rows: S.countTimeline ? rows : [], wall: S.wall, tz: S.tz,
-    events: [
-      gate && (!modelAtGate || !show.model) && ev(gate, "1% counted", C.muted),
-      show.model && (modelAtGate ? ev(gate, "model 90% sure from 1% counted", C.model) : ev(gatedModel, "model 90% sure", C.model)),
-      show.pm && ev(settle.polymarket, "Polymarket 90% sure", C.market),
-      show.kalshi && ev(settle.kalshi, "Kalshi 90% sure", C.kalshi),
-      show.raw && ev(settle.raw, "raw count settles", C.raw),
-    ].filter(Boolean),
+  const modelAtGate = gate && settle.model && ms(settle.model) <= ms(gate);
+  const out = [];
+  const add = (iso, label, color, layer, dash = null) => { if (iso) out.push({ t: ms(iso), label, color, dash, layer }); };
+  if (gate && (!modelAtGate || !on("model"))) add(gate, "1% counted", C.muted, "gate");
+  if (on("model")) { if (modelAtGate) add(gate, "model 90% sure from 1% counted", C.model, "model"); else add(gatedModel, "model 90% sure", C.model, "model"); }
+  if (on("pm")) add(settle.polymarket, "Polymarket 90% sure", C.market, "pm");
+  if (on("kalshi")) add(settle.kalshi, "Kalshi 90% sure", C.kalshi, "kalshi");
+  if (on("raw")) add(settle.raw, "raw count settles", C.raw, "raw");
+  const aWon = replay() ? outcomeA(rows, S.stats?.settle?.[id]) : null;
+  if (aWon != null) {
+    for (const s of sensitivitiesOf(S.meta)) {
+      if (show && !show.sens?.[s.key]) continue;
+      const q = rows.map((d) => [d.tms, sensP(d, s)]).filter((x) => x[1] != null).map(([t, p]) => [t, aWon ? p : 1 - p]);
+      if (!q.length) continue;
+      let i = q.length - 1;
+      while (i >= 0 && q[i][1] >= 0.9) i--;
+      if (i === q.length - 1) continue; // still below 0.9 at the end: it never settled
+      add(new Date(q[i + 1][0]).toISOString(), `${s.key} 90% sure`, C.model, s.key, s.dash);
+    }
+  }
+  return out;
+}
+
+function updateScrubber() {
+  const id = S.race?.race_id;
+  const rows = rowsOf(id) ?? [];
+  const show = showOf();
+  updateReplayHint(show);
+  // A mark outside the axis is an edge label ("◀ … (2 days before)"), never drawn at the edge as if it
+  // happened there.
+  const [d0, d1] = S.domain;
+  const when = (t, edge) => {
+    const gap = Math.abs(t - edge);
+    if (gap >= 24 * 3600000) { const n = Math.round(gap / 86400000); return `${n} day${n === 1 ? "" : "s"} ${t < edge ? "before" : "after"}`; }
+    return dayOf(t) === dayOf(edge) ? clock(t, S.tz) : `${dayOf(t)} ${clock(t, S.tz)}`;
+  };
+  const events = marksOf(id, show).map((m) => {
+    if (m.t >= d0 && m.t <= d1) return m;
+    const left = m.t < d0;
+    return { ...m, edge: left ? -1 : 1, label: `${left ? "◀ " : ""}${m.label} (${when(m.t, left ? d0 : d1)})${left ? "" : " ▶"}` };
   });
+  S.scrub.set({ domain: S.domain, rows: S.countTimeline ? rows : [], wall: S.wall, tz: S.tz, events });
   const playable = (S.frameTimes?.length ?? 0) > 1 || (S.countTimeline && rows.length > 1);
   $("play").hidden = !playable;
   $("speed").hidden = !playable;
