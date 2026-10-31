@@ -41,7 +41,7 @@ const STATUS_LABEL = { live: "Live", scheduled: "Before the count", replay: "Rep
 const STATUS_SHORT = { live: "live now", scheduled: "before the count", replay: "replay" }; // the hover card's lines
 const RANK = { live: 0, scheduled: 1, replay: 2 };
 const ZOOM_MS = 900, FADE_MS = 350;
-const REGION_MAPS = new Set(["US", "BR", "CA", "MX", "HU", "NZ", "IL", "NL"]); // geo/<cc>_regions.topo.json
+const REGION_MAPS = new Set(["US", "BR", "CA", "MX", "HU", "NZ", "IL", "NL", "AU"]); // geo/<cc>_regions.topo.json
 const UNIT_MAPS = new Set(["NZ", "IL"]); // whose region file is the unit map itself (ids = unit ids)
 const RAD = Math.PI / 180;
 const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
