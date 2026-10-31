@@ -432,7 +432,12 @@ def main() -> None:
         {"name": f"Kalshi candlesticks (historical tier) of the 'Who will win the Dutch general election?' markets ({KALSHI_EVENT}), most seats",
          "url": f"https://kalshi.com/markets/kxpartywinnl", "licence": "Kalshi public market data"},
     ]
+    tie_note = (
+        "Polymarket and Kalshi prices split after about 21:00 UTC because their contracts treat a seat tie differently. "
+        "Polymarket gives a tie to the alphabetically first party (D66), so a D66 share paid $1. Kalshi splits a tie, paying $0.50 to each tied party. As a 26-26 tie became likely, Polymarket's D66 price rose toward $1 and Kalshi's D66 and PVV prices moved toward $0.50. Both were consistent with their own rules; the gap is not a mispricing."
+    )
     notes = [
+        tie_note,
         "RETROSPECTIVE replay, not pre-registered. No count history: market vs outcome only. Nothing official or openly licensed "
         "recorded the Dutch count by gemeente during the night, so the page shows Polymarket prices against the official final "
         "result and a projection made before any votes; there is no minute-by-minute count model, accuracy or profit result.",
@@ -464,8 +469,9 @@ def main() -> None:
         "id": "nl2025", "name": "Netherlands, Tweede Kamer election", "date": "2025-10-29", "tz": "Europe/Amsterdam",
         "poll_close_utc": iso(POLL_CLOSE), "geometry": "geo/nl_gemeenten.topo.json", "geometry_object": "gemeenten", "unit_key": "unit_id",
         "count_timeline": False,
-        "count_note": "No count history: market vs outcome only. Nothing official or openly licensed recorded the count by gemeente during the "
-                      "night, so the chart shows Polymarket prices, and the model line is a projection made before any votes (not a count "
+        "count_note": "Venues settle ties differently: Polymarket gave the 26-26 tie to D66 (alphabetical), Kalshi paid $0.50 to D66 and to PVV, "
+                      "so their D66 and PVV prices diverged after about 21:00 UTC; neither is mispriced (first note below). No count history: market vs outcome only. Nothing official or openly licensed recorded the count by gemeente during the "
+                      "night, so the chart shows market prices, and the model line is a projection made before any votes (not a count "
                       "model). The map shows the official final results. Retrospective, not pre-registered.",
         "regions": [{"id": k, "name": n} for k, n in nl.PROVINCES.values()],
         "parties": [{"id": i, "name": nl.LABEL[i], "color": nl.LISTS[i][2]} for i in ids] + [{"id": "other", "name": "Other", "color": "#8a8a8a"}],
