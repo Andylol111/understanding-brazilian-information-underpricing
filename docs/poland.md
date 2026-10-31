@@ -40,6 +40,27 @@ reads gzip-compressed protobuf files from `/prezydent2025/data/`:
   count over time exists for calibration.
 - The finest unit published over time is the voivodeship; the size-class table is national only.
 
+## Earlier nights: what the Internet Archive holds (searched 2026-10-31)
+
+PKW's count-night versions exist as separately addressed files (`pl_po_woj.<epoch>.blob`) only for 2025. Before that the
+site used one fixed address per file, so the archive holds whatever a visitor's crawl fetched at that moment. CDX
+listings of each election's two days, then the national `pl_po_woj.blob` / `wyn/pl.blob` captures decoded where the
+format matches (2023 on):
+
+| night | host | count captures during the night (UTC) | what they show |
+|---|---|---|---|
+| presidential 2015-05-10 / 05-24 | `prezydent2015.pkw.gov.pl` (HTML) | none: "partial results" page captured 11 May 13:16-14:50 (the afternoon after); nothing for 24 May (CDX returned an empty list for the results pages) | not usable |
+| Sejm 2019-10-13 | `sejmsenat2019.pkw.gov.pl` / `wybory.gov.pl/sejmsenat2019` | none: 15 captures of `pl_po_okr_sejm.blob`, all 14 Oct 14:55-18:57 or 15 Oct | count already complete |
+| presidential 2020-06-28 / 07-12 | `wybory.gov.pl/prezydent20200628` (older schema) | none: `pl_po_woj.blob` captured 28 Jun 14:47-17:35 (before the polls closed), then 29-30 Jun; runoff 12 Jul 14:46, 13 Jul 08:06 onward | count already complete |
+| Sejm 2023-10-15 | `wybory.gov.pl/sejmsenat2023` | 3 snapshots: 22:48 (110 of 31,497 obwody), 16 Oct 09:54 (13,087 = 42%), 17 Oct (complete) | party lists, 1 usable mid-count frame |
+| local 2024-04-07 | `wybory.gov.pl/samorzad2024` | 8 Apr 03:46 (358 of 31,456 obwody), 14:30 (847, the last) | 1-3% only, councils |
+| European 2024-06-09 | `wybory.gov.pl/pe2024` | 23:18 (6,678 of 31,830 = 21%), then 10 Jun 09:24 (complete) | party lists, 1 mid-count frame |
+| presidential 2025, round 1 and runoff | `wybory.gov.pl/prezydent2025` | **31 and 28 versions** (see above) | the two nights scored here |
+
+So the 2025 round-1 night is the only earlier real night with a count history; the 2023 and 2024 snapshots are single frames
+of party-list elections (no two-candidate share, a different prior) and are not scored. The 2020 and earlier nights can only
+be simulated from final results.
+
 ## Sources and licences
 
 | Data | URL | Licence |
@@ -69,7 +90,8 @@ export BRUNDER_DATA=~/brunder-data-local
 uv run python analysis/pl_fetch.py cdx && uv run python analysis/pl_fetch.py blobs
 uv run python analysis/pl_fetch.py final && uv run python analysis/pl_fetch.py markets && uv run python analysis/pl_fetch.py kalshi
 uv run python analysis/pl_calibrate.py                  # earlier elections only -> results/poland/calibration.json
-uv run python analysis/pl_score.py configs/pl2025r2_v1.toml   # also pl2025r1_v1.toml, pl2025r2_sim2020_v1.toml
+uv run python analysis/pl_calibrate_pooled.py           # v2 sensitivity: pooled over the earlier nights
+uv run python analysis/pl_score.py configs/pl2025r2_v1.toml   # also pl2025r1_v1.toml, pl2025r2_sim2020_v1.toml, pl2025r2_v2.toml
 uv run python analysis/pl_geo.py && uv run python analysis/pl_export.py
 ```
 
@@ -172,6 +194,33 @@ Polymarket had Trzaskowski at 76% when the polls closed (19:00 UTC) and still 77
   461 market-minutes); Kalshi 0.27 (0.02 to 0.49). Both venues closed about a quarter of the gap within half an hour:
   prices followed the model, but the model was over-confident early.
 
+### Runoff, v2: settings pooled over the earlier nights (`pl2025r2_v2`, **a sensitivity, chosen after the result was known**)
+
+v1's overconfidence was seen on the runoff, then the settings were re-chosen from nights before 1 June 2025 only
+(`analysis/pl_calibrate_pooled.py`, config `configs/pl2025r2_v2.toml`). The rule was written before the run: pooled
+90% coverage = the mean over nights (each equal) of the share of frames, at 1-95% counted, whose 90% band holds the final
+share; tau = the smallest value with pooled coverage >= 0.90; kappa and rho = lowest pooled mean absolute error there.
+The nights are the two the cell model can be scored on: the real 2025 round-1 night (14 frames) and the 2020 runoff counted
+in simulated order (48 frames); no other earlier night has count-night versions (table above). Result: **tau 0.03,
+kappa 100,000, rho 0.5**; coverage by tau (night / simulation / pooled): 0.005: 0.93 / 0.00 / 0.46; 0.01: 1.00 / 0.17 /
+0.58; 0.02: 1.00 / 0.73 / 0.86; **0.03: 1.00 / 0.83 / 0.92**; 0.04: 1.00 / 0.94 / 0.97. It is not a forward test: v1 stays
+the headline, and the two are shown together on the page (second line on the chart, `meta.sensitivity`, `stats.sensitivity`).
+
+| runoff | v1 (round-1 night alone) | v2 (pooled) |
+|---|---|---|
+| tau / kappa / rho | 0.005 / 100,000 / 0.8 | 0.03 / 100,000 / 0.5 |
+| 90% band held the final share (1-95% counted) | **46%** (mean error +1.95 sd) | **100%** (+0.53 sd) |
+| model 90% / 95% on Nawrocki (UTC) | 21:28 / 21:32 | 00:20 / 00:20 |
+| Polymarket 90% / 95% | 22:14 / 23:12 | 22:14 / 23:12 |
+| model minus Polymarket, minutes at 90% / 95% | -46 / -100 (model first) | +126 / +68 (model after) |
+| error of the projected share at 1 / 5 / 10 / 25% counted (points) | -2.4 / -1.3 / -3.1 / -0.9 | -1.7 / -1.3 / -2.6 / -0.9 |
+| Brier model vs market, winner race, by share counted 1-5 / 5-10 / 10-25 / 25-50% | .015 / .001 / .000 / .000 vs .418 / .041 / .013 / .001 | .067 / .026 / .012 / .015 vs the same |
+| Brier over the window to both settling (model / market) | 0.008 / 0.229 (95 min) | 0.026 / 0.100 (221 min) |
+
+With bands that held, the model is not ahead of the market: P(Nawrocki) was 88% at the 23:11 UTC version (49% counted) and
+crosses 90% only at the 00:19 version (81% counted), which the archive's gap makes the next available one. The 46-minute
+lead of v1 was bought with bands that were too narrow.
+
 ### Round 1 (`pl2025r1`): Trzaskowski 6,147,797, Nawrocki 5,790,804 (51.50% of their two-way vote; Trzaskowski wins the most votes)
 
 - Polymarket had Trzaskowski at 95% before the count started, was down to 62% at 01:37 UTC (57 minutes below 90%
@@ -191,7 +240,9 @@ Polymarket had Trzaskowski at 76% when the polls closed (19:00 UTC) and still 77
 
 - **Code**: `src/brunder/poland.py` (decoder, classes, cell state, projection), `analysis/pl_fetch.py`, `pl_calibrate.py`,
   `pl_score.py`, `pl_export.py`, `pl_geo.py`; tests: `tests/test_poland.py`.
-- **Configs**: `configs/pl2025r2_v1.toml`, `pl2025r1_v1.toml`, `pl2025r2_sim2020_v1.toml` (not registered).
+- **Configs**: `configs/pl2025r2_v1.toml`, `pl2025r1_v1.toml`, `pl2025r2_sim2020_v1.toml`, `pl2025r2_v2.toml` (v2: chosen
+  after the result was known; none registered). Round 1 has no v2: its settings already come from earlier-election
+  data only and the 2025 round-1 night may not be used for it.
 - **Site**: `site/data/pl2025r2/`, `site/data/pl2025r1/` (`meta`, `timeline`, `units`, `stats`, `entry`),
   `site/data/geo/pl_voivodeships.topo.json` (16 voivodeships, Natural Earth, 10 kB), entries in `site/data/elections.json`.
   Timeline: one row per minute from 19:00 to 08:00 UTC; map frames: one per archived version. Abroad and ships are

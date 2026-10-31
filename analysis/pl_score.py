@@ -184,7 +184,7 @@ def catchup(T: pd.DataFrame, scopes: list[str], price_col: str) -> dict | None:
 
 def main(cfg_path: Path) -> None:
     cfg = load_cfg(cfg_path)
-    eid = cfg["id"].rsplit("_", 1)[0]
+    eid = cfg["id"][:-3] if cfg["id"].endswith("_v1") else cfg["id"]      # v1 headline keeps its name; v2 etc. get their own folder
     out = ROOT / "results" / "poland" / eid
     out.mkdir(parents=True, exist_ok=True)
     R, frames, aux = replay(cfg)

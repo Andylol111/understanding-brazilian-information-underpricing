@@ -195,3 +195,19 @@ def test_runoff_model_calls_nawrocki_once_the_cities_are_in():
     last = nc.nowcast(R.state(pl.versions(2)[-1]), R.prior, p)
     assert last["p_win"] == 0.0 and last["share_hat"] == pytest.approx(0.4911, abs=1e-3)
     assert last["counted_frac"] > 0.999
+
+
+def test_pooled_rule_weights_nights_equally_and_picks_smallest_tau():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "analysis"))
+    import pl_calibrate_pooled as pp
+
+    def night(cov, mae):
+        return pd.DataFrame({"tau": [0.0, 0.01, 0.02], "sigma_mun0": 0.06, "kappa": 1e5, "rho": 0.5,
+                             "n": 10, "coverage90": cov, "mean_z": 0.0, "mae_pt": mae})
+    m = pp.pooled(night([0.5, 1.0, 1.0], 1.0), night([0.0, 0.5, 1.0], 3.0))
+    assert list(m["coverage90"]) == [0.25, 0.75, 1.0] and set(m["mae_pt"]) == {2.0}
+    assert pp.choose(m)["tau"] == 0.02
+    # a night with few frames counts as much as one with many: 1/1 and 9/18 average to 0.75, not 10/19
+    assert pp.pooled(night([1.0, 1.0, 1.0], 1), night([0.5, 0.5, 0.5], 1))["coverage90"].iloc[0] == 0.75

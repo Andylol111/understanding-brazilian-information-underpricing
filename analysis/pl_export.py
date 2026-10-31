@@ -63,6 +63,10 @@ def question(m: dict) -> str:
     return next(x["question"] for x in ev["markets"] if x["slug"] == m["market"])
 
 
+def step2(s: pd.Series, grid: pd.DatetimeIndex) -> pd.Series:
+    return s.reindex(s.index.union(grid)).ffill().reindex(grid)
+
+
 def export(eid: str) -> None:
     rnd = 2 if eid.endswith("r2") else 1
     cfg = tomllib.loads((ROOT / "configs" / f"{eid}_v1.toml").read_text())
@@ -98,6 +102,22 @@ def export(eid: str) -> None:
                       "a": {"id": "a", "name": race["a"], "color": a_col}, "b": {"id": "b", "name": race["b"], "color": b_col},
                       "markets": [{"platform": m["platform"], "id": m["market"], "event": m["event"],
                                    "question": question(m), "yes_is": m["yes_is"]} for m in race["market"]]})
+    v2 = RES / "pl2025r2_v2"
+    cfg2 = tomllib.loads((ROOT / "configs" / "pl2025r2_v2.toml").read_text()) if rnd == 2 and (v2 / "stats.json").exists() else None
+    if cfg2:
+        cfg2["_label"] = "configs/pl2025r2_v2.toml"
+    if cfg2:                                     # v2 = sensitivity: P_sensitivity (+ share/sd for the winner race) per row
+        T2 = pd.read_parquet(v2 / "ticks.parquet")
+        R2 = pd.read_csv(v2 / "releases.csv", parse_dates=["t"]).set_index("t").sort_index()
+        for race in cfg["race"]:
+            rid = race["id"]
+            g2 = T2[(T2["race"] == rid) & (T2["platform"] == "polymarket") & (T2["yes_is"] == "a")].set_index("t")
+            P2 = g2["P_A"].reindex(grid)
+            sh2, sd2 = step2(R2["share"], grid), step2(R2["sd"], grid)
+            for i, row in enumerate(timeline[rid]):
+                row["P_sensitivity"] = num(P2.iloc[i])
+                if race["kind"] == "winner":
+                    row["share_sensitivity"], row["sd_sensitivity"] = num(sh2.iloc[i]), num(sd2.iloc[i])
     dump(out, "timeline.json", timeline)
 
     # ---- units: prior and one frame per count version (+ a frame at poll close before anything is counted)
@@ -159,6 +179,19 @@ def export(eid: str) -> None:
     meta = {"id": eid, "name": NAMES[rnd], "date": DATES[rnd], "tz": "Europe/Warsaw", "poll_close_utc": cfg["poll_close_utc"],
             "geometry": "geo/pl_voivodeships.topo.json", "geometry_object": "voivodeships", "unit_key": "unit_id",
             "count_timeline": True, "regions": [], "races": races, "sources": sources, "notes": notes + ["Evidence: " + EVIDENCE_NOTE[rnd]]}
+    if cfg2:
+        m2 = cfg2["model"]
+        meta["sensitivity"] = {"label": "v2: settings pooled over the 2025 round-1 night and a simulated 2020 runoff count "
+                                        "(chosen after the 2025 runoff result was known; not a forward test)",
+                               "config": "configs/pl2025r2_v2.toml"}
+        meta["notes"].append(
+            f"Two settings, side by side. v1 (headline, configs/pl2025r2_v1.toml): tau {cfg['model']['tau']}, rho {cfg['model']['rho']}, "
+            f"chosen on the 2025 round-1 night alone before the runoff was scored. v2 (sensitivity, {cfg2['_label']}): "
+            f"tau {m2['tau']}, kappa {m2['kappa']:.0f}, rho {m2['rho']}, chosen after the runoff result was known "
+            "because v1 was overconfident: pooled over every earlier night that could be scored (the real round-1 night and a "
+            "simulated 2020 runoff count, each weighted equally). Only those two exist: the Internet Archive holds no count-night "
+            "versions of the 2015, 2019 or 2020 elections, and 2023-2024 have one or two snapshots of party-list elections. "
+            "v2 is shown as the second line on the chart (P_sensitivity) and in the statistics.")
     dump(out, "meta.json", meta)
 
     # ---- stats
@@ -192,6 +225,18 @@ def export(eid: str) -> None:
             "early_error": s2["early_error"]["winner"],
             "pwin_winner_race": {k: v for k, v in s2["accuracy"]["pwin"].items() if not k.startswith("reliab")},
             "brier_by_counted_winner": s2["brier_by_counted_winner"]}
+    if cfg2:
+        S2 = json.loads((v2 / "stats.json").read_text())
+        stats["sensitivity"] = {
+            "label": meta["sensitivity"]["label"], "config": "configs/pl2025r2_v2.toml", "settings": cfg2["model"],
+            "calibration": S2["calibration"], "settle": S2["settle"], "settle_gated": S2["settle_gated"],
+            "settle_95_winner": S2["settle_95_winner"], "early_error": S2["early_error"], "catchup": S2["catchup"],
+            "brier_by_counted_winner": S2["brier_by_counted_winner"],
+            "brier_by_counted_all_markets": S2["brier_by_counted_all_markets"],
+            "accuracy": {"coverage90": S2["accuracy"]["coverage90"],
+                         "pwin": {k: v for k, v in S2["accuracy"]["pwin"].items() if not k.startswith("reliab")},
+                         "pwin_all_markets": S2["accuracy"]["pwin_all_markets"]},
+            "evidence": "not-preregistered"}
     dump(out, "stats.json", stats)
 
     # ---- entry for site/data/elections.json
