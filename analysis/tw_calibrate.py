@@ -25,9 +25,9 @@ from brunder.nowcast_order import TAU_GRID
 CHECKPOINTS = (.01, .05, .10, .25, .50, .75, .90)
 
 
-def replay(prev_year: int, year: int, order: str, seed: int, own_votes: float, swing_votes: float):
+def replay(prev_year: int, year: int, order: str, seed: int, own_votes: float, swing_votes: float, target: dict | None = None):
     history = tw.load_history()
-    prior = tw.historical_prior(prev_year, tw.HISTORICAL_POLLS[year], history)
+    prior = tw.historical_prior(prev_year, target or tw.HISTORICAL_POLLS[year], history)
     final = history[history.year == year].copy()
     rng = np.random.default_rng(seed)
     if order == "random":
@@ -57,8 +57,8 @@ SEEDS = range(1, 21)
 Z90 = 1.645
 
 
-def replays(prev_year: int, year: int, own_votes: float, swing_votes: float) -> dict[str, list[pd.DataFrame]]:
-    return {o: [replay(prev_year, year, o, s, own_votes, swing_votes) for s in SEEDS] for o in ORDERS}
+def replays(prev_year: int, year: int, own_votes: float, swing_votes: float, target: dict | None = None) -> dict[str, list[pd.DataFrame]]:
+    return {o: [replay(prev_year, year, o, s, own_votes, swing_votes, target) for s in SEEDS] for o in ORDERS}
 
 
 def truth_shares(year: int) -> np.ndarray:
@@ -102,6 +102,42 @@ def score(reps: dict[str, list[pd.DataFrame]], truth: np.ndarray, taus: tuple[fl
     return pd.DataFrame(rows)
 
 
+PRIOR_SD = .06  # the 2026 pre-count candidate-share sd (configs/tw2026_taipei_v1.toml precount_sd)
+
+
+def stress_targets(year: int, n: int = 10) -> list[dict]:
+    """Poll-quality priors of the 2026 form: the final result perturbed by N(0, PRIOR_SD) per candidate (floor .005,
+    renormalised), n draws.  Used because Taipei has too few past polls to build the 2026 error distribution directly."""
+    truth = truth_shares(year); out = []
+    for i in range(n):
+        rng = np.random.default_rng(9000 + 10 * year + i)
+        x = np.maximum(truth + rng.normal(0, PRIOR_SD, len(truth)), .005); x /= x.sum()
+        out.append(dict(zip(tw.PARTIES, x)))
+    return out
+
+
+def prior_check(best: dict, mixture: tuple[float, ...], point: float) -> dict:
+    """Coverage / P(winner) Brier of a tau mixture on the 2018 and 2022 nights under (a) the poll prior actually used, (b) a
+    prior perturbed by the 2026 pre-count sd; plus the needed tau under (b)."""
+    res = {}
+    for prev, year in ((2014, 2018), (2018, 2022)):
+        truth = truth_shares(year)
+        poll = tw.HISTORICAL_POLLS[year]
+        res[f"{year}_poll_prior_error"] = float(np.sqrt(np.mean([(poll[k] - t) ** 2 for k, t in zip(tw.PARTIES, truth)])))
+        reps = [replays(prev, year, best["own_votes"], best["swing_votes"], t) for t in stress_targets(year)]
+        pooled = {o: [f for r in reps for f in r[o]] for o in ORDERS}
+        res[f"{year}_needed_tau_perturbed"] = night_taus(pooled, truth)
+        for name, taus in (("point", (point,)), ("mixture", mixture)):
+            sc = []
+            for r in reps:
+                s_ = score(r, truth, taus, draws=4000); sc.append(s_)
+            sc = pd.concat(sc)
+            res[f"{year}_perturbed_{name}"] = {"coverage90": float(sc.coverage90.mean()), "brier": float(sc.brier.mean()),
+                "log_loss": float(sc.log_loss.mean()), "coverage_by_order": sc.groupby("order").coverage90.mean().to_dict(),
+                "coverage_by_checkpoint": sc.groupby("checkpoint").coverage90.mean().round(3).to_dict()}
+    return res
+
+
 def main():
     # Settings selection uses 2018 only.  This grid is intentionally small and declared here.
     grid = []
@@ -138,6 +174,8 @@ def main():
         print(f"  all checkpoints: coverage {t.coverage90.mean():.4f}  brier {t.brier.mean():.5f}  log loss {t.log_loss.mean():.5f}")
         by.to_csv(out / f"tw2022_backtest_{name}.csv")
         summary[name] = by.reset_index().to_dict("records")
+    pc = prior_check(best, mix26, point); print("\nprior check (perturbed by sd .06):"); print(json.dumps(pc, indent=1))
+    (out / "tw_prior_check.json").write_text(json.dumps(pc, indent=2))
     (out / "tw2022_backtest.json").write_text(json.dumps({"selected": best, "needed_tau_2018": need18,
         "needed_tau_2022": need22, "point_tau": point, "mixture_for_2022_check": mix22, "mixture_for_2026": mix26,
         "calibration_coverage_point_2018": cal.groupby("order")["coverage90"].mean().to_dict(), "backtest": summary}, indent=2))

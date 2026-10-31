@@ -158,6 +158,35 @@ Over all checkpoints: coverage 0.999 / 0.997, Brier 1e-5 / <1e-5, log loss 0.000
 (2022 was an easy night, order is simulated, two members only) and says the mixture does not hurt, not that it helps on a
 hard night. Machine-readable: `results/taiwan/tw2022_backtest.json`.
 
+### Prior-quality check of `tau` (2026-10-31)
+
+**Disclosure (before any 2026 count):** Spain's review found a `tau` chosen on nights with a wide previous-election prior
+that under-covered under a tighter poll prior. Taiwan's nights were already poll-prior nights, not previous-election
+nights: `historical_prior` rakes the 2014 (2018 night) / 2018 (2022 night) li profiles to that year's public poll topline
+(`HISTORICAL_POLLS`), the same construction as 2026. Two differences remain, and were checked
+(`analysis/tw_calibrate.py`, `results/taiwan/tw_prior_check.json`):
+
+1. Actual poll-prior error on the nights: RMS candidate-share error 0.047 (2018) and 0.037 (2022) against the 2026
+   pre-count sd of 0.060, so 0.060 is the *wider* of the two. The 2026 bias correction (+5.23 points) is not applied to the
+   nights (2018 has no earlier election to estimate it from; 2022 would only have 2018).
+2. Stress test: the same nights re-run with ten priors each = final result + N(0, 0.06) per candidate (floor 0.005,
+   renormalised, 20 seeds × 2 orders per prior), i.e. a prior as poor as the 2026 sd allows. Needed `tau` under that prior is
+   2018 {random 0.0075, small-first 0.015} and 2022 {0.005, 0.005}: no larger than the mixture members, so the mixture is
+   unchanged. Share coverage of the current mixture / of the v1 point `tau = 0.02`:
+
+| Night | mixture, all checkpoints | v1 point | mixture by order (random / small-first) | mixture at 1% / 5% / 10% counted |
+|---|---:|---:|---:|---:|
+| 2018 | 0.907 | 0.979 | 0.962 / 0.853 | 0.66 / 0.81 / 0.88 |
+| 2022 | 0.978 | 0.997 | 0.978 / 0.978 | 0.85 / 1.00 / 1.00 |
+
+   P(winner) Brier, mixture / point: 2018 0.124 / 0.114 (the three-way 2018 race stays uncertain early under a poor prior),
+   2022 1e-6 / 1e-5.
+
+The re-choice trigger (overall coverage < 0.85) was not met on either night, so `tau_mixture` is unchanged. The residual
+weakness is early and adverse: with a prior 6 points off and the smallest stations first, the mixture's 90% band covers
+only 66-88% of shares at 1-10% counted on the 2018 night. Treat very early probabilities as less certain than the stated
+band. The perturbed prior is a stand-in (Taipei has two past polls); it was not tuned on and no 2026 data enters it.
+
 ## Out-of-sample 2022 backtest (v1 point `tau = 0.020`)
 
 The 2022 prior uses the public 1-5 November 2022 RWNews topline (Chiang 36, Chen 33, Huang 28, other 3) and official
