@@ -42,7 +42,7 @@
   "unit_level": "electorate",
   "n_units": 72,
   "evidence": "model-only",
-  "summary": "Retrospective replay with a SIMULATED count order and no market. Before any count the poll-tilted model already gave the eventual most-seats winner 95%; with the first advance places in it passed 95% at simulated minute 5. Out of sample: settings chosen on 2017 and 2020."
+  "summary": "Replay of the 2023 count in a simulated order. No market existed. The model favoured National from the start; settings from 2017 and 2020."
  },
  {
   "id": "nz2020",
@@ -53,7 +53,7 @@
   "unit_level": "electorate",
   "n_units": 72,
   "evidence": "in-sample",
-  "summary": "Retrospective replay with a SIMULATED count order and no market. Before any count the poll-tilted model already gave the eventual most-seats winner 98%; with the first advance places in it passed 95% at simulated minute 4. In sample: the settings were tuned on this night."
+  "summary": "Replay of the 2020 count in a simulated order. No market existed. Settings were tuned on this election (in sample)."
  },
  {
   "id": "br2026r2",
@@ -119,6 +119,7 @@
   "unit_level": "locality",
   "n_units": 1186,
   "evidence": "not-preregistered",
+  "count_private": true,
   "summary": "On the 6 contested Polymarket markets the count model settled a median 39 minutes before the market (5 of 6 first), but trailed by a median 28 minutes when made to wait for 1% counted; prices only, as the 2026 count over time cannot be published."
  },
  {

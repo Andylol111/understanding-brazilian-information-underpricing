@@ -1,27 +1,18 @@
-// Homepage: the evidence across elections (from site/data/summary.json, written by
-// analysis/edge_audit.py) and the list of elections (elections.json, each election's files).
+// Homepage: the list of elections (elections.json and each election's files), the $10,000 cards
+// and the Polymarket-against-Kalshi table (site/data/summary.json, written by analysis/edge_audit.py).
+// The charts are in landing-charts.js; the data helpers they share are in landing-data.js.
 import * as d3 from "./vendor/d3.js";
-import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, STATUS, plural, gatedSettle, leadMinutes, modelP, shortName } from "./common.js";
+import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, plural, modelP, shortName, clock, EVIDENCE } from "./common.js";
 import { polymarketYes } from "./dash-precount.js";
 import { createWorldMap } from "./world-map.js";
+import { $, href, rootOf, setLiveIds, setElections, allElections, label, labelOf, bareName, qualifierOf, unitWord, metaOf, statsOf, timelineOf, leadOf, mainRace, hasMarkets, featured, money, signedPct, dur } from "./landing-data.js";
+import { drawNight, drawLead, drawError, drawCalibration } from "./landing-charts.js";
 
-const $ = (id) => document.getElementById(id);
 const tbody = document.querySelector("#overview tbody");
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 const countryName = (c) => { try { return c ? regionNames.of(c) : "Other"; } catch { return c; } };
-// With ?live=, the live server carries only the elections being counted (status live or scheduled);
-// every other election's files and dashboard come from the static site.
-let liveIds = new Set();
-const onLive = (id) => LIVE && liveIds.has(id);
-const href = (id) => `election.html?id=${encodeURIComponent(id)}${onLive(id) ? `&live=${encodeURIComponent(LIVE)}` : ""}`;
-const rootOf = (id) => (onLive(id) ? LIVE : STATIC);
-const money = (x) => `$${Math.round(x).toLocaleString("en-US")}`;
-const signedPct = (x, d = 1) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}%`;
-const pts = (x) => (x == null ? "–" : x.toFixed(1));
-let names = new Map(); // election id -> name
-let years = new Map(); // election id -> year of the vote
-
-/* ---------------------------------------------------------------- evidence (summary.json) */
+const longDate = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
+const fmtInt = (n) => n.toLocaleString("en-US");
 
 function drawAll(S) {
   drawError(S);
@@ -30,7 +21,7 @@ function drawAll(S) {
   drawVenues(S);
 }
 
-// 4. Polymarket against Kalshi (summary.kalshi, written by analysis/kalshi_export.py; absent: hidden)
+// Polymarket against Kalshi (summary.kalshi, written by analysis/kalshi_export.py; absent: hidden)
 function drawVenues(S) {
   const rows = (S.kalshi?.elections ?? []).filter((e) => e.pairs || e.settle?.compared);
   if (!rows.length) return;
@@ -43,166 +34,129 @@ function drawVenues(S) {
     ? `In ${compared} races listed on both venues across ${els}, Kalshi settled on the winner first in ${tot("kalshi_first")}, Polymarket in ${tot("polymarket_first")}, and both in the same minute in ${tot("same_minute")}.`
     : `Kalshi lists races in ${els} covered here.`;
   const med = (m) => (m == null ? "–" : m === 0 ? "same minute" : `Kalshi ${Math.abs(Math.round(m))} min ${m < 0 ? "earlier" : "later"}`);
-  const label = (id) => {
-    const n = names.get(id) ?? id, y = years.get(id);
-    return y && !n.includes(y) ? `${n}, ${y}` : n;
-  };
   $("venues").innerHTML = `<thead><tr><th>Election</th><th class="n">Races on both</th><th class="n">Settled first: Kalshi / Polymarket / same</th><th class="n">Median difference</th><th class="n">Minutes buying both sides paid</th><th class="n">Largest (¢ per $1)</th><th class="n">Fillable in the same minute (net)</th></tr></thead>
     <tbody>${rows.map((e) => {
       const s = e.settle ?? {}, a = e.arbitrage ?? {};
-      return `<tr><td><a href="election.html?id=${encodeURIComponent(e.id)}">${esc(label(e.id))}</a></td><td class="n">${e.races ?? "–"}</td>
+      return `<tr><td><a href="election.html?id=${encodeURIComponent(e.id)}">${esc(labelOf(e.id))}</a></td><td class="n">${e.races ?? "–"}</td>
         <td class="n">${s.compared ? `${s.kalshi_first ?? 0} / ${s.polymarket_first ?? 0} / ${s.same_minute ?? 0}` : "–"}</td><td class="n">${med(s.median_kalshi_minus_pm_min)}</td>
         <td class="n">${a.minutes_with_net_arb ?? "–"}</td><td class="n">${a.max_net_edge != null ? (100 * a.max_net_edge).toFixed(1) : "–"}</td>
         <td class="n">${a.fillable_usd != null ? `${usdOf(a.fillable_usd)} (${usdOf(a.fillable_net_usd)})` : "–"}</td></tr>`;
     }).join("")}</tbody>`;
 }
 
-// 1. distance from the final share by share counted: each election's main race, thin; the
-// average over elections, thick
-function drawError(S) {
-  const pe = S.projection_error;
-  if (!pe) return;
-  $("ev-error").hidden = false;
-  const th = pe.thresholds;
-  const pool = pe.pooled?.main ?? {};
-  const at = (c) => pool[c] ? `${pts(pool[c].model)} points from the final share, the raw count ${pts(pool[c].raw)}` : "";
-  $("ev-error-lead").textContent = pool["5%"] && pool["25%"]
-    ? `With 5% of the vote counted the projection was on average ${at("5%")}. At 25% counted: ${pts(pool["25%"].model)} against ${pts(pool["25%"].raw)}. Average over the main race of ${pool["5%"].elections} elections.`
-    : "";
-  const series = [];
-  for (const [id, e] of Object.entries(pe.by_election)) {
-    if (!e?.main) continue;
-    for (const k of ["model", "raw"]) {
-      series.push({ id, k, thin: true, pts: th.map((c) => [c, e.main[c]?.[k] == null ? null : Math.abs(e.main[c][k])]) });
-    }
-  }
-  for (const k of ["model", "raw"]) series.push({ id: "pooled", k, thin: false, pts: th.map((c) => [c, pool[c]?.[k] ?? null]) });
-  const root = $("chart-error");
-  const draw = () => {
-    const w = Math.max(300, root.clientWidth), h = Math.min(360, Math.max(240, w * 0.45));
-    const m = { l: 40, r: 120, t: 24, b: 34 };
-    const x = d3.scalePoint().domain(th).range([m.l, w - m.r]);
-    const ymax = Math.min(10, d3.max(series, (s) => d3.max(s.pts, (p) => p[1])) ?? 5);
-    const y = d3.scaleLinear().domain([0, ymax]).nice().range([h - m.b, m.t]);
-    const svg = d3.select(root).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img")
-      .attr("aria-label", "Distance from the final share by share counted, model projection and raw count");
-    svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
-    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(0).tickPadding(6)).call((g) => g.select(".domain").remove());
-    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).tickSize(0).tickPadding(8)).call((g) => g.select(".domain").remove());
-    svg.append("text").attr("class", "panel-label").attr("x", m.l).attr("y", h - 4).text("share of the vote counted");
-    svg.append("text").attr("class", "panel-label").attr("x", m.l - 34).attr("y", 10).text("points from the final share");
-    const line = d3.line().defined((p) => p[1] != null).x((p) => x(p[0])).y((p) => y(Math.min(ymax, p[1])));
-    const g = svg.append("g");
-    for (const s of series.filter((x) => x.thin)) {
-      g.append("path").datum(s.pts).attr("class", "ev-thin").attr("fill", "none").attr("stroke", s.k === "model" ? C.model : C.raw).attr("stroke-width", 1.2).attr("d", line)
-        .append("title").text(`${names.get(s.id) ?? s.id}: ${s.k === "model" ? "model projection" : "raw count"}`);
-    }
-    for (const s of series.filter((x) => !x.thin)) {
-      g.append("path").datum(s.pts).attr("fill", "none").attr("stroke", s.k === "model" ? C.model : C.raw).attr("stroke-width", 3).attr("d", line);
-      const last = [...s.pts].reverse().find((p) => p[1] != null);
-      if (last) svg.append("text").attr("class", "end-label").attr("x", x(last[0]) + 8).attr("y", y(last[1]) + (s.k === "model" ? 12 : -4)).attr("fill", s.k === "model" ? C.model : C.raw)
-        .text(s.k === "model" ? "projection, average" : "raw count, average");
-    }
-  };
-  draw();
-  new ResizeObserver(() => draw()).observe(root);
-}
+/* ---------------------------------------------------------------- $10,000 per election */
 
-// 2. share of the count with the final result inside the 90% band, per election; pooled reliability
-function drawCalibration(S) {
-  const cal = S.calibration;
-  if (!cal) return;
-  $("ev-cal").hidden = false;
-  const rows = S.elections.filter((e) => cal.by_election[e.id]?.coverage90 != null).map((e) => ({ ...e, ...cal.by_election[e.id] }));
-  const lo = d3.least(rows, (r) => r.coverage90);
-  const rel = cal.reliability;
-  const byMin = rel?.by_election ? Object.entries(rel.by_election).sort((a, b) => (b[1].minutes ?? 0) - (a[1].minutes ?? 0)) : [];
-  const dom = byMin[0] && rel.minutes ? `${names.get(byMin[0][0]) ?? byMin[0][0]} accounts for ${byMin[0][1].minutes.toLocaleString("en-US")} of the ${rel.minutes.toLocaleString("en-US")} minutes in the probability plot, so it mostly shows that election.` : "";
-  $("ev-cal-lead").textContent = `A 90% band of the right width contains the final result in about 90% of the minutes. Across ${rows.length} elections the share ran from ${pct(lo.coverage90, 0)} (${lo.name}) to ${pct(d3.max(rows, (r) => r.coverage90), 0)}. ${dom}`;
-
-  const covRoot = $("chart-coverage");
-  const drawCov = () => {
-    // each election: its name on one line, its share as a dot on the track below
-    const w = Math.max(260, covRoot.clientWidth), rh = 36, m = { l: 4, r: 44, t: 22, b: 26 };
-    const h = m.t + rows.length * rh + m.b;
-    const x = d3.scaleLinear().domain([Math.min(0.6, d3.min(rows, (r) => r.coverage90)), 1]).range([m.l, w - m.r]);
-    const svg = d3.select(covRoot).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img").attr("aria-label", "Share of the count inside the 90% band, per election");
-    svg.append("line").attr("x1", x(0.9)).attr("x2", x(0.9)).attr("y1", m.t - 6).attr("y2", h - m.b).attr("stroke", "#9a968c").attr("stroke-dasharray", "3,3");
-    svg.append("text").attr("class", "legend-text").attr("x", x(0.9)).attr("y", m.t - 9).attr("text-anchor", "middle").text("90%");
-    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(4).tickFormat(d3.format(".0%")).tickSize(0).tickPadding(6)).call((g) => g.select(".domain").remove());
-    const g = svg.selectAll("g.row").data(rows).join("g").attr("class", "row").attr("transform", (d, i) => `translate(0,${m.t + i * rh})`);
-    g.append("text").attr("class", "row-name").attr("x", m.l).attr("y", 11).text((d) => d.name);
-    g.append("line").attr("x1", x.range()[0]).attr("x2", (d) => x(d.coverage90)).attr("y1", 24).attr("y2", 24).attr("stroke", "#d8d5cd");
-    g.append("circle").attr("cx", (d) => x(d.coverage90)).attr("cy", 24).attr("r", 4.5).attr("fill", C.model).append("title").text((d) => `${d.name}: ${pct(d.coverage90, 1)} (${d.basis})`);
-    g.append("text").attr("class", "legend-text").attr("x", (d) => x(d.coverage90) + 8).attr("y", 24).attr("dy", "0.35em").text((d) => pct(d.coverage90, 0));
-  };
-  drawCov();
-  new ResizeObserver(() => drawCov()).observe(covRoot);
-
-  const relRoot = $("chart-reliability");
-  if (!rel?.model?.length) { relRoot.hidden = true; return; }
-  const drawRel = () => {
-    const w = Math.min(360, Math.max(240, relRoot.clientWidth)), h = w, m = { l: 36, r: 10, t: 10, b: 34 };
-    const x = d3.scaleLinear().domain([0, 1]).range([m.l, w - m.r]);
-    const y = d3.scaleLinear().domain([0, 1]).range([h - m.b, m.t]);
-    const r = d3.scaleSqrt().domain([0, d3.max([...rel.model, ...(rel.market ?? [])], (d) => d.minutes) || 1]).range([1.5, 9]);
-    const svg = d3.select(relRoot).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img").attr("aria-label", "Probability given against how often it happened, model and market");
-    svg.append("line").attr("x1", x(0)).attr("y1", y(0)).attr("x2", x(1)).attr("y2", y(1)).attr("stroke", "#9a968c").attr("stroke-dasharray", "3,3");
-    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(4).tickSize(3));
-    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(3));
-    svg.append("text").attr("class", "legend-text").attr("x", (m.l + w - m.r) / 2).attr("y", h - 2).attr("text-anchor", "middle").text("probability given");
-    for (const [list, color] of [[rel.market, C.market], [rel.model, C.model]]) {
-      const pts2 = (list ?? []).filter((d) => d.minutes > 0 && d.mean_p != null && d.freq != null);
-      svg.append("path").datum(pts2).attr("fill", "none").attr("stroke", color).attr("opacity", 0.6).attr("d", d3.line().x((d) => x(d.mean_p)).y((d) => y(d.freq)));
-      svg.append("g").selectAll("circle").data(pts2).join("circle").attr("cx", (d) => x(d.mean_p)).attr("cy", (d) => y(d.freq)).attr("r", (d) => r(d.minutes)).attr("fill", color).attr("fill-opacity", 0.85)
-        .append("title").text((d) => `${d.bin}: given ${d.mean_p.toFixed(2)}, happened ${pct(d.freq, 0)} (${d.minutes.toLocaleString("en-US")} minutes, ${d.races} races)`);
-    }
-  };
-  drawRel();
-  relRoot.insertAdjacentHTML("beforeend", `<figcaption>How often the outcome happened (up) against the probability given (across), in ten bins of minutes: <span class="m">model</span>, <span class="k">market price</span>. On the dashed line the probabilities were right on average; dot size is the number of minutes.</figcaption>`);
-  new ResizeObserver(() => { const cap = relRoot.querySelector("figcaption"); drawRel(); relRoot.append(cap); }).observe(relRoot);
-}
-
-// 3. $10,000 per election. Headline: the model-limit rule (invest10k.headline); the stricter
-// signal-price rule and the sensitivity grid sit beside it.
+// The first rule note every election repeats ("Single event ...", "Eligible volume ...") is said once, in the text above the cards.
 const SHARED_NOTES = [/Single event:[^.]*\.\s*/i, /Eligible volume is an upper bound:[^.]*\.\s*/i];
 const shareOfGain = (s) => (s >= 0.995 && s < 1 ? `Almost all (${(100 * s).toFixed(1)}%)` : pct(s, 0));
-const MODEL_LIMIT_RULE = "The rule: from the moment 1% of the vote is counted, buy 10% of every real trade (Israel: every offer in the recorded order book, one snapshot per release) on the side the model favours whose price, fees included, is at least 5¢ below the model's probability as known 60 seconds earlier; no limit per market; keep buying until the $10,000 is spent and hold to the result.";
-function drawMoney(S) {
+const FIXED_AFTER = "We wrote the rule after we knew the results.";
+
+// What a card says for an election the rule was not run on, and why (m: its meta, where there is one).
+function stateOf(e, m) {
+  if (e.status === "scheduled") return { head: `After the count on ${longDate(e.date)}`, note: "The rule starts once 1% of the vote is counted." };
+  if (e.status === "live") return { head: "Counting now", note: "The rule starts once 1% of the vote is counted." };
+  if (m?.count_timeline === false) return { head: "No count over time", note: "The official count over time was not published, so the model cannot run." };
+  if (m && !hasMarkets(m)) return { head: "No market during the count", note: "No market prices are available for this night, so there was nothing to buy." };
+  return { head: "Not run", note: "The rule has not been run on this election." };
+}
+
+function moneySentence(b) {
+  const parts = [];
+  if (!b.bets) parts.push("The rule found nothing to buy.");
+  else if (b.markets) {
+    parts.push(`${fmtInt(b.bets)} ${b.bets === 1 ? "trade" : "trades"} in ${b.markets} ${b.markets === 1 ? "market" : "markets"}. ${b.won === b.bets ? (b.bets === 1 ? "It was" : "All were") : `${fmtInt(b.won)} were`} on the winning side.`);
+    if (b.largest_market_share != null && b.largest_market_share >= 0.5 && b.markets > 1) parts.push(`${shareOfGain(b.largest_market_share)} of the gain came from one market.`);
+    else if (b.return_pct < 0 && b.largest_market_pnl != null && b.largest_market_pnl < 0) parts.push(`The largest loss was ${money(-b.largest_market_pnl)} in one market.`);
+  } else parts.push(`${fmtInt(b.bets)} ${b.bets === 1 ? "trade" : "trades"}. ${fmtInt(b.won)} on the winning side.`);
+  if (b.outcome && /provisional|not yet/i.test(b.outcome)) parts.push("The result is provisional: the markets have not settled.");
+  if (b.value_path == null) parts.push("Totals only: bet times and the bankroll path are not published, because the count data is licensed for private research.");
+  else {
+    let note = b.note ?? "";
+    for (const re of SHARED_NOTES) note = note.replace(re, "");
+    note = note.replace(/\d+% of the eligible volume was in one market \([^)]*\)\.\s*/i, "").trim();
+    if (note) parts.push(note[0].toUpperCase() + note.slice(1) + (note.endsWith(".") ? "" : "."));
+  }
+  return parts.join(" ");
+}
+
+async function drawMoney(S) {
   const inv = S.invest10k;
   if (!inv) return;
   $("ev-money").hidden = false;
   const p = inv.pooled, sp = inv.signal_price;
   const markets = d3.sum(Object.values(inv.by_election), (b) => b.markets ?? 0);
-  const strictPooled = sp?.pooled ? ` Buying only at each signal's own price, the same ${money(sp.pooled.bankroll)} would have become ${money(sp.pooled.ending_value)} (${signedPct(sp.pooled.return_pct)}).` : "";
-  $("ev-money-lead").innerHTML = p
-    ? `${esc(`Across ${p.elections} elections, ${money(p.bankroll)} became ${money(p.ending_value)} (${signedPct(p.return_pct)}): ${p.bets.toLocaleString("en-US")} trades in ${markets} markets, ${p.won.toLocaleString("en-US")} of them on the winning side.${strictPooled}`)}<span id="money-conc"></span>
-      Each election is one outcome: all of its markets ride on the same count, so these are a handful of results, not many independent bets.${inv.headline === "model_limit" ? " This buying rule was defined after the outcomes were known." : ""}`
+  const model = inv.headline === "model_limit";
+  const F = await featured().catch(() => null);
+  const side = F?.race?.a?.name;
+  const price = F?.gate?.pm, chance = F?.gate?.P, won = F?.rows?.at(-1)?.P >= 0.99;
+  const example = F && price != null && chance != null
+    ? `<p class="example"><b>Example.</b> At ${clock(F.gate.tms, F.tz)}, with 1% counted, the model gave ${esc(side)} ${pct(chance, 0)}. Polymarket priced a ${esc(side)} win at ${pct(price, 0)}. The gap is far above 5¢, so the rule buys at ${pct(price, 0)}.${won ? ` ${esc(side)} won, so each share paid $1.` : ""}</p>`
     : "";
-  $("ev-money-rule").textContent = `${inv.headline === "model_limit" ? MODEL_LIMIT_RULE : inv.rule ?? ""} The trades the rule could take are an upper bound for one trader: other traders took them.`;
-  const list = S.elections.filter((e) => inv.by_election[e.id]);
+  const noPath = Object.entries(inv.by_election).filter(([, b]) => b.value_path == null).map(([id]) => labelOf(id));
+
+  $("money-what").innerHTML = `
+    <p class="lede">This is a thought experiment, not a trading strategy.</p>
+    <p>Start with $10,000 in each election. Apply one fixed buying rule to the real trades made that night. Then see what the money is worth after the result.</p>
+    ${p ? `<p><b>Across ${p.elections} elections, ${money(p.bankroll)} became ${money(p.ending_value)} (${signedPct(p.return_pct)}).</b> The rule made ${fmtInt(p.bets)} trades in ${markets} markets. ${fmtInt(p.won)} were on the winning side.<span id="money-conc"></span></p>
+    ${sp?.pooled ? `<p>A stricter rule buys only at the price when each signal appeared, and stakes at most $1,000 per signal. With it, the same ${money(sp.pooled.bankroll)} became ${money(sp.pooled.ending_value)} (${signedPct(sp.pooled.return_pct)}).</p>` : ""}` : ""}
+    <h3>Why it proves little</h3>
+    <ul class="caveats">
+      ${model ? `<li><b>${FIXED_AFTER}</b> A rule chosen after the fact looks good on the past. It says little about the future.</li>` : ""}
+      <li><b>Each election is one outcome.</b> All its markets depend on the same count, so they move together. ${p ? `${p.elections} elections are ${p.elections} results, not ${fmtInt(p.bets)} independent bets.` : ""}</li>
+      <li><b>This is a best case.</b> Other traders took the trades the rule would buy. One trader could not have had all of them.</li>
+      ${noPath.map((n) => `<li><b>${esc(n)} shows totals only.</b> Its count data is licensed for private research, so bet times and the bankroll path are not published.</li>`).join("")}
+    </ul>`;
+  $("money-rule").innerHTML = model
+    ? `<h3>The rule</h3>
+    <ol class="steps">
+      <li>Wait until 1% of the vote is counted.</li>
+      <li>From then on, look at every real trade on Polymarket. For Israel, look at every offer in the recorded order book, one snapshot per release.</li>
+      <li>Compare the trade's price, fees included, with the model's chance from 60 seconds earlier.</li>
+      <li>If the price is at least 5¢ below the model's chance, buy 10% of that trade on the side the model favours.</li>
+      <li>Keep buying until the $10,000 is spent. There is no limit per market. Hold every position until the result.</li>
+    </ol>${example}`
+    : `<h3>The rule</h3><p>${esc(inv.rule ?? "")}</p>`;
+
+  // every election gets a card: the ones the rule ran on first (newest first), then the rest with the reason
+  const byDate = (a, b) => b.date.localeCompare(a.date);
+  const all = allElections();
+  const ran = all.filter((e) => inv.by_election[e.id]).sort(byDate);
+  const rest = all.filter((e) => !inv.by_election[e.id]).sort(byDate);
+  const metas = new Map(await Promise.all(rest.map(async (e) => [e.id, await metaOf(e.id)])));
   const root = $("money");
-  root.innerHTML = list.map((e) => {
+  root.innerHTML = [...ran, ...rest].map((e) => {
     const b = inv.by_election[e.id];
     const strict = sp?.by_election?.[e.id];
-    return `<figure class="money-cell" data-id="${esc(e.id)}">
-      <figcaption><a href="${href(e.id)}">${esc(e.name)}</a></figcaption>
-      <p class="money-end"><b>${money(b.ending_value)}</b> <span class="${b.return_pct > 0 ? "up" : b.return_pct < 0 ? "down" : ""}">${signedPct(b.return_pct)}</span></p>
-      ${strict ? `<p class="money-strict">buying only at the signal's own price: ${money(strict.ending_value)}</p>` : ""}
+    if (!b) {
+      const st = stateOf(e, metas.get(e.id));
+      return `<article class="money-cell empty" data-id="${esc(e.id)}">
+        <h3 class="mc-name"><a href="${href(e.id)}" title="${esc(e.name)}">${esc(label(e))}</a></h3>
+        <p class="mc-main"><span class="mc-state">${esc(st.head)}</span></p>
+        <p class="mc-alt"></p>
+        <div class="money-chart empty"></div>
+        <p class="mc-facts">${esc(st.note)}</p>
+        <p class="mc-races" hidden></p>
+      </article>`;
+    }
+    return `<article class="money-cell" data-id="${esc(e.id)}">
+      <h3 class="mc-name"><a href="${href(e.id)}" title="${esc(e.name)}">${esc(label(e))}</a></h3>
+      <p class="mc-main"><b>${money(b.ending_value)}</b> <span class="${b.return_pct > 0 ? "up" : b.return_pct < 0 ? "down" : ""}">${signedPct(b.return_pct)}</span></p>
+      <p class="mc-alt">${strict ? `Stricter rule: ${money(strict.ending_value)}` : ""}</p>
       <div class="money-chart"></div>
-      <p class="money-races" hidden></p>
-      <p class="money-note">${esc(moneySentence(b))}</p>
-    </figure>`;
+      <p class="mc-facts">${esc(moneySentence(b))}</p>
+      <p class="mc-races" hidden></p>
+    </article>`;
   }).join("");
-  $("money-variants").innerHTML = gridTable(inv.grid, list, sp);
+  $("money-variants").innerHTML = gridTable(inv.grid, ran, sp);
   $("money-variants").hidden = !$("money-variants").innerHTML;
   const drawCharts = () => {
-    for (const cell of root.querySelectorAll(".money-cell")) {
+    for (const cell of root.querySelectorAll(".money-cell:not(.empty)")) {
       const b = inv.by_election[cell.dataset.id];
       const box = cell.querySelector(".money-chart");
       box.innerHTML = "";
       const path = (b.value_path ?? []).map((d) => ({ t: Date.parse(d.t), v: d.value }));
-      if (path.length < 2) { box.classList.add("empty"); continue; }
+      box.classList.toggle("none", path.length < 2);
+      if (path.length < 2) continue;
       const w = Math.max(160, box.clientWidth), h = 64;
       const x = d3.scaleUtc().domain(d3.extent(path, (d) => d.t)).range([2, w - 2]);
       const ext = d3.extent([...path.map((d) => d.v), b.bankroll]);
@@ -220,19 +174,20 @@ function drawMoney(S) {
     }
   };
   drawCharts();
-  new ResizeObserver(() => drawCharts()).observe(root);
+  let cardW = root.clientWidth;
+  new ResizeObserver(() => { if (root.clientWidth !== cardW) { cardW = root.clientWidth; drawCharts(); } }).observe(root);
   concentration(inv, p);
-  for (const cell of root.querySelectorAll(".money-cell")) topRaces(cell, inv.by_election[cell.dataset.id]);
+  for (const cell of root.querySelectorAll(".money-cell:not(.empty)")) topRaces(cell, inv.by_election[cell.dataset.id]);
 }
 
-// Under each election's line: the (up to) three races that made the $10,000 the most, named from
+// Under each card: the (up to) three races that made the $10,000 the most, named from
 // the election's meta. Entries keyed by market id (Hungary) are added up per race. Hidden when
 // by_race is absent.
 async function topRaces(cell, b) {
   const entries = Object.entries(b?.by_race ?? {});
   if (!entries.some(([, r]) => r.bankroll_pnl)) return;
   const id = cell.dataset.id;
-  const meta = await getJSON(`${id}/meta.json`, { optional: true, root: rootOf(id) }).catch(() => null);
+  const meta = await metaOf(id);
   const races = meta?.races ?? [];
   const raceOf = (rid, r) => races.find((x) => x.race_id === rid) ?? races.find((x) => (x.markets ?? []).some((m) => m.id === r.market));
   const byRace = d3.rollups(entries, (list) => ({ pnl: d3.sum(list, ([, r]) => r.bankroll_pnl ?? 0), stake: d3.sum(list, ([, r]) => r.bankroll_stake ?? 0), vol: d3.sum(list, ([, r]) => r.eligible_volume ?? 0) }),
@@ -240,7 +195,7 @@ async function topRaces(cell, b) {
   const top = byRace.filter(([, v]) => v.pnl).sort((x, y) => y[1].pnl - x[1].pnl).slice(0, 3);
   if (!top.length) return;
   const sgn = (x) => `${x > 0 ? "+" : x < 0 ? "−" : ""}$${Math.abs(Math.round(x)).toLocaleString("en-US")}`;
-  const el = cell.querySelector(".money-races");
+  const el = cell.querySelector(".mc-races");
   el.innerHTML = `${top.length === 1 ? "From one race" : `Top ${top.length} races`}: ${top.map(([name, v]) => `<span title="${esc(`$${Math.round(v.stake).toLocaleString("en-US")} staked; trades that qualified: $${Math.round(v.vol).toLocaleString("en-US")}`)}">${esc(name)} ${sgn(v.pnl)}</span>`).join(" · ")}`;
   el.hidden = false;
 }
@@ -250,95 +205,150 @@ async function concentration(inv, p) {
   const gain = p ? p.ending_value - p.bankroll : 0;
   const [id, b] = d3.greatest(Object.entries(inv.by_election), ([, x]) => x.largest_market_pnl ?? -Infinity) ?? [];
   if (!b?.largest_market || !(gain > 0) || !(b.largest_market_pnl > gain / 2)) return;
-  const meta = await getJSON(`${id}/meta.json`, { optional: true, root: rootOf(id) }).catch(() => null);
+  const meta = await metaOf(id);
   const mk = meta?.races?.flatMap((r) => r.markets ?? []).find((m) => m.id === b.largest_market);
   const what = mk?.question ? `“${mk.question.replace(/\?$/, "")}”` : "one market";
   const el = $("money-conc");
-  if (el) el.textContent = ` Most of the gain is one market: ${money(b.largest_market_pnl)} of the ${money(gain)} came from ${what} in the ${names.get(id) ?? id}.`;
+  if (el) el.textContent = ` Most of the gain came from one market: ${money(b.largest_market_pnl)} of the ${money(gain)}, from ${what} in the ${labelOf(id)}.`;
 }
 
-function moneySentence(b) {
-  const parts = [];
-  if (!b.bets) parts.push("No trade qualified.");
-  else {
-    parts.push(`${b.bets.toLocaleString("en-US")} ${b.bets === 1 ? "trade" : "trades"} in ${b.markets} ${b.markets === 1 ? "market" : "markets"}, ${b.won.toLocaleString("en-US")} on the winning side.`);
-    if (b.largest_market_share != null && b.largest_market_share >= 0.5 && b.markets > 1) parts.push(`${shareOfGain(b.largest_market_share)} of the gain came from one market.`);
-    else if (b.return_pct < 0 && b.largest_market_pnl != null && b.largest_market_pnl < 0) parts.push(`The largest loss was ${money(-b.largest_market_pnl)} in one market.`);
-  }
-  if (b.outcome && /provisional|not yet/i.test(b.outcome)) parts.push("Markets not yet resolved.");
-  let note = b.note ?? "";
-  for (const re of SHARED_NOTES) note = note.replace(re, "");
-  note = note.replace(/\d+% of the eligible volume was in one market \([^)]*\)\.\s*/i, "").trim();
-  if (note) parts.push(note[0].toUpperCase() + note.slice(1) + (note.endsWith(".") ? "" : "."));
-  return parts.join(" ");
-}
-
-// Ending value of $10,000 under each variant of the rule (invest10k.grid), and the strict rule.
+// Ending value of $10,000 under each variant of the rule (invest10k.grid), and the stricter rule.
 const GRID_COLS = [
-  ["edge5c_delay60s", "10pct", "Headline: 5¢, 60 s, 10% of each trade"],
-  ["edge5c_delay60s", "first", "All of each trade"],
-  ["edge5c_delay60s", "10pct_cap", "$1,000 cap per market"],
-  ["edge10c_delay60s", "10pct", "10¢ below the model"],
-  ["edge20c_delay60s", "10pct", "20¢ below the model"],
-  ["edge5c_delay300s", "10pct", "300 s delay"],
+  ["edge5c_delay60s", "10pct", "The rule above"],
+  ["edge5c_delay60s", "first", "All of each trade, not 10%"],
+  ["edge5c_delay60s", "10pct_cap", "At most $1,000 per market"],
+  ["edge10c_delay60s", "10pct", "Price 10¢ below the model"],
+  ["edge20c_delay60s", "10pct", "Price 20¢ below the model"],
+  ["edge5c_delay300s", "10pct", "Wait 300 s, not 60 s"],
 ];
 function gridTable(grid, list, sp) {
   const rows = list.filter((e) => grid?.[e.id]);
   if (!rows.length) return "";
-  return `<summary>The same $10,000 under other versions of the rule</summary><div class="table-scroll"><table class="compact"><thead><tr><th>Election</th>${GRID_COLS.map(([, , l]) => `<th class="n">${l}</th>`).join("")}${sp ? `<th class="n">Only at the signal's price</th>` : ""}</tr></thead><tbody>${rows.map((e) => {
+  return `<summary>The same $10,000 under other versions of the rule</summary><div class="table-scroll"><table class="compact"><thead><tr><th>Election</th>${GRID_COLS.map(([, , l]) => `<th class="n">${l}</th>`).join("")}${sp ? `<th class="n">Stricter rule</th>` : ""}</tr></thead><tbody>${rows.map((e) => {
     const g = grid[e.id];
     const v = (k, mode) => (g[k]?.[mode] != null ? money(g[k][mode]) : "–");
-    return `<tr><td>${esc(e.name)}</td>${GRID_COLS.map(([k, mode]) => `<td class="n">${v(k, mode)}</td>`).join("")}${sp ? `<td class="n">${sp.by_election?.[e.id] ? money(sp.by_election[e.id].ending_value) : "–"}</td>` : ""}</tr>`;
+    return `<tr><td>${esc(label(e))}</td>${GRID_COLS.map(([k, mode]) => `<td class="n">${v(k, mode)}</td>`).join("")}${sp ? `<td class="n">${sp.by_election?.[e.id] ? money(sp.by_election[e.id].ending_value) : "–"}</td>` : ""}</tr>`;
   }).join("")}</tbody></table></div>`;
 }
 
 /* ---------------------------------------------------------------- elections list */
 
-const lazy = new IntersectionObserver((entries) => {
-  for (const e of entries) {
-    if (!e.isIntersecting) continue;
-    lazy.unobserve(e.target);
-    spark(e.target);
-  }
-}, { rootMargin: "200px" });
+const WHEN = { scheduled: "Upcoming", live: "Live now", replay: "Replay" };
+const todayUTC = () => Date.parse(new Date().toISOString().slice(0, 10));
+function countdown(e) {
+  if (e.status !== "scheduled") return WHEN[e.status] ?? e.status;
+  const days = Math.round((Date.parse(e.date) - todayUTC()) / 864e5);
+  return days > 1 ? `Upcoming, in ${days} days` : days === 1 ? "Upcoming, tomorrow" : days === 0 ? "Upcoming, today" : "Upcoming";
+}
+
+// What the test of each election rests on, in one sentence (EVIDENCE in common.js has the long form)
+const SETTINGS = {
+  forward: "Settings frozen before the vote.",
+  "pre-specified": "Settings frozen before this data was examined; the result was already known.",
+  "in-sample": "Settings were chosen on this data.",
+  "not-preregistered": "Settings chosen on earlier elections, not frozen in advance.",
+};
+// one line (at most 140 characters), from the election's fields and its meta (the number of races listed)
+function describe(e, m) {
+  let base;
+  if (e.status === "scheduled") base = `${m?.races?.length ?? "Several"} markets priced before the count.`;
+  else if (e.status === "live") base = "Counting now; the model and the prices update live.";
+  else if (e.count_private) base = "Count model run; its minute-by-minute data is private (licence).";
+  else if (m?.count_timeline === false) base = "Market prices and final results only. No count over time.";
+  else if (m && !hasMarkets(m)) return "Model against the raw count. No market prices for this night.";
+  else base = "Model and market compared minute by minute.";
+  return `${base} ${SETTINGS[e.evidence] ?? ""}`.trim();
+}
+
+const HELP = {
+  date: "Upcoming: counting has not started, so the page shows the model and market before any votes. Replay: the night is over, and the page replays it minute by minute.",
+  units: "The places the model counts one by one, for example US counties or Brazilian municipalities.",
+  head: "Upcoming: the model's chance and the market prices for the main race, before any votes. Replay: how many minutes the model took to reach 90% on the eventual winner, against the market. Time starts when 1% of the vote is counted.",
+  band: "The model gives a range for the final result: the 90% band. This is the share of minutes, from 1% to 95% counted, in which the final result was inside it. About 90% means the band was the right width.",
+  chart: "The chance that the main race's first-named side wins. Through the night for a replay. For an upcoming election, one dot each for the model, Polymarket and Kalshi, where they are listed.",
+};
+const help = (k) => `<button type="button" class="help" aria-label="What is this column?" aria-expanded="false">?</button><span class="help-pop" role="note">${esc(HELP[k])}</span>`;
 
 function render(elections) {
-  names = new Map([...names, ...elections.map((e) => [e.id, e.name])]);
-  // countries ordered by their most recent election; elections newest first
   const groups = d3.groups(elections, (e) => e.country ?? "");
   const latest = (list) => d3.max(list, (e) => e.date);
-  years = new Map(elections.map((e) => [e.id, e.date?.slice(0, 4)]));
   groups.sort((a, b) => latest(b[1]).localeCompare(latest(a[1])));
-  tbody.innerHTML = groups.map(([c, list]) => `<tr class="country"><td colspan="7">${esc(countryName(c))}</td></tr>${
-    [...list].sort((a, b) => b.date.localeCompare(a.date)).map((e) => `<tr data-id="${esc(e.id)}">
-        <td class="e-name"><a href="${href(e.id)}">${esc(e.name)}</a><span class="e-sum">${esc(e.summary ?? "")}</span></td>
-        <td>${esc(fmtDate(e.date))}</td>
-        <td><span class="status ${esc(e.status)}">${esc(STATUS[e.status] ?? e.status)}</span></td>
-        <td class="n">${e.n_units != null ? `${e.n_units.toLocaleString("en-US")} ` : ""}<span class="note">${esc(plural(e.unit_level, e.n_units))}</span></td>
-        ${e.status === "scheduled"
-          ? `<td class="sched" colspan="3" data-pre="${esc(e.id)}">Runs live on election night</td>`
-          : `<td class="n lead">–</td><td class="n cal">–</td><td class="sp" data-id="${esc(e.id)}"><svg class="spark" width="150" height="34" aria-hidden="true"></svg></td>`}
+  tbody.innerHTML = groups.map(([c, list]) => `<tr class="country"><td colspan="6">${esc(countryName(c))}</td></tr>${
+    [...list].sort((a, b) => b.date.localeCompare(a.date)).map((e) => `<tr data-id="${esc(e.id)}" class="${esc(e.status)}">
+        <td class="e-name" data-label="Election"><a href="${href(e.id)}" title="${esc(e.name)}">${esc(bareName(e.name))}</a><span class="e-desc">${esc(describe(e, null))}</span>${e.summary ? `<details class="e-more"><summary>Full summary</summary><p>${esc(e.summary)}</p>${EVIDENCE[e.evidence] ? `<p class="note">Test set-up: ${esc(EVIDENCE[e.evidence].long)}.</p>` : ""}</details>` : ""}</td>
+        <td class="e-date" data-label="Date">${esc(fmtDate(e.date))}<span class="e-when ${esc(e.status)}">${esc(`${countdown(e)}${qualifierOf(e) ? ` · ${qualifierOf(e)}` : ""}`)}</span></td>
+        <td class="n e-units" data-label="Units">${e.n_units != null ? `${fmtInt(e.n_units)} ` : ""}<span class="note">${esc(unitWord(e.unit_level, e.n_units))}</span></td>
+        <td class="e-head" data-label="Model vs market"></td>
+        <td class="n cal" data-label="In 90% band">–</td>
+        <td class="sp" data-label="Main race"><svg class="spark" width="150" height="34" aria-hidden="true"></svg></td>
       </tr>`).join("")}`).join("");
   tbody.querySelectorAll("tr[data-id]").forEach((tr) => {
-    tr.addEventListener("click", (ev) => { if (!ev.target.closest("a")) location.href = href(tr.dataset.id); });
-    const sp = tr.querySelector(".sp");
-    if (sp) lazy.observe(sp);
-    const pre = tr.querySelector("[data-pre]");
-    if (pre) preCell(pre);
+    tr.addEventListener("click", (ev) => { if (!ev.target.closest("a, details, button")) location.href = href(tr.dataset.id); });
+    fillRow(tr).catch((err) => { console.error(err); fillHead(tr, `<p class="hl hl-none">Could not load this election's figures</p>`); });
   });
 }
 
-// A scheduled election in its "pre-count" phase: the model's chance before any votes against
-// Polymarket's current price (read in the browser) and the last recorded Kalshi price. Three
-// headline markets (who wins / most seats / control first, then by Polymarket volume) by their short
-// names, the rest behind a toggle.
+function fillHead(tr, html) { tr.querySelector(".e-head").innerHTML = html; }
+
+async function fillRow(tr) {
+  const id = tr.dataset.id;
+  const e = allElections().find((x) => x.id === id);
+  const m = await metaOf(id);
+  tr.querySelector(".e-desc").textContent = describe(e, m);
+  if (e.status === "scheduled" && m?.phase === "pre-count" && m.races?.length) return fillPre(tr, e, m);
+  return fillPast(tr, e, m);
+}
+
+// What the model's lead over the market comes to, in a sentence.
+function leadText(L) {
+  const who = L.vs === "market" ? "the market" : "the raw count";
+  if (L.minutes === 0) return `Model and ${L.vs} 90% sure in the same minute`;
+  return `Model 90% sure ${dur(L.minutes)} ${L.minutes > 0 ? "before" : "after"} ${who}`;
+}
+
+// A replay (or a live count): the lead as a sentence, the share of minutes inside the 90% band, the night's lines.
+async function fillPast(tr, e, m) {
+  const id = e.id;
+  const race = mainRace(m);
+  const [L, stats, timeline] = await Promise.all([leadOf(id), statsOf(id), timelineOf(id)]);
+  const sub = race ? (L && L.scope !== "main" ? `Main race: ${L.scope}` : `Main race: ${race.name}`) : "";
+  if (L) fillHead(tr, `<p class="hl">${esc(leadText(L))}</p><p class="note hl-sub">${esc(sub)}</p>`);
+  else if (e.count_private) {
+    // the count model ran on licensed data; the per-race lead is in stats.json (lead), from poll close and from 1% counted
+    const ld = stats?.lead;
+    if (ld?.contested_markets) {
+      const g = ld.median_lead_min_gate1pct;
+      fillHead(tr, `<p class="hl">Model first on ${ld.model_first} of ${ld.contested_markets} markets, median ${dur(ld.median_lead_min)}</p><p class="note hl-sub">Counted from poll close.${g != null ? ` From 1% counted: median ${dur(g)} ${g > 0 ? "ahead" : "behind"}.` : ""}</p>`);
+    } else fillHead(tr, `<p class="hl hl-none">Count model run</p><p class="note hl-sub">Minute-by-minute data is private (licence)</p>`);
+  } else if (m?.count_timeline === false) fillHead(tr, `<p class="hl hl-none">Prices and final results only</p><p class="note hl-sub">No count over time</p>`);
+  else if (m && !hasMarkets(m)) fillHead(tr, `<p class="hl hl-none">No market to compare with</p><p class="note hl-sub">${esc(sub)}; model only</p>`);
+  else fillHead(tr, `<p class="hl hl-none">No lead to measure</p><p class="note hl-sub">${esc(sub)}</p>`);
+  const cal = race ? stats?.calibration?.[race.race_id] : null;
+  if (cal?.coverage90_1_95 != null) tr.querySelector(".cal").textContent = pct(cal.coverage90_1_95, 0);
+  if (!race) return;
+  const rows = (timeline?.[race.race_id] ?? []).map((d) => ({ ...d, tms: Date.parse(d.t) }));
+  if (!rows.length) return;
+  const gate = m.count_timeline === false ? null : rows.find((d) => d.counted >= 0.01);
+  const vis = gate ? rows.filter((d) => d.tms >= gate.tms - 15 * 60000) : rows;
+  const w = 150, h = 34;
+  const x = d3.scaleLinear().domain(d3.extent(vis, (d) => d.tms)).range([1, w - 1]);
+  const y = d3.scaleLinear().domain([0, 1]).range([h - 2, 2]);
+  const svg = d3.select(tr.querySelector(".sp")).select("svg").attr("viewBox", `0 0 ${w} ${h}`);
+  svg.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(0.5)).attr("y2", y(0.5)).attr("stroke", "#e4e2dc");
+  const line = (k) => d3.line().defined((d) => d[k] != null).x((d) => x(d.tms)).y((d) => y(d[k])).curve(d3.curveStepAfter);
+  svg.append("path").datum(vis).attr("fill", "none").attr("stroke", C.kalshi).attr("stroke-width", 1.1).attr("d", line("kalshi"));
+  svg.append("path").datum(vis).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.2).attr("d", line("pm"));
+  svg.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 1.5).attr("d", line("P"));
+  tr.querySelector(".sp").title = `${race.name}: chance that ${race.a.name} wins, through the night`;
+}
+
+// An upcoming election: the headline market (who wins, most seats or control first, then by Polymarket
+// volume) as the model's chance before any votes against Polymarket's price now (read in the browser)
+// and the last recorded Kalshi price.
 const HEADLINE = /^most-|winner|control|^pres|prime-minister|chamber|^win-/;
-const SHOWN = 3;
-async function preCell(td) {
-  const id = td.dataset.pre;
-  const m = await getJSON(`${id}/meta.json`, { optional: true, root: rootOf(id) }).catch(() => null);
-  if (m?.phase !== "pre-count" || !m.races?.length) return;
-  const timeline = await getJSON(`${id}/timeline.json`, { optional: true, root: rootOf(id) }).catch(() => null);
+async function fillPre(tr, e, m) {
+  const id = e.id;
+  const timeline = await timelineOf(id);
   const lastRow = (rid) => { const rows = (timeline?.[rid] ?? []).filter((d) => d.t); return rows[rows.length - 1] ?? null; };
   const pm = (r) => (r.markets ?? []).find((x) => x.platform === "polymarket" && x.id);
   const volume = new Map();
@@ -347,73 +357,59 @@ async function preCell(td) {
     const y = pm(r) ? yes.get(pm(r).id) : null;
     return [r.race_id, y == null ? null : pm(r).yes_is === "b" ? 1 - y : y];
   }));
-  const f = (x) => (x == null ? "–" : x.toFixed(2));
   const regions = new Map((m.regions ?? []).map((r) => [r.id, r.name]));
-  // the short name, with its region and the side the chances are for where the name lacks them
-  const label = (r) => {
+  const nameOf = (r) => {
     let s = shortName(r, regions.get(r.region));
     if (r.region && !s.includes(regions.get(r.region) ?? "")) s = `${regions.get(r.region)} ${s}`;
-    return r.a?.name && !s.includes(r.a.name) ? `${esc(s)} <span class="note">${esc(r.a.name)}</span>` : esc(s);
+    return r.a?.name && !s.includes(r.a.name) ? `${s}, ${r.a.name}` : s;
   };
-  const anyLive = [...live.values()].some((v) => v != null);
   const order = m.races.map((r, i) => ({ r, i, head: HEADLINE.test(r.race_id) ? 0 : 1, vol: volume.get(pm(r)?.id) ?? -1 }))
     .sort((a, b) => a.head - b.head || b.vol - a.vol || a.i - b.i).map((x) => x.r);
-  const row = (r) => {
-    const last = lastRow(r.race_id);
-    const v = r.poll_model ?? "v2"; // the race's "with polls" model version
-    return `<tr><td title="${esc(r.name)}">${label(r)}</td><td class="n m">${f(last?.[`P_${v}`] ?? modelP(last) ?? r.precount?.[`P_${v}`] ?? r.precount?.P)}</td><td class="n">${f(live.get(r.race_id) ?? last?.pm)}</td><td class="n kx">${f(last?.kalshi)}</td></tr>`;
+  const r = order[0];
+  const last = lastRow(r.race_id);
+  const v = r.poll_model ?? "v2";
+  const vals = {
+    model: last?.[`P_${v}`] ?? modelP(last) ?? r.precount?.[`P_${v}`] ?? r.precount?.P ?? null,
+    polymarket: live.get(r.race_id) ?? last?.pm ?? null,
+    kalshi: last?.kalshi ?? null,
   };
-  const rest = order.length - SHOWN;
-  const note = `Before the count: the model's chance before any votes (${m.races.some((r) => lastRow(r.race_id)?.P_v2 != null || r.precount?.P_v2 != null) ? "from past certified results shifted toward the recent polls, where a race has them" : "from past certified results, not polls"}), ${anyLive ? "Polymarket's price now" : "the last recorded Polymarket price"} and the last recorded Kalshi price. Counting starts ${fmtDate(m.date)}.`;
-  td.classList.add("pre");
-  td.innerHTML = `<table class="pre-races"><thead><tr><th>Chance the named side wins</th><th class="n">Model</th><th class="n">Poly&shy;market</th><th class="n">Kalshi</th></tr></thead>
-    <tbody>${order.slice(0, SHOWN).map(row).join("")}</tbody>${rest > 0 ? `<tbody class="pre-more" hidden>${order.slice(SHOWN).map(row).join("")}</tbody>` : ""}</table>
-    ${rest > 0 ? `<button type="button" class="pre-toggle" aria-expanded="false">+${rest} more market${rest === 1 ? "" : "s"}</button>` : ""}
-    <p class="note pre-note" title="${esc(note)}">${esc(note)}</p>`;
-  const btn = td.querySelector(".pre-toggle");
-  btn?.addEventListener("click", (ev) => {
-    ev.stopPropagation(); // the row itself links to the election
-    const more = td.querySelector(".pre-more"), open = more.hidden;
-    more.hidden = !open;
-    btn.setAttribute("aria-expanded", String(open));
-    btn.textContent = open ? "Fewer markets" : `+${rest} more market${rest === 1 ? "" : "s"}`;
-  });
+  const f = (x) => (x == null ? "–" : pct(x, 0));
+  const n = m.races.length;
+  fillHead(tr, `<p class="hl hl-pre">${esc(nameOf(r))}</p>
+    <p class="pre-vals"><span class="m">Model ${f(vals.model)}</span> · <span class="k">Polymarket ${f(vals.polymarket)}</span>${vals.kalshi != null ? ` · <span class="kx">Kalshi ${f(vals.kalshi)}</span>` : ""}</p>
+    <p class="note hl-sub"><a class="all-mk" href="${href(e.id)}">See all ${n} ${n === 1 ? "market" : "markets"}</a></p>`);
+  tr.querySelector(".cal").title = "Not yet: the count has not started";
+  // the chart cell: one dot each on a 0-100% line
+  const w = 150, h = 34, x = d3.scaleLinear().domain([0, 1]).range([6, w - 6]);
+  const svg = d3.select(tr.querySelector(".sp")).select("svg").attr("viewBox", `0 0 ${w} ${h}`);
+  svg.append("line").attr("x1", x(0)).attr("x2", x(1)).attr("y1", 15).attr("y2", 15).attr("stroke", "#d8d5cd");
+  svg.append("line").attr("x1", x(0.5)).attr("x2", x(0.5)).attr("y1", 10).attr("y2", 20).attr("stroke", "#d8d5cd");
+  svg.append("text").attr("class", "legend-text").attr("x", x(0)).attr("y", 32).text("0%");
+  svg.append("text").attr("class", "legend-text").attr("x", x(1)).attr("y", 32).attr("text-anchor", "end").text("100%");
+  for (const [k, color] of [["kalshi", C.kalshi], ["polymarket", C.market], ["model", C.model]]) {
+    if (vals[k] != null) svg.append("circle").attr("cx", x(vals[k])).attr("cy", 15).attr("r", 4.5).attr("fill", color).attr("stroke", "#fff").attr("stroke-width", 1.2).append("title").text(`${k === "model" ? "Model" : k === "polymarket" ? "Polymarket" : "Kalshi"} ${pct(vals[k], 0)}`);
+  }
+  tr.querySelector(".sp").title = `${nameOf(r)}: chance before the count`;
 }
 
-const mainRace = (m) => m?.races?.find((r) => !r.region) ?? m?.races?.[0];
+// column help: a "?" opens a short explanation (hover and keyboard focus also show it)
+document.addEventListener("click", (ev) => {
+  const btn = ev.target.closest(".help");
+  document.querySelectorAll(".help[aria-expanded=true]").forEach((b) => { if (b !== btn) { b.setAttribute("aria-expanded", "false"); b.parentElement.classList.remove("open"); } });
+  if (!btn) return;
+  const open = btn.getAttribute("aria-expanded") !== "true";
+  btn.setAttribute("aria-expanded", String(open));
+  btn.parentElement.classList.toggle("open", open);
+});
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") document.querySelectorAll(".help[aria-expanded=true]").forEach((b) => { b.setAttribute("aria-expanded", "false"); b.parentElement.classList.remove("open"); }); });
 
-// Lead, calibration and the sparkline are filled in when the row scrolls into view.
-async function spark(td) {
-  const id = td.dataset.id;
-  const tr = td.closest("tr");
-  const m = await getJSON(`${id}/meta.json`, { optional: true, root: rootOf(id) });
-  const race = mainRace(m);
-  if (!race) return;
-  const [stats, timeline] = await Promise.all([getJSON(`${id}/stats.json`, { optional: true, root: rootOf(id) }), getJSON(`${id}/timeline.json`, { optional: true, root: rootOf(id) })]);
-  const rows = (timeline?.[race.race_id] ?? []).map((d) => ({ ...d, tms: Date.parse(d.t) }));
-  const gate = m.count_timeline === false ? null : rows.find((d) => d.counted >= 0.01);
-  const lead = leadMinutes(gatedSettle(stats, race.race_id, gate?.t));
-  if (lead != null) tr.querySelector(".lead").textContent = `${lead > 0 ? "+" : lead < 0 ? "−" : ""}${Math.abs(lead)}`;
-  const cal = stats?.calibration?.[race.race_id];
-  if (cal?.coverage90_1_95 != null) tr.querySelector(".cal").textContent = pct(cal.coverage90_1_95, 0);
-  if (!rows.length) return;
-  const vis = gate ? rows.filter((d) => d.tms >= gate.tms - 15 * 60000) : rows;
-  const w = 150, h = 34;
-  const x = d3.scaleLinear().domain(d3.extent(vis, (d) => d.tms)).range([1, w - 1]);
-  const y = d3.scaleLinear().domain([0, 1]).range([h - 2, 2]);
-  const svg = d3.select(td).select("svg").attr("viewBox", `0 0 ${w} ${h}`);
-  svg.append("line").attr("x1", 0).attr("x2", w).attr("y1", y(0.5)).attr("y2", y(0.5)).attr("stroke", "#e4e2dc");
-  const line = (k) => d3.line().defined((d) => d[k] != null).x((d) => x(d.tms)).y((d) => y(d[k])).curve(d3.curveStepAfter);
-  svg.append("path").datum(vis).attr("fill", "none").attr("stroke", C.kalshi).attr("stroke-width", 1.1).attr("d", line("kalshi"));
-  svg.append("path").datum(vis).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.2).attr("d", line("pm"));
-  svg.append("path").datum(vis).attr("fill", "none").attr("stroke", C.model).attr("stroke-width", 1.5).attr("d", line("P"));
-  td.title = `${race.name}: probability ${race.a.name} wins`;
-}
+for (const th of document.querySelectorAll("#overview th[data-help]")) th.insertAdjacentHTML("beforeend", help(th.dataset.help));
 
 async function load() {
   try {
     const [elections, summary] = await Promise.all([getJSON("elections.json"), getJSON("summary.json", { optional: true })]);
-    liveIds = new Set(elections.filter((e) => e.status === "live" || e.status === "scheduled").map((e) => e.id));
+    setLiveIds(elections.filter((e) => e.status === "live" || e.status === "scheduled").map((e) => e.id));
+    setElections(elections);
     render(elections);
     if (!load.world) {
       load.world = true;
@@ -428,16 +424,19 @@ async function load() {
         })
         .catch((err) => { $("world").innerHTML = `<p class="note">The world map could not be drawn (${esc(err.message)}).</p>`; });
     }
+    if (!load.charts) {
+      load.charts = true;
+      drawNight().catch((err) => console.error(err));
+      drawLead().catch((err) => console.error(err));
+    }
     if (summary && !load.drawn) {
       load.drawn = true;
       // chart labels carry the year: two elections can share a name (Brazil's 2022 and 2026 runoffs)
-      const year = new Map(elections.map((e) => [e.id, e.date?.slice(0, 4)]));
-      summary.elections = (summary.elections ?? []).map((e) => ({ ...e, name: year.get(e.id) ? `${e.name}, ${year.get(e.id)}` : e.name }));
-      names = new Map([...names, ...summary.elections.map((e) => [e.id, e.name])]);
+      summary.elections = (summary.elections ?? []).map((e) => ({ ...e, name: labelOf(e.id) === e.id ? e.name : labelOf(e.id) }));
       drawAll(summary);
     }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" class="note">Could not load the list of elections (${esc(err.message)}).</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="note">Could not load the list of elections (${esc(err.message)}).</td></tr>`;
   }
 }
 

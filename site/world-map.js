@@ -38,6 +38,7 @@ function warmElection(a) {
 }
 const DEM = "#1f5fbf", REP = "#c8102e";
 const STATUS_LABEL = { live: "Live", scheduled: "Before the count", replay: "Replay" };
+const STATUS_SHORT = { live: "live now", scheduled: "before the count", replay: "replay" }; // the hover card's lines
 const RANK = { live: 0, scheduled: 1, replay: 2 };
 const ZOOM_MS = 900, FADE_MS = 350;
 const REGION_MAPS = new Set(["US", "BR", "CA", "MX", "HU", "NZ", "IL", "NL"]); // geo/<cc>_regions.topo.json
@@ -362,7 +363,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
     canvas.style.cursor = f && (h.kind !== "region" || st.data?.regionLink.has(f.id)) ? "pointer" : "default";
     if (f !== st.hover) { st.hover = f; draw(); }
     if (!f) { card.hidden = true; return; }
-    showCard(h.kind === "region" ? regionCardHTML(f.id) : cardHTML(f.properties.iso2), ev);
+    showCard(h.kind === "region" ? regionCardHTML(f.id) : cardHTML(f.properties.iso2), ev, h.kind === "region" ? f : mainland(f));
   });
   // a region's card: its race and leader, or its name and that it has no market
   function regionCardHTML(id) {
@@ -381,17 +382,56 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
   root.querySelectorAll(".wm-list button").forEach((b) => b.addEventListener("click", () => choose(b.dataset.code)));
   document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && st.code) back(); });
 
-  function cardHTML(code) {
-    return `<p class="pc-name"><b>${esc(countryName(code))}</b></p>
-      <ul class="wm-elections">${sorted(code).map((e) => `<li><b>${esc(e.name)}</b> <span class="wm-meta">${esc(fmtDate(e.date))} · ${esc(STATUS_LABEL[e.status] ?? e.status)}</span>${e.summary ? `<br><span class="wm-sum">${esc(e.summary)}</span>` : ""}</li>`).join("")}</ul>`;
+  // A country's card: its name and one line per election, at most five lines ("7 Nov 2026 · General
+  // election · before the count"). No summaries here; the list below the map has them.
+  const CARD_ELECTIONS = 4;
+  const shortDate = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  // "New Zealand general election 2023 (retrospective replay, simulated count order)" → "General election"
+  function cardTitle(e, country) {
+    let t = e.name.replace(/\s*\(.*$/, "").replace(/\s*\b(19|20)\d\d\b/g, "").split(":")[0].trim();
+    for (const c of [country, e.country_name]) if (c && t.toLowerCase().startsWith(c.toLowerCase())) t = t.slice(c.length).replace(/^[\s,:]+/, "");
+    t = t.trim() || e.name;
+    return t[0].toUpperCase() + t.slice(1);
   }
-  function showCard(html, ev) {
+  function cardStatus(e) {
+    const base = STATUS_SHORT[e.status] ?? e.status;
+    const q = e.name.match(/\(([^)]*)\)/)?.[1].split(",").pop().trim();
+    return e.status === "replay" && q ? `${base} (${q})` : base;
+  }
+  function cardHTML(code) {
+    const list = sorted(code), name = countryName(code);
+    const many = list.length > CARD_ELECTIONS;
+    const shown = many ? list.slice(0, CARD_ELECTIONS - 1) : list;
+    return `<p class="pc-name"><b>${esc(name)}</b></p>
+      <ul class="wm-elections">${shown.map((e) => `<li>${esc(shortDate(e.date))} · ${esc(cardTitle(e, name))} · ${esc(cardStatus(e))}</li>`).join("")}${many ? `<li class="wm-meta">+${list.length - shown.length} more</li>` : ""}</ul>`;
+  }
+  // Place the card beside the hovered shape, never over it: on the side with the most free room
+  // (left or right first, then below or above), centred on the shape and kept inside the map.
+  // The card takes no pointer events, so it cannot take the hover away.
+  function showCard(html, ev, shape) {
     card.innerHTML = html;
     card.hidden = false;
-    const b = box.getBoundingClientRect();
-    const x = ev.clientX - b.left, y = ev.clientY - b.top;
-    card.style.left = `${Math.max(8, Math.min(b.width - card.offsetWidth - 8, x + 14))}px`;
-    card.style.top = `${Math.max(8, Math.min(b.height - card.offsetHeight - 8, y + 14))}px`;
+    const W = box.clientWidth, H = box.clientHeight, cw = card.offsetWidth, ch = card.offsetHeight, gap = 12;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const bb = shape && st.proj ? d3.geoPath(st.proj).bounds(shape) : null;
+    if (!bb || !bb.flat().every(Number.isFinite)) {
+      const b = box.getBoundingClientRect();
+      card.style.left = `${clamp(ev.clientX - b.left + 14, 8, W - cw - 8)}px`;
+      card.style.top = `${clamp(ev.clientY - b.top + 14, 8, H - ch - 8)}px`;
+      return;
+    }
+    const [[x0, y0], [x1, y1]] = bb;
+    const room = { right: W - x1 - gap, left: x0 - gap, below: H - y1 - gap, above: y0 - gap };
+    const need = { right: cw, left: cw, below: ch, above: ch };
+    const fits = Object.keys(room).filter((k) => room[k] >= need[k]);
+    const pool = fits.length ? fits : Object.keys(room);
+    // the side with the most room beyond what the card needs; horizontal sides first on a tie
+    const side = d3.greatest(pool, (k) => room[k] - need[k] + (k === "left" || k === "right" ? 1 : 0));
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const left = side === "right" ? x1 + gap : side === "left" ? x0 - gap - cw : cx - cw / 2;
+    const top = side === "below" ? y1 + gap : side === "above" ? y0 - gap - ch : cy - ch / 2;
+    card.style.left = `${clamp(left, 8, W - cw - 8)}px`;
+    card.style.top = `${clamp(top, 8, H - ch - 8)}px`;
   }
 
   /* ------------------------------------------------ a country: its regions and races */
@@ -663,5 +703,12 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
     bounds: st.target && st.proj ? d3.geoPath(st.proj).bounds(st.target.g) : null,
     fills: st.regions ? st.regions.features.map((f) => ({ id: f.id, fill: st.data?.colours.get(f.id) ?? "hatch", card: textOf(regionCardHTML(f.id)) })) : [],
   });
-  return { choose, back, arrive, info };
+  // for checks: a country's outline box and a point on it, in canvas pixels (the settled world view)
+  const probe = (code) => {
+    const f = featureOf(code);
+    if (!f || !st.proj) return null;
+    const g = mainland(f), [[x0, y0], [x1, y1]] = d3.geoPath(st.proj).bounds(g);
+    return { box: [x0, y0, x1, y1], at: st.proj(d3.geoCentroid(g)) };
+  };
+  return { choose, back, arrive, info, probe };
 }

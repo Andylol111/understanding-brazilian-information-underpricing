@@ -5,7 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Election-night counts and market prices</title>
 <meta name="description" content="How well a model that projects the final result from the public count did on election night, compared minute by minute with Polymarket prices, and what money its signals could have made.">
-<link rel="stylesheet" href="style.css">
+<!-- the stylesheet and every module of this page carry the build stamp (and a Reload's ?_r), so cached code cannot mix with new data -->
+<link id="page-css" rel="stylesheet">
+<script>
+window.__BUILD = "20261031b";
+window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
+document.getElementById("page-css").href = "style.css?v=" + window.__V;
+(() => {
+  const imports = {};
+  for (const f of ["common.js", "dash-agg.js", "dash-precount.js", "dash-national.js", "world-map.js", "landing-data.js", "landing-charts.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  const m = document.createElement("script");
+  m.type = "importmap";
+  m.textContent = JSON.stringify({ imports });
+  document.head.append(m);
+})();
+</script>
 <!-- a cross-document view transition into this page: its modules load once it is over (window.__afterReveal) -->
 <script>
 addEventListener("pagereveal", (e) => { window.__vtDone = e.viewTransition ? e.viewTransition.finished.catch(() => {}) : null; }, { once: true });
@@ -24,11 +38,31 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
 
 <section class="world" id="world" aria-label="Elections on a world map: choose a country"></section>
 
+<div id="charts">
+
+<section class="evidence" id="ev-night" aria-labelledby="ev-night-h" hidden>
+  <div class="ev-text">
+    <h2 id="ev-night-h">One night, step by step</h2>
+    <p id="ev-night-lead"></p>
+    <div id="ev-night-how"></div>
+  </div>
+  <figure class="ev-fig" id="chart-night"></figure>
+</section>
+
+<section class="evidence" id="ev-lead" aria-labelledby="ev-lead-h" hidden>
+  <div class="ev-text">
+    <h2 id="ev-lead-h">Who reached 90% first, the model or the market?</h2>
+    <p id="ev-lead-lead"></p>
+    <div id="ev-lead-how"></div>
+  </div>
+  <figure class="ev-fig" id="chart-lead"></figure>
+</section>
+
 <section class="evidence" id="ev-error" aria-labelledby="ev-error-h" hidden>
   <div class="ev-text">
     <h2 id="ev-error-h">The projection against the raw count</h2>
     <p id="ev-error-lead"></p>
-    <p class="note">Distance from the final two-way share, in percentage points, at the first minute each share of the vote had been counted. Thin lines: each election's main race. Thick lines: the average over elections. <span class="m">Model projection</span>, <span class="r">raw count</span>.</p>
+    <div id="ev-error-how"></div>
   </div>
   <figure class="ev-fig" id="chart-error"></figure>
 </section>
@@ -37,6 +71,7 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
   <div class="ev-text">
     <h2 id="ev-cal-h">How often the final result stayed inside the 90% band</h2>
     <p id="ev-cal-lead"></p>
+    <div id="ev-cal-how"></div>
   </div>
   <div class="ev-pair">
     <figure class="ev-fig" id="chart-coverage"></figure>
@@ -44,11 +79,15 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
   </div>
 </section>
 
+</div>
+
 <section class="evidence" id="ev-money" aria-labelledby="ev-money-h" hidden>
   <div class="ev-text">
-    <h2 id="ev-money-h">$10,000 in each election</h2>
-    <p id="ev-money-lead"></p>
-    <p class="note" id="ev-money-rule"></p>
+    <h2 id="ev-money-h">What $10,000 would have done in each election</h2>
+  </div>
+  <div class="money-intro">
+    <div id="money-what"></div>
+    <div id="money-rule"></div>
   </div>
   <div class="money-grid" id="money"></div>
   <details class="money-variants" id="money-variants" hidden></details>
@@ -65,21 +104,22 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
 
 <section class="overview" aria-labelledby="elections-h">
   <h2 id="elections-h">Elections</h2>
+  <p class="lede-list">Every election in this study. An upcoming election shows the model and the markets before any votes. A replay shows how the night went. Click a row to open its dashboard.</p>
   <p class="note" id="live-note" hidden></p>
   <div class="table-scroll">
     <table id="overview">
-      <colgroup><col class="c-name"><col class="c-date"><col class="c-status"><col class="c-units"><col class="c-lead"><col class="c-band"><col class="c-chart"></colgroup>
+      <colgroup><col class="c-name"><col class="c-date"><col class="c-units"><col class="c-head"><col class="c-band"><col class="c-chart"></colgroup>
       <thead><tr>
-        <th>Election</th><th>Date</th><th>Status</th><th class="n">Units</th>
-        <th class="n" title="Minutes by which the model reached 90% on the eventual winner before Polymarket did, both counted from the moment the main race reached 1% counted">Lead from 1% counted (min)</th>
-        <th class="n" title="Share of minutes from 1% to 95% counted with the final result inside the model's 90% band, main race">In 90% band</th>
-        <th>Main race through the night</th>
+        <th>Election</th><th data-help="date">Date</th><th class="n" data-help="units">Units</th>
+        <th data-help="head">Model vs market</th>
+        <th class="n" data-help="band">In 90% band</th>
+        <th data-help="chart">Main race</th>
       </tr></thead>
-      <tbody><tr><td colspan="7" class="note">Loading…</td></tr></tbody>
+      <tbody><tr><td colspan="6" class="note">Loading…</td></tr></tbody>
     </table>
   </div>
-  <p class="key">Main race: the national race, or the first race listed. Chart: the model's probability (<span class="m">orange</span>), the Polymarket price (<span class="k">black</span>) and, where Kalshi lists the race, the Kalshi price (<span class="kx">green</span>) for the main race.</p>
-  <p class="evidence-note">How much each result can prove depends on when the model's settings were fixed. Some were chosen on the same night's data, some were frozen before that data was examined but after the outcome was known, and some were frozen before the election: only the last kind can show that the markets can be beaten. Each dashboard says which applies under Method &amp; sources; the rules are in <a href="https://github.com/Andylol111/understanding-brazilian-information-underpricing/blob/main/prereg/NOTES.md">prereg/NOTES.md</a>.</p>
+  <p class="key">Main race: the national race, or the first race listed. In the chart, <span class="m">orange</span> is the model, <span class="k">black</span> is Polymarket and <span class="kx">green</span> is Kalshi, where Kalshi lists the race.</p>
+<p class="evidence-note">How much each result can prove depends on when the model's settings were fixed. Some were chosen on the same night's data, some were frozen before that data was examined but after the outcome was known, and some were frozen before the election: only the last kind can show that the markets can be beaten. Each dashboard says which applies under Method &amp; sources; the rules are in <a href="https://github.com/Andylol111/understanding-brazilian-information-underpricing/blob/main/prereg/NOTES.md">prereg/NOTES.md</a>.</p>
 </section>
 
 <div class="two-col">
@@ -114,6 +154,6 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
 
 </main>
 <script src="load-error.js"></script>
-<script type="module">window.__afterReveal().then(() => import("./landing.js")).catch(window.__showLoadError);</script>
+<script type="module">window.__afterReveal().then(() => import("./landing.js?v=" + window.__V)).catch(window.__showLoadError);</script>
 </body>
 </html>

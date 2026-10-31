@@ -112,6 +112,7 @@ async def state(page: Page, kind: str) -> dict[str, Any]:
             loadError: text("#load-error"),
             title: text("#title"),
             rows: document.querySelectorAll("#overview tbody tr").length,
+            homeCards: document.querySelectorAll("#money .money-cell").length,
             raceOptions: document.querySelectorAll("#race option").length,
             readout: text("#readout").length + text("#nat-summary").length,
             articlePaths: document.querySelectorAll("main svg path").length,
@@ -129,7 +130,7 @@ def ready(s: dict[str, Any], mapless: bool = False) -> bool:
     if s["loadError"] or s["loading"]:
         return False
     if s["kind"] == "index":
-        return s["rows"] >= len(ELECTIONS)
+        return s["rows"] >= len(ELECTIONS) and s["homeCards"] > 0
     if s["kind"] == "article":
         return s["articlePaths"] > 10
     return bool(s["title"] and s["raceOptions"] and s["readout"] and (mapless or s["visiblePaths"] or (s["visibleCanvas"] and s["painted"])))
@@ -167,6 +168,95 @@ async def canvas_has_drawing(page: Page) -> bool:
         if stats >= 6:
             return True
     return False
+
+
+HOME_CHECK = r"""async () => {
+  const fails = [];
+  const list = await (await fetch("data/elections.json")).json();
+  const rowIds = new Set([...document.querySelectorAll("#overview tbody tr[data-id]")].map((r) => r.dataset.id));
+  const cardIds = new Set([...document.querySelectorAll("#money .money-cell")].map((r) => r.dataset.id));
+  for (const e of list) {
+    if (!rowIds.has(e.id)) fails.push(`no list row for ${e.id}`);
+    if (!cardIds.has(e.id)) fails.push(`no $10,000 card for ${e.id}`);
+  }
+  // one list: every row has the same cells; descriptions fit on their lines and in 140 characters
+  const cols = new Set([...document.querySelectorAll("#overview tbody tr[data-id]")].map((r) => r.children.length));
+  if (cols.size !== 1) fails.push(`rows differ in cell count: ${[...cols]}`);
+  if (document.querySelectorAll("#overview thead th").length !== [...cols][0]) fails.push("header and rows differ in column count");
+  for (const c of document.querySelectorAll("#overview .e-head")) if (!c.textContent.trim()) fails.push(`no headline for ${c.parentElement.dataset.id}`);
+  for (const th of document.querySelectorAll("#overview thead th[data-help]")) if (!th.querySelector(".help") || !th.querySelector(".help-pop").textContent.trim()) fails.push(`column ${th.textContent.trim()} has no help`);
+  for (const d of document.querySelectorAll("#overview .e-desc")) {
+    const t = d.textContent.trim();
+    if (t.length > 140) fails.push(`description over 140 characters: ${t.slice(0, 40)}`);
+    if (/…|\.\.\.$/.test(t) || d.scrollHeight > d.clientHeight + 1) fails.push(`description is cut off: ${t.slice(0, 40)}`);
+  }
+  // the $10,000 cards sit on one grid: equal heights, and the same parts at the same height, within a row
+  const cards = [...document.querySelectorAll("#money .money-cell")];
+  const rows = new Map();
+  for (const c of cards) { const k = Math.round(c.getBoundingClientRect().top + scrollY); rows.set(k, [...(rows.get(k) ?? []), c]); }
+  for (const [top, group] of rows) {
+    const hs = group.map((c) => Math.round(c.getBoundingClientRect().height));
+    if (Math.max(...hs) - Math.min(...hs) > 1) fails.push(`cards in the row at ${top}px differ in height: ${hs}`);
+    for (const sel of [".mc-main", ".money-chart", ".mc-facts"]) {
+      const ys = group.map((c) => Math.round(c.querySelector(sel).getBoundingClientRect().top));
+      if (Math.max(...ys) - Math.min(...ys) > 1) fails.push(`${sel} not aligned in the row at ${top}px: ${ys}`);
+    }
+  }
+  if (innerWidth > 900 && cards.length > 1 && rows.size === cards.length) fails.push("the $10,000 cards are not in a multi-column grid");
+  for (const id of ["chart-night", "chart-lead", "chart-error", "chart-coverage", "chart-reliability"]) {
+    const el = document.getElementById(id);
+    if (!el || !el.querySelector("svg")) fails.push(`${id} has no drawing`);
+  }
+  if (document.querySelectorAll("#chart-error .panel svg").length < 2) fails.push("projection chart has no per-election panels");
+  if (document.documentElement.scrollWidth > innerWidth + 1) fails.push(`the page scrolls sideways (${document.documentElement.scrollWidth} > ${innerWidth})`);
+  return fails;
+}"""
+
+
+async def check_home(page: Page) -> list[str]:
+    # the one-night and lead charts draw once their files are read
+    try:
+        await page.wait_for_function(
+            """() => document.querySelector('#chart-night svg') && document.querySelector('#chart-lead svg')
+              && [...document.querySelectorAll('#overview .e-head')].every((c) => c.textContent.trim())""",
+            timeout=15000,
+        )
+    except Exception:
+        pass
+    return await page.evaluate(HOME_CHECK)
+
+
+async def check_home_card(page: Page) -> list[str]:
+    """Hover New Zealand on the homepage map: a short card (at most 200 px tall, 280 px wide) that stays off the country."""
+    if not await page.evaluate("document.querySelector('#wm-q') && [...document.querySelectorAll('.wm-list button')].some((b) => b.dataset.code === 'NZ')"):
+        return []
+    await page.wait_for_function("window.__world?.probe('NZ')", timeout=15000)
+    probe = await page.evaluate("window.__world.probe('NZ')")
+    await page.evaluate("document.querySelector('.wm-box').scrollIntoView({block: 'center'})")
+    await page.wait_for_timeout(200)
+    canvas = await page.evaluate("(() => { const r = document.querySelector('.wm-canvas').getBoundingClientRect(); return [r.left, r.top]; })()")
+    x, y = canvas[0] + probe["at"][0], canvas[1] + probe["at"][1]
+    await page.mouse.move(x - 40, y - 40)
+    await page.mouse.move(x, y, steps=4)
+    await page.wait_for_timeout(300)
+    card = await page.evaluate(
+        "(() => { const c = document.querySelector('.wm-card'); if (!c || c.hidden) return null; const r = c.getBoundingClientRect(); return { left: r.left, top: r.top, w: r.width, h: r.height, text: c.innerText, pe: getComputedStyle(c).pointerEvents }; })()"
+    )
+    fails: list[str] = []
+    if not card:
+        return ["no hover card over New Zealand on the homepage map"]
+    if card["h"] > 200 or card["w"] > 280:
+        fails.append(f"NZ hover card is {card['w']:.0f}x{card['h']:.0f} px (limit 280x200)")
+    bx0, by0, bx1, by1 = probe["box"]
+    box = (canvas[0] + bx0, canvas[1] + by0, canvas[0] + bx1, canvas[1] + by1)
+    if card["left"] < box[2] and card["left"] + card["w"] > box[0] and card["top"] < box[3] and card["top"] + card["h"] > box[1]:
+        fails.append(f"NZ hover card covers the country: card {card['left']:.0f},{card['top']:.0f},{card['w']:.0f}x{card['h']:.0f} over {box}")
+    if card["pe"] != "none":
+        fails.append("NZ hover card takes pointer events")
+    if len(card["text"].strip().splitlines()) > 7:
+        fails.append(f"NZ hover card has too many lines: {card['text'][:80]!r}")
+    await page.mouse.move(5, 5)
+    return fails
 
 
 async def check_page(
@@ -207,6 +297,10 @@ async def check_page(
                 result.failures.append("page remained on a Loading… placeholder")
             if case.kind == "index" and current["rows"] < len(ELECTIONS):
                 result.failures.append(f"election list has only {current['rows']} rows")
+            elif case.kind == "index":
+                result.failures.extend(await check_home(page))
+                if viewport_name == "desktop":
+                    result.failures.extend(await check_home_card(page))
             elif case.kind == "article" and current["articlePaths"] <= 10:
                 result.failures.append("article charts were not drawn")
             elif case.kind == "election":
