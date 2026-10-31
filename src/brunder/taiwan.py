@@ -153,6 +153,8 @@ class Settings:
     swing_votes: float = 5_000.0
     growth_votes: float = 100_000.0
     tau: float = .02
+    # Equal-weight mixture over earlier nights' needed tau (docs/taiwan.md); empty = the single point `tau`.
+    tau_mixture: tuple[float, ...] = ()
     floor_sd: float = .002
     precount_sd: float = .06
     draws: int = 20_000
@@ -160,7 +162,15 @@ class Settings:
 
 def settings(cfg: dict) -> Settings:
     m = cfg.get("model", {})
-    return Settings(**{f.name: m[f.name] for f in fields(Settings) if f.name in m})
+    kw = {f.name: m[f.name] for f in fields(Settings) if f.name in m}
+    if "tau_mixture" in kw: kw["tau_mixture"] = tuple(float(t) for t in kw["tau_mixture"])
+    return Settings(**kw)
+
+
+def component_sds(st: Settings, counted: float, any_counted: bool) -> tuple[float, ...]:
+    """Candidate-share sd of each mixture component (one per earlier night's tau; one point tau if the mixture is empty)."""
+    if not any_counted: return (max(st.floor_sd, st.precount_sd),)
+    return tuple(max(st.floor_sd, t * (1 - counted)) for t in (st.tau_mixture or (st.tau,)))
 
 
 @dataclass
@@ -171,7 +181,8 @@ class Projection:
     votes: np.ndarray
     unit: pd.DataFrame
     counted_frac: float
-    sd: float
+    sd: float  # display sd: root-mean-square over the components
+    sds: tuple[float, ...] = ()
 
 
 def empty_counts(units: pd.DataFrame, candidates: list[str]) -> pd.DataFrame:
@@ -211,19 +222,21 @@ def project(units: pd.DataFrame, count: pd.DataFrame, st: Settings, candidates: 
     votes = cv + np.maximum(total - n, 0)[:, None] * remaining_share
     shares = votes.sum(axis=0) / votes.sum()
     counted = float(n.sum() / votes.sum())
-    sd = max(st.floor_sd, (st.precount_sd if n.sum() == 0 else st.tau * (1 - counted)))
+    sds = component_sds(st, counted, bool(n.sum() > 0))
+    sd = float(np.sqrt(np.mean(np.square(sds))))
 
     u = pd.DataFrame(index=units.index)
     u["f"] = np.minimum(1, f)
     u["raw"] = np.divide(cv[:, 0], n, out=np.full(len(n), np.nan), where=n > 0)
     u["projected"] = votes[:, 0] / votes.sum(axis=1)
     raw_shares = observed / observed.sum() if observed.sum() else np.full(len(candidates), np.nan)
-    return Projection(candidates, shares, raw_shares, votes, u, counted, sd)
+    return Projection(candidates, shares, raw_shares, votes, u, counted, sd, sds)
 
 
 def win_probabilities(p: Projection, st: Settings, seed: int) -> dict[str, float]:
     rng = np.random.default_rng(seed)
-    draws = p.shares + rng.normal(0, p.sd, (st.draws, len(p.candidates)))
+    sd = np.resize(np.asarray(p.sds or (p.sd,), float), st.draws)[:, None]  # equal weight: draw i uses component i mod k
+    draws = p.shares + sd * rng.normal(0, 1, (st.draws, len(p.candidates)))
     winners = draws.argmax(axis=1)
     return {c: float(np.mean(winners == i)) for i, c in enumerate(p.candidates)}
 

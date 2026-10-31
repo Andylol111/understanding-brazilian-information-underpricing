@@ -105,3 +105,24 @@ def test_precount_candidate_probabilities_are_complete():
     assert set(probs) == {c["id"] for c in cfg["candidates"]}
     assert abs(sum(probs.values()) - 1) < 1e-12
     assert p.counted_frac == 0 and p.sd == .06
+
+
+def test_tau_mixture_components_and_config():
+    cfg = tw.load_config(ROOT / "configs" / "tw2026_taipei_v1.toml")
+    st = tw.settings(cfg)
+    assert st.tau_mixture == (0.0075, 0.02, 0.005, 0.005) and st.tau == 0.02
+    assert tw.component_sds(st, .5, True) == (.00375, .01, .0025, .0025)
+    assert tw.component_sds(st, 0, False) == (.06,)
+    assert tw.component_sds(tw.Settings(), .5, True) == (.01,)  # empty mixture = point tau
+
+
+def test_tau_mixture_probabilities_between_components_and_point_unchanged():
+    units = pd.DataFrame({"V0": [100, 100], "stations": [1, 1], "a": [.5, .5], "b": [.5, .5]}, index=["u1", "u2"])
+    count = pd.DataFrame({"a": [52, 0], "b": [48, 0], "places": [1, 0]}, index=units.index)
+    cand = ["a", "b"]
+    P = {}
+    for name, st in {"lo": tw.Settings(tau=.005), "hi": tw.Settings(tau=.05),
+                     "mix": tw.Settings(tau_mixture=(.005, .05)), "pt": tw.Settings(tau_mixture=(.05,))}.items():
+        P[name] = tw.win_probabilities(tw.project(units, count, st, cand), st, 1)["a"]
+    assert P["lo"] > P["mix"] > P["hi"]
+    assert P["pt"] == P["hi"]

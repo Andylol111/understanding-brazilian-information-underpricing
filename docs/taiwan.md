@@ -113,14 +113,52 @@ For each release, the model:
 2. applies the observed citywide candidate swing to the prior, shrunk by 5,000 votes;
 3. blends a reporting li toward its own observed composition (100 remaining-vote pseudo-votes);
 4. adds observed votes to projected remaining votes and draws candidate shares with frozen
-   `sd = max(0.002, 0.020 * (1 - counted))`; the largest draw wins.
+   `sd_j = max(0.002, tau_j * (1 - counted))`, one component per earlier night's `tau_j` (equal weight; see
+   "Reporting-order error `tau`: mixture" below); the largest draw wins.
 
 `own_votes=100` and `swing_votes=5,000` minimized candidate-share MAE (0.00561) on 2014→2018 among the declared
 4×4 grid. Historical CEC snapshots are final only, so count order is simulated: 20 random orders and 20 adverse
 small-stations-first orders. `tau=0.020` is the smallest tested value with overall 90% interval coverage above 0.90
-in both 2018 order families: 0.996 random and 0.943 small-first. Nothing was tuned on 2022.
+in both 2018 order families: 0.996 random and 0.943 small-first. Nothing was tuned on 2022. (That point rule is the
+v1 baseline, frozen 2026-10-30, and is kept in the config as `tau = 0.020`; it is used only when `tau_mixture` is empty.)
 
-## Out-of-sample 2022 backtest
+### Reporting-order error `tau`: mixture (adopted 2026-10-31)
+
+**Disclosure:** on 2026-10-31, before any 2026 count, the single point `tau` was replaced by an equal-weight mixture over
+earlier nights' `tau`. The change comes from the cross-election review (`docs/model_review.md`, item 1, `src/brunder/
+nowcast_order.py`), which found across nine real-order nights that the `tau` with 90% coverage varies from 0 to 0.03 and
+that a mixture over earlier nights' needed `tau` keeps early leads with about 0.91 coverage, where one point `tau` chosen
+on one night is either too late or overconfident. It was not prompted by Taipei data or by 2026 prices. The config is still
+unregistered, so it is edited in place and the old result is recorded here.
+
+Rule (`analysis/tw_calibrate.py`): a *night* is one election × one simulated order family (20 random, 20
+small-stations-first). Its needed `tau` is the smallest value of `nowcast_order.TAU_GRID` whose pooled 90% interval
+coverage (checkpoints 1-90% × candidates × seeds, with the same `sd = max(0.002, tau (1 - counted))`) is at least 0.90.
+Win probabilities draw from the equal-weight normal mixture of the nights' `tau` (draw *i* uses component *i* mod *k*).
+
+| Night | random | small-first |
+|---|---:|---:|
+| 2018 (prior 2014) | 0.0075 | 0.020 |
+| 2022 (prior 2018) | 0.005 | 0.005 |
+
+2026 mixture, built only from nights before 2026: `tau_mixture = [0.0075, 0.02, 0.005, 0.005]`. The point rule (max of
+the two 2018 families) is 0.02. With the mixture the sd at 50% counted is 0.0038 / 0.010 / 0.0025 / 0.0025 instead of 0.010.
+
+2022 out-of-sample check, settings from 2014/2018 only (mixture `{0.0075, 0.02}` from the two 2018 nights; point `0.02`).
+Same 40 simulated orders as below; the mixture band is the central 90% of the mixture.
+
+| Votes counted | coverage point / mixture | Brier point / mixture | Log loss point / mixture | P(winner) point / mixture |
+|---:|---:|---:|---:|---:|
+| 1% | 0.994 / 0.981 | 0.0001 / 0.0000 | 0.0050 / 0.0024 | 0.995 / 0.998 |
+| 5% | 1.000 / 1.000 | 0.0000 / 0.0000 | 0.0001 / 0.0001 | 1.000 / 1.000 |
+| 10-90% | 1.000 / 1.000 | 0.0000 / 0.0000 | 0.0000 / 0.0000 | 1.000 / 1.000 |
+
+Over all checkpoints: coverage 0.999 / 0.997, Brier 1e-5 / <1e-5, log loss 0.00074 / 0.00036. Both are conservative on
+2022 (its own needed `tau` was 0.005): the mixture is slightly sharper and no worse. The check is weak by construction
+(2022 was an easy night, order is simulated, two members only) and says the mixture does not hurt, not that it helps on a
+hard night. Machine-readable: `results/taiwan/tw2022_backtest.json`.
+
+## Out-of-sample 2022 backtest (v1 point `tau = 0.020`)
 
 The 2022 prior uses the public 1-5 November 2022 RWNews topline (Chiang 36, Chen 33, Huang 28, other 3) and official
 2018 spatial profiles. Scores below average 20 random and 20 small-first station orders. Coverage is the fraction of

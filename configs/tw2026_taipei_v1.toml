@@ -2,6 +2,9 @@
 # Integrator: commit and hash-register this file before polls close at 2026-11-28T08:00:00Z.
 # Settings use only official 2014/2018/2022 results and public polls published before this freeze.
 # Do not edit after registration; later changes require a new versioned file.
+# AMENDED 2026-10-31 (still unregistered, before any 2026 count): tau is now an equal-weight mixture over earlier nights'
+# needed tau (cross-election model review, docs/model_review.md); the v1 point tau = 0.020 is kept below as the
+# documented baseline (docs/taiwan.md). No 2026 data entered this change.
 id = "tw2026_taipei_v1"
 seed = 20261128
 
@@ -52,7 +55,12 @@ swing_votes = 5000.0
 growth_votes = 100000.0
 # Smallest candidate-share sd with overall 90% interval coverage >=.90 in both random and small-stations-first
 # 2014->2018 replays (20 seeds/order): .996/.943. floor_sd avoids false certainty before certification.
+# Baseline (v1, 2026-10-30): one point tau, used only if tau_mixture is empty.
 tau = 0.020
+# ADOPTED 2026-10-31: equal-weight mixture over each earlier night's own needed tau (smallest tau with 90% coverage;
+# nights = 2018 and 2022 x random / small-stations-first simulated orders, analysis/tw_calibrate.py): 2018 {0.0075, 0.02},
+# 2022 {0.005, 0.005}. Built from nights before 2026 only.
+tau_mixture = [0.0075, 0.02, 0.005, 0.005]
 floor_sd = 0.002
 # Pre-count poll error: conservative six-point candidate-share sd (larger than the 2018/2022 leading-candidate miss).
 precount_sd = 0.060
