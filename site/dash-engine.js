@@ -76,7 +76,7 @@ const R = { // drawing state
   // map level: levelMix is the opacity of units outside the focus region over their region's fill
   // (0: state level, 1: unit level); with `aggregate` the region fills come from the units' totals
   levelMix: 1, aggregate: false,
-  units: null, featIdx: null, unitLUT: null, parties: new Map(), partyLUTs: new Map(), countTimeline: true,
+  units: null, featIdx: null, unitLUT: null, regionByUnits: false, parties: new Map(), partyLUTs: new Map(), countTimeline: true,
   mode: "margin", t: 0, tween: false, cache: new Map(), buf: null, lastCols: null, scheduled: false, painted: 0, drawMs: [],
 };
 
@@ -349,6 +349,7 @@ export function control(msg) {
       R.unitBand = Array.from(msg.unitRace, (r) => bands[r]);
       R.featIdx = msg.featIdx;
       R.parties = new Map((msg.parties ?? []).map((p) => [p.id, p.color]));
+      R.regionByUnits = !!msg.regionByUnits;
       R.hatch = new Set(msg.hatch ?? []);
       R.hidden = msg.hidden ?? null; // per feature: 1 = in a layer not shown
       R.partyLUTs.clear();
@@ -467,7 +468,7 @@ function aggColours() {
     let c = NONE;
     if (REM_MODES.has(R.mode)) c = REM_GROUND;
     else if (R.mode === "winner" && w) {
-      const lead = regionWinner(U, js, (j) => (w.perFrame ? (k >= 0 ? w.perFrame[k * U.n + j] : null) : w.top[j]));
+      const lead = regionWinner(U, js, (j) => (w.perFrame ? (k >= 0 ? w.perFrame[k * U.n + j] : null) : w.top[j]), R.regionByUnits);
       if (lead) c = partyLUT(lead.party)[Math.round(lead.share * 20)];
     } else {
       const g = regionAgg(R.mode === "margin1" ? { ...U, P: U.P1 } : U, k, js); // margin1: the past-results projection
@@ -618,6 +619,12 @@ function paint(ctx) {
         const was = old?.regions?.get(r);
         if (was !== undefined && was !== drawnRegion.get(r)) { const ga = ctx.globalAlpha; ctx.globalAlpha = ga * (1 - xf); ctx.fillStyle = styleOf(was); ctx.fill(p); ctx.globalAlpha = ga; }
       }
+      // a thin white line between regions
+      ctx.globalAlpha = 1 - uO;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.2 * px;
+      for (const [r, p] of R.regionFill) if (r != null) ctx.stroke(p);
+      ctx.globalAlpha = 1;
     }
     if (!(uO > 0)) veil();
     const others = [];

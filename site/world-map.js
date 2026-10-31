@@ -11,6 +11,7 @@
 // geo/<cc>_regions.topo.json from analysis/geo_build.py.
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
+import { regionTally, regionWinner } from "./dash-agg.js";
 import { C, esc, fmtDate, getJSON, modelP, num, shortName, genericNo, crossDocTransitions } from "./common.js";
 import { bandColours, bandColour, bandOf } from "./dash-agg.js";
 import { stateName as usStateName } from "./dash-national.js";
@@ -440,6 +441,9 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
   // region (an overview or two or more regions), e.g. Canada's federal election rather than
   // Quebec's; its races (name, leader, chance, link) and a colour per region. Race links carry the
   // race only (the election page opens on it); region clicks on the map carry the region.
+  // The name of the side ahead in a race: a yes/no market's generic "no" side ("Another party", "Not X") is never
+  // named as the leader; "Not <yes side>" says what the market says.
+  const sideName = (r, aAhead) => (aAhead ? r.a.name : genericNo(r.b) ? (/^(another|other) /i.test(r.a.name) ? "A named party" : `Not ${r.a.name}`) : r.b.name);
   async function countryData(code) {
     let e = sorted(code)[0], meta = null;
     for (const x of sorted(code)) {
@@ -484,7 +488,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
           const rg = list[0].r.region;
           races.push({ name: rg ? `${names.get(rg) ?? rg.toUpperCase()}: ${fam.label.toLowerCase()}` : fam.label, full: list.map((x) => x.r.name).join(" · "), lead: top?.r.a.name ?? null, chance: top?.P ?? null, href: link(`&race=${encodeURIComponent((top ?? list[0]).r.race_id)}`), region: rg });
         } else for (const { r, P } of list) {
-          const lead = P == null ? null : P >= 0.5 ? r.a.name : r.b.name;
+          const lead = P == null ? null : sideName(r, P >= 0.5);
           // one market on its own question ("Seat margin": "Liberals by 25-49"): the question as the
           // name, the outcome as the leader
           const name = fam && !r.region ? fam.label : shortName(r, names.get(r.region));
@@ -514,7 +518,19 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
       // region (Mexico, Hungary): each region by the main race's two-way share in its units, the
       // count's last frame (a finished count: the result), else the comparison election
       const U = colours.size ? null : await getJSON(`${e.id}/units.json`, opt);
-      if (U && !UNIT_MAPS.has(code) && U.region) {
+      if (U && !UNIT_MAPS.has(code) && U.region && meta.region_winner === "units" && U.winner && meta.parties) {
+        // seat elections: each region by the party that won the most of its seats, the tally in the card
+        const party = (id) => meta.parties.find((x) => x.id === id) ?? { name: id, color: "#8a8a8a" };
+        const byRegion = d3.group(d3.range(U.unit_ids.length), (j) => U.region[j]);
+        for (const [rg, js] of byRegion) {
+          const lead = regionWinner({ V0: U.V0 }, js, (j) => U.winner[j], true);
+          if (!lead) continue;
+          const tally = regionTally(js, (j) => U.winner[j]);
+          colours.set(rg, d3.interpolateLab("#f4f2ec", party(lead.party).color)(0.45 + 0.55 * lead.share));
+          regionInfo.set(rg, `${esc(names.get(rg) ?? rg)}: ${tally.map(([p, n]) => `${esc(party(p).name)} ${n}`).join(", ")} seats`);
+          regionLink.set(rg, link(`&region=${rg}&level=units`));
+        }
+      } else if (U && !UNIT_MAPS.has(code) && U.region) {
         const race = (meta.races ?? []).find((r) => r.race_id === U.race_id) ?? meta.races?.find((r) => !r.region) ?? meta.races?.[0];
         const last = U.frames?.at?.(-1);
         const share = (j) => (last?.a?.[j] >= 0 ? last.a[j] : U.prior?.[j] >= 0 ? U.prior[j] : null);
@@ -529,7 +545,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
         for (const [rg, [sw, w]] of tot) {
           const pt = (2 * sw / w - 1) * 100;
           colours.set(rg, bandColour(pt, bandColours(race.a.color), bandColours(race.b.color)));
-          regionInfo.set(rg, `${esc(names.get(rg) ?? rg)}: ${esc(pt >= 0 ? race.a.name : race.b.name)} ahead by ${Math.abs(pt).toFixed(1)} pt${last?.a ? "" : " last time"}`);
+          regionInfo.set(rg, `${esc(names.get(rg) ?? rg)}: ${pt >= 0 || !genericNo(race.b) ? `${esc(pt >= 0 ? race.a.name : race.b.name)} ahead by` : `${esc(race.a.name)} not ahead, behind by`} ${Math.abs(pt).toFixed(1)} pt${last?.a ? "" : " last time"}`);
           regionLink.set(rg, link(`&region=${rg}&level=units`));
         }
       } else if (U) {

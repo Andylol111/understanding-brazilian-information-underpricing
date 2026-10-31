@@ -16,7 +16,7 @@ import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
 import { createOverlay, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, ourModelHTML, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
-import { regionAgg, regionWinner, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
+import { regionAgg, regionWinner, regionTally, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
 import { decidedBeforeCount, outcomeA, winnerName, winnerProbability, settledAt, staysAbove } from "./decided.js";
 
 const EID = param("id");
@@ -514,6 +514,7 @@ function bindUnits() {
     unitRace: Int16Array.from(S.unitRace, (r) => at.get(r)),
     raceColors: raceList.map((r) => [r.a.color, r.b.color]),
     parties: S.meta.parties ?? [],
+    regionByUnits: regionByUnits(),
     countTimeline: S.countTimeline,
     hatch: noBaseline(),
     hidden,
@@ -556,7 +557,7 @@ function noBaseline() {
 // at the region level -> click a region (zoom) -> that region's units; Back goes up one step.
 const LEVEL_NAMES = {
   US: ["States", "Counties"], BR: ["States", "Municipalities"], CA: ["Provinces", "Ridings"],
-  MX: ["States", "Districts"], HU: ["Counties", "Districts"], IL: ["Districts", "Localities"], NL: ["Provinces", "Municipalities"],
+  AU: ["Regions", "Seats"], MX: ["States", "Districts"], HU: ["Counties", "Districts"], IL: ["Districts", "Localities"], NL: ["Provinces", "Municipalities"],
 };
 const levelNames = () => LEVEL_NAMES[countryCode()] ?? ["Regions", "Local units"];
 const levelsOn = () => !!S.map && (!!S.nat || pickerRegions().length >= 2);
@@ -669,11 +670,13 @@ function regionCardHTML(reg) {
   const swing = g.raw != null && g.prior != null ? g.raw - g.prior : null;
   const sw = swing == null ? "–" : `${swing >= 0 ? "+" : "−"}${Math.abs(100 * swing).toFixed(1)} pt`;
   const an = esc(r.a.name);
-  const rows = S.countTimeline
+  const partyName = (id) => S.meta.parties?.find((x) => x.id === id)?.name ?? id;
+  const tally = regionByUnits() && hasWinner() ? regionTally(js, (j) => winnerAt(k, j)[0]) : [];
+  const rows = [...(tally.length ? [["Seats won", tally.map(([p, n]) => `${esc(partyName(p))} ${n}`).join(", ")]] : []), ...(S.countTimeline
     ? [["Counted", pct(g.counted, 0)], [`${an}, votes counted`, pct(g.raw)], [`${an}, model projection`, pct(g.proj)], [`${an}, comparison election`, pct(g.prior)], ["Swing", sw]]
-    : [[`${an}, result`, pct(g.raw)], [`${an}, comparison election`, pct(g.prior)], ["Swing", sw]];
+    : [[`${an}, result`, pct(g.raw)], [`${an}, comparison election`, pct(g.prior)], ["Swing", sw]])];
   return `<table class="kv"><tbody>${rows.map(([a, x]) => `<tr><td>${a}</td><td class="n">${x}</td></tr>`).join("")}</tbody></table>
-    <p class="pc-hint">${js.length.toLocaleString("en-US")} ${levelNames()[1].toLowerCase()}, weighted by expected vote. Click to open.</p>`;
+    <p class="pc-hint">${js.length.toLocaleString("en-US")} ${levelNames()[1].toLowerCase()}${regionByUnits() ? "" : ", weighted by expected vote"}. Click to open.</p>`;
 }
 
 // Legend counts at the current time: regions (region level) or units by side and, for the margin
@@ -817,6 +820,8 @@ function divLUT(race) {
 const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4 }; // same as dash-worker.js
 
 // Multi-party elections: meta.parties + units winner/margin give a "Winning party" map mode.
+// meta.region_winner "units": a region is coloured by the party that won most of its units (seats), not most of its expected vote
+const regionByUnits = () => S.meta.region_winner === "units";
 const hasWinner = () => !!(S.meta.parties?.length && S.units?.winner);
 function winnerAt(k, j) {
   const w = S.units.winner;
@@ -1037,7 +1042,7 @@ function partyLegend(root) {
   if (atRegions) {
     // the region level: regions by the party leading most of their expected vote
     for (const [, js] of S.regionUnits) {
-      const lead = regionWinner(S.units, js.filter(layerOn), (j) => winnerAt(k, j)[0]);
+      const lead = regionWinner(S.units, js.filter(layerOn), (j) => winnerAt(k, j)[0], regionByUnits());
       if (lead) counts.set(lead.party, (counts.get(lead.party) ?? 0) + 1);
     }
   } else {
@@ -1050,7 +1055,7 @@ function partyLegend(root) {
   const rows = [...counts].sort((a, b) => b[1] - a[1]);
   const party = (id) => S.meta.parties.find((p) => p.id === id) ?? { name: id, color: "#8a8a8a" };
   root.html(`<ul class="party-legend">${rows.map(([id, n]) => `<li><i style="background:${esc(party(id).color)}"></i>${esc(party(id).name)} <b>${n}</b></li>`).join("")}</ul>
-    <p class="legend-note">${atRegions ? `${levelNames()[0]}: the party winning most of the expected vote in their ${levelNames()[1].toLowerCase()}.` : "Units won."} Paler: narrower win (full colour at a ${WIN_FULL * 100}-point margin).</p>`);
+    <p class="legend-note">${atRegions ? (regionByUnits() ? `${levelNames()[0]}: the party that won the most of their ${levelNames()[1].toLowerCase()}. Click one to open it.` : `${levelNames()[0]}: the party winning most of the expected vote in their ${levelNames()[1].toLowerCase()}.`) : "Units won."} ${atRegions && regionByUnits() ? "Paler: a smaller share of the seats." : `Paler: narrower win (full colour at a ${WIN_FULL * 100}-point margin).`}</p>`);
 }
 
 /* ---------------------------------------------------------------- map */

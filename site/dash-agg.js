@@ -63,16 +63,27 @@ export function regionAgg(U, k, js) {
   };
 }
 
-// The party leading the most expected votes among a region's units (winner: per unit party ids).
-export function regionWinner(U, js, winnerOf) {
+// The party leading the most expected votes among a region's units (winner: per unit party ids); with
+// byUnits (meta.region_winner "units", for elections whose units are seats) the party that won the most units.
+export function regionWinner(U, js, winnerOf, byUnits = false) {
   const by = new Map();
   for (const j of js) {
     const p = winnerOf(j);
     if (p == null) continue;
-    const v = U.V0[j] > 0 ? U.V0[j] : 1;
+    const v = !byUnits && U.V0[j] > 0 ? U.V0[j] : 1;
     by.set(p, (by.get(p) ?? 0) + v);
   }
   let best = null, bv = 0, total = 0;
   for (const [p, v] of by) { total += v; if (v > bv) { best = p; bv = v; } }
   return best == null ? null : { party: best, share: bv / total };
+}
+
+// Units won per party in a region, most first: [[party, n], ...].
+export function regionTally(js, winnerOf) {
+  const by = new Map();
+  for (const j of js) {
+    const p = winnerOf(j);
+    if (p != null) by.set(p, (by.get(p) ?? 0) + 1);
+  }
+  return [...by].sort((a, b) => b[1] - a[1]);
 }

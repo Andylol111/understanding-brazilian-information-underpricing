@@ -58,6 +58,14 @@ def party_id(group: str | None) -> str:
     return "IND" if group.startswith("IND:") else "OTH"
 
 
+# yes/no questions that are not part of a family (most seats, seat bands, margins) name their "no" side in full, so
+# the homepage never shows a generic "No" / "Another party" as a leader
+DIV_NO = {"dutton-loses": "Dutton keeps his seat", "albanese-loses": "Albanese keeps his seat",
+          "bennelong-alp": "Labor loses Bennelong", "bennelong-lnc": "The Liberals lose Bennelong",
+          "brisbane-alp": "Labor loses Brisbane", "brisbane-grn": "The Greens lose Brisbane",
+          "brisbane-lnc": "The LNP loses Brisbane"}
+
+
 def short(race: dict) -> tuple[str, str, str]:
     """(yes label, no label, yes colour) of a race."""
     rid = race["race_id"]
@@ -68,11 +76,13 @@ def short(race: dict) -> tuple[str, str, str]:
     if rid.startswith(("most-", "pm-")):
         return {"most-oth": "Another party", "pm-albanese": "Albanese", "pm-dutton": "Dutton"}.get(rid, base), "Another party", col
     if rule["kind"] == "majority":
-        return f"{base} majority", "No majority", col
+        return f"{base} majority", f"{base} short of a majority", col
+    if rule["kind"] == "hung":
+        return "Hung parliament", "One party has a majority", "#555555"
     if rule["kind"] == "seats":
         lo, hi = rule["lo"], rule["hi"]
-        txt = (f"{base} under {hi + 1}" if lo == 0 else f"{base} {lo} or more" if hi >= 150 else f"{base} {lo}–{hi}")
-        return txt, "Other result", col
+        txt = (f"{base} fewer than {hi + 1}" if lo == 0 else f"{base} {lo} or more" if hi >= 150 else f"{base} {lo}–{hi}")
+        return txt, (f"{base} under {lo}" if "-seats-" not in rid else "Other result"), col
     if rule["kind"] == "margin":
         lo, hi = rule["lo"], rule["hi"]
         if lo >= 1:
@@ -83,7 +93,7 @@ def short(race: dict) -> tuple[str, str, str]:
             txt = f"Coalition +{-hi} or more"
         return txt, "Other result", COL["LNC"]
     if rule["kind"] == "div":
-        return race["name"].split(" (")[0], "No", col
+        return race["name"].split(" (")[0], DIV_NO[rid], col
     return race["name"], "No", col
 
 
@@ -303,7 +313,7 @@ def main() -> None:
                          "markets": mkts})
     meta = {"id": "au2025", "name": "Australia, House of Representatives election", "date": "2025-05-03",
             "tz": AEST, "poll_close_utc": cfg["poll_close_utc"], "geometry": "geo/au_divisions.topo.json",
-            "geometry_object": "divisions", "unit_key": "unit_id", "count_timeline": True,
+            "geometry_object": "divisions", "unit_key": "unit_id", "count_timeline": True, "region_winner": "units",
             "regions": [{"id": r, "name": au.REGION_NAMES[r]} for r in au.REGION_NAMES if r in set(reg_of.values())],
             "parties": [{"id": k, "name": PNAME[k], "color": COL[k]} for k in ("ALP", "LNC", "GRN", "IND", "OTH")],
             "races": mk_races,
