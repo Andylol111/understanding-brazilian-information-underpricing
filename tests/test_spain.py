@@ -46,6 +46,30 @@ def test_dhondt_reproduces_official_seats(date):
     assert (seats == official).all(), dict(zip(es.HIST_LANES, zip(seats, official)))
 
 
+@pytest.mark.parametrize("date", ["2016-06-26", "2019-04-28", "2019-11-10", "2023-07-23"])
+def test_dhondt_on_official_candidacies_reproduces_every_list_seat_in_all_four_elections(date):
+    # The lane table cannot reproduce 2019 (lanes merge Más País/Compromís with Unidas Podemos; PRC and Teruel Existe sit in OTHER).
+    d = es.dhondt_official(date)
+    assert d["prov"].nunique() == 52 and d["seats"].sum() == 350
+    bad = d[d["dhondt"] != d["seats"]]
+    assert bad.empty, bad[["prov", "list", "votes", "seats", "dhondt"]]
+    h = es.load_history()
+    h = h[h["election"] == date].set_index("prov")
+    assert (d.groupby("prov")["seats"].sum() == h[[f"seats_{k}" for k in es.HIST_LANES]].sum(axis=1)).all()
+    by_lane = d.groupby("lane")["seats"].sum()
+    for k in es.HIST_LANES:
+        assert by_lane.get(k, 0) == h[f"seats_{k}"].sum(), k
+
+
+def test_lane_patterns_do_not_pull_unrelated_lists_into_the_big_lanes():
+    assert es.hist_lane("CONVERGENCIA ANDALUZA - CAnda") == "OTHER"
+    assert es.hist_lane("CONVERGÈNCIA DEMOCRÀTICA DE CATALUNYA - CDC") == "JUNTS"
+    assert es.hist_lane("COMPROMISO POR GALICIA - CxG") == "OTHER"
+    assert es.hist_lane("MÉS COMPROMÍS - MÉS COMPROMÍS") == "LEFT"
+    assert es.hist_lane("UNIDOS POR LA SOLIDARIDAD INTERNACIONAL - UNIDOS SI") == "OTHER"
+    assert es.hist_lane("UNIDOS PODEMOS - PODEMOS-IU-EQUO") == "LEFT"
+
+
 def test_seats_2026_total_and_changes_against_2023():
     assert sum(es.SEATS_2026.values()) == 350 and len(es.SEATS_2026) == 52
     old = es.history_units("2023-07-23")["seats"]
@@ -128,6 +152,26 @@ def test_counted_votes_are_kept_in_every_draw(cfg):
     assert (p.votes >= p.counted - 1e-6).all() and abs(p.counted_frac - p.counted.sum() / p.votes.sum()) < 1e-12
     d = es.simulate(p, st, 1)
     assert (d.votes.sum(axis=1) > p.counted.sum()).all()
+
+
+def test_tau_mixture_config_and_simulation_between_components(cfg):
+    st = es.settings(cfg)
+    assert st.tau_mixture == (0.06, 0.045, 0.06) and st.tau_nat == 0.06 and st.tau_prov == 0.12 and st.tau_prov_ratio == 2.0
+    units = es.prior_units(cfg)
+    count = es.empty_counts(units)
+    count["PP"], count["PSOE"], count["f"] = 60_000.0, 40_000.0, 0.5
+    base = es.Settings(draws=900, precount_sd=0.12)
+    p = es.project(units, count, base)
+
+    def sd_pp(s):
+        return es.simulate(p, s, 3).share[:, es.LANES.index("PP")].std()
+    lo, hi = sd_pp(es.Settings(**{**base.__dict__, "tau_nat": .01, "tau_prov": .02})), sd_pp(es.Settings(**{**base.__dict__, "tau_nat": .09, "tau_prov": .18}))
+    mix = sd_pp(es.Settings(**{**base.__dict__, "tau_mixture": (.01, .09)}))
+    assert lo < mix < hi
+    # a one-member mixture is the point model with tau_prov = ratio x tau_nat, draw for draw
+    one = es.simulate(p, es.Settings(**{**base.__dict__, "tau_mixture": (.045,)}), 3)
+    pt = es.simulate(p, es.Settings(**{**base.__dict__, "tau_nat": .045, "tau_prov": .09}), 3)
+    assert np.allclose(one.votes, pt.votes) and np.array_equal(one.seats, pt.seats)
 
 
 def test_precount_probabilities_are_complete_and_sensible(cfg):

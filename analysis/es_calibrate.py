@@ -4,7 +4,9 @@
 
 The model is run on three earlier Congress elections, each from the previous election's province results:
 2016->2019-04, 2019-04->2019-11 and 2019-11->2023. Settings are chosen on the first two ("fit") and scored on 2023
-("holdout"). The frozen 2026 settings in configs/es2026_v1.toml are the ones this script picks on all three.
+("holdout"). The frozen 2026 settings in configs/es2026_v1.toml are the ones this script picks on all three. Reporting-order
+error: each night's own needed tau_nat (`night_taus`) gives an equal-weight mixture; the 2023 holdout compares the point tau
+with the mixture of the two earlier nights, and the 2026 `tau_mixture` is the mixture of all three (docs/spain.md).
 
 A real count order is not available for past nights (the Ministry keeps no timestamped record), so counts are
 simulated: provinces report at different speeds, and the counted part of each province is a biased sample of it
@@ -19,6 +21,7 @@ import argparse
 import itertools
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +34,9 @@ H = es.load_history()
 LANES = es.HIST_LANES
 TRANSITIONS = [("2016-06-26", "2019-04-28"), ("2019-04-28", "2019-11-10"), ("2019-11-10", "2023-07-23")]
 MILESTONES = (0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 0.95)
+NEED_MILESTONES = tuple(m for m in MILESTONES if m >= 0.2)
+# tau_nat grid for a night's own needed tau (declared before it was run; contains the point rule's 0.06 and the grid's 0.015, 0.03).
+TAU_GRID = (0.0, 0.01, 0.02, 0.03, 0.045, 0.06, 0.09, 0.12)
 TOP = ("PP", "PSOE", "VOX")
 SNAP = Path(__file__).resolve().parents[1] / "data_public" / "es_2023_night_snapshot.json"
 
@@ -90,23 +96,35 @@ def evaluate(st: es.Settings, cases, seeds, bias_nat, bias_prov, draws=300, mile
                         continue
                     lo, hi = np.quantile(share[:, i], [.05, .95])
                     rank = (key > key[:, i:i + 1]).sum(axis=1) + 1
+                    y = tr["share"][i]
                     rows.append({"prior": prior_date, "target": target_date, "seed": seed, "milestone": m, "lane": lane,
-                                 "counted": p.counted_frac, "err": share[:, i].mean() - tr["share"][i],
-                                 "cover": float(lo <= tr["share"][i] <= hi), "width": float(hi - lo),
+                                 "counted": p.counted_frac, "err": share[:, i].mean() - y,
+                                 "cover": float(lo <= y <= hi), "width": float(hi - lo),
+                                 "iscore": float((hi - lo) + 20 * max(lo - y, 0) + 20 * max(y - hi, 0)),    # 90% interval score
                                  "rank_true": tr["rank"][lane],
                                  **{f"P{r}": float(np.mean(rank == r)) for r in (1, 2, 3)}})
     return pd.DataFrame(rows)
+
 
 
 def summary(df: pd.DataFrame) -> dict:
     top = df[df["lane"].isin(TOP)]
     brier = np.mean([(r[f"P{int(r.rank_true)}"] - 1) ** 2 if r.rank_true <= 3 else sum(r[f"P{k}"] ** 2 for k in (1, 2, 3))
                      for _, r in top.iterrows()])
-    late = top[top["milestone"] >= 0.2]
+    late, early = top[top["milestone"] >= 0.2], top[top["milestone"] < 0.2]
     return {"mae_pts": float(100 * top["err"].abs().mean()), "mae_pts_from_20pct": float(100 * late["err"].abs().mean()),
             "coverage90": float(top["cover"].mean()), "coverage90_from_20pct": float(late["cover"].mean()),
+            "coverage90_before_20pct": float(early["cover"].mean()) if len(early) else None,
             "width90_pts_from_20pct": float(100 * late["width"].mean()),
+            "interval_score_pts": float(100 * top["iscore"].mean()), "interval_score_pts_from_20pct": float(100 * late["iscore"].mean()),
             "rank_brier": float(brier), "n": int(len(top))}
+
+
+def by_milestone(df: pd.DataFrame) -> dict:
+    top = df[df["lane"].isin(TOP)]
+    g = top.groupby("milestone")
+    return {f"{m:g}": {"coverage90": float(x["cover"].mean()), "width90_pts": float(100 * x["width"].mean()),
+                       "interval_score_pts": float(100 * x["iscore"].mean())} for m, x in g}
 
 
 def carry_forward_sd(cases) -> float:
@@ -159,6 +177,22 @@ def choose(cases, seeds, bias_nat, bias_prov):
     return final, {"carry_forward_sd": pre, "grid": grid, "best_trust": best, "error_models": errs, "chosen": chosen}
 
 
+def night_taus(st: es.Settings, cases, seeds, bias_nat, bias_prov, level: float = 0.90) -> dict:
+    """Each night's own needed tau: one night = one earlier transition (simulated orders, real-snapshot bias). Its tau is the
+    smallest TAU_GRID value of tau_nat (tau_prov = tau_prov_ratio x tau_nat, everything else as `st`) at which that night alone
+    has pooled 90% coverage >= level for PP/PSOE/Vox from 20% counted (the criterion of the point rule in `choose`)."""
+    out = {}
+    for case in cases:
+        curve = {}
+        for t in TAU_GRID:
+            s = replace(st, tau_nat=t, tau_prov=st.tau_prov_ratio * t, tau_mixture=())
+            curve[t] = summary(evaluate(s, [case], seeds, bias_nat, bias_prov, milestones=NEED_MILESTONES))["coverage90_from_20pct"]
+            print("night", case, "tau", t, "coverage", round(curve[t], 3), flush=True)
+        ok = [t for t in TAU_GRID if curve[t] >= level]
+        out[f"{case[0]}>{case[1]}"] = {"tau": ok[0] if ok else TAU_GRID[-1], "coverage_by_tau": {str(k): v for k, v in curve.items()}}
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, required=True)
@@ -175,9 +209,32 @@ def main() -> None:
         print("holdout 2023", name, holdout[name], flush=True)
     infit = summary(evaluate(st_fit, fit, a.seeds * 2, bias_nat, bias_prov, draws=600))
     st_all, log_all = choose(TRANSITIONS, a.seeds, bias_nat, bias_prov)
+    # Tau mixture. 2023 holdout: mixture from the two earlier nights only (settings otherwise as the point fit); 2026: all three.
+    need_fit = night_taus(st_fit, fit, a.seeds * 2, bias_nat, bias_prov)
+    mix_fit = tuple(v["tau"] for v in need_fit.values())
+    # Sensitivity (added after the first run showed that nights with one order bias give nearly the same tau; NOT adopted):
+    # nights also differ in the simulated order bias (x0.5 and x2 of the real-snapshot bias), six components for the 2023 check.
+    need_fam = {f"x{bn:g}": night_taus(st_fit, fit, a.seeds * 2, bias_nat * bn, bias_prov * bn) for bn in (0.5, 2.0)}
+    mix_fam = (*mix_fit, *(v["tau"] for n in need_fam.values() for v in n.values()))
+    arms = {"point": st_fit, "mixture": replace(st_fit, tau_mixture=mix_fit),
+            "sensitivity_mixture_with_bias_families": replace(st_fit, tau_mixture=mix_fam)}
+    mixture_holdout = {}
+    for name, bn in (("bias_x0.5", 0.5), ("bias_x1", 1.0), ("bias_x2", 2.0)):
+        mixture_holdout[name] = {}
+        for arm, st in arms.items():
+            df = evaluate(st, hold, a.seeds * 2, bias_nat * bn, bias_prov * bn, draws=600)
+            mixture_holdout[name][arm] = {**summary(df), "by_milestone": by_milestone(df)}
+            print("holdout 2023", name, arm, {k: v for k, v in mixture_holdout[name][arm].items() if k != "by_milestone"}, flush=True)
+    need_all = night_taus(st_all, TRANSITIONS, a.seeds * 2, bias_nat, bias_prov)
+    mix_all = tuple(v["tau"] for v in need_all.values())
+    print("mixture for the 2023 check", mix_fit, "| for 2026", mix_all, flush=True)
     out = {"real_snapshot_bias": real, "fit_2016_2019": {"settings": st_fit.__dict__, **log_fit},
            "holdout_2023": holdout, "in_sample_2019": infit,
-           "frozen_2026": {"settings": st_all.__dict__, **log_all}}
+           "frozen_2026": {"settings": st_all.__dict__, **log_all},
+           "tau_mixture": {"tau_grid": list(TAU_GRID), "needed_tau_fit_nights": need_fit, "mixture_for_2023_check": list(mix_fit),
+                           "holdout_2023_point_vs_mixture": mixture_holdout,
+                          "needed_tau_all_nights": need_all, "mixture_for_2026": list(mix_all),
+                          "sensitivity_bias_families": {"needed_tau_fit_nights": need_fam, "mixture_for_2023_check": list(mix_fam)}}}
     a.out.write_text(json.dumps(out, indent=1, default=float))
     print("wrote", a.out)
 

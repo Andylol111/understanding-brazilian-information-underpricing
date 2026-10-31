@@ -1,4 +1,4 @@
-"""Build data_public/es_congreso_province_2016_2023.csv from the Interior Ministry's open Congress dataset.
+"""Build data_public/es_congreso_province_2016_2023.csv and es_congreso_lists_2016_2023.csv from the Interior Ministry's open Congress dataset.
 
     BRUNDER_DATA=~/brunder-data-local uv run python analysis/es_history.py
 
@@ -18,6 +18,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -28,6 +29,7 @@ URL = "https://descargas.interior.gob.es/datasets/resultados_electorales/Eleccio
 UA = "brunder/0.1 (research; recorder)"
 RAW = DATA / "es2026" / "raw" / "Elecciones-Congreso.xlsx"
 OUT = ROOT / "data_public" / "es_congreso_province_2016_2023.csv"
+LISTS_OUT = ROOT / "data_public" / "es_congreso_lists_2016_2023.csv"
 ELECTIONS = ("2016-06-26", "2019-04-28", "2019-11-10", "2023-07-23")
 # Official national totals used as a check (valid votes incl. blank; Congress seats).
 CHECK = {"2016-06-26": (24_053_755, 350), "2019-04-28": (26_201_371, 350), "2019-11-10": (24_258_228, 350),
@@ -52,20 +54,23 @@ def download() -> Path:
     return RAW
 
 
-def build() -> pd.DataFrame:
+def build() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return (province x lane table, list table). The list table keeps every candidacy that could win a seat
+    (at least 3% of the valid votes of the province, or a seat): D'Hondt on it must reproduce the official seats."""
     d = pd.read_excel(download(), header=3)
     prov_cols = [c for c in d.columns if re.match(r"^\d+ - ", c)]
     assert len(prov_cols) == 52, len(prov_cols)
-    rows = []
+    rows, lists = [], []
     for date in ELECTIONS:
         g = d[d["Fecha"] == date].reset_index(drop=True)
         desc = g["Descripción"].astype(str)
         sing = {k: g.loc[desc == k].iloc[0] for k in ("Electores", "Votos válidos", "Votos en blanco")}
-        kinds = []
+        kinds, vrow, srow = [], {}, {}
         for i, s in enumerate(desc):
             m = re.match(r"^(Votos|Escaños) \((.*)\)$", s)
             if m:
                 kinds.append((i, m.group(1), es.hist_lane(m.group(2))))
+                (vrow if m.group(1) == "Votos" else srow).setdefault(m.group(2), []).append(i)
         for col in prov_cols:
             code, name = col.split(" - ", 1)
             code = f"{int(code):02d}"
@@ -82,22 +87,42 @@ def build() -> pd.DataFrame:
             rec.update({f"seats_{k}": v for k, v in seats.items()})
             assert sum(votes.values()) + rec["blank"] == rec["valid"], (date, code, sum(votes.values()), rec["blank"], rec["valid"])
             rows.append(rec)
+            by_list = {}
+            for name, idx in vrow.items():
+                v = sum(int(g.at[i, col]) for i in idx if pd.notna(g.at[i, col]))
+                s = sum(int(g.at[i, col]) for i in srow[name] if pd.notna(g.at[i, col]))
+                if v >= es.THRESHOLD * rec["valid"] or s:
+                    by_list[name] = (v, s)
+            n_seats = sum(s for _, s in by_list.values())
+            got = es.dhondt(np.array([[v for v, _ in by_list.values()]], float), n_seats, np.array([float(rec["valid"])]))[0]
+            assert (got == np.array([s for _, s in by_list.values()])).all(), (date, code, by_list)
+            lists += [{"election": date, "prov": code, "list": name, "lane": es.hist_lane(name), "votes": v, "seats": s}
+                      for name, (v, s) in by_list.items()]
     out = pd.DataFrame(rows)
     for date, (valid, seats) in CHECK.items():
         x = out[out["election"] == date]
         assert x["valid"].sum() == valid, (date, x["valid"].sum())
         assert x[[f"seats_{k}" for k in es.HIST_LANES]].to_numpy().sum() == seats, date
-    return out
+    lists = pd.DataFrame(lists)
+    for date, (_, seats) in CHECK.items():
+        assert lists.loc[lists["election"] == date, "seats"].sum() == seats, date
+    return out, lists
 
 
 def main() -> None:
-    out = build()
+    out, lists = build()
     head = ("# Congress of Deputies results by province, 2016-2023, grouped into party lanes (see brunder.spain.hist_lane).\n"
             "# Source: Ministerio del Interior, Elecciones-Congreso.xlsx (Infoelectoral open data, CC BY 4.0). Fuente: Ministerio del Interior.\n"
             "# Final results incl. votes cast abroad (CERA). valid includes blank votes. seats_<lane> = seats won by the lane in the province.\n")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(head + out.to_csv(index=False))
     print(OUT, len(out), "rows")
+    head = ("# Congress of Deputies results by province and candidacy, 2016-2023: every candidacy with at least 3% of the valid votes of\n"
+            "# its province or a seat (the only ones D'Hondt can give seats to). Source: Ministerio del Interior, Elecciones-Congreso.xlsx\n"
+            "# (Infoelectoral open data, CC BY 4.0). Fuente: Ministerio del Interior. list = official candidacy name and acronym; lane = brunder.spain.hist_lane.\n"
+            "# D'Hondt on these rows (seats = the province's official seat count, 3% of valid votes incl. blank) reproduces the official seats of every list.\n")
+    LISTS_OUT.write_text(head + lists.to_csv(index=False))
+    print(LISTS_OUT, len(lists), "rows")
 
 
 if __name__ == "__main__":

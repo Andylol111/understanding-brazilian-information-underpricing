@@ -34,6 +34,7 @@ TAG = "spain_2026"
 # there = 21:00 in mainland Spain = 20:00 UTC).
 POLL_CLOSE = "2026-11-29T20:00:00Z"
 HISTORY = ROOT_DIR / "data_public" / "es_congreso_province_2016_2023.csv"
+LISTS = ROOT_DIR / "data_public" / "es_congreso_lists_2016_2023.csv"
 SNAP_ROOT = RAW / "snap" / TAG
 UA = "brunder/0.1 (research; recorder)"
 
@@ -96,15 +97,15 @@ _HIST_PATTERNS = [
     ("PSOE", r"PSOE|\bPSC\b|PSDEG|PSE-EE|PSIB|\bPSN\b|SOCIALIST|PARTIT SOCIALISTA"),
     ("CS", r"CIUDADANOS|CIUTADANS|\bC'?S\b"),
     ("ERC", r"ESQUERRA REPUBLICANA|\bERC\b"),
-    ("JUNTS", r"JUNTS|JXCAT|CONVERGENCIA|\bCDC\b|PDECAT"),
+    ("JUNTS", r"JUNTS|JXCAT|CONVERGENCIA DEMOCRATICA|\bCDC\b|PDECAT"),
     ("BILDU", r"BILDU"),
     ("PNV", r"EAJ-PNV|EUZKO ALDERDI|\bPNV\b"),
     ("BNG", r"\bBNG\b|B\.N\.G|BLOQUE NACIONALISTA GALEGO|BNG-NOS"),
     ("CCA", r"COALICION CANARIA|\bCCA\b"),
     ("UPN", r"UNION DEL PUEBLO NAVARRO|\bUPN\b|U\.P\.N|NAVARRA SUMA"),
     ("CUP", r"\bCUP\b|CANDIDATURA D'UNITAT"),
-    ("LEFT", r"SUMAR|PODEMOS|EN COMU|EN MAREA|COMPROMIS|MAS PAIS|FRENTE AMPLIO|\bFA\b|IZQUIERDA UNIDA|\bIU\b|"
-             r"ELKARREKIN|UNIDAS|UNIDOS"),
+    ("LEFT", r"SUMAR|PODEMOS|EN COMU|EN MAREA|COMPROMIS(?!O)|MAS PAIS|FRENTE AMPLIO|\bFA\b|IZQUIERDA UNIDA|\bIU\b|"
+             r"ELKARREKIN|UNIDAS"),
 ]
 
 
@@ -146,6 +147,21 @@ def load_history(path: Path | str = HISTORY) -> pd.DataFrame:
     for c in (*HIST_LANES, "electors", "valid", "blank"):
         d[c] = pd.to_numeric(d[c], errors="raise")
     return d
+
+
+def dhondt_official(date: str, history: pd.DataFrame | None = None, lists: pd.DataFrame | None = None) -> pd.DataFrame:
+    """D'Hondt run on the official candidacy table of one election: one row per province and candidacy with the computed and
+    the official seats. The lane table cannot do this: lanes merge lists that run separately in a province (Más País or
+    Compromís next to Unidas Podemos in 2019) and the OTHER lane holds regional lists that won seats (PRC, Teruel Existe)."""
+    h = load_history() if history is None else history
+    ls = pd.read_csv(LISTS, comment="#", dtype={"prov": str}) if lists is None else lists
+    h, ls = h[h["election"] == date], ls[ls["election"] == date]
+    valid = h.set_index("prov")["valid"]
+    out = []
+    for prov, g in ls.groupby("prov", sort=True):
+        got = dhondt(g["votes"].to_numpy(float)[None, :], int(g["seats"].sum()), np.array([float(valid[prov])]))[0]
+        out.append(g.assign(dhondt=got.astype(int)))
+    return pd.concat(out, ignore_index=True)
 
 
 def history_units(date: str, history: pd.DataFrame | None = None) -> pd.DataFrame:
@@ -250,12 +266,20 @@ class Settings:
     tau_nat: float = 0.03             # log-sd of each lane's national error left in the uncounted votes, late count
     precount_sd: float = 0.12         # same, before any count
     tau_prov: float = 0.06            # log-sd of a province's own error in its uncounted votes
+    # Equal-weight mixture over earlier nights' needed tau_nat (analysis/es_calibrate.py, docs/spain.md); empty = the single
+    # point tau_nat / tau_prov. Component j has tau_nat = tau_mixture[j] and tau_prov = tau_prov_ratio * tau_mixture[j]; draw i
+    # uses component i mod k.
+    tau_mixture: tuple[float, ...] = ()
+    tau_prov_ratio: float = 2.0
     draws: int = 4000
 
 
 def settings(cfg: dict) -> Settings:
     m = cfg.get("model", {})
-    return Settings(**{f.name: m[f.name] for f in fields(Settings) if f.name in m})
+    kw = {f.name: m[f.name] for f in fields(Settings) if f.name in m}
+    if "tau_mixture" in kw:
+        kw["tau_mixture"] = tuple(float(t) for t in kw["tau_mixture"])
+    return Settings(**kw)
 
 
 @dataclass
@@ -351,11 +375,13 @@ def simulate(p: Projection, st: Settings, seed: int) -> Draws:
     D, (P, K) = st.draws, p.votes.shape
     # The national error in the uncounted votes: the prior's error (precount_sd) fades as counted votes outweigh the
     # prior's pseudo-votes, and a floor (tau_nat) stays for unrepresentative early tables.
-    sd_nat = float(np.sqrt(st.tau_nat ** 2 + st.precount_sd ** 2 * st.sd_votes / (st.sd_votes + p.counted.sum())))
-    sd_prov = st.tau_prov * np.sqrt(np.clip(1 - p.f, 0, 1))
-    a = rng.normal(0, sd_nat, (D, 1, K))
-    b = rng.normal(0, 1, (D, P, K)) * sd_prov[None, :, None]
-    mult = np.exp(a + b - 0.5 * (sd_nat ** 2 + sd_prov[None, :, None] ** 2))
+    taus = np.resize(np.asarray(st.tau_mixture if st.tau_mixture else (st.tau_nat,), float), D)
+    tau_p = taus * st.tau_prov_ratio if st.tau_mixture else np.full(D, st.tau_prov)
+    sd_nat = np.sqrt(taus ** 2 + st.precount_sd ** 2 * st.sd_votes / (st.sd_votes + p.counted.sum()))        # (D,)
+    sd_prov = tau_p[:, None] * np.sqrt(np.clip(1 - p.f, 0, 1))[None, :]                                        # (D, P)
+    a = rng.normal(0, 1, (D, 1, K)) * sd_nat[:, None, None]
+    b = rng.normal(0, 1, (D, P, K)) * sd_prov[:, :, None]
+    mult = np.exp(a + b - 0.5 * (sd_nat[:, None, None] ** 2 + sd_prov[:, :, None] ** 2))
     votes = p.counted[None] + p.remaining[None] * mult
     seats = np.zeros((D, K))
     valid = np.zeros(D)

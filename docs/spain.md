@@ -72,15 +72,37 @@ Nothing was retried against a block.
 **Count-history resolution**: the feed is provincial (52 units); there is no per-publication municipal data in the
 recorder (municipal files exist on the relay but would need about 8,000 requests per cycle).
 
+**Second check, 2026-10-31 (a Ministry public site or feed?): none exists yet, so no adapter was built.** DNS lookups (Mac and
+server, no HTTP request) for `resultados.generales29n.es`, `resultadosgenerales.es`, `resultados.29neleccionesgenerales.es`,
+`resultados.generales2026.es` and `resultados.interior.gob.es` return nothing. `generales29n.es` and the official information
+site `29neleccionesgenerales.es` resolve. Three HTTP requests from the server (user agent as above, 3 s apart; not
+retried): `29neleccionesgenerales.es` answered HTTP 403 (919 bytes of HTML, no results links), `generales29n.es` HTTP 522 (a
+Cloudflare timeout; not a Ministry site), and the relay's `manifest.json` HTTP 200: `seq` 3, generated 2026-10-07,
+`phase "pre"`, `embargo true`, `counted_pct 0`, `official true`, source "Ministerio del Interior (resultados provisionales)".
+The Ministry's note of 21 October (re-read today) still describes only the accredited-media repository. The server has now
+made 16 requests in all. If a public results site or feed is announced, a second adapter is needed (see "Risks").
+
 ## Historical data and licences
 
 * `data_public/es_congreso_province_2016_2023.csv`: Congress results by province for 2016-06-26, 2019-04-28,
   2019-11-10 and 2023-07-23, grouped into party lanes (PP, PSOE, Vox, Cs, left lists, ERC, Junts, Bildu, PNV, BNG,
   CCa, UPN, CUP, other). Source: Interior Ministry, "Elecciones Congreso" workbook on Infoelectoral's open-data page,
   **CC BY 4.0**, attribution "Fuente: Ministerio del Interior". Built by `analysis/es_history.py`; raw workbook in
-  `$BRUNDER_DATA/es2026/raw/`. National valid-vote totals are asserted against the official ones; D'Hondt run on the
-  provincial votes reproduces the official seats exactly for 2016 and 2023 (within 2 and 10 seats for the two 2019
-  elections, where lists such as Más País/Compromís and regional coalitions do not fit the lanes).
+  `$BRUNDER_DATA/es2026/raw/`. National valid-vote totals are asserted against the official ones. **Seats:** D'Hondt run on the
+  official candidacy table reproduces the official seats of every list in all 52 constituencies of all four elections exactly
+  (`data_public/es_congreso_lists_2016_2023.csv`, test `test_dhondt_on_official_candidacies_reproduces_every_list_seat_in_all_four_elections`).
+  The lane table alone does not: the lane-level D'Hondt of the old test was 2 and 10 seats off in 2019-04 and 2019-11. The cause
+  is the lane grouping, not the rule, the 3% threshold (3% of valid votes including blank, lists below it get nothing) or the
+  province seat counts. Seven constituency results are affected (six in 2019-11, one in 2019-04): (a) lanes merge lists that run **separately**: in Alicante and Valencia
+  (2019-11) Més Compromís and Unidas Podemos are two lists in one LEFT lane, and in Barcelona and Málaga Más País, which is
+  under the threshold on its own, is added to the votes of En Comú Podem / Unidas Podemos, so the merged lane wins a seat that
+  PSOE (Barcelona), PP (Málaga, Valencia) or Vox (Alicante) wins officially; (b) regional lists sit in the OTHER lane, which is
+  never given seats: PRC in Cantabria (2019-04, 2019-11) and Teruel Existe in Teruel (2019-11) each won one seat. Three small
+  lane mislabels were fixed at the same time: Convergencia Andaluza was counted as Junts; Compromiso por Galicia and two
+  "Unidos ..." lists as LEFT (they are OTHER now; 7 province rows changed by at most 1,272 votes; the calibration choices below did
+  not change). The model keeps the lane table, so replays of 2019 can give seats that differ from the official ones; the 2026
+  lanes (Frente Amplio and Podemos separate, no Más País) merge fewer lists, but regional lists such as PRC or Teruel Existe
+  still get no seats in the model.
 * `data_public/es_2023_night_snapshot.json`: the only election-night state of an earlier Spanish night that exists
   online: the Internet Archive's copies of the Ministry's 2023 public site (see below).
 * Polls: nine pollsters' published figures (datosclaros.es table of the last polls; ABC, 26 October); reported toplines.
@@ -109,7 +131,8 @@ Frente Amplio 6.5, Podemos 2.7), then follows the count:
    line is reached at the rounded two-decimal share of valid votes, blank included).
 
 Frozen settings (`[model]` in the config) are chosen on the three earlier elections only (each projected from the one before,
-counts simulated): `own_votes` 10,000, `swing_votes` 1,000,000, `sd_votes` 1,000,000, `tau_nat` 0.06, `tau_prov` 0.12,
+counts simulated): `own_votes` 10,000, `swing_votes` 1,000,000, `sd_votes` 1,000,000, `tau_prov_ratio` 2, `tau_mixture`
+[0.06, 0.045, 0.06] (point baseline `tau_nat` 0.06, `tau_prov` 0.12; see the mixture section below),
 `cera_frac` 0.0083; `precount_sd` 0.12 is a judgement: the last-week poll median missed by 0.076 (RMS log error, ten party-elections
 2019-2023; `analysis/es_poll_error.py`) and the 2026 polls are 5-7 weeks old.
 
@@ -127,6 +150,56 @@ simulation comes from the real 2023 snapshot above. Scores are for PP, PSOE and 
 
 So the 90% intervals hold if the real order bias is like 2023's and fail if it is about twice as large. The calibration
 priors are the previous election carried forward (a much worse prior than polls), so the early-count intervals are wide.
+Re-run on 2026-10-31 after the history-table fix: the chosen settings are unchanged and the table above moves by less than
+0.001 (the file now also holds interval scores and coverage before 20% counted).
+
+### Reporting-order error `tau`: mixture (adopted 2026-10-31)
+
+**Disclosure:** on 2026-10-31, before any 2026 count, the point values `tau_nat = 0.06`, `tau_prov = 0.12` were replaced by an
+equal-weight mixture over earlier nights' needed `tau`, as for Taipei (`docs/taiwan.md`). The change comes from the
+cross-election model review (`docs/model_review.md`, `src/brunder/nowcast_order.py`), not from any 2026 data or price. The
+config is still unregistered, so it is edited in place and the old values stay in it as the baseline (used only when
+`tau_mixture` is empty).
+
+Rule (`analysis/es_calibrate.py`): a *night* is one earlier transition (2016>2019-04, 2019-04>2019-11, 2019-11>2023) with
+simulated count orders at the real-snapshot bias. Its needed `tau_nat` is the smallest value of the grid 0, .01, .02, .03,
+.045, .06, .09, .12 (declared before the run) at which that night alone has 90% coverage for the PP, PSOE and Vox shares from
+20% counted (the criterion of the point rule); `tau_prov` is 2 x `tau_nat` (the ratio of the calibration grid), all other
+settings as chosen. Every draw uses one component (draw *i*: component *i* mod *k*).
+
+| Night (settings fit on the nights before it) | needed `tau_nat` | coverage at 0.03 / 0.045 / 0.06 |
+|---|---:|---|
+| 2016>2019-04 (fit on 2016>2019-04 and 2019-04>2019-11) | 0.045 | 0.88 / 0.91 / 0.93 |
+| 2019-04>2019-11 (same) | 0.045 | 0.90 / 0.91 / 0.93 |
+| 2016>2019-04 (settings fit on all three nights) | 0.06 | 0.88 / 0.89 / 0.92 |
+| 2019-04>2019-11 (same) | 0.045 | 0.88 / 0.90 / 0.93 |
+| 2019-11>2023 (same) | 0.06 | 0.88 / 0.90 / 0.91 |
+
+2026 mixture, from nights before 2026 only: `tau_mixture = [0.06, 0.045, 0.06]`; the point rule gave 0.06. The needed values
+sit right at the 0.90 line (0.893-0.912 at 0.045), so the grid step decides between 0.045 and 0.06.
+
+2023 holdout, settings and mixture from the two earlier nights only (mixture {0.045, 0.045}, point 0.06; 12 seeds x 8
+milestones x 3 parties; coverage and width from 20% counted; interval score = width + 20 x miss, 90% band, points):
+
+| Order bias in the simulation | coverage point / mixture | width point / mixture | interval score point / mixture | rank Brier point / mixture |
+|---|---:|---:|---:|---:|
+| half the real-snapshot bias | 1.00 / 0.995 | 3.67 / 3.45 | 3.68 / 3.45 | 0.096 / 0.093 |
+| real-snapshot bias | 0.935 / 0.921 | 3.67 / 3.45 | 3.92 / 3.77 | 0.108 / 0.105 |
+| twice the bias | 0.764 / 0.718 | 3.68 / 3.46 | 6.07 / 6.19 | 0.156 / 0.157 |
+
+At the real bias the mixture band is 6% narrower, still covers 92%, and has the better interval score; at twice the bias both
+fail and the mixture a little more. Coverage by share of tables counted at the real bias, point / mixture: 5-35% counted
+1.00 / 1.00 (the calibration priors are the previous election, so the early bands are wide: 15 points at 5% counted), 50%
+0.97 / 0.97, 70% 0.94 / 0.94, 85% 0.86 / 0.86, 95% 0.83 / 0.75. **The Spanish result is much weaker than the cross-election
+one** (nine real-order nights, leave-one-election-out: mixture coverage 0.91 with 4.5-point bands, one point `tau` 0.96 with 7.0): here the mixture is nearly a point, because the three
+nights share one simulated order bias and their needed `tau` differ only by one grid step, and the early frames are covered
+by the prior's own error (`precount_sd`), not by `tau`. It does not fix the late-count undercoverage; that needs a larger
+real order bias than 2023's, which the single real snapshot cannot supply.
+
+*Sensitivity, not adopted (added after seeing the first run):* letting the nights also differ in simulated order bias (half and
+twice the real one) gives needed `tau` 0 and 0.12 (the top of the grid) and a six-member mixture {0.045, 0.045, 0, 0, 0.12, 0.12};
+on the 2023 holdout at the real bias it covers 0.944 with width 3.89 and interval score 4.09 (worse than both arms above) and
+at twice the bias 0.778 / 3.89 / 6.06. It would hedge the order-bias level, which the data cannot identify.
 
 ## Software rehearsal (retrospective, not pre-registered)
 
@@ -138,16 +211,24 @@ and `brunder spain export` produced the same timeline. At 99% counted the replay
 second and third place in both nights (2023: PP first, PSOE second, Vox third; 2019-11: PSOE first, PP second, Vox third).
 This is a test of the plumbing, not of the model.
 
+**Re-run 2026-10-31 with the tau mixture and the corrected history table:** both nights were rebuilt, exported and scored with
+no errors (`es_rehearsal.py build`, `brunder spain export`, `es_rehearsal.py score`; 99.1% and 99.2% counted at the last
+publication) and gave the same winners, second and third places with P = 1.0 and 0.0 as above. `brunder spain live` ran for
+12 s on the 2023 archive and wrote its files without errors, but it reads the real clock (the archive is dated 29 November),
+so it showed the pre-count state. The recorder-over-HTTP test was not repeated (that code did not change).
+
 ## Files and commands
 
 * `src/brunder/spain.py`, `configs/es2026_v1.toml`, `tests/test_spain.py` (+ fixtures `tests/fixtures/es_feed_*.json`)
-* `analysis/es_history.py`, `es_snapshot.py`, `es_poll_error.py`, `es_calibrate.py`, `es_rehearsal.py`, `es_settle.py`, `es_geo.py`
+* `analysis/es_history.py` (writes both history CSVs), `es_snapshot.py`, `es_poll_error.py`, `es_calibrate.py`, `es_rehearsal.py`, `es_settle.py`, `es_geo.py`
 * `deploy/brunder-es-{record,live}.{service,timer}`: recorder starts 19:00 UTC (one hour before the first results), live
   model 19:30 UTC, both stop 2026-11-30 03:00 UTC.
 * `brunder spain preelection|record|live|export configs/es2026_v1.toml`; after the count:
   `uv run python analysis/es_settle.py --national <final national file> [--provisional]` (writes
   `stats.json["settle"]`, then `analysis/decided_stats.py es2026`).
 * Pre-count dashboard data: `site/data/es2026/`; entry in `site/data/elections.json` (status `scheduled`).
+* Calibration, mixture and holdout results: `data_public/es_calibration_v1.json` (`tau_mixture` key). Official-candidacy table
+  for the seat check: `data_public/es_congreso_lists_2016_2023.csv`.
 
 ## Risks and open items
 

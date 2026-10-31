@@ -1,8 +1,11 @@
 # FROZEN 2026-10-31, before the Spanish count. Evidence label: FORWARD once registered (not registered yet).
 # Integrator: commit and hash-register this file before the first results at 2026-11-29T20:00:00Z.
 # Settings use only official 2016-2023 Congress results, polls published before this freeze, and the
-# simulated-count calibration in analysis/es_calibrate.py (results in docs/spain.md). Do not edit after registration;
-# later changes need a new versioned file.
+# simulated-count calibration in analysis/es_calibrate.py (results in docs/spain.md).
+# AMENDED 2026-10-31 (still unregistered, before any 2026 count): the reporting-order error tau is now an equal-weight mixture
+# over earlier nights' needed tau (cross-election model review, docs/model_review.md) instead of one point; the point values
+# are kept below as the documented baseline (docs/spain.md). No 2026 data entered this change.
+# Do not edit after registration; later changes need a new versioned file.
 id = "es2026_v1"
 seed = 20261129
 
@@ -119,9 +122,17 @@ swing_votes = 1000000.0
 sd_votes = 1000000.0
 turnout_votes = 20000.0
 cera_frac = 0.0083
+# Baseline (v1 as first frozen, 2026-10-31): one point tau_nat = 0.06, tau_prov = 0.12, used only if tau_mixture is empty.
 tau_nat = 0.06
 precount_sd = 0.12
 tau_prov = 0.12
+# ADOPTED 2026-10-31 (before any 2026 count): equal-weight mixture over each earlier night's own needed tau_nat (smallest value of
+# the grid 0, .01, .02, .03, .045, .06, .09, .12 at which that night alone has 90% coverage from 20% counted for PP/PSOE/Vox;
+# nights = the transitions 2016->2019-04, 2019-04->2019-11, 2019-11->2023 with simulated orders at the real-snapshot bias,
+# analysis/es_calibrate.py, data_public/es_calibration_v1.json): {0.06, 0.045, 0.06}. Component j uses tau_nat = tau_mixture[j]
+# and tau_prov = tau_prov_ratio * tau_mixture[j] (the 1:2 ratio of the calibration grid); draw i uses component i mod k.
+tau_mixture = [0.06, 0.045, 0.06]
+tau_prov_ratio = 2.0
 draws = 4000
 
 [feed]
