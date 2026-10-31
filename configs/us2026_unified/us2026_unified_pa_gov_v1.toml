@@ -1,0 +1,61 @@
+# US midterms 2026-11-03, Pennsylvania governor: UNIFIED pre-count model (labelled challenger to v1/v3; not a replacement).
+# One model for races with and without polls: fundamentals (last presidential and same-office lean, seat holder, national
+# generic-ballot swing) blended with the poll average by number of polls, county shares and expected votes from past
+# results, population growth and demographics (docs/us_unified.md). Parameters fitted leave-one-cycle-out on 2016-2024.
+# Same [election], [count] and [markets] as us2026_pa_gov_v1.toml except turnout_ratio = 1.0 (the prior's V is already the expected
+# vote). The prior is us2026_unified_priors.csv (NOT read by brunder.us.load_priors: run it with
+# analysis/us_unified_replay.py). Statewide forecast 0.6171 ± 0.0303 (P(D wins) 1.000),
+# 4 polls in the window, poll average 0.6228; frozen 2026-11-02.
+# Frozen before polls close; nothing here was chosen on 2026 count data.
+id = "us2026_unified_pa_gov_v1"
+
+[election]
+eid = "us2026"
+race_id = "pa-gov"
+name = "Pennsylvania governor"
+state = "pa"
+race = "gov"                   # race key in the parsed feed (gov / sen)
+feed = "pa"                    # brunder.us.FEEDS (PA DoS election returns API, GetCountyBreak governor; plain --url)
+poll_close_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "Josh Shapiro", color = "#1f5fbf" }
+b = { party = "REP", name = "Stacy Garrity", color = "#c8102e" }
+
+[prior]                    # data_public/us2026_unified_priors.csv
+share = "uni_pa_gov_2026"
+votes = "uni_pa_gov_2026"
+statewide_mean = 0.6171
+statewide_sd = 0.0303
+p_win = 0.9999
+poll_n = 4
+
+[model]                    # brunder.nowcast.Params: count-order settings as the registered v1 of this feed
+tau = 0.04
+rho = 0.6
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0       # the unified prior already contains the poll / national information
+swing_prior_sd = 0.0303      # predictive sd of the statewide share (leave-one-cycle-out residuals by number of polls)
+count_scaled_terms = true
+
+[count]                    # brunder.us.CountRules
+# PA counts mail ballots from 7 a.m. on Election Day and most counties post them soon after polls close; the feed
+# gives each candidate's Election Day / mail-in / provisional votes by county, so vote_type is on (early = mail-in).
+# The file has no precincts reporting (the separate county status messages are unreliable: Philadelphia 2022 still
+# shows 89 of 1,703 divisions after certification), so no county is ever taken as complete: f = counted / expected
+# (2022 governor two-party votes x 1.0), capped at 0.95, no learned turnout.
+# early_share = 0.23 = PA 2022 governor mail-in share of the two-party vote (DoS county returns).
+turnout_ratio = 1.0         # unified V = expected two-party votes of the county
+f_max = 0.95
+f_complete = 0.0
+use_outstanding = false
+learn_turnout = false
+vote_type = true
+early_share = 0.23
+
+[markets.polymarket]
+event = "pennsylvania-governor-winner-2026"
+market = "will-the-democrats-win-the-pennsylvania-governor-race-in-2026"
+question = "Will the Democrats win the Pennsylvania governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

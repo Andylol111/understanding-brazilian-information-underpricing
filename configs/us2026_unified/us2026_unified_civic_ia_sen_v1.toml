@@ -1,0 +1,58 @@
+# US midterms 2026-11-03, Iowa Senate: UNIFIED pre-count model (labelled challenger to v1/v3; not a replacement).
+# One model for races with and without polls: fundamentals (last presidential and same-office lean, seat holder, national
+# generic-ballot swing) blended with the poll average by number of polls, county shares and expected votes from past
+# results, population growth and demographics (docs/us_unified.md). Parameters fitted leave-one-cycle-out on 2016-2024.
+# Same [election], [count] and [markets] as us2026_civic_ia_sen_v1.toml except turnout_ratio = 1.0 (the prior's V is already the expected
+# vote). The prior is us2026_unified_priors.csv (NOT read by brunder.us.load_priors: run it with
+# analysis/us_unified_replay.py). Statewide forecast 0.4916 ± 0.0226 (P(D wins) 0.355),
+# 12 polls in the window, poll average 0.4985; frozen 2026-11-02.
+# Frozen before polls close; nothing here was chosen on 2026 count data.
+id = "us2026_unified_civic_ia_sen_v1"
+
+[election]
+eid = "us2026"
+race_id = "ia-sen"
+name = "Iowa Senate"
+state = "ia"
+race = "sen"                   # race key in the parsed feed (gov / sen)
+feed = "civic_ia"                # brunder.us.FEEDS: civicAPI race 87151 (brunder.civic)
+source = "civicAPI (civicapi.org)"      # secondary source; shown with its link on every display
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T03:00:00Z"
+a = { party = "DEM", name = "Josh Turek", color = "#1f5fbf" }
+b = { party = "REP", name = "Ashley Hinson", color = "#c8102e" }
+
+[prior]                    # data_public/us2026_unified_priors.csv
+share = "uni_ia_sen_2026"
+votes = "uni_ia_sen_2026"
+statewide_mean = 0.4916
+statewide_sd = 0.0226
+p_win = 0.3548
+poll_n = 12
+
+[model]                    # brunder.nowcast.Params: count-order settings as the registered v1 of this feed
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+swing_prior_mean = 0.0       # the unified prior already contains the poll / national information
+swing_prior_sd = 0.0226      # predictive sd of the statewide share (leave-one-cycle-out residuals by number of polls)
+count_scaled_terms = true
+
+[count]                    # brunder.us.CountRules
+# civicAPI gives each county's votes and its percent reporting (0-100) and nothing else: once a county shows 99 or more
+# (brunder.civic.COMPLETE_AT; its percent stays at 99 or lower in counted primaries), 98% of its vote is assumed in;
+# those counties re-scale the expected vote of the rest. No early/late split, no outstanding-ballot count.
+turnout_ratio = 1.0         # unified V = expected two-party votes of the county
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "iowa-senate-election-winner"
+market = "will-the-democrats-win-the-iowa-senate-race-in-2026"
+question = "Will the Democrats win the Iowa Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]           # filled by the Kalshi workstream in configs/pairs/us2026.toml
+ticker = ""

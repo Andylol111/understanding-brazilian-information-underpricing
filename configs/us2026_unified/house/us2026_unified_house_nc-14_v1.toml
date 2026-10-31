@@ -1,0 +1,56 @@
+# US midterms 2026-11-03, NC-14 U.S. House: UNIFIED pre-count model (labelled challenger to v1/v3; not a replacement).
+# One model for races with and without polls: fundamentals (last presidential and same-office lean, seat holder, national
+# generic-ballot swing) blended with the poll average by number of polls, county shares and expected votes from past
+# results, population growth and demographics (docs/us_unified.md). Parameters fitted leave-one-cycle-out on 2014-2024 same-line cycles.
+# Same [election], [count] and [markets] as nc-14_v1.toml except turnout_ratio = 1.0 (the prior's V is already the expected
+# vote). The prior is us2026_unified_house_priors.csv (NOT read by brunder.us.load_priors: run it with
+# analysis/us_unified_replay.py). Statewide forecast 0.4490 ± 0.0473 (P(D wins) 0.140),
+# 0 polls in the window, poll average none; frozen 2026-11-02.
+# Frozen before polls close; nothing here was chosen on 2026 count data.
+id = "us2026_unified_house_nc-14_v1"
+
+[election]
+eid = "us2026"
+race_id = "house:NC-14"
+name = "NC-14 U.S. House"
+state = "nc"
+race = "house-14"             # race key in the parsed feed (brunder.us_house_night)
+feed = "nc_house"             # brunder.us.FEEDS: the state's recorded feed, House contests
+poll_close_utc = "2026-11-04T00:30:00Z"
+a = { party = "DEM", name = "Lakesha Womack", color = "#1f5fbf" }
+b = { party = "REP", name = "Tim Moore", color = "#c8102e" }
+
+[prior]                    # data_public/us2026_unified_priors.csv
+share = "uni_house_nc-14_2026"
+votes = "uni_house_nc-14_2026"
+statewide_mean = 0.4490
+statewide_sd = 0.0473
+p_win = 0.1403
+poll_n = 0
+
+[model]                    # brunder.nowcast.Params: count-order settings as the registered v1 of this feed
+tau = 0.01
+rho = 0.6
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03
+swing_prior_mean = 0.0       # the unified prior already contains the poll / national information
+swing_prior_sd = 0.0473      # predictive sd of the statewide share (leave-one-cycle-out residuals by number of polls)
+count_scaled_terms = true
+
+[count]                    # brunder.us.CountRules
+turnout_ratio = 1.0         # unified V = expected two-party votes of the county
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = true
+early_share = 0.46
+
+[markets.polymarket]
+event = "nc-14-house-election-winner"
+market = "will-the-democratic-party-win-the-nc-14-house-seat"
+question = "Will the Democratic Party win the NC-14 House seat?"
+yes_is = "a"
+
+[markets.kalshi]           # timeline line needs a pair in configs/pairs/us2026.toml (race_id "house:NC-14")
+ticker = ""                # Kalshi event KXHOUSERACE-NC14-26, YES = KXHOUSERACE-NC14-26-D
