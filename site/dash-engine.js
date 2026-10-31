@@ -619,11 +619,6 @@ function paint(ctx) {
         const was = old?.regions?.get(r);
         if (was !== undefined && was !== drawnRegion.get(r)) { const ga = ctx.globalAlpha; ctx.globalAlpha = ga * (1 - xf); ctx.fillStyle = styleOf(was); ctx.fill(p); ctx.globalAlpha = ga; }
       }
-      // a thin white line between regions
-      ctx.globalAlpha = 1 - uO;
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.2 * px;
-      for (const [r, p] of R.regionFill) if (r != null) ctx.stroke(p);
       ctx.globalAlpha = 1;
     }
     if (!(uO > 0)) veil();

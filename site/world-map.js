@@ -270,9 +270,15 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
         if (!rg.has(c)) rg.set(c, []);
         rg.get(c).push(f);
       }
-      for (const [c, list] of rg) { ctx.beginPath(); for (const f of list) path(f); ctx.fillStyle = c === "hatch" ? hatchFor(ctx) : c; ctx.fill(); }
+      // each region is filled and stroked in its own colour (0.8 px), so neighbours overlap and the antialiased
+      // seam between them never lets the ground show through; the borders are a subtle dark line, not white
+      for (const [c, list] of rg) {
+        ctx.beginPath(); for (const f of list) path(f);
+        ctx.fillStyle = c === "hatch" ? hatchFor(ctx) : c; ctx.fill();
+        if (c !== "hatch") { ctx.strokeStyle = c; ctx.lineWidth = 0.8; ctx.lineJoin = "round"; ctx.stroke(); }
+      }
       ctx.beginPath(); path(st.regions.mesh);
-      ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.2; ctx.stroke();
+      ctx.strokeStyle = "rgba(30,30,30,0.28)"; ctx.lineWidth = 0.6; ctx.stroke();
       ctx.globalAlpha = 1;
     }
     // hover: a light wash and a dark outline, as on the election maps

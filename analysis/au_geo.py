@@ -129,11 +129,21 @@ def main() -> None:
     exe = os.environ.get("MAPSHAPER")
     ms = [exe] if exe else ["npx", "--yes", "mapshaper@0.6.121"]
     # Topology-preserving, area-weighted; keep-shapes retains every ring of every division (Tasmania, islands).
+    # The source's state borders are separate copies that differ by about 0.001 degree, which leaves hairline gaps and
+    # overlaps between states: -clean (500 km2 threshold) closes them so adjacent divisions share their border arcs.
     subprocess.run(ms + ["-i", str(work), "name=divisions", "-simplify", "weighted", "4%", "keep-shapes",
                          "-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(OUT)], check=True)
-    subprocess.run(ms + ["-i", str(work), "name=regions", "-dissolve", "region", "-simplify", "weighted", "0.5%",
-                         "keep-shapes", "-o", "format=topojson", "quantization=50000", "id-field=region",
-                         str(OUT_REG)], check=True)
+    subprocess.run(ms + ["-i", str(OUT), "name=divisions", "-clean", "gap-fill-area=5e8", "sliver-control=0",
+                         "-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(OUT)], check=True)
+    doc = json.loads(OUT.read_text())
+    for g in doc["objects"]["divisions"]["geometries"]:
+        g["properties"].pop("FID", None)
+    OUT.write_text(json.dumps(doc, separators=(",", ":")))
+    # The regions are dissolved from the cleaned divisions topology, so region borders coincide with division borders
+    # and with each other (no gaps between regions on the maps).
+    subprocess.run(ms + ["-i", str(OUT), "name=divisions", "-dissolve", "region", "-simplify", "weighted", "25%",
+                         "keep-shapes", "-rename-layers", "regions", "-o", "format=topojson", "quantization=50000",
+                         "id-field=region", str(OUT_REG)], check=True)
 
     from brunder import australia as au
     reg = json.loads(OUT_REG.read_text())
