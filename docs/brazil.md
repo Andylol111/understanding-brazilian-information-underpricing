@@ -101,3 +101,8 @@ Data Portal. Its 2014 and 2018 result datasets are labelled Creative Commons Att
 official result resources are reused here with attribution. The 2014/2018 simulated orders are a
 methodological assumption, not recovered election-night histories. Market prices are from
 Polymarket's public API and are shown only for research commentary.
+
+
+## Tau mixture (retrospective sensitivity)
+
+The Brazilian replays (2022 rounds 1 and 2, 2026 round 1, 2026 runoff with its state races, and the six governor runoffs) carry a third thin dashed line, `mix`: the same point forecast as v1, with the uncertainty taken as an equal-weight mixture over the reporting-order errors (`tau`) that earlier count nights needed, instead of one fixed `tau` (0.015). It uses only nights dated before each night, and it was proposed after the 2026 results were known, so it is a sensitivity, not a forecast made in advance. On the 2026 first round the 90% band holds the final share in 100% of minutes (v1 94%, v2 27%) and the model reaches 90% on the winner 38 minutes before Polymarket (median of 6 contested markets; v1 38, v2 57). On the runoff: 100% and +84 (v1 100% and +80). Method, nights, taus and the other elections: `docs/model_review.md` section 8; numbers are in `stats.json` under `sensitivities.mix`.

@@ -4,9 +4,10 @@
 //   2. who got to 90% first, per election (the elections' own stats files)
 //   3. the projection against the raw count (summary.json projection_error)
 //   4. how often the final result stayed inside the 90% band (summary.json calibration)
+//   5. original vs recalibrated vs mixture: band coverage and lead over the market (each election's stats.json)
 import * as d3 from "./vendor/d3.js";
-import { C, pct, clock, tzName } from "./common.js";
-import { $, allElections, label, labelOf, leadOf, decisionOf, featured, dur } from "./landing-data.js";
+import { C, pct, clock, tzName, esc } from "./common.js";
+import { $, allElections, label, labelOf, leadOf, decisionOf, featured, dur, metaOf, statsOf } from "./landing-data.js";
 
 const pts = (x) => (x == null ? "–" : x.toFixed(1));
 const fmtInt = (n) => n.toLocaleString("en-US");
@@ -273,5 +274,104 @@ export function drawCalibration(S) {
       svg.append("g").selectAll("circle").data(p).join("circle").attr("cx", (d) => x(d.mean_p)).attr("cy", (d) => y(d.freq)).attr("r", (d) => r(d.minutes)).attr("fill", color).attr("fill-opacity", 0.85)
         .append("title").text((d) => `${d.bin}: chance given ${pct(d.mean_p, 0)}, that side won ${pct(d.freq, 0)} of the time (${fmtInt(d.minutes)} minutes, ${d.races} races)`);
     }
+  });
+}
+
+/* ------------------------------------------------------------------ 5. original vs recalibrated vs mixture */
+
+// Three versions of the model per election, all from that election's stats.json (nothing typed here):
+//   original      coverage stats.calibration[headline].coverage90_1_95, lead stats.lead_contested.median_lead_min_gate1pct (n)
+//   recalibrated  stats.sensitivities.v2.summary   (coverage90_headline, median_lead_90_min_gate1pct, n_contested_with_lead)
+//   mixture       stats.sensitivities.mix.summary  (same fields)
+// Only elections whose stats carry a mixture are listed; a missing or older stats file just leaves the election out.
+const MIX_VERSIONS = [
+  { key: "v1", name: "Original", fill: C.raw, ring: C.raw },
+  { key: "v2", name: "Recalibrated", fill: "#fff", ring: C.model },
+  { key: "mix", name: "Mixture", fill: C.model, ring: C.model },
+];
+const num0 = (x) => (Number.isFinite(x) ? x : null);
+const MIX_LEAD = (m) => (m == null ? "–" : `${m > 0 ? "+" : m < 0 ? "−" : ""}${Math.abs(Math.round(m))}`);
+
+export async function drawMix() {
+  const list = allElections().filter((e) => e.status !== "scheduled");
+  const found = await Promise.all(list.map(async (e) => {
+    const stats = await statsOf(e.id);
+    const mixS = stats?.sensitivities?.mix?.summary;
+    if (!mixS) return null;
+    const v2S = stats.sensitivities?.v2?.summary ?? null;
+    const head = mixS.headline_race ?? null;
+    const meta = await metaOf(e.id);
+    const lc = stats.lead_contested ?? {};
+    // no single headline race (six independent governor runoffs): the mean over the share races the mixture scored
+    const pooled = head == null ? Object.entries(stats.sensitivities.mix.by_race ?? {}).filter(([, r]) => r?.coverage90_1_95 != null).map(([rid]) => rid) : [];
+    const meanCal = pooled.map((rid) => stats.calibration?.[rid]?.coverage90_1_95).filter((c) => c != null);
+    const v1 = { cov: head != null ? num0(stats.calibration?.[head]?.coverage90_1_95) : meanCal.length ? d3.mean(meanCal) : null, lead: lc.n > 0 ? num0(lc.median_lead_min_gate1pct) : null, n: lc.n ?? 0 };
+    const sens = (S) => (S ? { cov: num0(S.coverage90_headline ?? S.coverage90_mean_share_races), lead: S.n_contested_with_lead > 0 ? num0(S.median_lead_90_min_gate1pct) : null, n: S.n_contested_with_lead ?? 0 } : { cov: null, lead: null, n: 0 });
+    const race = (meta?.races ?? []).find((r) => r.race_id === head);
+    const sub = head == null && meanCal.length ? `(mean of ${meanCal.length} ${/governor/i.test(e.name) ? "governor " : ""}races)` : race?.name ?? null;
+    return { e, head, raceName: sub, v: { v1, v2: sens(v2S), mix: sens(mixS) } };
+  }));
+  const rows = found.filter(Boolean);
+  if (!rows.length) return;
+  $("ev-mix").hidden = false;
+  const sw = (v) => `<span class="mix-sw" style="background:${v.fill};border-color:${v.ring}"></span>${v.name}`;
+  $("chart-mix-key").innerHTML = MIX_VERSIONS.map(sw).join(" ");
+
+  const cell = (r, v, what) => {
+    const x = r.v[v.key];
+    if (what === "cov") return x.cov == null ? `<td class="n">–</td>` : `<td class="n" data-v="${x.cov}">${pct(x.cov, 0)}</td>`;
+    return x.lead == null ? `<td class="n">–</td>` : `<td class="n" data-v="${x.lead}" title="${x.n} contested ${x.n === 1 ? "market" : "markets"}">${MIX_LEAD(x.lead)} <small>(n ${x.n})</small></td>`;
+  };
+  $("mix-table").innerHTML = `<thead><tr><th rowspan="2">Election (headline race)</th><th class="n grp" colspan="3">90% band held the result (share of minutes)</th><th class="n grp" colspan="3">Model ahead of the market (minutes, median)</th></tr>
+    <tr>${["cov", "lead"].map(() => MIX_VERSIONS.map((v) => `<th class="n">${v.name}</th>`).join("")).join("")}</tr></thead>
+    <tbody>${rows.map((r) => `<tr data-election="${esc(r.e.id)}"><td><a href="election.html?id=${encodeURIComponent(r.e.id)}">${esc(labelOf(r.e.id))}</a>${r.raceName ? `<br><small>${esc(r.raceName)}</small>` : ""}</td>${MIX_VERSIONS.map((v) => cell(r, v, "cov")).join("")}${MIX_VERSIONS.map((v) => cell(r, v, "lead")).join("")}</tr>`).join("")}</tbody>`;
+
+  const covRoot = mount($("chart-mix-cov"), "Share of minutes, from 1% to 95% counted, with the final result inside the 90% band. The dashed line is the 90% target.");
+  const leadRoot = mount($("chart-mix-lead"), "Minutes by which the model reached 90% on the winner before (right) or after (left) the market; – means no contested market. Median over contested markets.");
+  const rh = 66, m = { l: 4, r: 56, t: 24, b: 26 };
+  const hOf = () => m.t + rows.length * rh + m.b;
+  responsive(covRoot, () => {
+    const w = Math.max(260, covRoot.clientWidth), h = hOf();
+    const all = rows.flatMap((r) => MIX_VERSIONS.map((v) => r.v[v.key].cov)).filter((c) => c != null);
+    const x = d3.scaleLinear().domain([Math.min(0.6, d3.min(all) ?? 0.6), 1]).range([m.l, w - m.r]);
+    const svg = d3.select(covRoot).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img")
+      .attr("aria-label", "Share of minutes with the final result inside the 90% band, original, recalibrated and mixture versions, per election");
+    svg.append("line").attr("x1", x(0.9)).attr("x2", x(0.9)).attr("y1", m.t - 6).attr("y2", h - m.b).attr("stroke", "#9a968c").attr("stroke-dasharray", "3,3");
+    svg.append("text").attr("class", "legend-text").attr("x", x(0.9)).attr("y", m.t - 9).attr("text-anchor", "middle").text("90% target");
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(4).tickFormat(d3.format(".0%")).tickSize(0).tickPadding(6)).call((g) => g.select(".domain").remove());
+    const g = svg.selectAll("g.row").data(rows).join("g").attr("class", "row").attr("transform", (d, i) => `translate(0,${m.t + i * rh})`);
+    g.append("text").attr("class", "row-name").attr("x", m.l).attr("y", 11).text((d) => label(d.e));
+    g.each(function (d) {
+      const sel = d3.select(this), pts = MIX_VERSIONS.map((v) => [v, d.v[v.key].cov]).filter(([, c]) => c != null);
+      if (pts.length > 1) sel.append("line").attr("x1", x(d3.min(pts, (p) => p[1]))).attr("x2", x(d3.max(pts, (p) => p[1]))).attr("y1", 38).attr("y2", 38).attr("stroke", "#d8d5cd").attr("stroke-width", 3);
+      for (const [v, c] of pts) sel.append("circle").attr("cx", x(c)).attr("cy", 38).attr("r", 5.2).attr("fill", v.fill).attr("stroke", v.ring).attr("stroke-width", 2)
+        .append("title").text(`${label(d.e)}: ${v.name} ${pct(c, 1)}`);
+    });
+  });
+  responsive(leadRoot, () => {
+    const w = Math.max(260, leadRoot.clientWidth), h = hOf();
+    const vals = rows.flatMap((r) => MIX_VERSIONS.map((v) => r.v[v.key].lead)).filter((c) => c != null);
+    const D = Math.max(60, Math.ceil((d3.max(vals.filter((c) => Math.abs(c) <= 240), (c) => Math.abs(c)) ?? 60) / 50) * 50);
+    const clip = (c) => Math.max(-D, Math.min(D, c));
+    const x = d3.scaleLinear().domain([-D, D]).range([m.l, w - m.r]);
+    const svg = d3.select(leadRoot).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img")
+      .attr("aria-label", "Minutes by which the model reached 90% on the winner before or after the market, original, recalibrated and mixture versions, per election");
+    svg.append("g").attr("class", "grid").selectAll("line").data(x.ticks(4)).join("line").attr("x1", x).attr("x2", x).attr("y1", m.t - 6).attr("y2", h - m.b);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(4).tickFormat((d) => (d > 0 ? `+${d}` : d < 0 ? `−${-d}` : "0")).tickSize(0).tickPadding(6)).call((g) => g.select(".domain").remove());
+    svg.append("text").attr("class", "panel-label").attr("x", x(0) - 8).attr("y", 12).attr("text-anchor", "end").text("◀ market first");
+    svg.append("text").attr("class", "panel-label").attr("x", x(0) + 8).attr("y", 12).text("model first ▶");
+    const g = svg.selectAll("g.row").data(rows).join("g").attr("class", "row").attr("transform", (d, i) => `translate(0,${m.t + i * rh})`);
+    g.append("text").attr("class", "row-name").attr("x", m.l).attr("y", 11).text((d) => label(d.e));
+    g.each(function (d) {
+      const sel = d3.select(this);
+      MIX_VERSIONS.forEach((v, i) => {
+        const L = d.v[v.key].lead, y = 18 + i * 14;
+        if (L == null) { sel.append("text").attr("class", "legend-text").attr("x", x(0) + 6).attr("y", y + 8).text("–").append("title").text(`${v.name}: no contested market`); return; }
+        sel.append("rect").attr("x", x(Math.min(0, clip(L)))).attr("width", Math.max(1.5, Math.abs(x(clip(L)) - x(0)))).attr("y", y).attr("height", 10).attr("fill", v.fill).attr("stroke", v.ring).attr("stroke-width", 1.5)
+          .append("title").text(`${label(d.e)}: ${v.name} ${MIX_LEAD(L)} min (${d.v[v.key].n} contested ${d.v[v.key].n === 1 ? "market" : "markets"})`);
+        sel.append("text").attr("class", "legend-text").attr("x", L < 0 ? x(0) + 6 : x(clip(L)) + 5).attr("y", y + 8).text(`${MIX_LEAD(L)}${Math.abs(L) > D ? " (off the scale)" : ""}`);
+      });
+    });
+    svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", m.t - 6).attr("y2", h - m.b).attr("stroke", "#1b1b1b");
   });
 }

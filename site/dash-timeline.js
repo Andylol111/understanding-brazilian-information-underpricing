@@ -5,7 +5,7 @@
 //  - "chance": the model's probability that side a wins against the market prices.
 // A solid cursor marks the scrubber time, a dashed one the hover. Labels sit at the line ends.
 import * as d3 from "./vendor/d3.js";
-import { C, clock, probit } from "./common.js";
+import { C, clock, probit, sensP } from "./common.js";
 
 const POLLS = "#8d8a82";
 // method hovers for the model's line (US)
@@ -26,7 +26,7 @@ const rawM = (d) => (d.raw != null && d.counted > 0 ? (2 * d.raw - 1) * 100 : nu
 export const timelineViews = (rows) => (rows.some((d) => mm(d) != null || d.margin_polls != null || mkt(d) != null || d.margin_estimate != null) ? ["margin", "chance"] : ["chance"]);
 
 // view: "margin" | "chance"; us: margins read "D+3" / "R+3" (else "+3" for side a, "−3" for b).
-export function drawTimeline(root, { race, rows, domain, tz, wall, height, view = "chance", us = false, countPanel = true, sensitivity = null, onPreview, onSet }) {
+export function drawTimeline(root, { race, rows, domain, tz, wall, height, view = "chance", us = false, countPanel = true, sensitivities = [], onPreview, onSet }) {
   root.innerHTML = "";
   if (!rows.length) {
     root.innerHTML = `<p class="note">No count or price data for this race yet.</p>`;
@@ -35,8 +35,9 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
   const width = Math.max(280, root.clientWidth);
   const narrow = width < 520;
   const two = rows.some((d) => d.P_v2 != null);
-  const hasSensitivity = rows.some((d) => d.P_sensitivity != null);
-  const m = { l: narrow ? 38 : 46, r: narrow ? 104 : hasSensitivity ? 180 : 116, t: 8, b: 22 };
+  // sensitivities with data in this race (thin dashed lines, one extra end label each)
+  const sens = sensitivities.filter((s) => rows.some((d) => sensP(d, s) != null));
+  const m = { l: narrow ? 38 : 46, r: narrow ? 104 + 8 * sens.length : 116 + 24 * sens.length, t: 8, b: 22 };
   const h = height - m.t - m.b;
   const x = d3.scaleUtc().domain(domain.map(wall)).range([m.l, width - m.r]);
   const X = (d) => x(wall(d.time));
@@ -100,7 +101,7 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     for (const v of [0.1, 0.9]) hline(yP(v));
     const main = two ? (d) => d.P_v2 ?? null : (d) => d.P ?? null;
     if (two) path(C.model, 1, (d) => d.P ?? null, "3,2").attr("opacity", 0.75);
-    if (hasSensitivity) path(C.model, 1, (d) => d.P_sensitivity ?? null, "5,3").attr("opacity", 0.8);
+    for (const s of sens) path(C.model, 1, (d) => sensP(d, s), s.dash).attr("opacity", 0.8).attr("class", `sens-line sens-${s.key}`);
     path(C.model, 2, main);
     path(C.kalshi, 1.5, (d) => d.kalshi ?? null);
     path(C.market, 1.6, (d) => d.pm ?? null);
@@ -109,12 +110,11 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     endLabels(svg, width - m.r + 5, [
       [lastF(main), (d) => yP(main(d)), `model${two ? ", polls" : ""}`, C.model, us ? REG : ""],
       [two ? lastF((d) => d.P ?? null) : null, (d) => yP(d.P), "without polls", C.model],
-      [hasSensitivity ? lastF((d) => d.P_sensitivity ?? null) : null, (d) => yP(d.P_sensitivity),
-       sensitivity?.label ?? "sensitivity", C.model],
+      ...sens.map((s) => [lastF((d) => sensP(d, s)), (d) => yP(sensP(d, s)), s.key, C.model, s.label]),
       [lastF((d) => d.pm ?? null), (d) => yP(d.pm), "Polymarket", C.market],
       [lastF((d) => d.kalshi ?? null), (d) => yP(d.kalshi), "Kalshi", C.kalshi],
       [estP, (d) => yP(d.P_estimate), "model", C.model, EST],
-    ]);
+    ], height - m.b - 2);
   }
 
   const long = domain[1] - domain[0] > 24 * 3600000; // past 24 h, ticks carry the day ("12 Apr 22:00")
@@ -145,10 +145,12 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
   };
 }
 
-function endLabels(svg, x, items) {
+function endLabels(svg, x, items, maxY = Infinity) {
   const pts = items.filter(([d]) => d).map(([d, y, text, color, title = ""]) => ({ y: y(d), text, color, title }));
   pts.sort((a, b) => a.y - b.y);
   for (let i = 1; i < pts.length; i++) pts[i].y = Math.max(pts[i].y, pts[i - 1].y + 12);
+  // stacked labels never run off the bottom of the drawing: push the stack back up
+  for (let i = pts.length - 1; i >= 0; i--) pts[i].y = Math.min(pts[i].y, i === pts.length - 1 ? maxY : pts[i + 1].y - 12);
   svg.selectAll(null).data(pts).join("text").attr("x", x).attr("y", (d) => d.y + 4).attr("class", "end-label").attr("fill", (d) => d.color).text((d) => d.text)
     .filter((d) => d.title).append("title").text((d) => d.title);
 }

@@ -6,7 +6,7 @@ import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, plural, modelP, shortName,
 import { polymarketYes } from "./dash-precount.js";
 import { createWorldMap } from "./world-map.js";
 import { $, href, rootOf, setLiveIds, setElections, allElections, label, labelOf, bareName, qualifierOf, unitWord, metaOf, statsOf, timelineOf, leadOf, decisionOf, mainRace, hasMarkets, featured, money, signedPct, dur } from "./landing-data.js";
-import { drawNight, drawLead, drawError, drawCalibration } from "./landing-charts.js";
+import { drawNight, drawLead, drawError, drawCalibration, drawMix } from "./landing-charts.js";
 
 const tbody = document.querySelector("#overview tbody");
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
@@ -438,6 +438,7 @@ async function load() {
       load.charts = true;
       drawNight().catch((err) => console.error(err));
       drawLead().catch((err) => console.error(err));
+      drawMix().catch((err) => console.error(err));
     }
     if (summary && !load.drawn) {
       load.drawn = true;

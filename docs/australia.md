@@ -73,6 +73,7 @@ uv run python analysis/au_config.py results/australia/calibration_2025_v2.json
 AU_OUT=results/australia/v1 uv run python analysis/au_score.py configs/au2025_v1.toml
 AU_OUT=results/australia/v2 uv run python analysis/au_score.py configs/au2025_v2.toml
 uv run python analysis/au_export.py && uv run python analysis/decided_stats.py au2025
+uv run python analysis/mix_au.py run && uv run python analysis/mix_au.py export && uv run python analysis/decided_stats.py au2025   # tau mixture sensitivity
 ```
 
 ## Markets that existed during the count
@@ -172,7 +173,24 @@ use (most seats, majority, hung, seat bands, margin bands). Coordinate search on
 - **What was priced when:** Polymarket's Labor 85+ seats market was 0.10 at 20:00 AEST, first reached 0.9 at 21:59 and stayed above it
   from 22:10 AEST; the model was above 0.9 from 19:36 AEST. The most-seats and prime-minister markets were at 0.95 to 0.97 from poll close (exit polls and polls, not the count).
 
+## Tau mixture (retrospective sensitivity)
+
+A third model line, written after the 2025 result was known (label "tau mixture over earlier nights (chosen after the result was known)"). It is a sensitivity, never the headline. `analysis/mix_au.py`.
+
+**What it is.** The model's error that does not shrink as polling places report is the national swing floor `s_nat_f`: in v1 it is 0, which is why the band narrows too fast. The mixture asks each earlier count night what that floor had to be: the smallest value on the grid (0, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5 points; `nowcast_order.TAU_GRID`) at which that night's own 90% range of Labor's national two-party share held the AEC's final share on at least 90% of its frames (1% to 95% counted), with every other v1 setting unchanged. **2019 needed 0.50 points** (v1's 90% range held in 20% of its frames), **2022 needed 0.75 points** (46%). 2025 is then run twice, once with each floor, with the same random numbers as v1; each market's probability is the plain average of the two runs (equal weights, which is the same as pooling their 8,000 + 8,000 seat draws). The two-party share band is the 5%-95% range of the equal-weight mix of the two normal bands. Nothing from 2025 chose a floor; only two earlier nights exist in the archive, so the mixture has two components. Output: `$BRUNDER_DATA/results/mix/au/`.
+
+| 2025, minutes 1% to 95% counted | v1 | v2 | tau mixture |
+|---|---:|---:|---:|
+| Labor's final two-party share (55.22%) inside the 90% range | 13% | 65% | 99.8% |
+| mean width of that range | 0.9 pt | 1.4 pt | 2.4 pt |
+| Labor's final seat count (94) inside the 90% range (frames, as the v1 headline) | 10% | 79% | 18% |
+| contested questions where the model got to 0.9 first / lead (median, gated at 1% counted) | 21 of 21 / 109 min | 21 of 21 / 109 min | 21 of 21 / 109 min |
+
+(v1 two-party row computed from the published v1 timeline with the same rule as the other two; the v1 seat and lead entries are the published v1 headline numbers. v2 and mixture rows are `stats.sensitivities.{v2,mix}` in `site/data/au2025/stats.json`.) The median lead to 0.95 is 126 minutes for v2 and 106 for the mixture.
+
+**Reading it.** The mixture fixes the national two-party range (it now holds the final share almost always) but barely helps the seat count (18%, v1 10%, v2 79%). v2 changes other things (a floor under the state swing errors and a different third-candidate rule; its national floor is 0) and lifted the seat range to 79%; a wider national swing alone, which is what the mixture adds, did not. The earlier leads survive (the same 109 minutes, model first on all 21). Caveat: it was built after seeing the result, and with two earlier nights the mixture has only two components, not a distribution.
+
 ## Files
 
-`src/brunder/australia.py`, `analysis/au_{fetch,observe,calibrate,config,score,export,geo}.py`, `configs/au2025_v{1,2}.toml`,
-`tests/test_australia.py`, `site/data/au2025/`, `site/data/geo/au_{divisions,regions}.topo.json`.
+`src/brunder/australia.py`, `analysis/au_{fetch,observe,calibrate,config,score,export,geo}.py`, `analysis/mix_au.py`, `configs/au2025_v{1,2}.toml`,
+`tests/test_australia.py`, `tests/test_mix_au_hu.py`, `site/data/au2025/`, `site/data/geo/au_{divisions,regions}.topo.json`.

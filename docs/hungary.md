@@ -216,6 +216,16 @@ dashboard races (`P_sensitivity` in the timeline, `stats.sensitivity`).
   not comparable. The all-market figure is the one to read.
 - No profit test was run for v2 (`signals` is skipped for sensitivity configs). v1's result stands.
 
+## Tau mixture (retrospective sensitivity)
+
+A third model line, written after the 2026 result was known (label "tau mixture over earlier nights (chosen after the result was known)"). It is a sensitivity, never the headline. `analysis/mix_hu.py`; intermediate files in `$BRUNDER_DATA/results/mix/hu/`.
+
+**What it is.** v1 uses one value of the reporting-order error `tau` (how far the first-counted places can mislead about the rest) for districts (0.0) and one for the national list vote (0.05). The mixture instead asks every earlier night that can be replayed what its own `tau` had to be: the smallest value on the grid (0, 0.005, 0.01, 0.015, 0.02, 0.03, 0.05) at which that night's own 90% ranges held the final on at least 90% of its frames (1% to 95% counted). For districts that means the 106 district shares and the national two-way district share together, at v1's other district settings (sigma 0.10, kappa 200,000). Result: **districts 2022: 0.0, 2018: 0.02; list 2022: 0.05, 2018: 0.03, 2014: 0.03.** 2022 uses the real archived order; the 2018 and 2014 orders are simulated from the official station results (as in v2); 2014 has no district replay (different district map) so the district mixture has two nights, the list mixture three. The two mixtures are crossed with equal weights (6 runs; a value from two nights counts double), every other v1 setting and random number unchanged, and each market's probability is the plain average over the 6 runs (the same as pooling their draws). The list-share range is the 5%-95% range of the equal-weight mix of the six normal ranges; the district share range uses the pooled mean and spread of the draws. The run with (0.0, 0.05) reproduces v1 exactly. Nothing from 2026 chose a value.
+
+- **Coverage.** With one rule for all three versions (the timeline minutes with 1% to 95% counted), the final two-way shares were inside the 90% range in the same share of minutes: list 98% and seats 100%. (v1's published list figure, 99.8%, comes from the edge-audit's own minute grid of 8,315 rows and is not comparable with these.) Mean range width: list 3.2 points (v1), 2.6 (v2), 2.8 (mixture); seats 2.4, 3.2, 3.2.
+- **Minutes to 0.90 on the outcome against Polymarket** (positive = model first; same table as the v2 result above, v1 / v2 / mixture): most seats Tisza +11 / +11 / +11; Tisza 130+ seats +37 / +27 / +27; Tisza 120+ seats +27 / +27 / +27; list winner (decided before the count) -115 / -95 / -105; list margin 9+ -67 / -57 / -57. To 0.95: +30 / +30 / +30, +54 / +44 / +44, +51 / +51 / +51, -41 / -21 / -31, -69 / -49 / -59 (v1 numbers from the table above, v2 and mixture from `stats.sensitivities` in `site/data/hu2026/stats.json`).
+- **Reading it.** The mixture lands between v1 and v2 on the list race (the mean of its list taus is 0.037; v2's is 0.03, v1's 0.05) and gives the same leads as v2 on every other market: the 2026 miss is in the seat count, which the district tau mixture moves only a little. Caveat: it was built after the result was known, and two or three earlier nights (two of them simulated orders) are few points for a distribution.
+
 ## Evidence: not pre-registered
 
 - **Before the freeze:** the 2026 market resolutions, the 02:05 CEST national list summary (Tisza 53.2%, Fidesz-KDNP
@@ -306,8 +316,8 @@ The results:
 
 - **Code:**
   - `src/brunder/hungary.py`
-  - `analysis/hu_fetch.py`, `hu_calibrate.py`, `hu_calibrate_v2.py`, `hu_score.py`, `hu_export.py`, `hu_export_v2.py`, `hu_geo.py`
-  - `tests/test_hungary.py`
+  - `analysis/hu_fetch.py`, `hu_calibrate.py`, `hu_calibrate_v2.py`, `hu_score.py`, `hu_export.py`, `hu_export_v2.py`, `hu_geo.py`, `mix_hu.py`
+  - `tests/test_hungary.py`, `tests/test_mix_au_hu.py`
 - **Config:** `configs/hu2026_v1.toml`, to be registered by the integrator; `configs/hu2026_v2.toml` (sensitivity: not
   to be registered as a headline; settings chosen after the result was known).
 - **Site:**
@@ -331,6 +341,7 @@ uv run python analysis/hu_fetch.py nvi && uv run python analysis/hu_fetch.py way
 uv run python analysis/hu_calibrate_v2.py       # rule in the "v2" section; writes results/hungary/calibration_v2.json
 uv run python analysis/hu_score.py configs/hu2026_v2.toml    # results/hungary_v2/; no profit test
 uv run python analysis/hu_export_v2.py          # adds the v2 fields to site/data/hu2026 (run after hu_export.py)
+uv run python analysis/mix_hu.py run && uv run python analysis/mix_hu.py export   # tau mixture (needs calibration_v2_* csvs: mix_hu.py calibrate); adds P_sens_mix etc.
 ```
 
 ## Limitations

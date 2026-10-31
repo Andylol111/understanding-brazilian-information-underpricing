@@ -261,3 +261,8 @@ lead of v1 was bought with bands that were too narrow.
 - The registered electorate of a unit is PKW's constant `votersCount`; the electorate counted exceeds it by 1.8% at
   the end, so f is capped at 1.
 - The count licence is not settled (see "Sources and licences").
+
+
+## Tau mixture (retrospective sensitivity)
+
+Both Polish rounds carry a `mix` line: the base model (rho 0.8, kappa 50,000) with the uncertainty mixed over the reporting-order errors that earlier nights needed (round 1: five nights; runoff: six, including round 1), chosen after the results were known. On the runoff the 90% band holds the final share in 77% of minutes (v1 46%, pooled v2 100%) and the model reaches 90% on the winner 42 minutes before Polymarket (median of 3 contested markets; v1 +46, v2 -126). The band is still short of 90%. Margin-band markets use the same mixture. See `docs/model_review.md` section 8.

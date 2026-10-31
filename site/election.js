@@ -6,7 +6,7 @@
 // (dash-worker.js) fetches, parses and projects the geometry and the map frames; the map appears
 // when both arrive. While playing, colours are interpolated between map frames every animation frame.
 import * as d3 from "./vendor/d3.js";
-import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, probit, marginText, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes, crossDocTransitions } from "./common.js";
+import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, sensitivitiesOf, sensP, probit, marginText, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes, crossDocTransitions } from "./common.js";
 import { createMap } from "./dash-map.js";
 import { drawTimeline, timelineViews, drawTurnout } from "./dash-timeline.js";
 import { createScrubber } from "./dash-scrubber.js";
@@ -849,7 +849,7 @@ function render() {
     if (pre && S.race.estimate) pre.basis = S.race.estimate.note;
     const aWon = outcomeOf(S.race);
     const priced = [...(rowsOf(S.race.race_id) ?? [])].reverse().find((d) => d.tms <= tt && d.pm != null);
-    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row), nPolls: nPollsOf(S.race), settled: replay() && settledAt(priced ?? row, aWon), winner: replay() ? winnerName(S.race, aWon) : null });
+    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row), sensitivities: sensitivitiesOf(S.meta), nPolls: nPollsOf(S.race), settled: replay() && settledAt(priced ?? row, aWon), winner: replay() ? winnerName(S.race, aWon) : null });
     // the turnout chart follows the map's frame
     if (S.tlView === "turnout" && S.tlK !== k) drawChart();
   }
@@ -863,10 +863,11 @@ function render() {
 
 function updateLists(t) {
   lastList = performance.now();
+  const sens = sensitivitiesOf(S.meta);
   if (S.list) {
     S.list.update(new Map([...races(), ...(S.extra?.values() ?? [])].map((r) => {
       const row = raceRow(r, t);
-      return [r.race_id, { P: modelP(row), v2: row?.P_sensitivity ?? null, pm: row?.pm ?? null, k: row?.kalshi ?? null }];
+      return [r.race_id, { P: modelP(row), sens: Object.fromEntries(sens.map((s) => [s.key, sensP(row, s)])), pm: row?.pm ?? null, k: row?.kalshi ?? null }];
     })));
   }
   updatePicker(t);
@@ -1511,7 +1512,7 @@ function drawChart() {
     ? drawTurnout($("timeline"), { pts: tv.pts, height: chartHeight(), slope: tv.row?.turnout_surprise_slope ?? null, corr: tv.row?.turnout_surprise_corr ?? null, pre: tv.pre, sentence: tv.sentence })
     : drawTimeline($("timeline"), {
       race: S.race, rows, domain: S.domain, tz: S.tz, wall: S.wall, height: chartHeight(), countPanel: S.countTimeline,
-      view: S.tlView, us: countryCode() === "US", sensitivity: S.meta.sensitivity,
+      view: S.tlView, us: countryCode() === "US", sensitivities: sensitivitiesOf(S.meta),
       onPreview: (t) => { S.preview = t; render(); },
       onSet: (t) => { pause(); S.preview = null; setTime(t); },
     });
@@ -1772,7 +1773,7 @@ function renderStatsTab() {
 // Method & sources tab: the election's own notes and sources, plus (civicAPI races loaded) the
 // civic meta's, with civicAPI's attribution; entries already listed are not repeated.
 function drawMethod() {
-  const twoModels = [...S.rows.values()].some((rows) => rows.some((d) => d.P_v2 != null || d.P_sensitivity != null))
+  const twoModels = [...S.rows.values()].some((rows) => rows.some((d) => d.P_v2 != null))
     || races().some((r) => r.precount?.[`P_${r.poll_model ?? "v2"}`] != null);
   const margins = [...S.rows.values()].some((rows) => rows.some((d) => d.margin_market != null || d.margin_model != null));
   let meta = S.meta;
@@ -1789,7 +1790,7 @@ function drawMethod() {
     };
   }
   const keep = $("our-model")?.outerHTML;
-  renderMethod($("pane-method"), { meta, entry: S.entry, geometryCredit: geometryCredit(), twoModels, margins });
+  renderMethod($("pane-method"), { meta, entry: S.entry, geometryCredit: geometryCredit(), twoModels, margins, sensitivities: sensitivitiesOf(S.meta) });
   if (keep) $("pane-method").insertAdjacentHTML("afterbegin", keep);
 }
 // civicAPI races that arrived after the page was built (the night's process started later)
@@ -1889,7 +1890,7 @@ function buildRaceList() {
   // US: every race of the office (● live county model), in the open state if one is open
   const list = S.nat ? officeRaces(OFFICE_ID[S.office ?? "senate"] ?? "sen").filter((r) => !S.region || r.region === S.region) : statewide();
   const name = S.nat ? (r) => `${modelled(r) ? "● " : ""}${raceName(r)}` : raceName;
-  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => decisionOf(r)?.decided ? null : leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, sensitivity: S.meta.sensitivity, profitOf, nPollsOf, decisionOf, winnerOf });
+  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => decisionOf(r)?.decided ? null : leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, sensitivities: sensitivitiesOf(S.meta), profitOf, nPollsOf, decisionOf, winnerOf });
   S.list.select(S.race?.race_id);
 }
 

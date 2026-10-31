@@ -413,3 +413,50 @@ Settle = first tick from which P(eventual outcome) ≥ 0.9 to the end of the cou
     uv run pytest -q tests/test_nowcast_order.py
 
 Outputs go to `$BRUNDER_DATA/results/model_review/` (SSD). Loaders: `analysis/mr_common.py`, `mr_nights_br.py`, `mr_nights_mx.py`, `mr_nights_pl.py`.
+
+
+## 8. The tau mixture on the dashboard (retrospective sensitivity)
+
+Every replay whose real-order raw data is on the SSD now carries a third thin dashed line, `mix` ("tau mixture over earlier nights (chosen after the result was known)"), next to the
+headline model (v1, solid) and, where it exists, the recalibrated v2. Nothing about v1 changed (`analysis/mix_verify_v1.py` compares every published v1 field with git HEAD).
+
+- **What it is.** The point forecast is the base model (`brunder.nowcast`, rho 0.8, kappa 50,000). The uncertainty is an equal-weight mixture, one component per *earlier* count night, each at the reporting-order error `tau`
+  that night needed (smallest grid value whose own 90% band held its final share; `nowcast_order.needed_tau`). It is chronological: a night uses only nights dated strictly before it from the nine real-order nights of
+  this review (Mexico 2012 and 2018 are the first two, so Brazil 2022 round 1 has two components, Brazil 2026 runoff eight). Brazilian state races and the six governor runoffs use the same taus on their own margins.
+  The `tau` components of each night are in `stats.sensitivities.mix.training`. v1's own numbers are reproduced exactly by the same code at v1's `tau` (max difference 0.0000 in share and sd on Brazil and Mexico; Poland differs only because v1 used kappa 100,000).
+- **Why "chosen after the result was known".** The mixture was proposed by this review after the 2026 results were in, so it is a labelled sensitivity, not a forecast made in advance, even though no night's own result enters its own mixture.
+- **Australia and Hungary** have no reporting-order `tau`; they use their own error floors, mixed over their earlier nights (docs/australia.md, docs/hungary.md). **Germany** has one replayable earlier night (2021) and an error parameter that is not a `tau`, so a mixture would be v1/v2 relabelled: not built.
+- **Where the numbers are.** `site/data/<id>/stats.json`: `sensitivities.mix` and `sensitivities.v2` (the legacy single sensitivity, recomputed by the same code from the timeline, so its coverage can differ in the third decimal from the published v2 figure: Brazil R1 27% vs 28%),
+  timeline rows `P_sens_mix` / `share_sens_mix` / `sd_sens_mix` (sd = band / 3.29), meta `sensitivities`. "Original" below is the published v1 (`calibration`, `lead_contested`).
+  Lead is the median over contested markets of the market's minute to 90% minus the model's, from the 1% gate; the homepage shows the same table.
+
+| election | headline | 90% band held: original / v2 / mixture | mean over share races: v2 / mixture | lead on contested markets, min (n): original / v2 / mixture |
+|---|---|---|---|---|
+| au2025 | most-alp | 10% / 79% / 18% | 65% / 100% | +109 (21) / +109 (21) / +109 (21) |
+| br2022r1 | br | 100% / 100% / 100% | 100% / 100% | – / – / – |
+| br2022r2 | br | 100% / 71% / 100% | 71% / 100% | – / – / – |
+| br2026r1 | br | 94% / 27% / 100% | 79% / 87% | +38 (6) / +57 (6) / +38 (6) |
+| br2026r2 | br | 100% / 100% / 100% | 95% / 96% | +80 (9) / +84 (10) / +84 (10) |
+| br2026r2gov | all governor races | – / – / – | 98% / 99% | +32 (2) / +46 (2) / +32 (2) |
+| hu2026 | list | 100% / 98% / 98% | 99% / 99% | +32 (4) / +19 (4) / +19 (4) |
+| mx2024 | mx | 10% / 14% / 13% | 14% / 13% | – / – / – |
+| pl2025r1 | winner | 100% / – / 100% | – / 100% | -90 (1) / – / +46 (1) |
+| pl2025r2 | winner | 46% / 100% / 77% | 100% / 77% | +46 (3) / -126 (3) / +42 (3) |
+
+Reading it (all retrospective; the first three columns of the headline race are minute-weighted over 1 to 95% counted):
+
+- The mixture keeps the band at or near the target on the Brazilian nights (round 1: 94% original, 27% v2, 100% mixture) and keeps the early lead of the original (+38 min on round 1, +84 on the runoff), which the recalibrated v2 reached only on round 1 by also becoming over-confident.
+- Poland's runoff is the case this was built for: the original was early and over-confident (46% coverage, +46 min), the pooled v2 safe and late (100%, −126 min), the mixture in between (77%, +42 min). It still misses the 90% target.
+- It does not fix Mexico 2024 (13%): that night's error is a target mismatch (PREP vs the official count), not a reporting-order `tau`. Australia's seat count stays outside the band (18% against 10% original; the two-party share is inside, 100%).
+- Hungary's leads are not like for like: v1's `lead_contested` includes one market (margin9) whose published lead is +5,551 minutes, which the single-code recomputation of v2 and the mixture does not reproduce (it gives −57). Compare the mixture with v2 there.
+- Seven to ten scored nights, four countries: this shows the shape of the trade-off, not a forward result.
+
+Reproduce (needs the SSD; ~1 min per night):
+
+    export BRUNDER_DATA=~/brunder-data-local
+    uv run python analysis/model_review_frames.py                 # stage-1 frames (once)
+    uv run python analysis/mix_replay.py [br2026r1 ...]           # Brazil, Mexico 2024, Poland; writes site/data/<id>/
+    uv run python analysis/decided_stats.py br2026r1 ...
+    uv run python analysis/mix_verify_v1.py br2026r1 ...          # v1 fields identical to git HEAD
+    uv run python analysis/mix_table.py                           # the table above, from stats.json
+    uv run python -m pytest -q tests/test_sens_export.py

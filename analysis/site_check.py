@@ -89,6 +89,7 @@ def cases() -> list[Case]:
     # Map checks (desktop only): the homepage's maps, then every election's map
     out.append(Case("maps-home", "", "maps"))
     out.extend(Case(f"maps-{e['id']}", e["id"], "maps") for e in map_audit.elections() if not map_audit.mapless(e["id"]))
+    out.extend(sens_cases())
     return out
 
 
@@ -269,6 +270,216 @@ async def check_home_card(page: Page) -> list[str]:
     return fails
 
 
+# --- Model sensitivities (thin dashed lines: v2, mix) and the homepage's original / recalibrated / mixture comparison ---
+# Expectations are registered only for data that is published: an election with a mixture in its stats.json
+# (br2026r1) must draw the v2 and mix lines, chips and table columns; an election with only the legacy v2 must
+# still draw v2 (a real one if any exists, else br2026r1 with its new sensitivities hidden by route interception).
+DATA = SITE / "data"
+SENS_ELECTION = "br2026r1"
+HOME_MIX_MIN_ROWS = 5
+SENS_CASE_KEYS: dict[str, list[str]] = {}
+
+
+def _read_json(path: Path) -> Any:
+    try:
+        import json
+
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def mix_elections() -> list[str]:
+    """Elections whose published stats.json carries the mixture sensitivity."""
+    out = []
+    for d in sorted(DATA.iterdir()) if DATA.is_dir() else []:
+        stats = _read_json(d / "stats.json") if d.is_dir() else None
+        if isinstance(stats, dict) and (stats.get("sensitivities") or {}).get("mix"):
+            out.append(d.name)
+    return out
+
+
+def legacy_only_elections() -> list[str]:
+    """Elections with the legacy single sensitivity (meta.sensitivity) and no meta.sensitivities."""
+    out = []
+    for d in sorted(DATA.iterdir()) if DATA.is_dir() else []:
+        meta = _read_json(d / "meta.json") if d.is_dir() else None
+        if isinstance(meta, dict) and meta.get("sensitivity") and not meta.get("sensitivities"):
+            out.append(d.name)
+    return out
+
+
+SYNTH_LEGACY = f"legacy-v2-{SENS_ELECTION}"
+
+
+def sens_cases() -> list[Case]:
+    out = []
+    if SENS_ELECTION in mix_elections():
+        out.append(Case("br2026r1-sens", f"election.html?{urlencode({'id': SENS_ELECTION})}", "election"))
+        SENS_CASE_KEYS["br2026r1-sens"] = ["v2", "mix"]
+    legacy = legacy_only_elections()
+    if legacy:
+        out.append(Case(f"legacy-v2-{legacy[0]}", f"election.html?{urlencode({'id': legacy[0]})}", "election"))
+        SENS_CASE_KEYS[out[-1].name] = ["v2"]
+    elif (_read_json(DATA / SENS_ELECTION / "meta.json") or {}).get("sensitivity"):
+        out.append(Case(SYNTH_LEGACY, f"election.html?{urlencode({'id': SENS_ELECTION})}", "election"))
+        SENS_CASE_KEYS[SYNTH_LEGACY] = ["v2"]
+    return out
+
+
+async def install_sens_routes(page: Page, case: Case) -> None:
+    """The synthesised legacy case: serve br2026r1's meta.json without its new `sensitivities` list."""
+    if case.name != SYNTH_LEGACY:
+        return
+
+    async def drop_new(route: Any) -> None:
+        response = await route.fetch()
+        body = await response.json()
+        body.pop("sensitivities", None)
+        await route.fulfill(response=response, json=body)
+
+    await page.route(f"**/data/{SENS_ELECTION}/meta.json", drop_new)
+
+
+SENS_CHECK = r"""async ({ id, keys }) => {
+  const fails = [];
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const until = async (f, n = 60) => { for (let i = 0; i < n; i++) { const v = f(); if (v) return v; await wait(100); } return f(); };
+  const btn = document.querySelector('#tl-view button[data-view="chance"]');
+  if (btn && btn.getAttribute("aria-pressed") !== "true") btn.click();
+  const svg = await until(() => document.querySelector("#timeline svg"));
+  if (!svg) return ["no timeline drawing"];
+  await until(() => document.querySelector("#timeline svg path.sens-line"));
+  const raceId = document.querySelector("#race").value;
+  const tl = await (await fetch(`data/${id}/timeline.json`)).json();
+  const rows = tl[raceId] ?? [];
+  const col = (k) => (k === "v2" ? "P_sensitivity" : `P_sens_${k}`);
+  // (a) one thin dashed path per sensitivity, each with its own pattern, and a direct end label
+  const lines = [...document.querySelectorAll("#timeline svg path.sens-line")];
+  const got = lines.map((p) => [...p.classList].find((c) => c.startsWith("sens-") && c !== "sens-line")?.slice(5));
+  for (const k of keys) if (!got.includes(k)) fails.push(`${id}: no dashed ${k} path in the timeline (got ${got})`);
+  for (const k of got) if (!keys.includes(k)) fails.push(`${id}: unexpected dashed ${k} path`);
+  if (lines.length !== keys.length) fails.push(`${id}: ${lines.length} dashed sensitivity paths, expected ${keys.length}`);
+  const dashes = lines.map((p) => p.getAttribute("stroke-dasharray"));
+  if (new Set(dashes).size !== dashes.length || dashes.some((d) => !d)) fails.push(`${id}: sensitivity dash patterns are not distinct: ${dashes}`);
+  for (const p of lines) {
+    if (!(p.getAttribute("d") ?? "").includes("L") && !(p.getAttribute("d") ?? "").includes("H") && !(p.getAttribute("d") ?? "").includes("V")) fails.push(`${id}: a sensitivity path is empty`);
+    if (+p.getAttribute("stroke-width") > 1.2) fails.push(`${id}: a sensitivity path is not thin`);
+  }
+  const labels = [...document.querySelectorAll("#timeline svg text.end-label")].map((t) => (t.firstChild?.textContent ?? "").trim());
+  for (const k of keys) if (!labels.includes(k)) fails.push(`${id}: no end label "${k}" (labels ${labels})`);
+  // (b) the headline line is unchanged: a solid, 2 px model path
+  const solid = [...document.querySelectorAll("#timeline svg path")].filter((p) => p.getAttribute("stroke") === "#c4501b" && p.getAttribute("stroke-width") === "2" && !p.getAttribute("stroke-dasharray"));
+  if (!solid.length) fails.push(`${id}: no solid model path`);
+  // scrub to a minute and compare the chip with the published timeline row
+  const ok = (d) => keys.every((k) => d[col(k)] != null) && (d.P_v2 ?? d.P) != null;
+  const open = (x) => x != null && x > 0.05 && x < 0.95; // a minute where nothing is settled, so the chip shows values
+  const early = rows.filter((d) => ok(d) && d.counted >= 0.05 && open(d.P_v2 ?? d.P) && (d.pm == null || open(d.pm)));
+  // a minute where no market is settled; an election whose market was settled from the start shows no values chip, so only the lines, table and text are checked
+  const row = early[0] ?? rows.find((d) => ok(d) && open(d.P_v2 ?? d.P) && (d.pm == null || open(d.pm)));
+  if (!rows.some((d) => keys.every((k) => d[col(k)] != null))) return [...fails, `${id}: no timeline row of ${raceId} carries ${keys.map(col)}`];
+  if (row) {
+    window.__dashAudit.setTime(Date.parse(row.t));
+    const chip = await until(() => { const c = document.querySelector("#readout .chip.ro-ch"); return c && /^Chance:/.test(c.querySelector("small")?.textContent ?? "") ? c : null; });
+    if (!chip) return [...fails, `${id}: no Chance chip with values at ${row.t} (readout: ${document.querySelector("#readout").innerText.slice(0, 120)})`];
+    const names = chip.querySelector("small").textContent.replace(/^Chance:\s*/, "").split(" · ").map((x) => x.trim());
+    const vals = [...chip.querySelectorAll("b > span")].map((x) => x.textContent.trim());
+    const byName = Object.fromEntries(names.map((n, i) => [n, vals[i]]));
+    const f2 = (x) => x.toFixed(2);
+    if (byName.model !== f2(row.P_v2 ?? row.P)) fails.push(`${id}: chip model ${byName.model} is not the timeline's ${f2(row.P_v2 ?? row.P)} at ${row.t}`);
+    for (const k of keys) {
+      if (!(k in byName)) fails.push(`${id}: chip has no ${k} (${names})`);
+      else if (byName[k] !== f2(row[col(k)])) fails.push(`${id}: chip ${k} ${byName[k]} is not the timeline's ${f2(row[col(k)])} at ${row.t}`);
+    }
+    if (keys.length === 1 && names.includes("mix")) fails.push(`${id}: chip shows mix for an election without it`);
+  } else if (keys.includes("mix")) fails.push(`${id}: no unsettled minute to compare the chip with the timeline`);
+  // races table: one sortable column per key, headed by the key
+  const heads = [...document.querySelectorAll("#pane-races table.races thead th button")];
+  for (const k of keys) {
+    const b = heads.find((h) => h.dataset.key === `sens_${k}`);
+    if (!b || b.textContent.trim() !== k) { fails.push(`${id}: races table has no "${k}" column`); continue; }
+    const idx = heads.indexOf(b);
+    const cellsOf = () => [...document.querySelectorAll("#pane-races table.races tbody tr")].map((tr) => tr.children[idx]?.textContent.trim());
+    await until(() => cellsOf().some((c) => /^\d(\.\d+)?$/.test(c)), 30); // the list refreshes at most every 200 ms
+    const cells = cellsOf();
+    if (!cells.some((c) => /^\d(\.\d+)?$/.test(c))) fails.push(`${id}: the ${k} column has no numbers (${cells.slice(0, 4)})`);
+    b.click();
+    if (b.parentElement.getAttribute("aria-sort") === "none") fails.push(`${id}: the ${k} column does not sort`);
+  }
+  // method tab: one sentence per sensitivity
+  document.querySelector("#tab-method").click();
+  const method = document.querySelector("#pane-method").innerText;
+  if (!/thin dashed lines are sensitivities/i.test(method)) fails.push(`${id}: method tab has no sensitivities sentence`);
+  for (const k of keys) if (!new RegExp(`${k}\\s*=`).test(method)) fails.push(`${id}: method tab does not explain ${k}`);
+  document.querySelector("#tab-races").click();
+  return fails;
+}"""
+
+
+async def check_sens(page: Page, case: Case, keys: list[str]) -> list[str]:
+    eid = case.path.split("id=")[-1].split("&")[0]
+    try:
+        return await page.evaluate(SENS_CHECK, {"id": eid, "keys": keys})
+    except Exception as error:
+        return [f"{case.name}: sensitivity check failed: {error}"]
+
+
+HOME_MIX_CHECK = r"""async (minRows) => {
+  const fails = [];
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let i = 0; i < 100 && !(document.querySelector("#chart-mix-cov svg") && document.querySelector("#chart-mix-lead svg")); i++) await wait(100);
+  const sec = document.querySelector("#ev-mix");
+  if (!sec || sec.hidden) return ["homepage mixture section is hidden"];
+  if (!/^Original vs recalibrated vs mixture: 90% band coverage and lead over the market$/.test(sec.querySelector("h2").textContent.trim())) fails.push("mixture section title changed");
+  const rows = [...document.querySelectorAll("#mix-table tbody tr")];
+  if (rows.length < minRows) fails.push(`mixture table has ${rows.length} rows, expected at least ${minRows}`);
+  for (const tr of rows) {
+    const id = tr.dataset.election;
+    const cells = [...tr.children];
+    if (cells.length !== 7) { fails.push(`${id}: ${cells.length} cells in the mixture row`); continue; }
+    const st = await (await fetch(`data/${id}/stats.json`)).json();
+    const noV2 = !st.sensitivities?.v2; // an election with only a mixture (no recalibrated version) shows – for v2
+    for (const [i, c] of cells.slice(1, 4).entries()) {
+      if (noV2 && i === 1 && c.textContent.trim() === "–") continue;
+      const v = Number(c.dataset.v);
+      if (c.dataset.v == null || !Number.isFinite(v) || v < 0 || v > 1) fails.push(`${id}: coverage cell "${c.textContent}" is not a number in [0, 1]`);
+      else if (c.textContent.trim() !== `${Math.round(100 * v)}%`) fails.push(`${id}: coverage cell shows ${c.textContent} for ${v}`);
+    }
+    for (const c of cells.slice(4)) {
+      const t = c.textContent.trim();
+      if (noV2 && c === cells[5] && t === "–") continue;
+      if (t !== "–" && !(Number.isFinite(Number(c.dataset.v)) && /^[+−]?\d+ \(n \d+\)$/.test(t))) fails.push(`${id}: lead cell "${t}" is neither – nor minutes`);
+    }
+  }
+  const gov = document.querySelector('#mix-table tr[data-election="br2026r2gov"]');
+  if (gov && !/\(mean of \d+ governor races\)/.test(gov.children[0].textContent)) fails.push(`br2026r2gov row lacks "(mean of N governor races)": ${gov.children[0].textContent}`);
+  if (document.querySelectorAll("#chart-mix-cov g.row").length !== rows.length) fails.push("coverage chart rows differ from the table rows");
+  if (document.querySelectorAll("#chart-mix-lead g.row").length !== rows.length) fails.push("lead chart rows differ from the table rows");
+  if (document.querySelectorAll("#chart-mix-cov circle").length < rows.length) fails.push("coverage chart has fewer dots than rows");
+  const intro = sec.querySelector(".ev-text > p:not(.note):not(.mix-key)")?.textContent.trim() ?? "";
+  if ((intro.match(/[.!?](\s|$)/g) ?? []).length !== 2) fails.push(`mixture explanation is not two sentences: ${intro.slice(0, 80)}`);
+  const cav = document.querySelector("#ev-mix-caveat");
+  if (!cav || !cav.offsetParent || !/retrospective/i.test(cav.textContent) || !/after the result was known/i.test(cav.textContent)) fails.push("mixture caveat is missing or hidden");
+  return fails;
+}"""
+
+
+async def check_home_mix(page: Page) -> list[str]:
+    """The homepage table lists every election whose stats.json has a mixture (at least HOME_MIX_MIN_ROWS)."""
+    expected = mix_elections()
+    if not expected:
+        return []
+    try:
+        fails = await page.evaluate(HOME_MIX_CHECK, HOME_MIX_MIN_ROWS)
+        shown = await page.evaluate("[...document.querySelectorAll('#mix-table tbody tr')].map((r) => r.dataset.election)")
+    except Exception as error:
+        return [f"homepage mixture check failed: {error}"]
+    missing = sorted(set(expected) - set(shown))
+    if missing and "hidden" not in " ".join(fails):
+        fails.append(f"homepage mixture table lacks {missing}")
+    return fails
+
+
 async def check_page(
     browser: Browser,
     engine: str,
@@ -289,6 +500,7 @@ async def check_page(
         page.on("console", lambda message: result.diagnostics.append(f"console.{message.type}: {message.text}") if message.type == "error" else None)
         page.on("requestfailed", lambda request: result.diagnostics.append(f"request failed: {request.url} ({request.failure})"))
         page.on("response", lambda response: result.diagnostics.append(f"HTTP {response.status}: {response.url}") if response.status >= 400 else None)
+        await install_sens_routes(page, case)
         try:
             if case.kind == "maps":
                 entry = next((e for e in map_audit.elections() if e["id"] == case.path), None)
@@ -309,6 +521,7 @@ async def check_page(
                 result.failures.append(f"election list has only {current['rows']} rows")
             elif case.kind == "index":
                 result.failures.extend(await check_home(page))
+                result.failures.extend(await check_home_mix(page))
                 if viewport_name == "desktop":
                     result.failures.extend(await check_home_card(page))
             elif case.kind == "article" and current["articlePaths"] <= 10:
@@ -372,6 +585,8 @@ async def check_page(
                     )
                     if bad:
                         result.failures.append(f"US page shows retired model labels: {bad[:3]}")
+            if case.name in SENS_CASE_KEYS:
+                result.failures.extend(await check_sens(page, case, SENS_CASE_KEYS[case.name]))
             if screenshots and viewport_name == "desktop" and (
                 (engine == "firefox" and case.name in {"index", "br2026r2gov"})
                 or (engine == "webkit" and case.name == "us2026")

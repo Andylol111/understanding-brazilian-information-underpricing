@@ -298,3 +298,8 @@ Outputs go to `results/mexico/` (not published) and `site/data/mx2024/`:
 - `entry.json`, the landing item for the integrator to merge into `elections.json`.
 
 Code: `src/brunder/mexico.py`, with tests in `tests/test_mexico.py` on real INE rows.
+
+
+## Tau mixture (retrospective sensitivity)
+
+Mexico 2024 also carries a `mix` line: the base model with the uncertainty mixed over the reporting-order errors that the 2012, 2018 and two Brazilian 2022 nights needed (0.015, 0.02, 0, 0.005), chosen after the result was known. It does not change the picture: the official count stays outside its 90% band in 87% of minutes (coverage 13%; v1 10%, v2 14%), because this night's error is a mismatch between the PREP and the official count, not a reporting-order error. See `docs/model_review.md` section 8.

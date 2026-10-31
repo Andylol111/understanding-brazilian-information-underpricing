@@ -54,6 +54,28 @@ export const THIN_POLLS = 3;
 export const thinPolls = (n) => (n >= 1 && n <= THIN_POLLS ? n : null);
 export const thinLabel = (n) => `thin polling (${n} poll${n === 1 ? "" : "s"})`;
 export const modelP = (row) => row?.P_v2 ?? row?.P ?? null;
+// Model sensitivities (thin dashed lines next to the headline model: settings or mixtures chosen after the
+// result was known). The legacy single one is key "v2" (meta.sensitivity; timeline columns P_sensitivity, ...);
+// later ones are meta.sensitivities[] = {key, label, config, note} with columns P_sens_<key>, share_sens_<key>, sd_sens_<key>.
+// Returns [{key, label, text (label without a leading "key: "), config, note, col: {P, share, sd}, dash}], legacy v2 first; a key listed twice counts once.
+const SENS_DASH = { v2: "5,3", mix: "1.5,3" };
+const SENS_DASH_MORE = ["8,3,1.5,3", "2,2", "10,4", "4,2,1,2"];
+const SENS_CACHE = new WeakMap();
+export function sensitivitiesOf(meta) {
+  if (meta && typeof meta === "object" && SENS_CACHE.has(meta)) return SENS_CACHE.get(meta);
+  const out = [], seen = new Set();
+  const add = (s, col) => {
+    if (!s?.key || seen.has(s.key)) return;
+    seen.add(s.key);
+    out.push({ key: s.key, label: s.label ?? s.key, text: String(s.label ?? s.key).startsWith(`${s.key}:`) ? String(s.label).slice(s.key.length + 1).trim() : String(s.label ?? s.key), config: s.config ?? null, note: s.note ?? null, col, dash: SENS_DASH[s.key] ?? SENS_DASH_MORE[(out.length - 1) % SENS_DASH_MORE.length] });
+  };
+  if (meta?.sensitivity) add({ ...meta.sensitivity, key: "v2" }, { P: "P_sensitivity", share: "share_sensitivity", sd: "sd_sensitivity" });
+  for (const s of Array.isArray(meta?.sensitivities) ? meta.sensitivities : []) add(s, { P: `P_sens_${s.key}`, share: `share_sens_${s.key}`, sd: `sd_sens_${s.key}` });
+  if (meta && typeof meta === "object") SENS_CACHE.set(meta, out);
+  return out;
+}
+// a sensitivity's chance in a timeline row
+export const sensP = (row, s) => row?.[s.col.P] ?? null;
 // Cross-document view transitions (style.css @view-transition): where the browser has them, page
 // links navigate at once and the map box and header carry over; elsewhere a short fade-out first.
 export const crossDocTransitions = () => typeof window !== "undefined" && "CSSViewTransitionRule" in window;

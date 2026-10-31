@@ -457,6 +457,16 @@ main.dash { padding: 0; }
 .arb-pair code { font-size: 11px; color: var(--muted); word-break: break-all; }
 .arb-chart { width: 100%; height: auto; display: block; }
 #ev-venues { grid-template-columns: minmax(0, 1fr); }
+#ev-mix { grid-template-columns: minmax(0, 1fr); }
+#ev-mix .ev-text { max-width: 760px; }
+#ev-mix .ev-pair { margin-bottom: 18px; }
+@media (min-width: 901px) { #ev-mix .ev-pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+#ev-mix .table-scroll { overflow-x: auto; }
+.mix-key { font: 13px/1.4 var(--sans); color: var(--muted); }
+.mix-sw { display: inline-block; width: 11px; height: 11px; border: 2px solid; border-radius: 50%; margin: 0 4px 0 8px; vertical-align: -1px; }
+table.mix th.grp { text-align: center; border-bottom: 1px solid var(--rule); }
+table.mix td small { color: var(--muted); }
+table.mix td:first-child a { text-decoration: none; }
 #ev-venues .ev-text { max-width: 760px; }
 table.venues td:first-child a { text-decoration: none; }
 @media (max-width: 700px) {
