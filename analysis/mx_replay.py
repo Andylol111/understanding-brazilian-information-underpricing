@@ -70,12 +70,14 @@ def main(cfg_path: str) -> None:
     k_all = float(s["cat"]["k"].sum())
     ticks, path, frames = [], [], []
     for t, st in mexico.count_states(s["actas"], s["cat"], times):
-        r = nowcast.nowcast(st, s["prior"], p)
+        count_result = nowcast.nowcast(st, s["prior"], p)
+        r = mexico.apply_quick_count(count_result, cfg, t)
         n = float(st["n"].sum())
         raw = float(st["a"].sum()) / n if n > 0 else np.nan
         actas = float((st["f"] * s["cat"]["k"].to_numpy()).sum()) / k_all
         path.append({"t": t, "counted": r["counted_frac"], "actas": actas, "raw": raw, "share": r["share_hat"],
-                     "sd": r["share_sd"], "P": r["p_win"]})
+                     "sd": r["share_sd"], "P": r["p_win"], "count_share": count_result["share_hat"],
+                     "count_sd": count_result["share_sd"], "count_P": count_result["p_win"]})
         for scope, m in cfg["markets"].items():
             q = px[scope][:t]
             if q.empty or t > px[scope].index[-1] + pd.Timedelta(minutes=1):
@@ -86,7 +88,8 @@ def main(cfg_path: str) -> None:
             no_cost = (1 - pm) + hs + fee * pm * (1 - pm)
             ticks.append({"t": t, "scope": scope, "price": pm, **night.edges(P, yes_cost, no_cost),
                           "counted": r["counted_frac"], "scope_counted": r["counted_frac"], "share": r["share_hat"],
-                          "share_sd": r["share_sd"], "raw": raw, "actas": actas})
+                          "share_sd": r["share_sd"], "count_share": count_result["share_hat"],
+                          "count_share_sd": count_result["share_sd"], "raw": raw, "actas": actas})
         if t in fts:
             frames.append(district_frame(st, s, p).assign(t=t))
     tk, pa, fr = pd.DataFrame(ticks), pd.DataFrame(path), pd.concat(frames, ignore_index=True)

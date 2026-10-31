@@ -84,6 +84,11 @@ def main(cfg_path: str) -> None:
     fr = pd.read_parquet(res / "frames.parquet")
     fr["t"] = pd.to_datetime(fr["t"], utc=True)
     final = extra["final_share"]
+    is_quick = "quick_count" in cfg
+    page_name = "Mexico presidential election + INE quick count" if is_quick else "Mexico presidential election"
+    evidence_note = (EV_NOTE if not is_quick else
+                     "retrospective sensitivity chosen after the 2024 result was known; pure-count v1 remains the "
+                     "headline; this version adds the official INE quick estimate and is scored separately")
 
     # ---------------- timeline: poll close (18:00 central) to the last PREP cut, one row per minute
     t1 = pa["t"].iloc[-1]
@@ -124,7 +129,7 @@ def main(cfg_path: str) -> None:
                 "yes_is": m["yes_is"]} for m in cfg["markets"].values()]
     acc = stats["accuracy"]
     meta = {
-        "id": eid, "name": "Mexico presidential election", "date": cfg["election"]["date"],
+        "id": eid, "name": page_name, "date": cfg["election"]["date"],
         "tz": "America/Mexico_City", "poll_close_utc": EA._iso(POLL_CLOSE),
         "geometry": "geo/mx_districts.topo.json", "geometry_object": "districts", "unit_key": "unit_id",
         "count_timeline": True,
@@ -159,10 +164,13 @@ def main(cfg_path: str) -> None:
             f"docs/mexico.md). PREP opened at 20:00 central time (02:00 UTC) and stopped at "
             f"{100 * extra['end_of_prep']['prep_end_actas']:.1f}% of actas; the "
             "rest entered only the official cómputo days later.",
-            "Model: brunder.nowcast on 70,537 electoral sections (state = region), prior = 2018 cómputos by "
-            "section (López Obrador vs Anaya + Meade), tau = 0.01, every setting chosen on the 2018 count and "
-            "set in configs/mx2024_v1.toml. Evidence: " + EV_NOTE + ". "
-            "The map shows the section projections summed to the 300 federal districts.",
+            ("Model: brunder.nowcast on 70,537 electoral sections (state = region), prior = 2018 cómputos by "
+             "section (López Obrador vs Anaya + Meade), tau = 0.01. " +
+             ("From 05:50 UTC, the count projection is inverse-variance combined with the official INE Conteo Rápido "
+              "two-way interval (67.09-69.53%); rule fixed before replay in docs/fast_signals.md. "
+              if is_quick else "Every setting was chosen on the 2018 count and set in configs/mx2024_v1.toml. ") +
+             "Evidence: " + evidence_note + ". The map shows the pure count's section projections summed to the "
+             "300 federal districts."),
             f"Polymarket was already >= 0.9 on Sheinbaum from {stats['settle']['mx']['polymarket'][:16].replace('T', ' ')} "
             "UTC, two days before the count; the markets closed at 12:46-12:56 UTC on 3 June (Gamma closedTime), so "
             "pm is empty after that.",
@@ -175,6 +183,22 @@ def main(cfg_path: str) -> None:
             "pm = Polymarket price of the YES (= Sheinbaum) side, carried forward minute by minute. No Kalshi data.",
         ],
     }
+    if is_quick:
+        fast = stats["fast_signal"]
+        pure, quick = fast["projection"]["pure_count_v1"], fast["projection"]["quick_count"]
+        meta["sources"].insert(-1, {
+            "name": "INE, Conteo Rápido presidential estimate (national message and official release 352)",
+            "url": cfg["quick_count"]["source"],
+            "licence": "INE Términos de libre uso / máxima publicidad; accessed 2026-10-30",
+        })
+        meta["notes"].insert(0, cfg["label"] + ". Pure-count mx2024 remains the headline version.")
+        meta["notes"].insert(-2, (
+            f"After the 05:50 UTC release, mean absolute projection error was {quick['mae_pt_after_release']:.3f} "
+            f"points with the quick estimate versus {pure['mae_pt_after_release']:.3f} for pure-count v1. "
+            f"Full 1-95% coverage was {100 * quick['coverage90_1_95']:.1f}% versus "
+            f"{100 * pure['coverage90_1_95']:.1f}%; both were still far too narrow. Neither included market was "
+            "contested at 90% when the count opened, so no lead is claimed."
+        ))
     (out / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
 
     # ---------------- stats
@@ -183,13 +207,22 @@ def main(cfg_path: str) -> None:
     # ---------------- landing entry (merged by the integrator)
     e25 = acc["share_error_pt"]["mx"]["25%"]
     cov = acc["coverage90"]["mx"]["1-95%"]["coverage90"]
-    entry = {"id": eid, "name": "Mexico presidential election", "date": cfg["election"]["date"], "country": "MX",
+    if is_quick:
+        fast = stats["fast_signal"]
+        pure, quick = fast["projection"]["pure_count_v1"], fast["projection"]["quick_count"]
+        summary = (f"With official quick estimate, scored separately: after INE's 23:50 release, mean absolute "
+                   f"projection error fell from {pure['mae_pt_after_release']:.2f} to "
+                   f"{quick['mae_pt_after_release']:.2f} points, but 90% coverage remained only "
+                   f"{100 * quick['coverage90_1_95']:.0f}%. Both markets were already 90% settled before the count, "
+                   "so this is not a market-lead claim.")
+    else:
+        summary = (f"Polymarket was already 90% sure of Sheinbaum two days before the vote, so the count offered no "
+                   f"trade; at 25% counted the section model was {abs(e25['model']):.1f} points below her final "
+                   f"share (raw count {abs(e25['raw']):.1f}), but its 90% intervals held the final share in only "
+                   f"{100 * cov:.0f}% of minutes.")
+    entry = {"id": eid, "name": page_name, "date": cfg["election"]["date"], "country": "MX",
              "status": "replay", "unit_level": "federal district", "n_units": len(keys), "evidence": EVIDENCE,
-             "evidence_note": EV_NOTE,
-             "summary": (f"Polymarket was already 90% sure of Sheinbaum two days before the vote, so the count offered no "
-                         f"trade; at 25% counted the section model was {abs(e25['model']):.1f} points below her final "
-                         f"share (raw count {abs(e25['raw']):.1f}), but its 90% intervals held the final share in only "
-                         f"{100 * cov:.0f}% of minutes.")}
+             "evidence_note": evidence_note, "summary": summary}
     (out / "entry.json").write_text(json.dumps(entry, ensure_ascii=False, indent=1))
     for f in sorted(out.iterdir()):
         print(f.relative_to(ROOT), f"{f.stat().st_size / 1e3:.0f} kB")

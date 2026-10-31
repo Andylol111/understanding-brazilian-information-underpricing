@@ -161,3 +161,19 @@ def test_prep2012_rows_header_and_times():
     assert (ab["uf"], ab["cd_mun"]) == ("zz", "m01") and ab["counted"]
     sin = d.iloc[-1]
     assert not sin["counted"] and pd.isna(sin["t_verif"])                      # 'Sin acta': in the catalogue, not counted
+
+
+def test_quick_count_combines_only_after_publication():
+    r = {"share_hat": 0.67, "share_sd": 0.01, "p_win": 1.0}
+    cfg = {"quick_count": {"published_utc": "2024-06-03T05:50:00Z", "confidence": 0.95,
+                           "a_low": 0.583, "a_high": 0.607, "b_low": 0.266, "b_high": 0.286}}
+    assert mx.apply_quick_count(r, cfg, pd.Timestamp("2024-06-03T05:49:00Z")) is r
+    got = mx.apply_quick_count(r, cfg, pd.Timestamp("2024-06-03T05:50:00Z"))
+    lo, hi = 0.583 / (0.583 + 0.286), 0.607 / (0.607 + 0.266)
+    q_mean, q_sd = (lo + hi) / 2, (hi - lo) / (2 * 1.959963984540054)
+    variance = 1 / (1 / r["share_sd"] ** 2 + 1 / q_sd**2)
+    expected = variance * (r["share_hat"] / r["share_sd"] ** 2 + q_mean / q_sd**2)
+    assert got["share_hat"] == pytest.approx(expected)
+    assert got["share_sd"] == pytest.approx(np.sqrt(variance))
+    assert got["quick_count_share"] == pytest.approx(q_mean)
+    assert got["count_share_hat"] == r["share_hat"]

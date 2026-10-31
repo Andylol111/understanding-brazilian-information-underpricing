@@ -1,0 +1,67 @@
+# RETROSPECTIVE SENSITIVITY, chosen after the 2024 result was known; not preregistered.
+# Separate from the pure-count mx2024_v1 headline. Label: "with official quick estimate, scored separately".
+# Rule fixed before replay in docs/fast_signals.md: from the INE Conteo Rapido publication minute, convert its
+# candidate ranges to conservative two-way corner bounds, treat them as a 95% normal interval, and combine that
+# estimate with the unchanged count model by inverse-variance weighting.
+id = "mx2024_qc_v1"
+eid = "mx2024_qc"
+label = "with official quick estimate, scored separately"
+
+[election]
+date = "2024-06-02"
+prep = "mx2024/pres/PRES_2024.csv"
+a_cols = ["MORENA", "PT", "PVEM", "PVEM_PT_MORENA", "PVEM_PT", "PVEM_MORENA", "PT_MORENA"]
+b_cols = ["PAN", "PRI", "PRD", "PAN-PRI-PRD", "PAN-PRI", "PAN-PRD", "PRI-PRD"]
+
+[final]
+file = "mx2024c/2024_SEE_PRE_NAL_SEC.csv"
+a_cols = ["MORENA", "PT", "PVEM", "PVEM_PT_MORENA", "PVEM_PT", "PVEM_MORENA", "PT_MORENA"]
+b_cols = ["PAN", "PRI", "PRD", "PAN_PRI_PRD", "PAN_PRI", "PAN_PRD", "PRI_PRD"]
+
+[prior]
+file = "mx2018c/pres/20180708_2130_CW_presidencia/presidencia.csv"
+a_cols = ["PT", "MORENA", "ENCUENTRO SOCIAL", "PT_MORENA_PES", "PT_MORENA", "PT_PES", "MORENA_PES"]
+b_cols = ["PAN", "PRI", "PRD", "PVEM", "MOVIMIENTO CIUDADANO", "NUEVA ALIANZA", "PAN_PRD_MC", "PAN_PRD", "PAN_MC",
+          "PRD_MC", "PRI_PVEM_NA", "PRI_PVEM", "PRI_NA", "PVEM_NA"]
+
+[publication]
+opening_utc = "2024-06-03T02:00:00Z"
+step_min = 5.0
+include_min = 3.5
+delay_min = 5.0
+
+[model]
+unit = "section"
+tau = 0.01
+
+[quick_count]
+# INE official national message; the official transcript has no clock stamp. El Financiero identifies the message as
+# 23:50 central; its article is timestamped 23:55, while UnoTV's article containing the estimate is 23:49.
+source = "https://centralelectoral.ine.mx/2024/06/03/tercer-mensaje-en-cadena-nacional-de-la-consejera-presidenta-del-ine-guadalupe-taddei-con-motivo-de-la-jornada-electoral-2024/"
+published_utc = "2024-06-03T05:50:00Z"
+confidence = 0.95
+a_low = 0.583
+#a = Claudia Sheinbaum
+a_high = 0.607
+b_low = 0.266
+#b = Xochitl Galvez
+b_high = 0.286
+
+[trade]
+min_edge = 0.05
+min_counted = 0.01
+favoured_only = true
+half_spread = 0.01
+fee_rate = 0.0
+
+[markets.sheinbaum]
+event = "mexican-presidential-election-who-will-win"
+market = "mexican-presidential-election-will-claudia-sheinbaum-win"
+yes_is = "a"
+outcome = 1
+
+[markets.galvez]
+event = "mexican-presidential-election-who-will-win"
+market = "mexican-presidential-election-will-xochitl-galvez-win"
+yes_is = "b"
+outcome = 0

@@ -34,6 +34,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 
 from . import nowcast
 from .paths import RAW
@@ -331,6 +332,37 @@ def setup(cfg: dict, raw: Path = RAW) -> dict:
     return {"actas": actas, "header": hdr, "cat": cat, "prior": pri, "final_units": fin,
             "final_share": float(fin["a"].sum() / (fin["a"].sum() + fin["b"].sum()))}
 
+
+def apply_quick_count(result: dict, cfg: dict, t: pd.Timestamp) -> dict:
+    """Combine a configured official quick estimate with the count estimate after its release.
+
+    Candidate ranges are converted to conservative A/(A+B) corner bounds, represented as a normal interval at the
+    stated confidence level, and combined with the count model by inverse-variance weighting.  The original result is
+    returned before release (and when the count variance is zero).
+    """
+    q = cfg.get("quick_count")
+    if not q or t < pd.Timestamp(q["published_utc"]) or result["share_sd"] <= 0:
+        return result
+    lo = q["a_low"] / (q["a_low"] + q["b_high"])
+    hi = q["a_high"] / (q["a_high"] + q["b_low"])
+    z = norm.ppf(0.5 + q["confidence"] / 2)
+    q_mean = (lo + hi) / 2
+    q_sd = (hi - lo) / (2 * z)
+    count_var, quick_var = result["share_sd"] ** 2, q_sd**2
+    variance = 1 / (1 / count_var + 1 / quick_var)
+    share = variance * (result["share_hat"] / count_var + q_mean / quick_var)
+    out = dict(result)
+    out.update({
+        "share_hat": share,
+        "share_sd": float(np.sqrt(variance)),
+        "p_win": float(norm.cdf((share - 0.5) / np.sqrt(variance))),
+        "count_share_hat": result["share_hat"],
+        "count_share_sd": result["share_sd"],
+        "count_p_win": result["p_win"],
+        "quick_count_share": q_mean,
+        "quick_count_sd": q_sd,
+    })
+    return out
 
 def national_path(s: dict, p: nowcast.Params, times: pd.DatetimeIndex) -> pd.DataFrame:
     """One row per time: counted (model share of expected two-way votes counted), actas (share of expected actas

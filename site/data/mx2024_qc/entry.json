@@ -1,0 +1,12 @@
+{
+ "id": "mx2024_qc",
+ "name": "Mexico presidential election + INE quick count",
+ "date": "2024-06-02",
+ "country": "MX",
+ "status": "replay",
+ "unit_level": "federal district",
+ "n_units": 300,
+ "evidence": "not-preregistered",
+ "evidence_note": "retrospective sensitivity chosen after the 2024 result was known; pure-count v1 remains the headline; this version adds the official INE quick estimate and is scored separately",
+ "summary": "With official quick estimate, scored separately: after INE's 23:50 release, mean absolute projection error fell from 0.80 to 0.66 points, but 90% coverage remained only 11%. Both markets were already 90% settled before the count, so this is not a market-lead claim."
+}

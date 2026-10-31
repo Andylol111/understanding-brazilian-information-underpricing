@@ -209,5 +209,17 @@
   "n_units": 299,
   "evidence": "not-preregistered",
   "summary": "Retrospective replay from the Bundeswahlleiterin's archived night pages (15 national pages, 177 Wahlkreis pages). Polymarket was already above 0.9 on the outcome at poll close on 42 of 46 markets; on the 4 it had not settled, the count model settled first on 1 (BSW under 5%: +6 min) and its probabilities scored worse than the market's on 37 of 46."
+ },
+ {
+  "id": "mx2024_qc",
+  "name": "Mexico presidential election + INE quick count",
+  "date": "2024-06-02",
+  "country": "MX",
+  "status": "replay",
+  "unit_level": "federal district",
+  "n_units": 300,
+  "evidence": "not-preregistered",
+  "evidence_note": "retrospective sensitivity chosen after the 2024 result was known; pure-count v1 remains the headline; this version adds the official INE quick estimate and is scored separately",
+  "summary": "With official quick estimate, scored separately: after INE's 23:50 release, mean absolute projection error fell from 0.80 to 0.66 points, but 90% coverage remained only 11%. Both markets were already 90% settled before the count, so this is not a market-lead claim."
  }
 ]

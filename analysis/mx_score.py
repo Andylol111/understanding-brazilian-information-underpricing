@@ -171,6 +171,93 @@ def profit(cfg: dict, BR: pd.DataFrame) -> tuple[dict, list[dict]]:
     return block, rows
 
 
+def fast_signal_stats(cfg: dict, pa: pd.DataFrame, final: float) -> dict | None:
+    """Comparison block for a separately scored official quick-estimate version."""
+    q = cfg.get("quick_count")
+    if not q:
+        return None
+    release = pd.Timestamp(q["published_utc"])
+    post = pa["t"] >= release
+    counted = pa["counted"].between(0.01, 0.95, inclusive="right")
+    lo = q["a_low"] / (q["a_low"] + q["b_high"])
+    hi = q["a_high"] / (q["a_high"] + q["b_low"])
+
+    def projection(name: str, share: pd.Series, sd: pd.Series) -> dict:
+        z = (final - share) / sd
+        return {
+            "mae_pt_after_release": EA._r(100 * (share[post] - final).abs().mean(), 3),
+            "coverage90_after_release": EA._r((z[post].abs() < 1.645).mean(), 3),
+            "coverage90_1_95": EA._r((z[counted].abs() < 1.645).mean(), 3),
+            "error_pt_at_release": EA._r(100 * (share[post].iloc[0] - final), 3),
+            "name": name,
+        }
+
+    def threshold_times(t: pd.Series, p: pd.Series, threshold: float) -> dict:
+        ok = p >= threshold
+        first = t[ok.to_numpy()].iloc[0] if ok.any() else pd.NaT
+        stable = EA.settle(t, ok)
+        opening = pa["t"].iloc[0]
+        return {"first": _iso(first), "stable": _iso(stable),
+                "minutes_from_count_open": None if pd.isna(stable) else int((stable - opening).total_seconds() / 60)}
+
+    markets = {}
+    brier = {"quick_count_model": [], "pure_count_v1": [], "polymarket": []}
+    brier_contested = {k: [] for k in brier}
+    for scope, market in cfg["markets"].items():
+        quick_yes = pa["P"] if market["yes_is"] == "a" else 1 - pa["P"]
+        count_yes = pa["count_P"] if market["yes_is"] == "a" else 1 - pa["count_P"]
+        quick_resolved = quick_yes if market["outcome"] else 1 - quick_yes
+        count_resolved = count_yes if market["outcome"] else 1 - count_yes
+        price = market_series(cfg, scope)
+        price_t = pd.Series(price.index)
+        market_resolved = price if market["outcome"] else 1 - price
+        rows = {}
+        for threshold in (0.90, 0.95):
+            key = str(int(threshold * 100))
+            rows[key] = {
+                "quick_count_model": threshold_times(pa["t"], quick_resolved, threshold),
+                "pure_count_v1": threshold_times(pa["t"], count_resolved, threshold),
+                "polymarket": threshold_times(price_t, pd.Series(market_resolved.to_numpy()), threshold),
+            }
+        market_minutes = rows["90"]["polymarket"]["minutes_from_count_open"]
+        markets[scope] = {
+            "contested_at_90_when_count_opened": market_minutes is None or market_minutes >= 0,
+            "thresholds": rows,
+        }
+        grid = pd.DatetimeIndex(pa["t"])
+        pm = price.reindex(price.index.union(grid)).ffill().reindex(grid)
+        pm[grid > price.index[-1] + pd.Timedelta(minutes=1)] = np.nan
+        pm_resolved = pm if market["outcome"] else 1 - pm
+        valid = pm_resolved.notna()
+        scores = {
+            "quick_count_model": ((1 - quick_resolved[valid.to_numpy()]) ** 2).tolist(),
+            "pure_count_v1": ((1 - count_resolved[valid.to_numpy()]) ** 2).tolist(),
+            "polymarket": ((1 - pm_resolved[valid]) ** 2).tolist(),
+        }
+        for name, values in scores.items():
+            brier[name].extend(values)
+            if markets[scope]["contested_at_90_when_count_opened"]:
+                brier_contested[name].extend(values)
+
+    return {
+        "label": cfg["label"],
+        "published_utc": _iso(release),
+        "two_way_interval": {"low": EA._r(lo, 6), "high": EA._r(hi, 6),
+                             "midpoint": EA._r((lo + hi) / 2, 6)},
+        "projection": {
+            "pure_count_v1": projection("pure count v1", pa["count_share"], pa["count_sd"]),
+            "quick_count": projection("v1 + official quick count", pa["share"], pa["sd"]),
+        },
+        "markets": markets,
+        "contested_market_count": sum(v["contested_at_90_when_count_opened"] for v in markets.values()),
+        "brier_from_count_open": {k: EA._r(np.mean(v), 6) for k, v in brier.items()},
+        "brier_contested_markets": ({k: EA._r(np.mean(v), 6) for k, v in brier_contested.items()}
+                                      if any(brier_contested.values()) else None),
+        "note": "Markets already settled at 90% before count opening are classified as decided before the count; "
+                "their negative minute values are not model leads.",
+    }
+
+
 def standard_stats(cfg: dict, tk: pd.DataFrame, pa: pd.DataFrame, fin: dict) -> dict:
     final = fin["final_share"]
     rows = pa.copy()
@@ -213,6 +300,9 @@ def standard_stats(cfg: dict, tk: pd.DataFrame, pa: pd.DataFrame, fin: dict) -> 
                     "catchup.kalshi": "no Kalshi data (Kalshi data licence, docs/kalshi.md)",
                     "capacity.kalshi": "no Kalshi data (Kalshi data licence, docs/kalshi.md)"},
     }
+    fast = fast_signal_stats(cfg, pa, final)
+    if fast:
+        stats["fast_signal"] = fast
     return stats
 
 
