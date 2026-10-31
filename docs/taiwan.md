@@ -74,24 +74,38 @@ attributed derivative. Raw 4-11 MB official JSON files remain under `$BRUNDER_DA
 
 The unit is the **li** (里, neighborhood), the smallest stable administrative unit shared by all three historical
 elections; polling-station numbers and boundaries change. There are 456 li pooled through a citywide swing, with
-12 districts retained as dashboard regions.
+12 districts retained as dashboard regions. The map uses the Ministry of the Interior NLSC village boundary map
+(https://data.gov.tw/dataset/7438; Open Government Data License 1.0), fetched from WFS `WFS:VILLAGE_NLSC` in
+16 permitted 10 km requests and simplified by `analysis/tw_geo.py` to `site/data/geo/tw_taipei_li.topo.json`
+(456 matching li ids, 0.15 MB).
 
 The 2022 lane mapping is Chiang/KMT, Chen/DPP, Huang/TPP-aligned independent, and all others. Because no TPP
 candidate registered in 2026, Huang's spatial profile transfers 80% to KMT and 20% to DPP. This was frozen from
 public cross-tabs: 75% of TPP identifiers backed Chiang and 16% Shen in the October UDN survey; an earlier public
-survey reported 88.5% for Chiang. Each resulting li profile is multiplicatively raked to the poll target.
+survey reported 88.5% for Chiang. Before raking, this 2022 profile implies Chiang 61.2% and Shen 36.2%; each li
+profile is then multiplicatively raked to the poll target below.
 
-Public polls exist, so the model uses a poll prior. Two October polls available before freeze were averaged:
+Public polls exist, so the model uses a poll prior. Two October headline vote-intention polls available before
+freeze are used:
 
-| Field dates / source | n | Chiang | Shen |
-|---|---:|---:|---:|
-| Oct 20-22 and 25, UDN (reported by Taiwan News) | 1,115 | 41.0% | 45.0% |
-| Oct 14-16, Taipei Trust in Democracy / Beacon | 1,075 | 33.3% | 50.3% |
+| Field dates / source | n | Chiang | Shen | Others/undecided |
+|---|---:|---:|---:|---:|
+| Oct 20-22 and 25, UDN (reported by Taiwan News) | 1,115 | 41.0% | 45.0% | 14.0% |
+| Oct 14-16, Taipei Trust in Democracy / Beacon | 1,075 | 33.3% | 50.3% | 16.4% |
 
-Their named-candidate ratio is normalized to 98%; the four minor candidates receive 2% in the explicit September
-proportions. Frozen expected vote: Chiang 42.58%, Shen 55.42%, Kuo 0.67%, Tang 0.57%, Hsiao 0.48%, Lin 0.28%.
-Pre-count uncertainty is six share points, larger than the leading-candidate misses in the 2018 and 2022 polls.
-Market prices do not enter the model.
+Their mean Chiang share of Chiang+Shen is 43.75%. In the 2018 and 2022 Taipei polls used for calibration, KMT's
+share against the leading rival was understated by 5.66 and 4.81 points; `poll_target` adds the mean, 5.23 points,
+giving Chiang 48.99% of the two leading candidates. Named candidates receive 98%; the four minor candidates receive
+2% in the September Beacon/Taipei Trust in Democracy proportions (Kuo 0.7, Tang 0.6, Hsiao 0.5, Lin 0.3). Frozen
+expected vote: Chiang 48.01%, Shen 49.99%, Kuo 0.67%, Tang 0.57%, Hsiao 0.48%, Lin 0.29%; P(Chiang)=0.41.
+Without the historical bias correction the same polls give Chiang 42.88% and P(Chiang)≈0.07. Pre-count uncertainty
+remains six share points per candidate (an 8.5-point Chiang-Shen margin sd under the independent draw). Market
+prices do not enter the model.
+
+**Disclosure (decided before any 2026 count, 2026-10-30):** the historical poll-bias correction was added after the
+first version of the model gave Chiang 0.07 against market prices of about 0.67. The correction uses only 2018 and
+2022 Taipei polls and results (no 2026 result), but the decision to add it was prompted by the gap to the market,
+which the registration states. Both numbers are recorded: without the correction P(Chiang) ≈ 0.07, with it 0.41.
 
 For each release, the model:
 

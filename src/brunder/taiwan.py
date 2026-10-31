@@ -34,6 +34,13 @@ DISTRICT_CODES = {
     "090": "南港區", "100": "內湖區", "110": "士林區", "120": "北投區",
 }
 COLORS = {"KMT": "#000095", "DPP": "#1B9431", "OTHER": "#777777"}
+# Public pre-election polls used only to measure past Taipei poll error.
+HISTORICAL_POLLS = {
+    # Mean of the two 2018 polls reported by Taipei Times 2018-09-18, normalized over named choices.
+    2018: {"KMT": .384, "DPP": .119, "TPP": .485, "OTHER": .012},
+    # RWNews 2022-11-01/05 topline (36 Chiang, 33 Chen, 28 Huang; remainder other).
+    2022: {"KMT": .36, "DPP": .33, "TPP": .28, "OTHER": .03},
+}
 
 
 def load_config(path: Path | str) -> dict:
@@ -72,6 +79,36 @@ def _rake_profiles(profiles: np.ndarray, volume: np.ndarray, target: np.ndarray)
     return p / p.sum(axis=1, keepdims=True)
 
 
+def kmt_two_way_poll_bias(history: pd.DataFrame | None = None) -> float:
+    """Mean official-minus-poll KMT share against the leading rival in previous Taipei mayoral polls."""
+    d = load_history() if history is None else history
+    totals = d.groupby("year")[list(PARTIES)].sum()
+    errors = []
+    for year, poll in HISTORICAL_POLLS.items():
+        rival = max(("DPP", "TPP"), key=poll.get)
+        polled = poll["KMT"] / (poll["KMT"] + poll[rival])
+        actual = totals.loc[year, "KMT"] / (totals.loc[year, "KMT"] + totals.loc[year, rival])
+        errors.append(actual - polled)
+    return float(np.mean(errors))
+
+
+def poll_target(cfg: dict, history: pd.DataFrame | None = None) -> np.ndarray:
+    """Frozen candidate shares: mean two-candidate poll split plus past Taipei KMT poll bias."""
+    poll = cfg["poll"]
+    chiang, shen = poll["kmt_candidate"], poll["dpp_candidate"]
+    two_way = np.mean([x[chiang] / (x[chiang] + x[shen]) for x in poll["polls"]])
+    kmt = two_way + kmt_two_way_poll_bias(history)
+    named = 1 - float(poll["minor_total"])
+    minor = poll["minor_weights"]; minor_sum = sum(minor.values())
+    shares = {chiang: named * kmt, shen: named * (1 - kmt)}
+    shares.update({k: float(poll["minor_total"]) * v / minor_sum for k, v in minor.items()})
+    ids = [c["id"] for c in cfg["candidates"]]
+    if set(shares) != set(ids):
+        raise ValueError("poll target must cover exactly the configured candidates")
+    return np.array([shares[k] for k in ids])
+
+
+
 def prior_units(cfg: dict, history: pd.DataFrame | None = None) -> pd.DataFrame:
     """Build 2026 candidate profiles from official 2022 li results and the frozen poll target."""
     old = historical_units(int(cfg["prior"]["year"]), history)
@@ -89,9 +126,7 @@ def prior_units(cfg: dict, history: pd.DataFrame | None = None) -> pd.DataFrame:
         raw.append(x + 1.0)
     raw = np.column_stack(raw)
     raw /= raw.sum(axis=1, keepdims=True)
-    target = np.array([float(c["prior_share"]) for c in cands])
-    if not np.isclose(target.sum(), 1, atol=1e-6):
-        raise ValueError("candidate prior_share values must sum to one")
+    target = poll_target(cfg, history)
     p = _rake_profiles(raw, old["valid"].to_numpy(float), target)
     out = old[["district_name", "li_name", "valid", "stations"]].rename(columns={"valid": "V0"}).copy()
     out["region"] = [f"tw-{x}" for x in out.index.str.split("-").str[1]]
@@ -359,7 +394,8 @@ def meta(cfg: dict, phase: str, probs: dict[str, float], info: dict[str, dict] |
                       **({"precount": {"P": _r(probs[c["id"]])}} if phase == "pre-count" else {})})
     regions = [{"id": f"tw-{code}", "name": name} for code, name in DISTRICT_CODES.items()]
     return {"id": EID, "name": NAME, "date": "2026-11-28", "country": "TW", "country_name": "Taiwan",
-            "tz": "Asia/Taipei", "phase": phase, "poll_close_utc": POLL_CLOSE, "unit_key": "unit_id",
+            "tz": "Asia/Taipei", "phase": phase, "poll_close_utc": POLL_CLOSE,
+            "geometry": "geo/tw_taipei_li.topo.json", "geometry_object": "li", "unit_key": "unit_id",
             "count_timeline": True, "regions": regions,
             "parties": [{"id": c["id"], "name": c["name"], "color": c["color"]} for c in cfg["candidates"]],
             "races": races, "sources": [
@@ -367,11 +403,15 @@ def meta(cfg: dict, phase: str, probs: dict[str, float], info: dict[str, dict] |
                  "licence": "Government open data; Taiwan Government Data Open Licence 1.0"},
                 {"name": "CEC election database, 2014/2018/2022", "url": "https://db.cec.gov.tw/",
                  "licence": "Taiwan Government Data Open Licence 1.0"},
-                {"name": "Public pre-election polls", "url": cfg["poll"]["source"], "licence": "reported toplines"},
+                {"name": "Ministry of the Interior NLSC village boundary map", "url": "https://data.gov.tw/dataset/7438",
+                 "licence": "Open Government Data License, version 1.0"},
+                *({"name": f"Poll: {p['pollster']} ({p['fieldwork']})", "url": p["url"], "licence": "reported topline"}
+                  for p in cfg["poll"]["polls"]),
                 {"name": "Polymarket CLOB", "url": "https://polymarket.com", "licence": "public market data"},
                 {"name": "© Kalshi order books", "url": "https://kalshi.com", "licence": "© Kalshi; see docs/kalshi.md"}],
             "notes": ["counted is the projected share of valid mayoral votes counted; f on the map is polling stations received within each li.",
                       "The 2022 TPP-aligned Huang vote is transferred 80% to KMT and 20% to DPP before raking to the frozen public-poll prior.",
+                      f"The poll prior adds the mean 2018/2022 Taipei KMT two-candidate poll understatement ({100 * kmt_two_way_poll_bias():.1f} points).",
                       "Historical count orders are simulated because CEC does not preserve timestamped election-night sequences.",
                       f"Model frozen before polls close ({Path(cfg['_path']).name}); evidence is forward."],
             "n_units": 456}

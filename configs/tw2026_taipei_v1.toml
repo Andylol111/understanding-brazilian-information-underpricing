@@ -20,11 +20,30 @@ public_file = "data_public/tw_taipei_mayor_2014_2022.csv"
 tpp_to_kmt = 0.80
 
 [poll]
-# Average of two transparent October toplines: UDN (20-22/25 Oct, n=1,115: Shen 45, Chiang 41) and Taipei
-# Trust in Democracy/Beacon (14-16 Oct, n=1,075: Shen 50.3, Chiang 33.3). Their named-candidate ratio is
-# normalized to 98%; the four minor candidates receive 2% in their disclosed September proportions.
-source = "https://www.taiwannews.com.tw/en/news/6467763"
-secondary_source = "https://www.taipeitimes.com/News/taiwan/archives/2026/10/20/2003866309"
+# Candidate shares are computed by brunder.taiwan.poll_target from the headline vote-intention questions below:
+# mean Chiang share of Chiang+Shen, plus the mean KMT two-candidate understatement in the 2018 and 2022 Taipei
+# polls used by analysis/tw_calibrate.py (+5.23 points; official results only). The four minor candidates keep 2%
+# in the Sept. 16-18 Beacon/Taipei Trust in Democracy proportions (Kuo 0.7, Tang 0.6, Hsiao 0.5, Lin 0.3).
+kmt_candidate = "chiang"
+dpp_candidate = "shen"
+minor_total = 0.02
+minor_weights = { kuo = 0.7, tang = 0.6, hsiao = 0.5, lin = 0.3 }
+
+[[poll.polls]]
+pollster = "UDN"
+fieldwork = "2026-10-20/22 and 2026-10-25"
+n = 1115
+chiang = 41.0
+shen = 45.0
+url = "https://www.taiwannews.com.tw/en/news/6467763"
+
+[[poll.polls]]
+pollster = "Taipei Trust in Democracy Association / Beacon Market Research"
+fieldwork = "2026-10-14/16"
+n = 1075
+chiang = 33.3
+shen = 50.3
+url = "https://www.taipeitimes.com/News/taiwan/archives/2026/10/20/2003866309"
 
 [model]
 # own_votes and swing_votes minimize mean absolute candidate-share error on 2014->2018 simulated count orders.
@@ -59,7 +78,6 @@ id = "chiang"
 name = "Chiang Wan-an"
 name_zh = "蔣萬安"
 profile = "KMT"
-prior_share = 0.4258
 color = "#000095"
 polymarket = "will-chiang-wan-an-win-the-next-taipei-mayor-election-20260813125857101"
 pm_token = "100205215067722297517595068937257697192973299370955287626157382353628199508318"
@@ -70,7 +88,6 @@ id = "shen"
 name = "Puma Shen"
 name_zh = "沈伯洋"
 profile = "DPP"
-prior_share = 0.5542
 color = "#1B9431"
 polymarket = "will-puma-shen-win-the-next-taipei-mayor-election-20260813125857102"
 pm_token = "71621185653281721927174401118354054745399424014255544529977515442951477963801"
@@ -81,7 +98,6 @@ id = "kuo"
 name = "Kuo Hsi"
 name_zh = "郭璽"
 profile = "OTHER"
-prior_share = 0.0067
 color = "#8c6bb1"
 polymarket = "will-kuo-hsi-win-the-next-taipei-mayor-election-20260813125857103"
 pm_token = "83624824617807796418858828267382617938551022707456486446511299731216683633041"
@@ -92,7 +108,6 @@ id = "tang"
 name = "Tang Hsin-min"
 name_zh = "唐新民"
 profile = "OTHER"
-prior_share = 0.0057
 color = "#d95f02"
 kalshi = "KXTAIPEIMAYOR-26NOV28-THM"
 
@@ -101,7 +116,6 @@ id = "hsiao"
 name = "Hsiao Wen-kan"
 name_zh = "蕭文乾"
 profile = "OTHER"
-prior_share = 0.0048
 color = "#7570b3"
 kalshi = "KXTAIPEIMAYOR-26NOV28-HWK"
 
@@ -110,6 +124,5 @@ id = "lin"
 name = "Lin Chih-cheng"
 name_zh = "林志成"
 profile = "OTHER"
-prior_share = 0.0028
 color = "#666666"
 kalshi = "KXTAIPEIMAYOR-26NOV28-LCC"

@@ -59,10 +59,32 @@ def test_frozen_prior_has_456_li_and_exact_poll_target():
     cfg = tw.load_config(ROOT / "configs" / "tw2026_taipei_v1.toml")
     units = tw.prior_units(cfg)
     candidates = [c["id"] for c in cfg["candidates"]]
-    target = np.array([c["prior_share"] for c in cfg["candidates"]])
+    target = tw.poll_target(cfg)
     actual = (units[candidates].to_numpy() * units["V0"].to_numpy()[:, None]).sum(axis=0) / units["V0"].sum()
     assert len(units) == 456 and units["region"].nunique() == 12
     assert np.allclose(actual, target, atol=1e-8)
+
+
+def test_poll_prior_corrects_past_taipei_kmt_understatement():
+    cfg = tw.load_config(ROOT / "configs" / "tw2026_taipei_v1.toml")
+    bias = tw.kmt_two_way_poll_bias()
+    target = dict(zip([c["id"] for c in cfg["candidates"]], tw.poll_target(cfg)))
+    assert round(bias, 4) == .0523
+    assert round(target["chiang"], 4) == .4801 and round(target["shen"], 4) == .4999
+    assert abs(sum(target.values()) - 1) < 1e-12
+    _, _, probs = tw._initial(cfg)
+    assert .35 < probs["chiang"] < .5
+
+
+def test_taipei_li_map_matches_model_units():
+    cfg = tw.load_config(ROOT / "configs" / "tw2026_taipei_v1.toml")
+    meta = tw.meta(cfg, "pre-count", {c["id"]: 0 for c in cfg["candidates"]})
+    path = ROOT / "site" / "data" / meta["geometry"]
+    geo = json.loads(path.read_text())
+    ids = [g["properties"]["unit_id"] for g in geo["objects"][meta["geometry_object"]]["geometries"]]
+    assert len(ids) == len(set(ids)) == 456
+    assert set(ids) == set(tw.prior_units(cfg).index)
+    assert path.stat().st_size <= 1_000_000
 
 
 def test_nowcast_equals_complete_count():

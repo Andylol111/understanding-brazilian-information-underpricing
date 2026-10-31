@@ -15,17 +15,11 @@ import pandas as pd
 from brunder import taiwan as tw
 
 CHECKPOINTS = (.01, .05, .10, .25, .50, .75, .90)
-POLL_TARGETS = {
-    # Mean of the two 2018 polls reported by Taipei Times 2018-09-18, normalized over named choices.
-    2018: {"KMT": .384, "DPP": .119, "TPP": .485, "OTHER": .012},
-    # RWNews 2022-11-01/05 topline (36 Chiang, 33 Chen, 28 Huang; remainder other).
-    2022: {"KMT": .36, "DPP": .33, "TPP": .28, "OTHER": .03},
-}
 
 
 def replay(prev_year: int, year: int, order: str, seed: int, own_votes: float, swing_votes: float):
     history = tw.load_history()
-    prior = tw.historical_prior(prev_year, POLL_TARGETS[year], history)
+    prior = tw.historical_prior(prev_year, tw.HISTORICAL_POLLS[year], history)
     final = history[history.year == year].copy()
     rng = np.random.default_rng(seed)
     if order == "random":
