@@ -1,0 +1,33 @@
+# DEVELOPMENT NIGHT (in-sample for its own calibration): Mexico 2012 presidential count, one of the earlier nights on
+# which the v2 settings of the 2024 replay are chosen (configs/mx2024_calibration_v2.toml, docs/mexico.md).
+id = "mx2024_dev_2012"
+eid = "mx2012"
+
+[election]
+date = "2012-07-01"
+format = "prep2012"      # IFE PREP 2012 database (presidente.txt), brunder.mexico.read_prep2012
+# A = López Obrador (Movimiento Progresista: PRD, PT, MC), B = Peña Nieto (PRI, PVEM) + Vázquez Mota (PAN);
+# Quadri (Nueva Alianza) is left out, as in the 2018 prior of the 2024 replay. Share = A / (A + B).
+prep = "mx2012/pres/presidente.txt"
+a_cols = ["PRD", "PT", "MC", "C_PRD_PT_MC", "C_PRD_PT", "C_PRD_MC", "C_PT_MC"]
+b_cols = ["PAN", "PRI", "PVEM", "C_PRI_PVEM"]
+
+[final]                  # official cómputos distritales by section (SICEE 2012), scoring only
+file = "mx2012c/2012_SEE_PRE_NAL_SEC.csv"
+a_cols = ["PRD", "PT", "MC", "PRD_PT_MC", "PRD_PT", "PRD_MC", "PT_MC"]
+b_cols = ["PAN", "PRI", "PVEM", "PRI_PVEM"]
+
+[prior]                  # 2006 cómputos distritales by section (SICEE 2006): López Obrador (PBT) vs Calderón + Madrazo
+file = "mx2006c/PRESIDENCIA_2006/2006_SEE_PRE_NAL_SEC.csv"
+a_cols = ["PBT"]
+b_cols = ["PAN", "APM"]
+
+[publication]            # PREP 2012 published from 20:00 central (UTC-5) on 1 July = 01:00 UTC on 2 July; ASSUMED the
+opening_utc = "2012-07-02T01:00:00Z"   # same 5-minute cut rule as 2018/2024 (no archived 2012 cuts were checked)
+step_min = 5.0
+include_min = 3.5
+delay_min = 5.0
+
+[model]
+unit = "section"
+tau = 0.01

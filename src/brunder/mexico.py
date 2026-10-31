@@ -143,6 +143,50 @@ def read_prep(path: Path | str, a_cols: list[str], b_cols: list[str]) -> tuple[p
     return out.reset_index(drop=True), hdr
 
 
+def read_prep2012(path: Path | str, a_cols: list[str], b_cols: list[str]) -> tuple[pd.DataFrame, dict]:
+    """IFE PREP 2012 database (`presidente.txt` of 20120702_2000-listaActas.tar.gz): pipe-separated Latin-1, a header
+    block ('20:00 horas (UTC-5)' / '<weekday> D de <month> de 2012') and one row per acta of the catalogue plus
+    'No identificada' actas (dropped, like out-of-catalogue actas in read_prep). Same columns as `read_prep`.
+
+    Time of an acta = HORA_REGISTRO (written to the database, central Mexico time, UTC-5 in July 2012); ACOPIO is
+    local to the casilla's zone and CAPTURA precedes REGISTRO by seconds, so REGISTRO is when the vote data existed on
+    the server. Rows with CONTABILIZADA = 1 are the counted actas.
+    Section 0 rows are the abroad votes (per state of origin), as in the SICEE files."""
+    text = _text(path)
+    m = re.search(r"(\d{2}):(\d{2}) horas \(UTC([+-]\d+)\)\s*\n\S+ (\d{1,2}) de (\w+) de (\d{4})", text[:2000])
+    if m is None:
+        raise ValueError("PREP 2012 header not found")
+    months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+              "noviembre", "diciembre"]
+    off = int(m.group(3))
+    cut = pd.Timestamp(int(m.group(6)), months.index(m.group(5)) + 1, int(m.group(4)), int(m.group(1)),
+                       int(m.group(2))) - pd.Timedelta(hours=off)
+    hdr = {"cut_utc": cut.tz_localize("UTC"), "utc_offset_h": off}
+    d = _table(text, "ESTADO")
+    missing = [c for c in [*a_cols, *b_cols] if c not in d.columns]
+    if missing:
+        raise KeyError(f"PREP 2012 file lacks columns {missing}")
+    ooc = d["OBSERVACIONES"].str.contains("No identificada", regex=False)
+    d = d[~ooc].copy()
+    sec = _int(d["SECCION"])
+    tipo = pd.Series("B", index=d.index).mask(sec == 0, "M")
+    uf, cd = unit_keys(d["ESTADO"], sec, tipo)
+    t = pd.to_datetime(d["HORA_REGISTRO"].where(d["HORA_REGISTRO"].str.strip() != "null"), format="ISO8601",
+                       errors="coerce")
+    t = (t + pd.Timedelta(hours=-off)).dt.tz_localize("UTC")
+    out = pd.DataFrame({
+        "acta": d["ESTADO"] + "-" + d["SECCION"] + "-" + d["ID_CASILLA"] + d["TIPO_CASILLA"] + d["EXT_CONTIGUA"],
+        "ent": _int(d["ESTADO"]).astype(int), "district": _int(d["DISTRITO"]).fillna(0).astype(int),
+        "section": sec.fillna(0).astype(int), "tipo": tipo, "uf": uf, "cd_mun": cd,
+        "a": sum(_num(d[c]) for c in a_cols), "b": sum(_num(d[c]) for c in b_cols),
+        "ln": _num(d["LISTA_NOMINAL"]), "counted": d["CONTABILIZADA"].str.strip() == "1",
+        "t_acopio": pd.NaT, "t_captura": pd.NaT, "t_verif": t,
+    })
+    out.loc[~out["counted"], "t_verif"] = pd.NaT
+    hdr.update(expected=len(out), out_of_catalogue=int(ooc.sum()))
+    return out.reset_index(drop=True), hdr
+
+
 def read_computos(path: Path | str, a_cols: list[str], b_cols: list[str]) -> pd.DataFrame:
     """Official count by unit (uf, cd_mun, ent, a, b, ln) from a cómputos casilla file (computos2018 'CW') or a
     SICEE section file ('*_SEE_PRE_NAL_SEC.csv'). Abroad rows (casilla type M / section 0) go to zz:m<ent>."""
@@ -277,7 +321,8 @@ def params(cfg: dict, **overrides) -> nowcast.Params:
 def setup(cfg: dict, raw: Path = RAW) -> dict:
     """Actas with visible times, the catalogue, the prior and the official final share for a configured election."""
     E, P, F, V = cfg["election"], cfg["prior"], cfg["final"], cfg["publication"]
-    actas, hdr = read_prep(raw / E["prep"], E["a_cols"], E["b_cols"])
+    reader = read_prep2012 if E.get("format") == "prep2012" else read_prep
+    actas, hdr = reader(raw / E["prep"], E["a_cols"], E["b_cols"])
     actas["visible"] = visible_at(actas["t_verif"], pd.Timestamp(V["opening_utc"]), V["step_min"], V["include_min"],
                                   V["delay_min"])
     cat = catalogue(actas)

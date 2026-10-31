@@ -209,6 +209,11 @@
   "Polymarket was already >= 0.9 on Sheinbaum from 2024-06-01 00:05 UTC, two days before the count; the markets closed at 12:46-12:56 UTC on 3 June (Gamma closedTime), so pm is empty after that.",
   "Accuracy: projected share minus final at 1/5/10/25/50% counted: 1% +1.9 (raw -0.3), 5% +0.4 (raw -1.6), 10% -0.6 (raw -2.5), 25% -1.5 (raw -2.9), 50% -1.6 (raw -2.2) points. The 90% intervals held the final share in 10% of minutes (1-95% counted): far too narrow.",
   "Profit: the frozen Brazil rule (favoured side, edge >= 5c after costs, >= 1% counted) found no signal in either market, so there is nothing to fill.",
-  "pm = Polymarket price of the YES (= Sheinbaum) side, carried forward minute by minute. No Kalshi data."
- ]
+  "pm = Polymarket price of the YES (= Sheinbaum) side, carried forward minute by minute. No Kalshi data.",
+  "v2 (sensitivity, chosen after the result was known): v1 chose tau on the 2018 night alone and its 90% band held the final share in 10% of minutes. v2 applies a rule written beforehand to the 2012 (IFE PREP database, prior 2006 cómputos) and 2018 nights: smallest tau with pooled 90% coverage >= 0.90 and worst night >= 0.75, then the (rho, kappa) of lowest projection error: tau 0.015, rho 1.0, kappa 10,000 (configs/mx2024_v2.toml). On 2024 the band held 14% of minutes against the cómputo and 81% against the end-of-PREP share (v1: 40%). The PREP stops at 93.2% of actas and differs from the cómputo (end-of-PREP raw share 68.02% vs cómputo 68.52%). v1 stays the headline."
+ ],
+ "sensitivity": {
+  "label": "v2: settings from the 2012 and 2018 nights (tau 0.015, rho 1.0, kappa 10,000; chosen after the result was known, sensitivity)",
+  "config": "configs/mx2024_v2.toml"
+ }
 }

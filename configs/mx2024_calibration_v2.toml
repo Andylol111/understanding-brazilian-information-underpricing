@@ -1,0 +1,18 @@
+# Selection rule for the v2 settings of the Mexico 2024 replay (configs/mx2024_v2.toml). Written BEFORE the
+# calibration was run (docs/mexico.md, "v2: settings chosen on every earlier night"); not changed afterwards.
+# Applied by analysis/mx_calibrate_multi.py. No look-ahead in the data: only 2012 and 2018 nights are used.
+# LABEL: the 2024 result was already known when this was written, so v2 is "chosen after the result was known
+# (sensitivity)"; v1 stays the headline.
+id = "mx2024_calibration_v2"
+nights = ["configs/mx2024_dev_2012.toml", "configs/mx2024_dev_2018.toml"]   # 2006 has no timestamped PREP (docs)
+
+[rule]
+tau_grid = [0.0, 0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02, 0.03]
+window = [0.01, 0.95]       # share of expected two-way votes counted
+pooled_min = 0.90           # mean over nights of the per-night 90% coverage of the final share
+worst_min = 0.75            # and every single night
+# step 1 tau at the nowcast defaults (rho 0.8, kappa 50000); step 2 (rho, kappa) of lowest mean absolute error at it
+rho_grid = [0.5, 0.8, 1.0]
+kappa_grid = [10000.0, 50000.0, 200000.0]
+default_rho = 0.8
+default_kappa = 50000.0

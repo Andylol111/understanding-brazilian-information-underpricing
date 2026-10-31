@@ -77,10 +77,12 @@ Everything published is INE data or Polymarket public market data. No Kalshi dat
 | Cómputos 2018 by casilla: prior for 2024, final result for 2018 | https://computos2018.ine.mx/20180708_2130_CW.zip | 31 MB |
 | SICEE section results 2012 (prior for 2018) and 2024 (final result for 2024) | https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_{2012,2024}/PRESIDENCIA_{2012,2024}.zip | 14 MB |
 | Federal-district boundaries (2023 distritación) | https://prep2024.ine.mx/publicacion/nacional/assets/GeoJson/distritos/distritos.geojson | 3 MB (cached) |
+| PREP 2012 database (IFE; `presidente.txt`, 15 MB tar.gz, v2 night) | https://prep2012.ife.org.mx/prep/20120702_2000-listaActas.tar.gz | 60 MB (3 files; presidente.txt used) |
+| Cómputos 2006 by section (prior for 2012, v2) | https://sicee.ine.mx/ACTASSICEEN2024/download/FEDERALES_2006/PRESIDENCIA_2006.zip | 20 MB |
 | Archived PREP cut files, used only for the publication check | Wayback Machine, 7 files | < 0.1 MB |
 | Polymarket event `mexican-presidential-election-who-will-win`: four markets, minute prices and all fills | Gamma / CLOB / data-api | 6 MB |
 
-Raw data totals about 150 MB under `BRUNDER_DATA=~/brunder-data-local/raw/` (`mx2012c`, `mx2018`, `mx2018c`, `mx2024`,
+Raw data totals about 150 MB under `BRUNDER_DATA=~/brunder-data-local/raw/` (`mx2006c`, `mx2012`, `mx2012c`, `mx2018`, `mx2018c`, `mx2024`,
 `mx2024c`, and `polymarket/mexican-presidential-election-who-will-win`). None of it is committed.
 
 The commit includes:
@@ -191,6 +193,90 @@ had been scored, so nothing outside this account documents the freeze.
 - The publication rule was fitted on the 2024 archived cut files. These describe when data appeared, not the
   outcome. This is the same kind of step as Brazil's receipt-lag calibration.
 
+## v2: settings chosen on every earlier night (sensitivity, written before the calibration was run)
+
+**Why.** v1 chose τ on the 2018 count alone, and its 90% interval then held the 2024 cómputo share in 10% of
+minutes. Poland 2025 had the same problem (one earlier night), New Zealand (three nights) did not. v2 uses all
+earlier nights for which an acta-level PREP with timestamps exists.
+
+**Nights.**
+- **2012**: IFE's PREP 2012 database (`https://prep2012.ife.org.mx/prep/20120702_2000-listaActas.tar.gz`, 15 MB, the
+  "Base de datos" link of the PREP's national page; cut 20:00 UTC-5 on 2 July; 143,437 expected actas, 139,962
+  counted). Each acta has HORA_ACOPIO / HORA_CAPTURA / HORA_REGISTRO. Prior: 2006 cómputos by section (SICEE
+  `FEDERALES_2006/PRESIDENCIA_2006.zip`, López Obrador vs Calderón + Madrazo). Final: 2012 SICEE cómputos.
+- **2018**: as in v1 (prior 2012 cómputos).
+- **2006**: no PREP with acta timestamps was found (no database link on the archived 2006 PREP, no INE or IFE
+  download of one), so 2006 is only a prior, not a night.
+- Licence: INE "Términos de libre uso" (as above); the IFE PREP page states no terms of its own and its site has no
+  robots.txt. One download, User-Agent `brunder/0.1 (research; recorder)`.
+- Publication of 2012 actas uses the 2018/2024 rule (5-minute cuts, 3.5 min inclusion, 5 min delay) on
+  HORA_REGISTRO. That is an assumption: no archived 2012 cuts were checked against it.
+
+**Rule** (fixed here, `configs/mx2024_calibration_v2.toml`, `analysis/mx_calibrate_multi.py`):
+1. Each night is replayed minute by minute in its real archived order, one tick per minute with 1–95% of the
+   expected two-way votes counted. Coverage = share of those minutes where the 90% interval
+   (|final − projection| < 1.645 sd) contains the final share; the final share is the official cómputo.
+2. A night's coverage is its own mean over its minutes; the **pooled** coverage is the mean of the nights' coverages
+   (each night weighted equally).
+3. τ = the smallest value of the grid {0, 0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02, 0.03}, at the default rho 0.8
+   and kappa 50,000, whose pooled coverage is ≥ 0.90 **and** whose worst single night is ≥ 0.75.
+4. With that τ, (rho, kappa) from {0.5, 0.8, 1.0} × {10,000, 50,000, 200,000} = the pair with the lowest mean
+   absolute projection error (|projection − final|, same minutes, nights weighted equally). Ties go to the
+   defaults. Coverage at the chosen pair is reported and not used to change it.
+5. Also reported, not used in the rule: the same coverage against the **end-of-PREP** share (A / (A + B) over all
+   actas the PREP counted in its last cut) instead of the cómputo, because the PREP stops before 100% and
+   differs from the cómputo.
+6. The 2024 replay then uses these settings (`configs/mx2024_v2.toml`) and is scored as v1 was.
+
+v2 is labelled **chosen after the result was known (sensitivity)**: the 2024 outcome and v1's failure were seen
+before the rule was written. The rule itself was not changed after the run.
+
+### v2 result (run after the rule above; `results/mexico/mx2024_calibration_v2/`)
+
+Coverage of the 90% band against the cómputo, minutes with 1–95% counted, at rho 0.8 / kappa 50,000:
+
+| τ | 0 | 0.0025 | 0.005 | 0.0075 | 0.01 | **0.015** | 0.02 | 0.03 |
+|---|---|---|---|---|---|---|---|---|
+| 2012 | 0.07 | 0.07 | 0.09 | 0.18 | 0.37 | **0.94** | 1.00 | 1.00 |
+| 2018 | 0.62 | 0.67 | 0.71 | 0.79 | 0.94 | **0.98** | 1.00 | 1.00 |
+| pooled | 0.35 | 0.37 | 0.40 | 0.48 | 0.66 | **0.96** | 1.00 | 1.00 |
+| coverage against the end-of-PREP share, pooled | 0.47 | 0.52 | 0.55 | 0.62 | 0.72 | 1.00 | 1.00 | 1.00 |
+
+- **τ = 0.015** is the smallest value with pooled ≥ 0.90 and worst night ≥ 0.75 (2012 alone needs it: 0.37 at the
+  v1 value 0.01). **v1's τ of 0.01 fails the rule on the 2012 night.**
+- At τ = 0.015 the nine (rho, kappa) pairs have mean absolute error 0.48–0.64 pt; the lowest is **rho 1.0,
+  kappa 10,000** (0.483 pt; defaults 0.535 pt). Chosen settings: **τ 0.015, rho 1.0, kappa 10,000**. Coverage at
+  that pair is 1.00 on both nights (2012: error 0.67 pt, 2018: 0.30 pt). That is far above 0.90: the kappa of 10,000
+  widens the band, and the rule picks error, not coverage.
+- 2012: final cómputo 33.20% two-way (López Obrador), end-of-PREP 33.24% from 98.95% of actas. 2018: 57.90% vs 57.66%
+  (PREP stopped at 80%). So in the earlier nights the PREP end and the cómputo differed by 0.04 and 0.24 points.
+
+**2024 with v2** (`configs/mx2024_v2.toml`, `analysis/mx_replay.py`, `mx_score.py`, then `mx_export_v2.py`):
+
+| 2024, minutes with 1–95% counted | v1 (τ 0.01 on 2018 alone) | v2 |
+|---|---|---|
+| 90% band holds the **cómputo** share (68.52%) | 10% (mean z +3.3) | **14%** (mean z +2.1) |
+| 90% band holds the **end-of-PREP** share (68.02%) | 40% | **81%** |
+| mean absolute error vs cómputo | 0.84 pt | 0.80 pt |
+| mean absolute error vs end-of-PREP share | 0.51 pt | 0.49 pt |
+| error at 1/5/10/25/50% counted, vs cómputo | +1.86/+0.43/−0.59/−1.51/−1.55 | +1.75/+0.38/−0.66/−1.51/−1.51 |
+| end-of-PREP projection vs cómputo / vs end-of-PREP share | −0.33 / +0.17 pt | −0.31 / +0.19 pt |
+| model reaches P ≥ 0.90 / 0.95 | at the first cut (02:00 UTC) | at the first cut (02:00 UTC) |
+| market reached ≥ 0.90 / ≥ 0.95 | 2024-06-01 00:05 / 2024-06-03 01:44 UTC | same |
+| minutes ahead of the market | none: the market had decided before any count (decided-before-the-count class) | same |
+| Brier on the 600 minutes from 1% counted, until the markets closed: model / market | ≈ 0 / 0.00005 | ≈ 0 / 0.00005 |
+
+- **Reading.** The earlier nights fix the band against the PREP's own end: coverage against the end-of-PREP share
+  doubles (40% → 81%). They do not fix it against the cómputo (10% → 14%). The model's mid-count error in 2024
+  (−1.5 pt) is larger than anything on 2012 and 2018 (≤ 0.7 pt) and is mostly the gap between PREP and cómputo:
+  the PREP ended at 68.02% and the cómputo gave 68.52%, a 0.5-point gap (2012: 0.04; 2018: 0.24), so a band tuned
+  on how well the PREP count predicts the PREP end cannot contain the cómputo share. With τ ≈ 0.03 it would, as
+  the v1 diagnostic said. That is not a setting the rule picks.
+- Profit: v2 changes no P(win) that mattered (model 1.00 from the first cut): 0 signals, as in v1.
+- **Which row to quote.** v1 stays the headline. v2 is "chosen after the result was known (sensitivity)" in the
+  config, the `meta.json` `sensitivity` block and the stats `sensitivity` block. Its main finding is the
+  PREP-vs-cómputo gap, not a better-calibrated model.
+
 ## Reproduce
 
     export BRUNDER_DATA=~/brunder-data-local
@@ -198,6 +284,9 @@ had been scored, so nothing outside this account documents the freeze.
     uv run python analysis/mx_replay.py configs/mx2024_v1.toml            # 2024 replay (~1.5 min)
     uv run python analysis/mx_score.py configs/mx2024_v1.toml             # accuracy + profit (edge audit)
     uv run python analysis/mx_publication_check.py configs/mx2024_v1.toml # rule vs archived PREP cuts
+    uv run python analysis/mx_calibrate_multi.py configs/mx2024_calibration_v2.toml  # v2 rule, 2012 + 2018 (~4 min)
+    uv run python analysis/mx_replay.py configs/mx2024_v2.toml            # v2 replay, then mx_score.py, then
+    uv run python analysis/mx_export_v2.py                                # adds v2 to site/data/mx2024/ (after mx_export.py)
     uv run python analysis/mx_geo.py                                      # site/data/geo/mx_districts.topo.json
     uv run python analysis/mx_export.py configs/mx2024_v1.toml            # site/data/mx2024/ + validation
 

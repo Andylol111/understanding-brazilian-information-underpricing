@@ -145,3 +145,19 @@ def test_sd_rescaling_matches_a_direct_run():
     p0 = mx.national_path(s, nowcast.Params(tau=0.0, unpooled=("zz",)), times)
     p1 = mx.national_path(s, nowcast.Params(tau=0.02, unpooled=("zz",)), times)
     assert np.allclose(mx.sd_at_tau(p0, 0.0, 0.02), p1["sd"])
+
+
+def test_prep2012_rows_header_and_times():
+    d, h = mx.read_prep2012(FX / "prep2012_sample.txt",
+                            ["PRD", "PT", "MC", "C_PRD_PT_MC", "C_PRD_PT", "C_PRD_MC", "C_PT_MC"],
+                            ["PAN", "PRI", "PVEM", "C_PRI_PVEM"])
+    assert h["cut_utc"] == pd.Timestamp("2012-07-03T01:00:00Z") and h["utc_offset_h"] == -5
+    assert h["out_of_catalogue"] == 1 and len(d) == 7          # the 'No identificada' acta is dropped
+    first = d.iloc[0]
+    assert first["a"] == 19 + 1 + 2 + 6 + 1 + 1 + 0 and first["b"] == 127 + 65 + 8 + 20
+    assert first["t_verif"] == pd.Timestamp("2012-07-02T09:28:15.608Z")      # HORA_REGISTRO 04:28 at UTC-5
+    assert (first["uf"], first["cd_mun"]) == ("01", "0338")
+    ab = d[d["section"] == 0].iloc[0]                                          # section 0 = abroad, zz pseudo-unit
+    assert (ab["uf"], ab["cd_mun"]) == ("zz", "m01") and ab["counted"]
+    sin = d.iloc[-1]
+    assert not sin["counted"] and pd.isna(sin["t_verif"])                      # 'Sin acta': in the catalogue, not counted
