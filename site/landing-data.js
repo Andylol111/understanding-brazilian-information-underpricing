@@ -4,6 +4,7 @@
 // the featured replay).
 import * as d3 from "./vendor/d3.js";
 import { LIVE, STATIC, getJSON, gatedSettle, leadMinutes, plural } from "./common.js";
+import { decidedBeforeCount } from "./decided.js";
 
 export const $ = (id) => document.getElementById(id);
 
@@ -46,9 +47,28 @@ export const signedPct = (x, d = 1) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Mat
 export const dur = (m) => { const a = Math.abs(Math.round(m)); return a >= 180 ? `${Math.round(a / 60)} h` : `${a} min`; };
 
 export const mainRace = (m) => m?.races?.find((r) => !r.region) ?? m?.races?.[0];
+const decisions = new Map();
+// Browser-side fallback for old or freshly regenerated stats files: derive this from
+// meta + published timeline, never from a hand-maintained election list.
+export function decisionOf(id) {
+  if (!decisions.has(id)) decisions.set(id, (async () => {
+    const [m, stats, tl] = await Promise.all([metaOf(id), statsOf(id), timelineOf(id)]);
+    if (!m || !tl || !m.poll_close_utc) return null;
+    const byRace = {};
+    for (const race of m.races ?? []) {
+      if (!(race.markets ?? []).some((x) => x.platform === "polymarket")) continue;
+      const rows = tl[race.race_id] ?? [];
+      if (!rows.some((d) => d.pm != null)) continue;
+      byRace[race.race_id] = decidedBeforeCount(race, rows, m.poll_close_utc, stats?.settle?.[race.race_id]);
+    }
+    const values = Object.values(byRace);
+    return { n_markets: values.length, n_decided_before_count: values.filter((x) => x.decided).length, by_race: byRace };
+  })());
+  return decisions.get(id);
+}
 // any market listed for the election, on any venue
 export const hasMarkets = (m) => (m?.races ?? []).some((r) => (r.markets ?? []).length > 0);
-export const polymarketMarkets = (m) => new Set((m?.races ?? []).flatMap((r) => (r.markets ?? []).filter((x) => x.platform === "polymarket").map((x) => x.id))).size;
+export const polymarketMarkets = (m) => (m?.races ?? []).filter((r) => (r.markets ?? []).some((x) => x.platform === "polymarket")).length;
 
 // The first minute at which `counted` reached 1%: the moment every lead is measured from.
 export const gateRow = (m, rows) => (m?.count_timeline === false ? null : rows.find((d) => d.counted >= 0.01) ?? null);
@@ -65,18 +85,20 @@ export function leadOf(id) {
       const m = await metaOf(id);
       const race = mainRace(m);
       if (!race) return null;
-      const [stats, tl] = await Promise.all([statsOf(id), timelineOf(id)]);
+      const [stats, tl, decision] = await Promise.all([statsOf(id), timelineOf(id), decisionOf(id)]);
       const rows = tl?.[race.race_id] ?? [];
       const gate = gateRow(m, rows);
       const s = gatedSettle(stats, race.race_id, gate?.t);
       let minutes = leadMinutes(s), vs = "market", scope = "main";
+      const contested = (rid) => !decision?.by_race?.[rid]?.decided;
+      if (!contested(race.race_id)) return null;
       if (minutes == null) { minutes = diffMin(s?.model, s?.raw); vs = "raw count"; }
       if (race.region && stats?.settle_gated) {
-        const each = Object.values(stats.settle_gated).filter((g) => g.lead_vs === "polymarket" && Number.isFinite(g.lead)).map((g) => g.lead);
-        if (each.length > 1) { minutes = d3.median(each); vs = "market"; scope = `median of ${each.length} races`; }
+        const each = Object.entries(stats.settle_gated).filter(([rid, g]) => contested(rid) && g.lead_vs === "polymarket" && Number.isFinite(g.lead)).map(([, g]) => g.lead);
+        if (each.length > 1) { minutes = d3.median(each); vs = "market"; scope = `median of ${each.length} contested races`; }
       }
       if (minutes == null) return null;
-      return { minutes, vs, scope, race, markets: polymarketMarkets(m) };
+      return { minutes, vs, scope, race, markets: decision ? decision.n_markets - decision.n_decided_before_count : polymarketMarkets(m) };
     })());
   }
   return leads.get(id);

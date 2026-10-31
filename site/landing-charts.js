@@ -6,7 +6,7 @@
 //   4. how often the final result stayed inside the 90% band (summary.json calibration)
 import * as d3 from "./vendor/d3.js";
 import { C, pct, clock, tzName } from "./common.js";
-import { $, allElections, label, labelOf, leadOf, featured, dur } from "./landing-data.js";
+import { $, allElections, label, labelOf, leadOf, decisionOf, featured, dur } from "./landing-data.js";
 
 const pts = (x) => (x == null ? "–" : x.toFixed(1));
 const fmtInt = (n) => n.toLocaleString("en-US");
@@ -93,20 +93,21 @@ export async function drawNight() {
 /* ------------------------------------------------------------------ 2. who got to 90% first */
 
 export async function drawLead() {
-  const all = await Promise.all(allElections().filter((e) => e.status !== "scheduled").map(async (e) => ({ e, L: await leadOf(e.id) })));
+  const all = await Promise.all(allElections().filter((e) => e.status !== "scheduled").map(async (e) => ({ e, L: await leadOf(e.id), D: await decisionOf(e.id) })));
   const rows = all.filter((r) => r.L?.vs === "market").sort((a, b) => b.L.minutes - a.L.minutes);
   if (!rows.length) return;
   $("ev-lead").hidden = false;
   const first = rows.filter((r) => r.L.minutes > 0).length;
   const best = rows[0];
-  const sameCount = rows.length === 1 ? "the one election with market prices" : `${rows.length} elections with market prices`;
-  $("ev-lead-lead").textContent = `The model reached 90% on the eventual winner before the market in ${first} of ${sameCount}.${best.L.minutes > 0 ? ` The biggest lead was ${dur(best.L.minutes)}, in the ${label(best.e)}.` : ""}`;
+  const sameCount = rows.length === 1 ? "the one election with a contested main market" : `${rows.length} elections with a contested main market`;
+  const excluded = all.filter((r) => !r.L && r.D?.n_decided_before_count);
+  $("ev-lead-lead").textContent = `Among contested markets, the model reached 90% on the eventual winner before the market in ${first} of ${sameCount}.${best.L.minutes > 0 ? ` The biggest lead was ${dur(best.L.minutes)}, in the ${label(best.e)}.` : ""}${excluded.length ? ` ${excluded.map((r) => `${label(r.e)} (${r.D.n_decided_before_count} of ${r.D.n_markets} decided before the count)`).join("; ")} ${excluded.length === 1 ? "is" : "are"} excluded.` : ""}`;
   const D = Math.max(60, Math.ceil(d3.max(rows.filter((r) => Math.abs(r.L.minutes) <= 240), (r) => Math.abs(r.L.minutes)) / 50) * 50 || 60);
   const off = rows.filter((r) => Math.abs(r.L.minutes) > D);
   $("ev-lead-how").innerHTML = how(
-    "Each bar is one election. It compares the model with Polymarket on the main race. A bar to the right means the model reached 90% on the eventual winner first. A bar to the left means the market did. Time starts when 1% of the vote is counted.",
+    "Each bar is one election with a contested main market. A bar to the right means the model reached 90% on the eventual winner first. A bar to the left means the market did. Time starts when 1% of the vote is counted. Markets already at 90% at poll close and never below 80% afterwards are excluded.",
     `Example: the ${label(best.e)} bar says ${signed(best.L.minutes)}. The model reached 90% ${dur(best.L.minutes)} ${best.L.minutes >= 0 ? "before" : "after"} the market.`,
-    `Each row also says how many Polymarket markets the election had. The bar shows the main race only.${off.length ? ` ${off.map((r) => label(r.e)).join(" and ")} ${off.length === 1 ? "runs" : "run"} off the scale (${off.map((r) => signed(r.L.minutes)).join(", ")}).` : ""} Elections with no market prices, or with no count over time, have no bar.`,
+    `Each row also says how many contested Polymarket races the election had. The bar shows the main race only.${off.length ? ` ${off.map((r) => label(r.e)).join(" and ")} ${off.length === 1 ? "runs" : "run"} off the scale (${off.map((r) => signed(r.L.minutes)).join(", ")}).` : ""} Elections with no contested market prices, or with no count over time, have no bar.`,
   );
   const root = mount($("chart-lead"), "");
   responsive(root, () => {

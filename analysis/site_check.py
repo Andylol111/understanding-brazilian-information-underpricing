@@ -17,6 +17,7 @@ import base64
 import contextlib
 import functools
 import http.server
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -188,6 +189,9 @@ HOME_CHECK = r"""async () => {
   if (document.querySelectorAll("#overview thead th").length !== [...cols][0]) fails.push("header and rows differ in column count");
   for (const c of document.querySelectorAll("#overview .e-head")) if (!c.textContent.trim()) fails.push(`no headline for ${c.parentElement.dataset.id}`);
   for (const th of document.querySelectorAll("#overview thead th[data-help]")) if (!th.querySelector(".help") || !th.querySelector(".help-pop").textContent.trim()) fails.push(`column ${th.textContent.trim()} has no help`);
+  const mx = document.querySelector('#overview tr[data-id="mx2024"] .e-head')?.textContent ?? "";
+  if (!/Decided before the count/i.test(mx) || !/market 0\.96 two days before the vote/i.test(mx)) fails.push(`Mexico lead was not replaced by the pre-count decision: ${mx}`);
+  if (!/contested market/i.test(document.querySelector("#ev-lead-lead")?.textContent ?? "")) fails.push("lead chart does not say it is restricted to contested markets");
   for (const d of document.querySelectorAll("#overview .e-desc")) {
     const t = d.textContent.trim();
     if (t.length > 140) fails.push(`description over 140 characters: ${t.slice(0, 40)}`);
@@ -315,6 +319,19 @@ async def check_page(
                     result.failures.append("race/national readout is empty")
                 if current["visiblePaths"] == 0 and not map_audit.mapless(case.path.split("id=")[-1].split("&")[0]) and not await canvas_has_drawing(page):
                     result.failures.append("map has neither visible SVG paths nor non-background canvas pixels")
+                if case.path == "election.html?id=pl2025r2":
+                    replay = await page.evaluate(
+                        """() => ({ now: window.__dashAudit?.time?.(), domain: window.__dashAudit?.domain?.(),
+                          readout: document.querySelector('#readout').innerText,
+                          hint: document.querySelector('#replay-hint').innerText,
+                          decidedTags: document.querySelectorAll('#pane-races .label.decided').length })"""
+                    )
+                    if not replay["domain"] or not (replay["domain"][0] < replay["now"] < replay["domain"][1]):
+                        result.failures.append(f"pl2025r2 did not open mid-night: {replay}")
+                    if not replay["hint"] or not re.search(r"Chance.*(?:0\.[1-9]|[1-9]\.\d)", replay["readout"], re.S):
+                        result.failures.append(f"pl2025r2 replay hint/readout is missing or all-zero: {replay}")
+                    if not replay["decidedTags"]:
+                        result.failures.append("pl2025r2 Races table has no decided-before-count tag")
                 if case.path == "election.html?id=us2026":
                     # no parameters: the national overview, no race preselected, no missing-file requests
                     nat = await page.evaluate(

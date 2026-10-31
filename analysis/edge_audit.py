@@ -65,6 +65,7 @@ from brunder.paths import RAW, ROOT
 
 sys.path.insert(0, str(ROOT / "analysis"))
 from night_capacity import same_side_fills  # noqa: E402
+from decided_stats import annotate as annotate_decided  # noqa: E402
 
 RES = ROOT / "results"
 OUT = RES / "edge_audit"
@@ -1526,6 +1527,10 @@ def main(site: bool) -> None:
                 blk = {**(pub_ml.get(eid) or {}), "signal_price": pub_sp.get(eid)}
                 _site_update(eid, {"invest10k": blk, "profit_model_limit": pub_res.get(eid)})
         print(f"site summary.json {len(site_text) / 1024:.0f} kB")
+        # One shared post-export rule keeps every election's lead fields on contested
+        # markets only, regardless of which country-specific exporter wrote stats.json.
+        for meta_file in sorted(SITE.glob("*/meta.json")):
+            annotate_decided(meta_file.parent)
     for name, d in (("signal price", inv), ("model limit", inv_ml)):
         for eid, v in d.items():
             print(f"invest10k [{name}] {eid:12s} end ${v['ending_value']:>10,.2f} deployed ${v['deployed']:>10,.2f} "

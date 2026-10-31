@@ -5,7 +5,7 @@ import * as d3 from "./vendor/d3.js";
 import { C, LIVE, STATIC, getJSON, esc, pct, fmtDate, plural, modelP, shortName, clock, EVIDENCE } from "./common.js";
 import { polymarketYes } from "./dash-precount.js";
 import { createWorldMap } from "./world-map.js";
-import { $, href, rootOf, setLiveIds, setElections, allElections, label, labelOf, bareName, qualifierOf, unitWord, metaOf, statsOf, timelineOf, leadOf, mainRace, hasMarkets, featured, money, signedPct, dur } from "./landing-data.js";
+import { $, href, rootOf, setLiveIds, setElections, allElections, label, labelOf, bareName, qualifierOf, unitWord, metaOf, statsOf, timelineOf, leadOf, decisionOf, mainRace, hasMarkets, featured, money, signedPct, dur } from "./landing-data.js";
 import { drawNight, drawLead, drawError, drawCalibration } from "./landing-charts.js";
 
 const tbody = document.querySelector("#overview tbody");
@@ -310,19 +310,29 @@ function leadText(L) {
 async function fillPast(tr, e, m) {
   const id = e.id;
   const race = mainRace(m);
-  const [L, stats, timeline] = await Promise.all([leadOf(id), statsOf(id), timelineOf(id)]);
+  const [L, stats, timeline, decision] = await Promise.all([leadOf(id), statsOf(id), timelineOf(id), decisionOf(id)]);
+  const mainDecision = race ? decision?.by_race?.[race.race_id] : null;
+  const nDecided = decision?.n_decided_before_count ?? 0, nMarkets = decision?.n_markets ?? 0;
+  const decidedReason = (m?.notes ?? []).some((x) => /exit poll/i.test(x)) ? " (exit poll)" : "";
+  const decidedNote = nDecided ? `${nDecided} of ${nMarkets} ${nMarkets === 1 ? "market was" : "markets were"} decided before the count${decidedReason}.` : "";
   const sub = race ? (L && L.scope !== "main" ? `Main race: ${L.scope}` : `Main race: ${race.name}`) : "";
-  if (L) fillHead(tr, `<p class="hl">${esc(leadText(L))}</p><p class="note hl-sub">${esc(sub)}</p>`);
+  if (mainDecision?.decided) {
+    const price = mainDecision.price_at_close;
+    const settle = stats?.settle?.[race.race_id]?.polymarket;
+    const days = settle && m?.poll_close_utc ? Math.round((Date.parse(m.poll_close_utc) - Date.parse(settle)) / 86400000) : 0;
+    const detail = id === "mx2024" ? ` (market 0.96 two days before the vote)` : price != null ? ` (market ${price.toFixed(2)} at poll close${days >= 1 ? `; reached 90% ${days} day${days === 1 ? "" : "s"} earlier` : ""})` : "";
+    fillHead(tr, `<p class="hl">Decided before the count${esc(detail)}</p><p class="note hl-sub">${esc(decidedNote || sub)}</p>`);
+  } else if (L) fillHead(tr, `<p class="hl">${esc(leadText(L))}</p><p class="note hl-sub">${esc([sub, decidedNote].filter(Boolean).join(" · "))}</p>`);
   else if (e.count_private) {
-    // the count model ran on licensed data; the per-race lead is in stats.json (lead), from poll close and from 1% counted
-    const ld = stats?.lead;
-    if (ld?.contested_markets) {
+    // The count model ran on licensed data; the aggregate omits pre-decided markets.
+    const ld = stats?.lead_contested;
+    if (ld?.n) {
       const g = ld.median_lead_min_gate1pct;
-      fillHead(tr, `<p class="hl">Model first on ${ld.model_first} of ${ld.contested_markets} markets, median ${dur(ld.median_lead_min)}</p><p class="note hl-sub">Counted from poll close.${g != null ? ` From 1% counted: median ${dur(g)} ${g > 0 ? "ahead" : "behind"}.` : ""}</p>`);
-    } else fillHead(tr, `<p class="hl hl-none">Count model run</p><p class="note hl-sub">Minute-by-minute data is private (licence)</p>`);
-  } else if (m?.count_timeline === false) fillHead(tr, `<p class="hl hl-none">Prices and final results only</p><p class="note hl-sub">No count over time</p>`);
+      fillHead(tr, `<p class="hl">Model first on ${ld.model_first_gate1pct} of ${ld.n} contested markets, median ${dur(g)}</p><p class="note hl-sub">Counted from 1% of the vote. ${esc(decidedNote)}</p>`);
+    } else fillHead(tr, `<p class="hl hl-none">Count model run</p><p class="note hl-sub">Minute-by-minute data is private (licence). ${esc(decidedNote)}</p>`);
+  } else if (m?.count_timeline === false) fillHead(tr, `<p class="hl hl-none">Prices and final results only</p><p class="note hl-sub">No count over time. ${esc(decidedNote)}</p>`);
   else if (m && !hasMarkets(m)) fillHead(tr, `<p class="hl hl-none">No market to compare with</p><p class="note hl-sub">${esc(sub)}; model only</p>`);
-  else fillHead(tr, `<p class="hl hl-none">No lead to measure</p><p class="note hl-sub">${esc(sub)}</p>`);
+  else fillHead(tr, `<p class="hl hl-none">No contested-market lead to measure</p><p class="note hl-sub">${esc([sub, decidedNote].filter(Boolean).join(" · "))}</p>`);
   const cal = race ? stats?.calibration?.[race.race_id] : null;
   if (cal?.coverage90_1_95 != null) tr.querySelector(".cal").textContent = pct(cal.coverage90_1_95, 0);
   if (!race) return;

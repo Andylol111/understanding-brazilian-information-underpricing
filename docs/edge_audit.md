@@ -402,6 +402,11 @@ count and are kept in `results/edge_audit/landing_summary.json` only.
   pooled minutes, so the pooled table mostly describes Hungary; use `by_election` for the others.
 - Settle lead: from `stats.json` `settle_gated` (model counted only from ≥ 1% counted; Brazil 2022 against the
   raw count, no prices); Israel: the aggregate gated lead for "Likud most seats" (no times; private count).
+- **Decided before the count.** For each Polymarket race, this means the price of the eventual outcome was
+  at least 0.90 in the first published minute at or after the election's official `poll_close_utc`, and
+  remained at least 0.80 through the rest of the published count. Such races are not lead-time comparisons:
+  `analysis/decided_stats.py` writes `n_markets`, `n_decided_before_count`, the per-race classification, and
+  `lead_contested` (including its `n`) to every published `stats.json`; all lead summaries use only the remainder.
 - Pooled projection error over main races (7 elections): 1% counted 2.72 vs raw 4.84 points; 10% 0.63 vs
   3.51; 50% 0.46 vs 1.87.
 

@@ -16,6 +16,7 @@ import { createNational, stateName as usStateName } from "./dash-national.js";
 import { createOverlay, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, ourModelHTML, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { regionAgg, regionWinner, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
+import { decidedBeforeCount, outcomeA, winnerName, winnerProbability, settledAt } from "./decided.js";
 
 const EID = param("id");
 const $ = (id) => document.getElementById(id);
@@ -124,6 +125,12 @@ const mainRace = () => national() ?? statewide()[0];
 const regionName = (id) => S.meta.regions?.find((r) => r.id === id)?.name ?? (countryCode() === "US" && id ? usStateName(id) : id?.toUpperCase());
 const raceBase = (r) => (r.region && !r.name.includes(regionName(r.region)) ? `${r.name}, ${regionName(r.region)}` : r.name);
 const raceName = (r) => raceBase(r) + (r.civic ? " · secondary source (civicAPI)" : "");
+const replay = () => S.entry?.status === "replay" && !LIVE && !PRE();
+const outcomeOf = (r) => replay() ? outcomeA(S.rows?.get(r.race_id), S.stats?.settle?.[r.race_id]) : null;
+const winnerOf = (r) => winnerName(r, outcomeOf(r));
+const decisionOf = (r) => replay() && S.meta.poll_close_utc
+  ? decidedBeforeCount(r, S.rows?.get(r.race_id), S.meta.poll_close_utc, S.stats?.settle?.[r.race_id])
+  : null;
 const racesIn = (region) => [...statewide(), ...(S.extra?.values() ?? [])].filter((r) => r.region === region);
 // US: a race with a live county model on election night is one of the election's own races
 // (meta.races) or a civicAPI race (secondary source, civic: its county count); the overview's other
@@ -692,13 +699,17 @@ function computeDomain() {
 
 const clampT = (t) => Math.max(S.domain[0], Math.min(S.domain[1], t));
 
-// Replays open at the first map frame after the main race reached 25% counted; live pages and
-// elections without a count open at the end.
+// Replays open where either the model or Polymarket first reached 90% on the
+// eventual winner. A shared ?at=<ISO time> link takes precedence.
 function defaultTime() {
-  if (LIVE || PRE() || !S.countTimeline) return S.domain[1];
-  const hit = S.rows.get(mainRace()?.race_id)?.find((d) => d.counted >= 0.25);
-  if (!hit) return S.domain[1];
-  return clampT(S.frameTimes?.find((t) => t >= hit.tms) ?? hit.tms);
+  const explicit = Date.parse(param("at") ?? param("time") ?? "");
+  if (Number.isFinite(explicit)) return clampT(explicit);
+  if (!replay() || !S.countTimeline) return S.domain[1];
+  const r = mainRace(), rows = S.rows.get(r?.race_id) ?? [], aWon = outcomeOf(r);
+  const hit = rows.find((d) => winnerProbability(d, aWon, "model") >= 0.9 || winnerProbability(d, aWon, "pm") >= 0.9);
+  if (hit) return clampT(hit.tms);
+  const gate = rows.find((d) => d.counted >= 0.01);
+  return gate ? clampT(gate.tms) : S.domain[1];
 }
 
 function frameIndex(t) {
@@ -834,7 +845,9 @@ function render() {
     const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
     const row = rowAt(S.race.race_id, tt) ?? extraRow(S.race);
     if (pre && S.race.estimate) pre.basis = S.race.estimate.note;
-    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row), nPolls: nPollsOf(S.race) });
+    const aWon = outcomeOf(S.race);
+    const priced = [...(rowsOf(S.race.race_id) ?? [])].reverse().find((d) => d.tms <= tt && d.pm != null);
+    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row), nPolls: nPollsOf(S.race), settled: replay() && settledAt(priced ?? row, aWon), winner: replay() ? winnerName(S.race, aWon) : null });
     // the turnout chart follows the map's frame
     if (S.tlView === "turnout" && S.tlK !== k) drawChart();
   }
@@ -1873,7 +1886,7 @@ function buildRaceList() {
   // US: every race of the office (● live county model), in the open state if one is open
   const list = S.nat ? officeRaces(OFFICE_ID[S.office ?? "senate"] ?? "sen").filter((r) => !S.region || r.region === S.region) : statewide();
   const name = S.nat ? (r) => `${modelled(r) ? "● " : ""}${raceName(r)}` : raceName;
-  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf, nPollsOf });
+  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => decisionOf(r)?.decided ? null : leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf, nPollsOf, decisionOf, winnerOf });
   S.list.select(S.race?.race_id);
 }
 
@@ -2305,6 +2318,7 @@ async function main() {
   await yieldBrowser();
   computeDomain();
   S.t = defaultTime();
+  $("replay-hint").hidden = !replay();
   S.followLatest = S.t >= S.domain[1];
   S.scrub = createScrubber($("scrubber"), { onInput: (t) => { pause(); S.preview = null; setTime(t); } });
   initRaceSelect();
@@ -2363,7 +2377,7 @@ async function main() {
     houseLive: () => loadHouseLive().then((ok) => { if (ok) houseLiveShown(); return S.houseLive ? S.houseLive.rows.size : 0; }),
     selection: () => ({ selector: $("race").value, readout: $("readout").innerText, chart: $("timeline").innerText, tab: document.querySelector(".tab-panes [role=tabpanel]:not([hidden])")?.innerText ?? "", url: location.search }),
     modes, levels: () => (levelsOn() ? ["regions", "units"] : []), level: () => S.level, region: () => S.region,
-    domain: () => S.domain, frameTimes: () => S.frameTimes ?? [],
+    domain: () => S.domain, time: () => S.t, frameTimes: () => S.frameTimes ?? [],
     setMode: (m) => { S.mode = m; S.modeChosen = true; S.shownKey = null; setupModes(); render(); },
     setTime, setLevel: (l) => setLevel(l, { push: false }),
     painted: () => work("audit", {}),

@@ -8,12 +8,12 @@
 <!-- the stylesheet and every module of this page carry the build stamp (and a Reload's ?_r), so cached code cannot mix with new data -->
 <link id="page-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261031b";
+window.__BUILD = "20261031c";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 (() => {
   const imports = {};
-  for (const f of ["common.js", "dash-agg.js", "dash-precount.js", "dash-national.js", "world-map.js", "landing-data.js", "landing-charts.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  for (const f of ["common.js", "decided.js", "dash-agg.js", "dash-precount.js", "dash-national.js", "world-map.js", "landing-data.js", "landing-charts.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
   const m = document.createElement("script");
   m.type = "importmap";
   m.textContent = JSON.stringify({ imports });
@@ -136,7 +136,7 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
       <dt>Calibration</dt>
       <dd>Share of minutes between 1% and 95% counted in which the final result fell inside the model's 90% band, and the mean error in standard deviations.</dd>
       <dt>Settle time</dt>
-      <dd>The first minute from which the model and each market stay at 0.9 or more on the eventual winner, counted from 1% of the vote. The difference is the model's lead.</dd>
+      <dd>The first minute from which the model and each contested market stay at 0.9 or more on the eventual winner, counted from 1% of the vote. The difference is the model's lead. A market is “decided before the count” instead if the eventual outcome was at least 0.90 at the first minute at or after official poll close and stayed at least 0.80 through the count; those markets are excluded from lead comparisons.</dd>
       <dt>Catch-up</dt>
       <dd>When model and market disagree, the share of the gap the price closes over the next 30 minutes.</dd>
       <dt>Early error</dt>

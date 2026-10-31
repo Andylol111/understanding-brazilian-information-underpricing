@@ -9,12 +9,12 @@
      a failed load adds a fresh ?_r stamp, which refetches all of it. -->
 <link id="page-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261031a";
+window.__BUILD = "20261031b";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 (() => {
   const imports = {};
-  for (const f of ["common.js", "dash-agg.js", "dash-map.js", "dash-timeline.js", "dash-scrubber.js", "dash-panels.js", "dash-precount.js", "dash-national.js", "dash-house.js", "dash-us-tabs.js", "dash-engine.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  for (const f of ["common.js", "decided.js", "dash-agg.js", "dash-map.js", "dash-timeline.js", "dash-scrubber.js", "dash-panels.js", "dash-precount.js", "dash-national.js", "dash-house.js", "dash-us-tabs.js", "dash-engine.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
   const m = document.createElement("script");
   m.type = "importmap";
   m.textContent = JSON.stringify({ imports });
@@ -80,6 +80,7 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
   <section class="panel p-summary" id="nat-summary" aria-label="All races of the office"></section>
 
   <section class="panel p-timeline" aria-label="Race timeline">
+    <p class="note replay-hint" id="replay-hint" hidden>Drag the timeline to replay the night. The marks show when the model and the markets reached 90%.</p>
     <div class="tl-head">
       <label class="select"><span>Race</span> <select id="race"></select></label>
       <div class="toggle tl-view" id="tl-range" role="group" aria-label="Time range" hidden></div>
