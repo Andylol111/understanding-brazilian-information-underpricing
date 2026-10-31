@@ -40,10 +40,11 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
     const label = pre ? "Model, before votes" : "Model projection";
     if (share != null || pre?.note) chips.push(chip(`${label}${v2 ? ", polls" : ""}`, share != null ? pct(share) : "–", "m", share != null && sd != null ? `± ${(164.5 * sd).toFixed(1)}` : "", share != null ? `${race.a.name}'s share of the two-candidate vote; ± the 90% band` : pre.note));
   }
-  // chances: the model (with polls where it has them), Polymarket, Kalshi
-  const P = modelP(row), two = row.P_v2 != null && row.P != null;
-  const ch = [[P, "m", "model"], [row.pm, "k", "PM"], [row.kalshi, "kx", "Kalshi"]].filter(([v]) => v != null);
-  if (ch.length) chips.push(settled ? chip("Chance", `settled${winner ? ` — ${esc(winner)} won` : ""}`, "ro-ch") : chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : "", `chance ${race.a.name} wins: ${P != null ? `${margins ? "model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
+  // Chances: headline model, optional post-result sensitivity, Polymarket and Kalshi.
+  const P = modelP(row), two = row.P_v2 != null && row.P != null, sensitivityP = row.P_sensitivity;
+  const ch = [[P, "m", "model"], [sensitivityP, "m", "v2"], [row.pm, "k", "PM"],
+              [row.kalshi, "kx", "Kalshi"]].filter(([v]) => v != null);
+  if (ch.length) chips.push(settled ? chip("Chance", `settled${winner ? ` — ${esc(winner)} won` : ""}`, "ro-ch") : chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : "", `chance ${race.a.name} wins: ${P != null ? `${margins ? "model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}${sensitivityP != null ? `, v2 sensitivity ${num(sensitivityP)}` : ""}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
   if (row.rem_total > 0) {
     const lean = row.rem_margin_total;
     chips.push(chip("Votes left (est.)", `≈ ${votesShort(row.rem_total)}`, "", lean != null ? `lean ${esc(lean >= 0 ? race.a.name : race.b.name)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)}` : "", "the model's estimate of the votes still to count and how they lean"));
@@ -74,24 +75,26 @@ const SORT = { key: "order", dir: 1 }; // kept across rebuilds (live refresh)
 // race's entry in stats.profit_model_limit.by_race, or null; the Profit column shows when any race has one.
 const profitText = (p) => (p == null ? "–" : `${p.bankroll_pnl > 0 ? "+" : p.bankroll_pnl < 0 ? "−" : ""}$${Math.abs(Math.round(p.bankroll_pnl ?? 0)).toLocaleString("en-US")}`);
 const profitTitle = (p) => (p == null ? "" : p.eligible_trades ? `${p.eligible_trades.toLocaleString("en-US")} trades at least 5¢ below the model, $${Math.round(p.eligible_volume).toLocaleString("en-US")} in all; the $10,000 put $${Math.round(p.bankroll_stake ?? 0).toLocaleString("en-US")} into this race` : p.reason ? `No trade qualified: ${p.reason}` : "No trade qualified");
-export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalshi = false, profitOf = () => null, nPollsOf = () => null, decisionOf = () => null, winnerOf = () => null }) {
+export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalshi = false, sensitivity = null, profitOf = () => null, nPollsOf = () => null, decisionOf = () => null, winnerOf = () => null }) {
   const st = { values: new Map() };
   const lead = (r) => leadOf(r);
   const hasProfit = races.some((r) => profitOf(r));
   const anyThin = races.some((r) => thinPolls(nPollsOf(r)) != null);
   const cols = [
-    ["name", "Race", false], ["P", "Model", true], ["pm", "Polymarket", true], ...(hasKalshi ? [["k", "Kalshi", true]] : []), ["gap", "Gap", true], ["lead", "Lead from 1% counted (min)", true],
+    ["name", "Race", false], ["P", "Model", true], ...(sensitivity ? [["v2", "v2", true]] : []),
+    ["pm", "Polymarket", true], ...(hasKalshi ? [["k", "Kalshi", true]] : []),
+    ["gap", "Gap", true], ["lead", "Lead from 1% counted (min)", true],
     ...(hasProfit ? [["profit", "Profit on $10,000", true]] : []),
   ];
   el.innerHTML = `<table class="races"><thead><tr>${cols.map(([k, label, n]) => `<th class="${n ? "n" : ""}" aria-sort="${SORT.key === k ? (SORT.dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${label}</button></th>`).join("")}</tr></thead><tbody></tbody></table>
-    <p class="note">${anyThin ? "† 3 or fewer polls in the poll average.<br>" : ""}Model: the model's probability that the first-named candidate wins, at the scrubber time. Polymarket${hasKalshi ? " and Kalshi: each venue's price" : ": the price"} for the same outcome (–: not listed there). Gap: model minus the Polymarket price (or Kalshi's, where only Kalshi lists the race). Lead: minutes by which the model reached 90% on the winner before Polymarket did, both counted from the moment the race reached 1% counted (negative: after). A “decided before count” market was already at least 90% on the winner at poll close and stayed at least 80%; its lead is not meaningful.${hasProfit ? " Profit on $10,000: what the election's $10,000 made in this race under the buying rule in the Statistics tab (hover for the trades that qualified)." : ""}</p>`;
+    <p class="note">${anyThin ? "† 3 or fewer polls in the poll average.<br>" : ""}Model: the model's probability that the first-named candidate wins, at the scrubber time.${sensitivity ? ` v2: ${esc(sensitivity.label)}.` : ""} Polymarket${hasKalshi ? " and Kalshi: each venue's price" : ": the price"} for the same outcome (–: not listed there). Gap: model minus the Polymarket price (or Kalshi's, where only Kalshi lists the race). Lead: minutes by which the model reached 90% on the winner before Polymarket did, both counted from the moment the race reached 1% counted (negative: after). A “decided before count” market was already at least 90% on the winner at poll close and stayed at least 80%; its lead is not meaningful.${hasProfit ? " Profit on $10,000: what the election's $10,000 made in this race under the buying rule in the Statistics tab (hover for the trades that qualified)." : ""}</p>`;
   const tbody = el.querySelector("tbody");
   const rows = races.map((r, order) => {
     const tr = document.createElement("tr");
     tr.tabIndex = 0;
     tr.dataset.race = r.race_id;
     const pr = hasProfit ? profitOf(r) : null, decision = decisionOf(r), winner = winnerOf(r);
-    tr.innerHTML = `<td>${esc(raceName(r))}${winner ? ` ${esc(winner)}` : ""}${decision?.decided ? ` <span class="label decided">decided before count</span>` : ""}${thinPolls(nPollsOf(r)) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(nPollsOf(r)))}">†</sup>` : ""}</td><td class="n m"></td><td class="n"></td>${hasKalshi ? `<td class="n kx"></td>` : ""}<td class="n"><span class="gapbar"><i></i></span></td><td class="n">${decision?.decided ? "not meaningful" : lead(r) == null ? "–" : signed(lead(r), 0)}</td>${hasProfit ? `<td class="n" title="${esc(profitTitle(pr))}">${profitText(pr)}</td>` : ""}`;
+    tr.innerHTML = `<td>${esc(raceName(r))}${winner ? ` ${esc(winner)}` : ""}${decision?.decided ? ` <span class="label decided">decided before count</span>` : ""}${thinPolls(nPollsOf(r)) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(nPollsOf(r)))}">†</sup>` : ""}</td><td class="n m"></td>${sensitivity ? `<td class="n m"></td>` : ""}<td class="n"></td>${hasKalshi ? `<td class="n kx"></td>` : ""}<td class="n"><span class="gapbar"><i></i></span></td><td class="n">${decision?.decided ? "not meaningful" : lead(r) == null ? "–" : signed(lead(r), 0)}</td>${hasProfit ? `<td class="n" title="${esc(profitTitle(pr))}">${profitText(pr)}</td>` : ""}`;
     tr.addEventListener("click", () => onSelect(r));
     tr.addEventListener("keydown", (e) => { if (e.key === "Enter") onSelect(r); });
     return { r, tr, order, cells: tr.children };
@@ -108,7 +111,9 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalsh
   function val(x) {
     const v = st.values.get(x.r.race_id) ?? {};
     const m = v.pm ?? v.k;
-    return { order: x.order, name: x.r.name, P: v.P, pm: v.pm, k: v.k, gap: v.P != null && m != null ? Math.abs(v.P - m) : null, lead: lead(x.r), profit: profitOf(x.r)?.bankroll_pnl }[SORT.key];
+    return { order: x.order, name: x.r.name, P: v.P, v2: v.v2, pm: v.pm, k: v.k,
+      gap: v.P != null && m != null ? Math.abs(v.P - m) : null, lead: lead(x.r),
+      profit: profitOf(x.r)?.bankroll_pnl }[SORT.key];
   }
   function sort() {
     const sorted = [...rows].sort((a, b) => {
@@ -127,9 +132,11 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalsh
         const v = valuesByRace.get(x.r.race_id) ?? {};
         const c = x.cells;
         c[1].textContent = num(v.P);
-        c[2].textContent = num(v.pm);
-        if (hasKalshi) c[3].textContent = num(v.k);
-        const gapCell = c[hasKalshi ? 4 : 3];
+        if (sensitivity) c[2].textContent = num(v.v2);
+        const pmIndex = sensitivity ? 3 : 2;
+        c[pmIndex].textContent = num(v.pm);
+        if (hasKalshi) c[pmIndex + 1].textContent = num(v.k);
+        const gapCell = c[pmIndex + (hasKalshi ? 2 : 1)];
         const bar = gapCell.firstChild.firstChild;
         const m = v.pm ?? v.k;
         if (v.P != null && m != null) {
@@ -411,8 +418,8 @@ export function renderMethod(el, { meta, entry, geometryCredit, twoModels = fals
   const evs = Object.entries(EVIDENCE).map(([k, e]) => `<li>${evidenceLabel(k)} ${esc(e.long[0].toUpperCase() + e.long.slice(1))}.</li>`).join("");
   el.innerHTML = `
     <h3 class="tab-h">How this election was modelled</h3>
-    ${twoModels ? `<p>Two versions of the model are shown. The <span class="m">model with polls</span> (the main line and figure) starts from past certified results shifted toward the recent polling average for the race, then updates as votes are counted. The <span class="m">model without polls</span> (thin dashed line) starts from past certified results alone and updates from the count in the same way. Both use only what was known at each minute. As more votes are counted both rely more on the count, so the two come closer; the difference matters most before and early in the count.</p>` : ""}
-    ${margins ? `<p><b>Market-implied margin</b>: the vote margin at which the model's own uncertainty would give the market's price. A price p becomes the margin Φ⁻¹(p) × the model's standard deviation of the margin (Φ⁻¹: the inverse of the normal distribution), so 0.50 is an even race and 0.84 is a lead of one standard deviation.</p>` : ""}
+    ${meta.sensitivity ? `<p>The solid line is the headline model. The thin dashed line is <span class="m">${esc(meta.sensitivity.label)}</span>; it is a sensitivity, not the headline.</p>` : twoModels ? `<p>Two versions of the model are shown. The <span class="m">model with polls</span> (the main line and figure) starts from past certified results shifted toward the recent polling average for the race, then updates as votes are counted. The <span class="m">model without polls</span> (thin dashed line) starts from past certified results alone and updates from the count in the same way. Both use only what was known at each minute. As more votes are counted both rely more on the count, so the two come closer; the difference matters most before and early in the count.</p>` : ""}
+    ${margins ? `<p><b>Market-implied margin</b>: the vote margin at which the model's own uncertainty would give the market's price. A price p becomes the margin Φ⁻¹(p) × the model's standard deviation of the margin (Φ⁻¹: the inverse normal distribution), so 0.50 is an even race and 0.84 is a lead of one standard deviation.</p>` : ""}
     ${notes ? `<ul>${notes}</ul>` : `<p class="note">No notes.</p>`}
     <h3 class="tab-h">Evidence labels</h3>
     <p>This election: ${entry?.evidence ? evidenceLabel(entry.evidence) : "–"}</p>

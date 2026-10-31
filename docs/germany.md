@@ -2,8 +2,8 @@
 
 **RETROSPECTIVE replay, not pre-registered.** It was built after the election, with the result and the Polymarket
 resolutions known. It compares a count model against Polymarket minute by minute. The model is
-`brunder.germany`, applied to the 299 Wahlkreise. Settings were chosen on the **2021 election night only** (never on
-2025), see "Settings".
+`brunder.germany`, applied to the 299 Wahlkreise. V1, the headline, chose settings on the **2021 election night only**
+(never on 2025). V2 is a sensitivity chosen after the 2025 result was known; see "Sensitivity v2".
 
 ## Feasibility: the official count over time exists, partly
 
@@ -44,6 +44,7 @@ since then. The open-data CSV (`kerg2.csv`) was captured once, at 03:23 CET, and
 |---|---|---|
 | 2025 night pages (314 HTML) and CDX indexes | `raw/germany/wayback/`, `raw/germany/cdx_*.json` | 17 MB |
 | 2021 night pages (407 HTML), 2021 `kerg2.csv` (with the 2017 result), CDX | `raw/germany/wayback2021/`, `open2021/` | 25 MB |
+| 2017/2013 archive checks | `raw/germany/{cdx,wayback,captures}{2017,2013}*` | 1 HTML / no HTML |
 | open data 2025, geometry | `raw/germany/open/`, `raw/germany/geo/` | 6 MB |
 | Polymarket: 14 events, 1-minute YES prices 14:00 UTC 23 Feb to 12:00 UTC 24 Feb | `raw/polymarket/<event>/` | 2 MB |
 | Kalshi 1-minute candles of 3 markets | `raw/kalshi/germany/` | tiny |
@@ -52,9 +53,12 @@ since then. The open-data CSV (`kerg2.csv`) was captured once, at 03:23 CET, and
 export BRUNDER_DATA=~/brunder-data-local
 uv run python analysis/de_fetch.py open && uv run python analysis/de_fetch.py open2021
 uv run python analysis/de_fetch.py wayback && uv run python analysis/de_fetch.py wayback2021
+uv run python analysis/de_fetch.py wayback2017 && uv run python analysis/de_fetch.py wayback2013
 uv run python analysis/de_fetch.py markets && uv run python analysis/de_fetch.py kalshi
-uv run python analysis/de_calibrate.py            # 2021 only -> results/germany/calibration_2021.json
-uv run python analysis/de_score.py configs/de2025_v1.toml
+uv run python analysis/de_calibrate.py            # v1: 2021 -> results/germany/calibration_2021.json
+uv run python analysis/de_calibrate_v2.py         # fixed rule -> results/germany/calibration_v2.json
+DE_OUT=results/germany/v1 uv run python analysis/de_score.py configs/de2025_v1.toml
+DE_OUT=results/germany/v2 uv run python analysis/de_score.py configs/de2025_v2.toml
 uv run python analysis/de_geo.py && uv run python analysis/de_export.py
 ```
 
@@ -117,15 +121,56 @@ in 2021, model against the raw count, by electorate share counted: 5.5 vs 9.6 po
 Greens +6) and the cities reported late, so the calibrated sd is wide. On 2025 it is **conservative**: the 90% band
 covered the final share in 96.5% of 968 party-minutes (CDU/CSU and AfD 100%, BSW 89%).
 
+
+## Sensitivity v2: fixed multi-night selection rule
+
+This sensitivity was designed after the 2025 result was known; it is not pre-registered and does not replace the v1
+headline. Before running it, the following rule was fixed. Use every earlier German election night for which the
+Internet Archive has enough Bundeswahlleiter result pages with `Zwischenergebnis` stamps to replay a count. Give each
+night equal weight (and use the real archived reporting order). On the existing `sd_a` grid, choose the smallest value
+whose pooled 90% coverage of the final party share over frames with 1--95% of the electorate counted is at least 0.90
+and whose worst single-night coverage is at least 0.75. At that `sd_a`, choose the other projection setting from its
+existing grid by the lowest mean absolute projection error, averaging the per-night errors so each night has equal
+weight; fit `sd_b` to the pooled earlier-night errors and estimate correlations from those errors.
+
+The archive search covers the 2021, 2017 (24 September), and 2013 (22 September) election nights, both bare and `www`
+hosts and German/English result paths. The 2021 night is usable. For 2017, CDX returns only one stamped result page
+(Wahlkreis 129) during the night, not a replayable sequence. For 2013, CDX returns no result-page captures during the
+night. Consequently this fixed rule has only one usable earlier night; v2 tests the common selection rule, but cannot
+supply a genuinely multi-night German calibration. Open data retain the Datenlizenz Deutschland - Namensnennung 2.0;
+the archived night page has no stated licence, so the site publishes only the capture count and derived series.
+
+The fixed rule selected `kappa = 30,000,000` (lowest earlier-night MAE on the existing grid), `sd_a = 0.20` (2021
+coverage 95.4%; `0.15` gave 86.5%), `sd_b = 0.931`, and `sd_floor = 0.0001`; correlations were re-estimated from 2021.
+V2 is only 1.5% tighter on 2025 by mean full 90% interval width (4.55 points rather than 4.62). Coverage changed from
+96.5% to 96.1% of the 968 party-minutes, while mean absolute projection error worsened from 0.482 to 0.502 points.
+Thus the available-night rule does **not** support a materially tighter German model.
+
+| 2025 replay | v1 headline | v2 sensitivity |
+|---|---:|---:|
+| 90% coverage, all party-minutes at 1--95% counted | 96.5% | 96.1% |
+| mean absolute projection error | 0.482 pt | 0.502 pt |
+| mean full width of 90% band | 4.62 pt | 4.55 pt |
+| Brier, all 46 markets | 0.0426 | 0.0418 |
+| Brier, four markets not settled before the count | 0.1402 | 0.1353 |
+| markets Polymarket had settled before first count | 42 / 46 | 42 / 46 |
+
+The four genuinely count-contested markets have identical settle times under v1 and v2: CDU/CSU 32--34% no at 22:03
+UTC (market 20:38), AfD 20--25% yes at 23:45 (20:44), AfD 20--22% yes at 23:45 (20:46), and BSW 5%+ no at 00:17
+(market 00:23, model six minutes first). Among the nine displayed races, only CDU/CSU most changes materially in its
+first 95% time (21:40 v1, 21:17 v2); FDP under 5% moves later (first 90% / 95% and settled: 22:10 / 22:33 / 22:22 v1,
+22:31 / 23:07 / 23:00 v2). The site retains v1 as the solid headline and draws v2 as a dashed sensitivity.
+
 ## Evidence: retrospective, not pre-registered
 
-- The 2025 result, the Polymarket resolutions and the price paths were seen before any 2025 number was used; the
-  author knew the BSW 4.98% result when writing the BSW judgment (`bsw_c`). Nothing was tuned on 2025: the settings
-  above come from 2021, and `bsw_c` has a sensitivity run (factor 0.1 and 1.0).
-- `configs/de2025_v1.toml` is written after the 2025 run and is **not registered** (no `prereg/` entry).
+- The 2025 result, the Polymarket resolutions and the price paths were seen before either config was written. The
+  author knew the BSW 4.98% result when writing the BSW judgment (`bsw_c`). V1 settings come from 2021. The v2 rule was
+  written above before its calibration run, but both the rule and `configs/de2025_v2.toml` were chosen after the 2025
+  result was known and are labelled sensitivity throughout.
+- Neither config is registered (`prereg/` has no Germany entry); v1 remains the headline.
 - Scoring window: from the first count information (19:38 UTC) to the last national page (00:33:37 UTC, 299 of 299).
 
-## Results (`results/germany/stats.json`; outcome = Polymarket resolution, identical to the official final)
+## Results (v1 headline; v2 comparison above; outcome = Polymarket resolution, identical to the official final)
 
 Official final: CDU/CSU 28.52%, AfD 20.80%, SPD 16.41%, Greens 11.61%, Die Linke 8.77%, **BSW 4.98%**, FDP 4.33%.
 
@@ -193,10 +238,10 @@ The "first" columns are the first minute at or above the level, not necessarily 
 
 ## Files
 
-- **Code:** `src/brunder/germany.py`; `analysis/de_fetch.py`, `de_calibrate.py`, `de_score.py`, `de_export.py`,
-  `de_geo.py`; `tests/test_germany.py` with fixtures in `tests/fixtures/germany/` (result-page tables as captured,
-  rows of `kerg2.csv` and the 2021-on-2025 file).
-- **Config:** `configs/de2025_v1.toml`, not registered.
+- **Code:** `src/brunder/germany.py`; `analysis/de_fetch.py`, `de_calibrate.py`, `de_calibrate_v2.py`, `de_score.py`,
+  `de_export.py`, `de_geo.py`; `tests/test_germany.py` with fixtures in `tests/fixtures/germany/` (result-page tables
+  as captured, rows of `kerg2.csv` and the 2021-on-2025 file).
+- **Configs:** `configs/de2025_v1.toml` (headline) and `configs/de2025_v2.toml` (post-result sensitivity), not registered.
 - **Site:** `site/data/de2025/{meta,timeline,units,stats,entry}.json`, `site/data/geo/de_wahlkreise.topo.json`
   (0.10 MB), an entry in `site/data/elections.json`, the election added to `analysis/site_check.py`.
   - Timeline: one row per minute from poll close (18:00 CET) to 07:00 CET, 9 races. The map has 129 frames, one per
@@ -214,4 +259,5 @@ The "first" columns are the first minute at or above the level, not necessarily 
   6 points higher; the factor is learned from the count).
 - **BSW** has no prior (judgment, see above) and only one election night (2025) to learn from.
 - **Seat counts, overhang and compensation seats** are not modelled; the order of the second-vote shares is used.
-- **One election** calibrates the sd; the 2025 coverage (96.5%) shows it is on the safe side, not that it is right.
+- **One election** calibrates the sd in both versions because 2017 and 2013 are not replayable. Their 2025 coverage
+  near 96% shows both are conservative on this night, not that either is calibrated across German elections.

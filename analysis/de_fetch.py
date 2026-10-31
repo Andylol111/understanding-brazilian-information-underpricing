@@ -1,19 +1,16 @@
-"""Fetch the German Bundestag election 2025 (23 Feb 2025) data for the replay.
+"""Fetch the Germany 2025 replay data and earlier calibration-night pages.
 
-* `open`     official open data (Bundeswahlleiterin, Datenlizenz Deutschland - Namensnennung 2.0): the final
-             results by Wahlkreis (kerg2.csv), Wahlkreis names, the 2021 result on the 2025 constituencies
-             (btwkr25_umrechnung_btw21.csv), party list.
-* `wayback`  the election-night count. The results pages are server-rendered HTML with an "Zwischenergebnis:
-             <date time>, <n> von 299 Wahlkreisen ausgezählt" caption; the Internet Archive holds several
-             captures of the national page (bund-99), of the 16 Land pages and of single Wahlkreis pages
-             (German and English). All captures between 2025-02-23 17:00 and 2025-02-24 06:00 UTC are saved.
-* `markets`  Polymarket events (Germany 2025), 1-minute YES prices, count window only.
-* `kalshi`   Kalshi 'most seats' / '2nd place' markets, 1-minute candles (the only Kalshi markets open through the count).
+* `open` / `wayback`  2025 open data and election-night pages.
+* `open2021` / `wayback2021`  2021 final/prior data and election-night pages used for calibration.
+* `wayback2017` / `wayback2013`  archive-availability checks for the two additional earlier nights considered by the
+  v2 sensitivity. The same result-page URL families are queried; captures are retained even when too sparse to replay.
+* `markets`  Polymarket events and 1-minute YES prices.
+* `kalshi`   Kalshi "most seats" / "2nd place" 1-minute candles.
 
 The bundeswahlleiterin.de robots.txt answers 404 (no restrictions); requests are sequential, >= 1.1 s apart, with
 an honest User-Agent, also to web.archive.org.
 
-    BRUNDER_DATA=~/brunder-data-local uv run python analysis/de_fetch.py open|wayback|markets|kalshi
+    BRUNDER_DATA=~/brunder-data-local uv run python analysis/de_fetch.py open|wayback|open2021|wayback2021|wayback2017|wayback2013|markets|kalshi
 """
 
 from __future__ import annotations
@@ -87,8 +84,14 @@ def kind_of(url: str, year: int = 2025) -> tuple[str, str] | None:
     return ("en" if m[1] else "de", unit)
 
 
-WINDOW = {2025: ("20250223170000", "20250224060000"), 2021: ("20210926160000", "20210927060000")}
-HOSTS = {2025: "bundeswahlleiterin.de", 2021: "bundeswahlleiter.de"}
+WINDOW = {
+    2025: ("20250223170000", "20250224060000"),
+    2021: ("20210926160000", "20210927060000"),
+    2017: ("20170924150000", "20170925060000"),
+    2013: ("20130922150000", "20130923060000"),
+}
+HOSTS = {2025: "bundeswahlleiterin.de", 2021: "bundeswahlleiter.de", 2017: "bundeswahlleiter.de",
+         2013: "bundeswahlleiter.de"}
 
 
 def captures(c: httpx.Client, year: int = 2025) -> list[tuple[str, str, str, str, str]]:
@@ -196,8 +199,11 @@ def main(what: str) -> None:
         kalshi_markets()
         return
     with httpx.Client(headers=UA, timeout=90, follow_redirects=True) as c:
-        {"open": fetch_open, "wayback": wayback, "open2021": fetch_open2021,
-         "wayback2021": lambda cl: wayback(cl, 2021)}[what](c)
+        actions = {"open": fetch_open, "wayback": wayback, "open2021": fetch_open2021,
+                   "wayback2021": lambda cl: wayback(cl, 2021),
+                   "wayback2017": lambda cl: wayback(cl, 2017),
+                   "wayback2013": lambda cl: wayback(cl, 2013)}
+        actions[what](c)
     print(RAW_DE)
 
 

@@ -1,0 +1,370 @@
+# Germany 2025 v2 sensitivity (RETROSPECTIVE, NOT PRE-REGISTERED: chosen after the 2025 result and market resolutions
+# were known). It applies the fixed common calibration rule to usable earlier German nights. Internet Archive searches
+# found a replayable 2021 night, only one stamped result page in 2017, and none in 2013; therefore calibration still uses
+# 2021 alone. See docs/germany.md and analysis/de_calibrate_v2.py -> results/germany/calibration_v2.json. No 2025 count
+# enters the selected settings. bsw_c and bsw_rho remain judgments because BSW did not exist before 2024.
+id = "de2025_v2"
+election = "Germany, Bundestag election, 2025-02-23; polls closed 17:00 UTC (18:00 CET)"
+poll_close_utc = "2025-02-23T17:00:00Z"
+night_end_utc = "2025-02-24T06:00:00Z"
+draws = 20000
+seed = 20250223
+
+[model]                      # brunder.germany.Params
+kappa = 30000000.0             # lowest mean absolute share error on the usable earlier night (existing grid)
+theta0 = 1000000.0           # default, not tuned
+bsw_c = 0.3                  # judgment, not fitted: BSW prior share = 0.3 * (AfD + Die Linke) 2021 share (BSW is a Linke split courting AfD voters)
+bsw_rho = -0.1               # judgment: correlation of BSW's projection error with every other party's
+sd_a = 0.2                  # smallest grid value with pooled coverage >= .90 and worst-night >= .75 (.954)
+sd_b = 0.931                # pooled slope of log relative error on log(share of votes still to come)
+sd_floor = 0.0001           # 2021: largest |last national page - final| second-vote share difference, floored at 0.0001
+
+[calibration]
+corr_parties = ["Union", "AfD", "SPD", "GRÜNE", "Die Linke", "FDP", "Übrige"]
+corr = [[1.0, -0.247, -0.443, -0.251, -0.541, -0.114, 0.326], [-0.247, 1.0, -0.053, -0.413, 0.202, 0.165, -0.344], [-0.443, -0.053, 1.0, 0.112, 0.166, -0.134, -0.503], [-0.251, -0.413, 0.112, 1.0, -0.042, -0.361, -0.151], [-0.541, 0.202, 0.166, -0.042, 1.0, -0.014, -0.469], [-0.114, 0.165, -0.134, -0.361, -0.014, 1.0, -0.15], [0.326, -0.344, -0.503, -0.151, -0.469, -0.15, 1.0]]
+
+[prior]                      # 2021 result on the 2025 constituencies, published by the Bundeswahlleiterin before the election
+file = "germany/open/btwkr25_umrechnung_btw21.csv"
+electorate_file = "germany/open/kerg2.csv"   # Wahlberechtigte per Wahlkreis (known before polling day), not any vote count
+
+[prices]
+start_utc = "2025-02-23T14:00:00Z"
+end_utc = "2025-02-24T12:00:00Z"
+
+[[markets]]
+event = "germany-parliamentary-election"
+market = "will-spd-win-the-most-seats-in-the-next-german-election"
+kind = "max"
+party = "SPD"
+
+[[markets]]
+event = "germany-parliamentary-election"
+market = "will-union-win-the-most-seats-in-the-next-german-election"
+kind = "max"
+party = "Union"
+
+[[markets]]
+event = "germany-parliamentary-election"
+market = "will-afd-win-the-most-seats-in-the-next-german-election"
+kind = "max"
+party = "AfD"
+
+[[markets]]
+event = "germany-parliamentary-election"
+market = "will-grunen-win-the-most-seats-in-the-next-german-election"
+kind = "max"
+party = "GRÜNE"
+
+[[markets]]
+event = "germany-parliamentary-election"
+market = "will-bsw-win-the-most-seats-in-the-next-german-election"
+kind = "max"
+party = "BSW"
+
+[[markets]]
+event = "germany-parliamentary-election"
+market = "will-another-party-win-the-most-seats-in-the-next-german-election"
+kind = "max"
+party = "Übrige"
+
+[[markets]]
+event = "germany-parliamentary-election"
+market = "will-fdp-win-the-most-seats-in-the-next-german-election-hksa"
+kind = "max"
+party = "FDP"
+
+[[markets]]
+event = "which-party-wins-2nd-most-seats-in-german-election"
+market = "will-cducsu-win-the-second-most-seats-in-the-next-german-election"
+kind = "second"
+party = "Union"
+
+[[markets]]
+event = "which-party-wins-2nd-most-seats-in-german-election"
+market = "will-spd-win-the-second-most-seats-in-the-next-german-election"
+kind = "second"
+party = "SPD"
+
+[[markets]]
+event = "which-party-wins-2nd-most-seats-in-german-election"
+market = "will-afd-win-the-second-most-seats-in-the-next-german-election"
+kind = "second"
+party = "AfD"
+
+[[markets]]
+event = "which-party-wins-2nd-most-seats-in-german-election"
+market = "will-the-greens-win-the-second-most-seats-in-the-next-german-election"
+kind = "second"
+party = "GRÜNE"
+
+[[markets]]
+event = "which-party-wins-2nd-most-seats-in-german-election"
+market = "will-bsw-win-the-second-most-seats-in-the-next-german-election"
+kind = "second"
+party = "BSW"
+
+[[markets]]
+event = "which-party-wins-2nd-most-seats-in-german-election"
+market = "will-another-party-win-the-second-most-seats-in-the-next-german-election"
+kind = "second"
+party = "Übrige"
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election"
+market = "will-the-cducsu-win-less-than-20-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.0
+hi = 0.2
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election"
+market = "will-the-cducsu-win-20-25-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.2
+hi = 0.25
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election"
+market = "will-the-cducsu-win-25-30-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.25
+hi = 0.3
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election"
+market = "will-the-cducsu-win-30-35-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.3
+hi = 0.35
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election"
+market = "will-the-cducsu-win-35-40-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.35
+hi = 0.4
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election"
+market = "will-the-cducsu-win-over-40-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.4
+hi = 1.0
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election-2-brackets"
+market = "will-the-cducsu-win-less-than-26-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.0
+hi = 0.26
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election-2-brackets"
+market = "will-the-cducsu-win-between-26-and-28-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.26
+hi = 0.28
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election-2-brackets"
+market = "will-the-cducsu-win-between-28-and-30-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.28
+hi = 0.3
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election-2-brackets"
+market = "will-the-cducsu-win-between-30-and-32-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.3
+hi = 0.32
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election-2-brackets"
+market = "will-the-cducsu-win-between-32-and-34-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.32
+hi = 0.34
+
+[[markets]]
+event = "cducsu-of-vote-in-german-election-2-brackets"
+market = "will-the-cducsu-win-more-than-34-of-the-vote-in-the-german-election"
+kind = "range"
+party = "Union"
+lo = 0.34
+hi = 1.0
+
+[[markets]]
+event = "afd-of-vote-in-german-election"
+market = "will-the-afd-win-less-than-10-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.0
+hi = 0.1
+
+[[markets]]
+event = "afd-of-vote-in-german-election"
+market = "will-the-afd-win-10-15-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.1
+hi = 0.15
+
+[[markets]]
+event = "afd-of-vote-in-german-election"
+market = "will-the-afd-win-20-25-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.2
+hi = 0.25
+
+[[markets]]
+event = "afd-of-vote-in-german-election"
+market = "will-the-afd-win-25-30-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.25
+hi = 0.3
+
+[[markets]]
+event = "afd-of-vote-in-german-election"
+market = "will-the-afd-win-over-30-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.3
+hi = 1.0
+
+[[markets]]
+event = "afd-of-vote-in-german-election"
+market = "will-the-afd-win-15-20-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.15
+hi = 0.2
+
+[[markets]]
+event = "afd-of-vote-in-german-election-2-brackets"
+market = "will-the-afd-win-less-than-20-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.0
+hi = 0.2
+
+[[markets]]
+event = "afd-of-vote-in-german-election-2-brackets"
+market = "will-the-afd-win-between-20-and-22-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.2
+hi = 0.22
+
+[[markets]]
+event = "afd-of-vote-in-german-election-2-brackets"
+market = "will-the-afd-win-between-22-and-24-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.22
+hi = 0.24
+
+[[markets]]
+event = "afd-of-vote-in-german-election-2-brackets"
+market = "will-the-afd-win-between-24-and-26-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.24
+hi = 0.26
+
+[[markets]]
+event = "afd-of-vote-in-german-election-2-brackets"
+market = "will-the-afd-win-more-than-26-of-the-vote-in-the-german-election"
+kind = "range"
+party = "AfD"
+lo = 0.26
+hi = 1.0
+
+[[markets]]
+event = "spd-of-vote-in-german-election"
+market = "will-the-spd-win-less-than-10-of-the-vote-in-the-german-election"
+kind = "range"
+party = "SPD"
+lo = 0.0
+hi = 0.1
+
+[[markets]]
+event = "spd-of-vote-in-german-election"
+market = "will-the-spd-win-10-15-of-the-vote-in-the-german-election"
+kind = "range"
+party = "SPD"
+lo = 0.1
+hi = 0.15
+
+[[markets]]
+event = "spd-of-vote-in-german-election"
+market = "will-the-spd-win-15-20-of-the-vote-in-the-german-election"
+kind = "range"
+party = "SPD"
+lo = 0.15
+hi = 0.2
+
+[[markets]]
+event = "spd-of-vote-in-german-election"
+market = "will-the-spd-win-20-25-of-the-vote-in-the-german-election"
+kind = "range"
+party = "SPD"
+lo = 0.2
+hi = 0.25
+
+[[markets]]
+event = "spd-of-vote-in-german-election"
+market = "will-the-spd-win-25-30-of-the-vote-in-the-german-election"
+kind = "range"
+party = "SPD"
+lo = 0.25
+hi = 0.3
+
+[[markets]]
+event = "spd-of-vote-in-german-election"
+market = "will-the-spd-win-over-30-of-the-vote-in-the-german-election"
+kind = "range"
+party = "SPD"
+lo = 0.3
+hi = 1.0
+
+[[markets]]
+event = "bsw-wins-5-or-more-of-vote-in-german-election"
+market = "bsw-wins-5-or-more-of-vote-in-german-election"
+kind = "atleast"
+party = "BSW"
+x = 0.05
+
+[[markets]]
+event = "fdp-wins-5-or-more-of-vote-in-german-election"
+market = "fdp-wins-5-or-more-of-vote-in-german-election"
+kind = "atleast"
+party = "FDP"
+x = 0.05
+
+[[markets]]
+event = "will-the-left-wins-5-or-more-of-vote-in-german-election"
+market = "will-the-left-wins-5-or-more-of-vote-in-german-election"
+kind = "atleast"
+party = "Die Linke"
+x = 0.05
+
+[[markets]]
+event = "will-the-greens-win-over-15-of-the-vote-in-the-german-election"
+market = "will-the-greens-win-over-15-of-the-vote-in-the-german-election"
+kind = "atleast"
+party = "GRÜNE"
+x = 0.15

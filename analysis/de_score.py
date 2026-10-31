@@ -1,11 +1,11 @@
 """Replay the German Bundestag election night of 2025-02-23 against Polymarket (RETROSPECTIVE, not pre-registered).
 
 For every minute at which an archived official page changed what the Bundeswahlleiterin's site showed (national, Land
-and Wahlkeis pages, stamps in UTC), `brunder.germany` projects the final second-vote shares and the probability of every
-market's YES; scored against the Polymarket resolutions and 1-minute prices. Settings: configs/de2025_v1.toml (chosen on
-the 2021 night only). Writes results/germany/{releases.csv,ticks.parquet,final.json,stats.json}.
+and Wahlkreis pages, stamps in UTC), `brunder.germany` projects the final second-vote shares and the probability of
+every market's YES; scored against the Polymarket resolutions and 1-minute prices. `DE_OUT` selects the output folder,
+allowing the headline v1 and post-result v2 sensitivity to be retained together.
 
-    BRUNDER_DATA=~/brunder-data-local uv run python analysis/de_score.py [configs/de2025_v1.toml]
+    BRUNDER_DATA=~/brunder-data-local DE_OUT=results/germany/v1 uv run python analysis/de_score.py configs/de2025_v1.toml
 """
 
 from __future__ import annotations

@@ -866,7 +866,7 @@ function updateLists(t) {
   if (S.list) {
     S.list.update(new Map([...races(), ...(S.extra?.values() ?? [])].map((r) => {
       const row = raceRow(r, t);
-      return [r.race_id, { P: modelP(row), pm: row?.pm ?? null, k: row?.kalshi ?? null }];
+      return [r.race_id, { P: modelP(row), v2: row?.P_sensitivity ?? null, pm: row?.pm ?? null, k: row?.kalshi ?? null }];
     })));
   }
   updatePicker(t);
@@ -1511,7 +1511,7 @@ function drawChart() {
     ? drawTurnout($("timeline"), { pts: tv.pts, height: chartHeight(), slope: tv.row?.turnout_surprise_slope ?? null, corr: tv.row?.turnout_surprise_corr ?? null, pre: tv.pre, sentence: tv.sentence })
     : drawTimeline($("timeline"), {
       race: S.race, rows, domain: S.domain, tz: S.tz, wall: S.wall, height: chartHeight(), countPanel: S.countTimeline,
-      view: S.tlView, us: countryCode() === "US",
+      view: S.tlView, us: countryCode() === "US", sensitivity: S.meta.sensitivity,
       onPreview: (t) => { S.preview = t; render(); },
       onSet: (t) => { pause(); S.preview = null; setTime(t); },
     });
@@ -1772,7 +1772,8 @@ function renderStatsTab() {
 // Method & sources tab: the election's own notes and sources, plus (civicAPI races loaded) the
 // civic meta's, with civicAPI's attribution; entries already listed are not repeated.
 function drawMethod() {
-  const twoModels = [...S.rows.values()].some((rows) => rows.some((d) => d.P_v2 != null)) || races().some((r) => r.precount?.[`P_${r.poll_model ?? "v2"}`] != null);
+  const twoModels = [...S.rows.values()].some((rows) => rows.some((d) => d.P_v2 != null || d.P_sensitivity != null))
+    || races().some((r) => r.precount?.[`P_${r.poll_model ?? "v2"}`] != null);
   const margins = [...S.rows.values()].some((rows) => rows.some((d) => d.margin_market != null || d.margin_model != null));
   let meta = S.meta;
   if (S.civic) {
@@ -1888,7 +1889,7 @@ function buildRaceList() {
   // US: every race of the office (● live county model), in the open state if one is open
   const list = S.nat ? officeRaces(OFFICE_ID[S.office ?? "senate"] ?? "sen").filter((r) => !S.region || r.region === S.region) : statewide();
   const name = S.nat ? (r) => `${modelled(r) ? "● " : ""}${raceName(r)}` : raceName;
-  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => decisionOf(r)?.decided ? null : leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, profitOf, nPollsOf, decisionOf, winnerOf });
+  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => decisionOf(r)?.decided ? null : leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, sensitivity: S.meta.sensitivity, profitOf, nPollsOf, decisionOf, winnerOf });
   S.list.select(S.race?.race_id);
 }
 

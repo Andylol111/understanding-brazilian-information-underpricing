@@ -2,8 +2,8 @@
 
 Everything published is official (Bundeswahlleiterin results pages and open data, Datenlizenz Deutschland -
 Namensnennung 2.0; constituency geometry (c) Geobasis-DE / BKG) or public Polymarket / Kalshi prices, so the count over
-time is shown (count_timeline true). Reads results/germany/ from analysis/de_score.py; the map geometry is
-analysis/de_geo.py's.
+time is shown (count_timeline true). Reads headline v1 and retrospective-sensitivity v2 outputs from
+results/germany/{v1,v2}/, written by analysis/de_score.py; the map geometry is analysis/de_geo.py's.
 
     BRUNDER_DATA=~/brunder-data-local uv run python analysis/de_export.py
 """
@@ -20,6 +20,7 @@ from brunder import kalshi
 from brunder.paths import POLYMARKET, RAW, ROOT
 
 RES = ROOT / "results" / "germany"
+RES_V1, RES_V2 = RES / "v1", RES / "v2"
 OUT = ROOT / "site" / "data" / "de2025"
 CFG = ROOT / "configs" / "de2025_v1.toml"
 COL = {"Union": "#5a6b78", "AfD": "#009ee0", "SPD": "#e3000f", "GRÜNE": "#46962b", "Die Linke": "#be3075",
@@ -92,9 +93,11 @@ def kalshi_series(ticker: str, times: pd.DatetimeIndex) -> pd.Series:
 def main() -> None:
     cfg = g.load_config(CFG)
     p = g.params_of(cfg)
-    S = json.loads((RES / "stats.json").read_text())
-    R = pd.read_csv(RES / "releases.csv", parse_dates=["t"]).set_index("t").sort_index()
-    TK = pd.read_parquet(RES / "ticks.parquet")
+    S = json.loads((RES_V1 / "stats.json").read_text())
+    S2 = json.loads((RES_V2 / "stats.json").read_text())
+    R = pd.read_csv(RES_V1 / "releases.csv", parse_dates=["t"]).set_index("t").sort_index()
+    R2 = pd.read_csv(RES_V2 / "releases.csv", parse_dates=["t"]).set_index("t").sort_index()
+    TK = pd.read_parquet(RES_V1 / "ticks.parquet")
     night = g.read_night(g.RAW_DE / "wayback")
     wk, la = g.read_kerg2(g.RAW_DE / "open" / "kerg2.csv")
     umr = g.read_umrechnung(g.RAW_DE / "open" / "btwkr25_umrechnung_btw21.csv")
@@ -115,17 +118,22 @@ def main() -> None:
         slug = M[pkey]
         px = TK[TK["scope"] == slug].set_index("t")["price"]
         pa = step(R[f"P:{slug}"])
+        pa2 = step(R2[f"P:{slug}"])
         cnt = step(R["counted"])
         if rid == "most-union":
             vals = [step(R["union_two_way_raw"]), step(R["union_two_way"]), step(R["union_two_way_sd"])]
+            vals2 = [step(R2["union_two_way"]), step(R2["union_two_way_sd"])]
         else:
             vals = [pd.Series(np.nan, index=times)] * 3
+            vals2 = [pd.Series(np.nan, index=times)] * 2
         k = kalshi_series(kt[0][0], times) if kt else None
         if k is not None:
             k = k.where(times >= R.index.min())
         kal[rid] = k
-        timeline[rid] = [{"t": iso(t), "counted": num(cnt.iloc[i]), "raw": num(vals[0].iloc[i]), "share": num(vals[1].iloc[i]),
-                          "sd": num(vals[2].iloc[i]), "P": num(pa.iloc[i]), "pm": num(px.iloc[i], 4),
+        timeline[rid] = [{"t": iso(t), "counted": num(cnt.iloc[i]), "raw": num(vals[0].iloc[i]),
+                          "share": num(vals[1].iloc[i]), "sd": num(vals[2].iloc[i]), "P": num(pa.iloc[i]),
+                          "P_sensitivity": num(pa2.iloc[i]), "share_sensitivity": num(vals2[0].iloc[i]),
+                          "sd_sensitivity": num(vals2[1].iloc[i]), "pm": num(px.iloc[i], 4),
                           "kalshi": num(k.iloc[i], 4) if k is not None else None} for i, t in enumerate(times)]
     dump("timeline.json", timeline)
 
@@ -168,10 +176,11 @@ def main() -> None:
 
     # ---- stats per race
     st_set, st_cal, st_ee, st_gate, st_err, st_cov = {}, {}, {}, {}, {}, {}
+    st_set2, st_cal2, st_ee2 = {}, {}, {}
     gate = pd.Timestamp(S["gate_1pct"])
     for rid, (_, _, _, pkey, mks, party, kt) in RACES.items():
         s = S["settle"][M[pkey]]
-        k = kal[rid]
+        s2 = S2["settle"][M[pkey]]
         yes = s["outcome"] == "yes"
         ks = None
         if k is not None:
@@ -182,6 +191,10 @@ def main() -> None:
                        "contested": s["contested"], "lead_min": s["lead_min"], "reach90_model": s["model_reach90"],
                        "reach95_model": s["model_reach95"], "reach90_polymarket": s["pm_reach90"],
                        "reach95_polymarket": s["pm_reach95"]}
+        st_set2[rid] = {"model": s2["model"], "polymarket": s2["polymarket"], "raw": s2["raw"],
+                        "contested": s2["contested"], "lead_min": s2["lead_min"],
+                        "reach90_model": s2["model_reach90"], "reach95_model": s2["model_reach95"],
+                        "reach90_polymarket": s2["pm_reach90"], "reach95_polymarket": s2["pm_reach95"]}
         ms = pd.Timestamp(s["model"]) if s["model"] else None
         ps = pd.Timestamp(s["polymarket"]) if s["polymarket"] else None
         st_gate[rid] = {"gate": iso(gate), "model": s["model"], "polymarket": s["polymarket"], "kalshi": ks, "raw": s["raw"],
@@ -189,6 +202,9 @@ def main() -> None:
                         "lead_vs": "polymarket", "market": M[pkey]}
         cv = S["coverage90"][party]
         st_cal[rid] = {"coverage90_1_95": round(cv["coverage90"], 3), "mean_z": round(cv["mean_z"], 2), "n": cv["n"]}
+        cv2 = S2["coverage90"][party]
+        st_cal2[rid] = {"coverage90_1_95": round(cv2["coverage90"], 3),
+                        "mean_z": round(cv2["mean_z"], 2), "n": cv2["n"]}
         ee = {}
         for c in ("1%", "5%", "10%", "25%"):
             e = S["early_error"][c]
@@ -197,6 +213,14 @@ def main() -> None:
             else:
                 ee[c] = {"model": e["model"][party], "raw": e["raw"][party]}
         st_ee[rid] = ee
+        ee2 = {}
+        for c in ("1%", "5%", "10%", "25%"):
+            e2 = S2["early_error"][c]
+            if rid == "most-union":
+                ee2[c] = {"model": e2["model_two_way_union"], "raw": e2["raw_two_way_union"]}
+            else:
+                ee2[c] = {"model": e2["model"][party], "raw": e2["raw"][party]}
+        st_ee2[rid] = ee2
         st_err[rid] = {c: {**v, } for c, v in ee.items()}
         st_cov[rid] = {"1-95%": st_cal[rid]}
     leads = [v["lead_min"] for v in S["settle"].values() if v["contested"] and v["lead_min"] is not None]
@@ -206,6 +230,7 @@ def main() -> None:
                "market_first": sum(1 for v in S["settle"].values() if v["contested"] and v["lead_min"] is not None and v["lead_min"] < 0),
                "settled_before_first_count": sum(1 for v in S["settle"].values() if not v["contested"])}
     B = S["brier"]
+    B2 = S2["brier"]
     acc = {"evidence": "not-preregistered", "share_error_pt": st_err, "coverage90": st_cov,
            "pwin": {"races": B["contested"]["markets"], "minutes": B["contested"]["minutes"],
                     "brier_model": B["contested"]["brier_model"], "brier_market": B["contested"]["brier_market"],
@@ -219,9 +244,10 @@ def main() -> None:
            "pwin_window": "contested = the markets Polymarket had not settled (>= 0.9 on the outcome to the end) before "
                           "the first count information; minutes from then to the last national page",
            "outcome": "Polymarket resolution (identical to the official final, Bundeswahlleiterin 14 March 2025)"}
-    note = ("RETROSPECTIVE, not pre-registered: built after the election with the result and the market resolutions "
-            "known. Model settings come only from the 2021 election night (Internet Archive copies of the 2021 result "
-            "pages, 2017 result as prior), never from 2025 (configs/de2025_v1.toml).")
+    note = ("RETROSPECTIVE, not pre-registered: built after the election with the result and market resolutions known. "
+            "The v1 headline settings use the 2021 night only. The v2 sensitivity was also chosen after the 2025 result "
+            "was known; archive searches found 2021 replayable, only one stamped page in 2017 and none in 2013, so its "
+            "fixed multi-night rule also has only 2021 available. Neither version uses the 2025 count to select settings.")
     reasons = {"capacity": "no trading rule was run in this replay", "profit": "no trading rule was run in this replay",
                "catchup": "not computed in this replay", "arbitrage": "Kalshi lists no thin-spread pairs through the "
                "count (its 'parties in parliament' markets closed 15:00 UTC, before polls closed)",
@@ -252,10 +278,17 @@ def main() -> None:
          "url": "https://polymarket.com/event/germany-parliamentary-election", "licence": "Polymarket public data"},
         {"name": "(c) Kalshi: 1-minute candles of KXGERMANYPARTY-25-CDU, KXGERMANYPARTY-25-AFD, KXGER2ND-25-AFD "
                  "(published only as the per-minute probability line and settle times; terms in docs/kalshi.md)",
-         "url": "https://kalshi.com", "licence": "Kalshi data terms; see docs/kalshi.md"}]
+         "url": "https://kalshi.com", "licence": "Kalshi data terms; see docs/kalshi.md"},
+        {"name": "Die Bundeswahlleiterin / Bundeswahlleiter: 2017 and 2013 election-night result-page archive searches "
+                 "(v2 calibration availability; one 2017 page, no 2013 pages)",
+         "url": "https://web.archive.org/",
+         "licence": "Internet Archive captures of official federal-authority pages; only capture counts are published"}]
     fshare = {PNAME[a]: round(100 * float(S["final_share"][a]), 2) for a in g.ALL}
     notes = [
         note,
+        ("Two model versions are shown: v1 is the headline (solid line; configs/de2025_v1.toml). V2 is a sensitivity "
+         "(thin dashed line; configs/de2025_v2.toml), chosen after the 2025 result was known with the fixed common "
+         "calibration rule. Because 2017 and 2013 lack replayable archived nights, both calibrations use 2021 only."),
         "Units are the 299 Wahlkreise (2025 boundaries). The count over time is replayed from the Bundeswahlleiterin's "
         f"server-rendered result pages as the Internet Archive captured them: {len(night['bund'])} distinct national "
         f"pages, {sum(len(v) for v in night['land'].values())} Land pages and {len(night['wk'])} single-Wahlkreis pages "
@@ -300,6 +333,8 @@ def main() -> None:
             "regions": [{"id": g.LANDS[i].lower(), "name": g.LAND_NAMES[g.LANDS[i]]} for i in sorted(g.LANDS)],
             "parties": [{"id": PID[a], "name": PNAME[a], "color": COL[a]} for a in g.ALL],
             "races": mk_races,
+            "sensitivity": {"label": "v2: common rule on the only replayable earlier night (chosen after the result was known)",
+                            "config": "configs/de2025_v2.toml"},
             "map": {"prior": "CDU/CSU share of CDU/CSU + AfD second votes, 2021 recomputed on the 2025 Wahlkreise (official)",
                     "final": "official 2025 result (Bundeswahlleiterin, kerg2.csv)"},
             "sources": sources, "notes": notes}
@@ -319,6 +354,21 @@ def main() -> None:
                                       B["by_counted_bin_markets_not_settled_before_first_frame"]},
              "settle_all_markets": {k: {kk: v[kk] for kk in ("model", "polymarket", "contested", "lead_min", "outcome")}
                                     for k, v in S["settle"].items()}}
+    stats["sensitivity_v2"] = {
+        "config": "configs/de2025_v2.toml", "chosen_after_result": True, "headline": False,
+        "usable_calibration_nights": ["2021"],
+        "unavailable_nights": {"2017": "one stamped Wahlkreis page; not replayable",
+                               "2013": "no result-page captures during election night"},
+        "settings": {"kappa": 30000000.0, "sd_a": 0.2, "sd_b": 0.931, "sd_floor": 0.0001},
+        "coverage90_all_parties_1_95": {"v1": S["coverage90"]["all"], "v2": S2["coverage90"]["all"]},
+        "calibration": st_cal2, "settle": st_set2, "early_error": st_ee2,
+        "brier": {"all_markets": B2["all"], "contested_markets": B2["contested"],
+                  "by_counted_bin": B2["by_counted_bin"]},
+        "settle_all_markets": {
+            k: {kk: v[kk] for kk in ("model", "polymarket", "contested", "lead_min", "outcome")}
+            for k, v in S2["settle"].items()
+        },
+    }
     dump("stats.json", stats)
 
     bsw = S["settle"][M["bsw5"]]

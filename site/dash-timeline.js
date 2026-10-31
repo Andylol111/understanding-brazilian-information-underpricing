@@ -26,7 +26,7 @@ const rawM = (d) => (d.raw != null && d.counted > 0 ? (2 * d.raw - 1) * 100 : nu
 export const timelineViews = (rows) => (rows.some((d) => mm(d) != null || d.margin_polls != null || mkt(d) != null || d.margin_estimate != null) ? ["margin", "chance"] : ["chance"]);
 
 // view: "margin" | "chance"; us: margins read "D+3" / "R+3" (else "+3" for side a, "−3" for b).
-export function drawTimeline(root, { race, rows, domain, tz, wall, height, view = "chance", us = false, countPanel = true, onPreview, onSet }) {
+export function drawTimeline(root, { race, rows, domain, tz, wall, height, view = "chance", us = false, countPanel = true, sensitivity = null, onPreview, onSet }) {
   root.innerHTML = "";
   if (!rows.length) {
     root.innerHTML = `<p class="note">No count or price data for this race yet.</p>`;
@@ -35,7 +35,8 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
   const width = Math.max(280, root.clientWidth);
   const narrow = width < 520;
   const two = rows.some((d) => d.P_v2 != null);
-  const m = { l: narrow ? 38 : 46, r: narrow ? 104 : 116, t: 8, b: 22 };
+  const hasSensitivity = rows.some((d) => d.P_sensitivity != null);
+  const m = { l: narrow ? 38 : 46, r: narrow ? 104 : hasSensitivity ? 180 : 116, t: 8, b: 22 };
   const h = height - m.t - m.b;
   const x = d3.scaleUtc().domain(domain.map(wall)).range([m.l, width - m.r]);
   const X = (d) => x(wall(d.time));
@@ -99,6 +100,7 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     for (const v of [0.1, 0.9]) hline(yP(v));
     const main = two ? (d) => d.P_v2 ?? null : (d) => d.P ?? null;
     if (two) path(C.model, 1, (d) => d.P ?? null, "3,2").attr("opacity", 0.75);
+    if (hasSensitivity) path(C.model, 1, (d) => d.P_sensitivity ?? null, "5,3").attr("opacity", 0.8);
     path(C.model, 2, main);
     path(C.kalshi, 1.5, (d) => d.kalshi ?? null);
     path(C.market, 1.6, (d) => d.pm ?? null);
@@ -107,6 +109,8 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     endLabels(svg, width - m.r + 5, [
       [lastF(main), (d) => yP(main(d)), `model${two ? ", polls" : ""}`, C.model, us ? REG : ""],
       [two ? lastF((d) => d.P ?? null) : null, (d) => yP(d.P), "without polls", C.model],
+      [hasSensitivity ? lastF((d) => d.P_sensitivity ?? null) : null, (d) => yP(d.P_sensitivity),
+       sensitivity?.label ?? "sensitivity", C.model],
       [lastF((d) => d.pm ?? null), (d) => yP(d.pm), "Polymarket", C.market],
       [lastF((d) => d.kalshi ?? null), (d) => yP(d.kalshi), "Kalshi", C.kalshi],
       [estP, (d) => yP(d.P_estimate), "model", C.model, EST],
