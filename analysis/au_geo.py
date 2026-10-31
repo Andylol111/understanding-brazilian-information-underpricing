@@ -92,6 +92,29 @@ def drop_far_islands(geom: dict) -> dict:
     return {"type": "MultiPolygon", "coordinates": kept}
 
 
+LAND_URL = "https://naturalearth.s3.amazonaws.com/10m_physical/ne_10m_land.zip"
+
+
+def land_json(ms: list[str]) -> Path:
+    """Natural Earth 1:10m land (public domain, https://www.naturalearthdata.com/about/terms-of-use/), cut to the
+    Australian window and lightly simplified: the coastline the divisions are clipped to."""
+    out = RAW / "ne_10m_land_au.json"
+    if out.exists():
+        return out
+    import io
+    import zipfile
+    RAW.mkdir(parents=True, exist_ok=True)
+    r = httpx.get(LAND_URL, headers=UA, timeout=180, follow_redirects=True)
+    r.raise_for_status()
+    with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        if z.testzip() is not None:
+            raise ValueError("bad Natural Earth zip")
+        z.extractall(RAW / "ne_10m_land")
+    subprocess.run(ms + ["-i", str(RAW / "ne_10m_land" / "ne_10m_land.shp"), "name=land", "-clip", "bbox=105,-45,160,-8",
+                         "-simplify", "weighted", "20%", "keep-shapes", "-o", "format=geojson", str(out)], check=True)
+    return out
+
+
 def feed_ids() -> dict[str, tuple[int, str, str, str]]:
     from brunder import australia as au
     zips = sorted(PRELOAD.glob("*.zip"))
@@ -135,6 +158,16 @@ def main() -> None:
                          "-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(OUT)], check=True)
     subprocess.run(ms + ["-i", str(OUT), "name=divisions", "-clean", "gap-fill-area=5e8", "sliver-control=0",
                          "-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(OUT)], check=True)
+    doc = json.loads(OUT.read_text())
+    for g in doc["objects"]["divisions"]["geometries"]:
+        g["properties"].pop("FID", None)
+    OUT.write_text(json.dumps(doc, separators=(",", ":")))
+    # Electoral divisions run out over the sea (the Gulf of Carpentaria, Torres Strait, Moreton Bay...): clip every division to
+    # the land polygon (Natural Earth 10 m land, public domain) and clean again so the shared arcs stay shared.
+    land = land_json(ms)
+    subprocess.run(ms + ["-i", str(OUT), "name=divisions", "-clip", str(land), "-clean", "gap-fill-area=5e8",
+                         "sliver-control=0", "-o", "format=topojson", "quantization=50000", "id-field=unit_id", str(OUT)],
+                   check=True)
     doc = json.loads(OUT.read_text())
     for g in doc["objects"]["divisions"]["geometries"]:
         g["properties"].pop("FID", None)
