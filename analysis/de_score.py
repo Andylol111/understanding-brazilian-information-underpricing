@@ -31,6 +31,8 @@ def load(cfg):
     wk, _ = g.read_kerg2(g.RAW_DE / "open" / "kerg2.csv")
     umr = g.read_umrechnung(g.RAW_DE / "open" / "btwkr25_umrechnung_btw21.csv")
     prior = g.make_prior(umr, wk["electorate"], cfg["model"]["bsw_c"])
+    if "poll" in cfg:                                     # v3: the prior tilted to the final-14-day poll average
+        prior = g.poll_prior(prior, cfg["poll"])
     return night, wk, prior
 
 
@@ -43,25 +45,31 @@ def frames(cfg, night, prior, p):
     stamps = sorted({*night["bund"]["t"], *night["wk"]["t"], *[t for d in night["land"].values() for t in d["t"]]})
     minutes = sorted({t.ceil("min") for t in stamps})
     bund_t = set(night["bund"]["t"]) | {t for d in night["land"].values() for t in d["t"]}
+    pre = pd.Timestamp(cfg["poll_close_utc"])
+    if "poll" in cfg:                                     # a frame before any count: the poll-tilted prior alone
+        minutes = [pre, *minutes]
+    empty = {"base": np.zeros((17, len(g.COLS))), "k": np.zeros(17), "known": night["wk"].iloc[0:0]}
     rows = []
     for m in minutes:
-        st = g.state_at(night, prior, m)
+        is_pre = "poll" in cfg and m == pre
+        st = empty if is_pre else g.state_at(night, prior, m)
         if st is None:
             continue
         r = g.project(st, night, prior, p)
         d = g.draw_shares(r["share"], r["f_rem"], p, chol, z)
         pr = g.all_probs(d, cfg["markets"])
         two = d[:, 0] / (d[:, 0] + d[:, 1])
-        row = {"t": m, "counted": r["counted"], "k": r["k"], "f_rem": r["f_rem"],
-               "n_known": len(st["known"]), "page": bool(m in {t.ceil("min") for t in bund_t}),
+        row = {"t": m, "precount": is_pre, "counted": r["counted"], "k": r["k"],
+               "f_rem": r["f_rem"], "n_known": len(st["known"]), "page": bool(m in {t.ceil("min") for t in bund_t}),
                "union_two_way": r["share"][0] / (r["share"][0] + r["share"][1]),
-               "union_two_way_raw": r["raw"][0] / (r["raw"][0] + r["raw"][1]),
+               "union_two_way_raw": float("nan") if is_pre else r["raw"][0] / (r["raw"][0] + r["raw"][1]),
                "union_two_way_sd": float(two.std())}
         row |= {f"share:{a}": float(x) for a, x in zip(g.ALL, r["share"])}
-        row |= {f"raw:{a}": float(x) for a, x in zip(g.ALL, r["raw"])}
+        row |= {f"raw:{a}": (float("nan") if is_pre else float(x)) for a, x in zip(g.ALL, r["raw"])}
         row |= {f"sd:{a}": float(x) for a, x in zip(g.ALL, g.party_sd(r["share"], r["f_rem"], p))}
         row |= {f"P:{k}": v for k, v in pr.items()}
-        row |= {f"R:{m_['market']}": float(g.rule(m_, r["raw"])) for m_ in cfg["markets"]}
+        row |= {f"R:{m_['market']}": (float("nan") if is_pre else float(g.rule(m_, r["raw"])))
+                for m_ in cfg["markets"]}
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -132,7 +140,7 @@ def main(cfg_path: str = str(ROOT / "configs" / "de2025_v1.toml")) -> None:
     Rm = {m["market"]: step(rel[f"R:{m['market']}"], times) for m in cfg["markets"]}
     cnt = step(rel["counted"], times)
     gate = cnt[cnt >= 0.01].index.min()
-    first = rel.index.min()
+    first = rel.index[~rel["precount"].astype(bool)].min()   # the first COUNT information (not the poll-prior frame)
     last_page = pd.Timestamp(night["bund"]["t"].max())
 
     ticks = pd.concat([pd.DataFrame({"t": times, "scope": k, "price": PXm[k].to_numpy(), "P": Pm[k].to_numpy()})
@@ -236,6 +244,25 @@ def main(cfg_path: str = str(ROOT / "configs" / "de2025_v1.toml")) -> None:
                                    "brier_model": round(float(Bc["bm"].mean()), 4),
                                    "brier_market": round(float(Bc["bk"].mean()), 4)}},
            "early_error": err, "coverage90": cover}
+    # the model is never slower than its own raw count? (ungated model settle vs the raw count's settle, minutes; > 0 = later)
+    later = {}
+    for k_, v_ in settle.items():
+        if v_["model_ungated"] and v_["raw"]:
+            dmin = (pd.Timestamp(v_["model_ungated"]) - pd.Timestamp(v_["raw"])).total_seconds() / 60
+            if dmin > 0:
+                later[k_] = dmin
+    res["model_vs_raw"] = {"markets_with_both": sum(1 for v_ in settle.values() if v_["model_ungated"] and v_["raw"]),
+                           "model_later_than_raw": len(later), "later_minutes": later,
+                           "contested_model_later_than_raw": {k_: m_ for k_, m_ in later.items() if settle[k_]["contested"]}}
+    if "poll" in cfg:                                     # P before any count against the price at poll close
+        t0 = pd.Timestamp(cfg["poll_close_utc"])
+        y_ = {k_: float(won[k_]) for k_ in won}
+        pc = {k_: {"P": round(float(Pm[k_].loc[t0]), 4), "price_at_poll_close": round(float(PXm[k_].loc[t0]), 4),
+                   "outcome": y_[k_]} for k_ in won}
+        res["precount"] = {"t": iso(t0), "markets": pc,
+                           "brier_model": round(float(np.mean([(v_["P"] - v_["outcome"]) ** 2 for v_ in pc.values()])), 4),
+                           "brier_market": round(float(np.mean([(v_["price_at_poll_close"] - v_["outcome"]) ** 2
+                                                                for v_ in pc.values()])), 4)}
     (OUT / "stats.json").write_text(json.dumps(res, indent=1, ensure_ascii=False))
     print(json.dumps({k: res[k] for k in ("first_frame", "gate_1pct", "n_frames")}))
     print(json.dumps(res["brier"]["all"]), json.dumps(res["brier"]["contested"]))

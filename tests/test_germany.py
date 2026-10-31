@@ -117,3 +117,56 @@ def test_market_events():
     mk = [{"market": "a", "kind": "max", "party": "Union"}, {"market": "b", "kind": "range", "party": "SPD", "lo": 0.15, "hi": 0.2}]
     assert g.all_probs(d, mk) == {"a": 0.5, "b": 1.0}
     assert g.rule({"kind": "atleast", "party": "BSW", "x": 0.05}, d[0]) is False
+
+
+def test_btw17_kerg_reader_final_and_vorperiode():
+    f = g.read_btw17_kerg(FIX / "btw17_kerg_two_wahlkreise.csv")
+    v = g.read_btw17_kerg(FIX / "btw17_kerg_two_wahlkreise.csv", previous=True)
+    assert list(f.index) == [1, 2] and set(f["land"]) == {1}          # the Land rows (gehört zu 99) are not Wahlkreise
+    assert (f[g.ALL].sum(axis=1) == f["valid"]).all() and (v[g.ALL].sum(axis=1) == v["valid"]).all()
+    assert f.loc[1, "Union"] > 0 and (f["BSW"] == 0).all() and v.loc[1, "AfD"] > 0
+    assert f.loc[1, "electorate"] != v.loc[1, "electorate"]
+
+
+def test_poll_prior_matches_the_poll_and_keeps_the_pattern():
+    u = g.read_umrechnung(FIX / "umrechnung_two_wahlkreise.csv")
+    wk, _ = g.read_kerg2(FIX / "kerg2_two_wahlkreise.csv")
+    prior = g.make_prior(u, wk["electorate"], 0.3)
+    poll = {"Union": 0.30, "AfD": 0.21, "SPD": 0.15, "GRÜNE": 0.13, "Die Linke": 0.07, "BSW": 0.045, "FDP": 0.04,
+            "Übrige": 0.055}
+    tilted = g.poll_prior(prior, poll)
+    w = (tilted["E"] * tilted["tau0"]).to_numpy()
+    nat = (tilted[g.ALL].to_numpy() * w[:, None]).sum(axis=0) / w.sum()
+    assert np.allclose(tilted[g.ALL].sum(axis=1), 1.0)
+    assert np.allclose(nat, [poll[a] for a in g.ALL], atol=1e-6)
+    # proportional swing keeps the order of the two Wahlkreise for a party
+    assert (tilted.loc[102, "Union"] > tilted.loc[103, "Union"]) == (prior.loc[102, "Union"] > prior.loc[103, "Union"])
+
+
+def test_prior_votes_zero_is_unchanged_and_large_holds_the_prior():
+    night, prior, wk, t = _setup([102])
+    st = g.state_at(night, prior, t)
+    base = g.project(st, night, prior)
+    assert np.allclose(base["share"], g.project(st, night, prior, g.Params(prior_votes=0.0))["share"])
+    held = g.project(st, night, prior, g.Params(prior_votes=1e12, kappa=1e12))
+    # with the swing shrunk to nothing the uncounted Wahlkreis stays at its prior
+    row = prior.loc[103, g.ALL].to_numpy(float)
+    assert np.allclose(held["s_wk"][list(held["ids"]).index(103)], row / row.sum())
+    assert abs(held["share"][g.ALL.index("Union")] - base["share"][g.ALL.index("Union")]) > 1e-4
+
+
+def test_poll_table_parser_and_window_dates():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("de_polls", Path(__file__).parent.parent / "analysis" / "de_polls.py")
+    dp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(dp)
+    assert dp._dates("27\u201330 Dec 2024", 2025) == (pd.Timestamp("2024-12-27"), pd.Timestamp("2024-12-30"))
+    assert dp._dates("28 Sep \u2013 1 Oct 2021", 2021) == (pd.Timestamp("2021-09-28"), pd.Timestamp("2021-10-01"))
+    html = ("<table><tr><th>Polling firm</th><th>Fieldwork date</th><th>Samplesize</th><th>Union</th><th>AfD</th><th>SPD</th>"
+            "<th>Others</th></tr><tr><td>2025 federal election</td><td>23 Feb 2025</td><td>\u2013</td><td>28.5</td><td>20.8</td>"
+            "<td>16.4</td><td>34.3</td></tr><tr><td>INSA[2]</td><td>21\u201322 Feb 2025</td><td>2,005</td><td>29.5</td><td>21</td>"
+            "<td>15</td><td>34.5</td></tr><tr><td>Old</td><td>1 Jan 2024</td><td>1,000</td><td>31</td><td>19</td><td>16</td>"
+            "<td>34</td></tr></table>")
+    polls, result = dp.parse_page(html, 2025)
+    assert len(polls) == 1 and polls.loc[0, "pollster"] == "INSA" and polls.loc[0, "Union"] == 29.5
+    assert result["Union"] == 28.5

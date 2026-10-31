@@ -175,6 +175,40 @@ def read_umrechnung(path: Path) -> pd.DataFrame:
     return out[["land", "electorate", "valid", *ALL]].sort_index()
 
 
+def read_btw17_kerg(path: Path, previous: bool = False) -> pd.DataFrame:
+    """Second votes by Wahlkreis from the Bundeswahlleiter's 2017 file btw17_kerg.csv ('Endgültige Ergebnisse der Erst- und
+    Zweitstimmen sowie der Vorperiode nach Wahlkreisen': 4 columns per group, first votes final / previous, second votes
+    final / previous). `previous` = the 2013 result on the 2017 constituencies. Same columns as read_umrechnung: land,
+    electorate, valid and ALL parties (BSW 0)."""
+    import csv
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        rows = list(csv.reader(f, delimiter=";"))
+    h = next(i for i, r in enumerate(rows) if r and r[0] == "Nr")
+    names = {c: j for j, c in enumerate(rows[h]) if c}
+    off = 3 if previous else 2                            # within a group: 2 = second votes final, 3 = second votes previous
+
+    def at(r, group):
+        j = names[group] + off
+        v = r[j].strip() if j < len(r) else ""
+        return float(v) if v else 0.0
+
+    party = {"Christlich Demokratische Union Deutschlands": "Union", "Christlich-Soziale Union in Bayern e.V.": "Union",
+             "Sozialdemokratische Partei Deutschlands": "SPD", "DIE LINKE": "Die Linke",
+             "BÜNDNIS 90/DIE GRÜNEN": "GRÜNE", "Freie Demokratische Partei": "FDP", "Alternative für Deutschland": "AfD"}
+    out = {}
+    for r in rows[h + 3:]:
+        if len(r) < 20 or not r[0].strip().isdigit() or not r[2].strip().isdigit() or int(r[2]) > 16:
+            continue
+        v = {"land": int(r[2]), "electorate": at(r, "Wahlberechtigte"), "valid": at(r, "Gültige")}
+        for k in PARTIES:
+            v[k] = 0.0
+        for gname, p in party.items():
+            v[p] += at(r, gname)
+        v[OTHER] = v["valid"] - sum(v[k] for k in PARTIES)
+        out[int(r[0])] = v
+    return pd.DataFrame(out).T.astype({"land": int}).sort_index()[["land", "electorate", "valid", *ALL]]
+
+
 # ------------------------------------------------------------------------------------------------ election night
 BERLIN = "Europe/Berlin"
 
@@ -229,6 +263,8 @@ class Params:
     sd_a: float = 0.2            # predictive sd of a party's final share = sd_a * share * f_rem ** sd_b ...
     sd_b: float = 0.9
     sd_floor: float = 0.0001      # ... plus this much (share points / 100) of irreducible error
+    prior_votes: float = 0.0      # pseudo-votes shrinking the NATIONAL swing (counted minus prior) toward 0: the weight of
+                                  # the prior (v3: the poll-tilted prior) that fades as counted votes arrive; 0 = v1/v2
 
 
 def make_prior(votes: pd.DataFrame, electorate: pd.Series, bsw_c: float) -> pd.DataFrame:
@@ -241,6 +277,32 @@ def make_prior(votes: pd.DataFrame, electorate: pd.Series, bsw_c: float) -> pd.D
     out = pd.DataFrame({"land": votes["land"].astype(int), "E": electorate.reindex(votes.index).astype(float),
                         "tau0": votes["valid"] / votes["electorate"]})
     return out.join(pi)
+
+
+def poll_prior(prior: pd.DataFrame, poll: dict[str, float], iters: int = 50) -> pd.DataFrame:
+    """Tilt a make_prior() table to a national poll average by proportional swing per party (raking).
+
+    Each party's prior share in every Wahlkreis is multiplied by one national factor, rows are renormalised to 1, and
+    the factors are repeated until the prior-valid-vote-weighted national share of every polled party equals the poll
+    (the 2021 pattern of strong and weak areas is kept; a party with a zero prior everywhere cannot be tilted). `poll`
+    maps model parties (ALL) to fractions; a party not in `poll` keeps its factor 1 and absorbs what is left."""
+    out = prior.copy()
+    w = (out["E"] * out["tau0"]).to_numpy()
+    pi = out[ALL].to_numpy(float).copy()
+    target = {k: v for k, v in poll.items() if k in ALL}
+    for _ in range(iters):
+        nat = (pi * w[:, None]).sum(axis=0) / w.sum()
+        f = np.ones(NP)
+        for k, v in target.items():
+            j = ALL.index(k)
+            if nat[j] > 0:
+                f[j] = v / nat[j]
+        pi = pi * f[None, :]
+        pi = pi / pi.sum(axis=1, keepdims=True)
+        if np.abs(f - 1).max() < 1e-9:
+            break
+    out[ALL] = pi
+    return out
 
 
 def _row(r) -> np.ndarray:
@@ -327,6 +389,7 @@ def project(st: dict, night: dict, prior: pd.DataFrame, p: Params = Params()) ->
     W = np.maximum(base[:, 1], 1.0)[:, None]
     dl = (num - den) / W                             # counted share minus the prior share of the counted votes
     dn = (num.sum(axis=0) - den.sum(axis=0)) / max(Nc.sum(), 1.0)
+    dn = dn * Nc.sum() / (Nc.sum() + p.prior_votes)  # the prior's weight: nothing counted -> the prior stands
     d_hat = (W * dl + p.kappa * dn) / (W + p.kappa)
     d_hat[base[:, 1] <= 0] = dn
     s_wk = np.clip(pi + d_hat[land], 0.0005, None) * (pi > 0)
@@ -396,7 +459,7 @@ def load_config(path: Path) -> dict:
 def params_of(cfg: dict) -> Params:
     m = cfg["model"]
     return Params(kappa=m["kappa"], theta0=m["theta0"], bsw_c=m["bsw_c"], sd_a=m["sd_a"], sd_b=m["sd_b"],
-                  sd_floor=m["sd_floor"])
+                  sd_floor=m["sd_floor"], prior_votes=m.get("prior_votes", 0.0))
 
 
 def all_probs(d: np.ndarray, markets: list[dict]) -> dict[str, float]:

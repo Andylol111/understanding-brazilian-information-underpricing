@@ -2,6 +2,7 @@
 
 * `open` / `wayback`  2025 open data and election-night pages.
 * `open2021` / `wayback2021`  2021 final/prior data and election-night pages used for calibration.
+* `open2017`  2017 final result with the 2013 result as Vorperiode (v3 calibration).
 * `wayback2017` / `wayback2013`  archive-availability checks for the two additional earlier nights considered by the
   v2 sensitivity. The same result-page URL families are queried; captures are retained even when too sparse to replay.
 * `markets`  Polymarket events and 1-minute YES prices.
@@ -145,6 +146,18 @@ def fetch_open2021(c: httpx.Client) -> None:
         print("open2021 kerg2.csv", len(r.content))
 
 
+def fetch_open2017(c: httpx.Client) -> None:
+    """2017 final result by Wahlkreis with the 2013 result on the 2017 constituencies ('Vorperiode'), the Bundeswahlleiter's
+    btw17_kerg.csv (Datenlizenz Deutschland - Namensnennung 2.0), from the Internet Archive; used by the v3 calibration."""
+    f = RAW_DE / "btw17_kerg.csv"
+    if not f.exists():
+        r = get(c, "https://web.archive.org/web/2018id_/https://www.bundeswahlleiter.de/dam/jcr/"
+                   "72f186bb-aa56-47d3-b24c-6a46f5de22d0/btw17_kerg.csv")
+        r.raise_for_status()
+        f.write_bytes(r.content)
+        print("open2017 btw17_kerg.csv", len(r.content))
+
+
 EVENTS = [
     "germany-parliamentary-election", "which-party-wins-2nd-most-seats-in-german-election",
     "bsw-wins-5-or-more-of-vote-in-german-election", "fdp-wins-5-or-more-of-vote-in-german-election",
@@ -200,7 +213,7 @@ def main(what: str) -> None:
         return
     with httpx.Client(headers=UA, timeout=90, follow_redirects=True) as c:
         actions = {"open": fetch_open, "wayback": wayback, "open2021": fetch_open2021,
-                   "wayback2021": lambda cl: wayback(cl, 2021),
+                   "wayback2021": lambda cl: wayback(cl, 2021), "open2017": fetch_open2017,
                    "wayback2017": lambda cl: wayback(cl, 2017),
                    "wayback2013": lambda cl: wayback(cl, 2013)}
         actions[what](c)

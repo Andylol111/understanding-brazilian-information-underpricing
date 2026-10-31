@@ -245,9 +245,9 @@ def main() -> None:
                           "the first count information; minutes from then to the last national page",
            "outcome": "Polymarket resolution (identical to the official final, Bundeswahlleiterin 14 March 2025)"}
     note = ("RETROSPECTIVE, not pre-registered: built after the election with the result and market resolutions known. "
-            "The v1 headline settings use the 2021 night only. The v2 sensitivity was also chosen after the 2025 result "
-            "was known; archive searches found 2021 replayable, only one stamped page in 2017 and none in 2013, so its "
-            "fixed multi-night rule also has only 2021 available. Neither version uses the 2025 count to select settings.")
+            "The v1 headline settings use the 2021 night only. The v2 and v3 sensitivities were also chosen after the 2025 "
+            "result was known; v2 applies a fixed multi-night rule (only 2021 is replayable); v3 adds a poll-tilted prior and "
+            "re-chooses the settings on 2021 and simulated 2017 orders. No version uses the 2025 count to select settings.")
     reasons = {"capacity": "no trading rule was run in this replay", "profit": "no trading rule was run in this replay",
                "catchup": "not computed in this replay", "arbitrage": "Kalshi lists no thin-spread pairs through the "
                "count (its 'parties in parliament' markets closed 15:00 UTC, before polls closed)",
@@ -282,13 +282,20 @@ def main() -> None:
         {"name": "Die Bundeswahlleiterin / Bundeswahlleiter: 2017 and 2013 election-night result-page archive searches "
                  "(v2 calibration availability; one 2017 page, no 2013 pages)",
          "url": "https://web.archive.org/",
-         "licence": "Internet Archive captures of official federal-authority pages; only capture counts are published"}]
+         "licence": "Internet Archive captures of official federal-authority pages; only capture counts are published"},
+        {"name": "Wikipedia, Opinion polling for the 2013, 2017, 2021 and 2025 German federal elections (final-14-day poll "
+                 "averages and official results, used by the v3 sensitivity)",
+         "url": "https://en.wikipedia.org/wiki/Opinion_polling_for_the_2025_German_federal_election",
+         "licence": "CC BY-SA 4.0 (text); the polls are by Allensbach, Forsa, INSA, Infratest dimap, Forschungsgruppe Wahlen, "
+                    "YouGov and others"}]
     fshare = {PNAME[a]: round(100 * float(S["final_share"][a]), 2) for a in g.ALL}
     notes = [
         note,
-        ("Two model versions are shown: v1 is the headline (solid line; configs/de2025_v1.toml). V2 is a sensitivity "
-         "(thin dashed line; configs/de2025_v2.toml), chosen after the 2025 result was known with the fixed common "
-         "calibration rule. Because 2017 and 2013 lack replayable archived nights, both calibrations use 2021 only."),
+        ("Three model versions: v1 is the headline (solid line; configs/de2025_v1.toml). V2 and v3 are sensitivities "
+         "(thin dashed lines), both chosen after the 2025 result was known. V2 (configs/de2025_v2.toml) applies a fixed "
+         "multi-night rule to the only replayable earlier night (2021). V3 (configs/de2025_v3.toml) starts from the 2021 result "
+         "tilted to the 14-day poll average before the vote, lets that prior's weight fade as the count arrives, and "
+         "re-chooses the settings on 2021 and simulated 2017 orders; the 18:00 exit poll is not an input to any version."),
         "Units are the 299 Wahlkreise (2025 boundaries). The count over time is replayed from the Bundeswahlleiterin's "
         f"server-rendered result pages as the Internet Archive captured them: {len(night['bund'])} distinct national "
         f"pages, {sum(len(v) for v in night['land'].values())} Land pages and {len(night['wk'])} single-Wahlkreis pages "
