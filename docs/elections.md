@@ -133,15 +133,17 @@ about a near coin flip and only became sure 3 minutes before the raw tally settl
 
 ![2022 runoff: model vs raw tally](figures/hist_2022_r2.png)
 
-**Brazil 2018 cannot be replayed:** its section files record when each ballot box closed, not when its
-result reached the court, so the order in which the count arrived is unknown. The registered 2018
-configs were not run.
+**Brazil 2018 cannot be replayed in its real reporting order:** its section files record when each
+ballot box closed, not when its result reached the court. The registered 2018 replay configs were not
+run. The retrospective Brazil calibration instead uses four fixed simulated reporting orders for each
+2014 and 2018 round, documented in [brazil.md](brazil.md); these are calibration sensitivity runs, not
+historical replays.
 
 ## Coming next
 
 | election | what | status |
 |---|---|---|
-| Brazil 2018, both rounds | model only | not possible: the 2018 files have no receipt times |
+| Brazil 2018, both rounds | model only | receipt-order replay not possible; simulated-order calibration only |
 | Israel, Knesset, 2026-10-27 | count recorded live with order books for 74 markets | recorded; needs a seat-allocation model before it can be scored |
 | US midterms, 2026-11-03 | official county feeds (CA, TX, OH, AK, GA) and order books for 257 markets, recorded live | scheduled |
 

@@ -1,0 +1,36 @@
+# RETROSPECTIVE SENSITIVITY — chosen after this result was known; v1 remains the headline.
+# Settings selected only from 2014, 2018 and 2022 count nights by the fixed rule in docs/brazil.md.
+[election]
+cycle = "ele2026"
+ele = 6260
+race = "share"
+cargo_name = "GOVERNADOR"
+uf = "es"
+cand_a = "10"           # first-round leader; market YES = this candidate wins
+cand_b = "15"
+
+[prior]                  # 2026 governor first round by municipality, same two candidates
+kind = "open"
+year = 2026
+round = 1
+
+[model]
+kind = "municipal"
+tau = 0.005
+kappa = 100000.0
+rho = 0.5
+
+[replay]
+year = 2026
+round = 2
+
+[trade]
+min_edge = 0.05
+min_counted = 0.01
+favoured_only = true
+half_spread = 0.01
+fee_rate = 0.0
+
+[markets.national]       # the whole race (the state)
+event = "espirito-santo-governor-election-winner-20260611183840001"
+market = "will-lorenzo-pazolini-win-the-governor-of-espirito-santo-election-20260611183842895"

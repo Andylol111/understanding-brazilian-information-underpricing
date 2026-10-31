@@ -1,0 +1,142 @@
+# RETROSPECTIVE SENSITIVITY — chosen after this result was known; v1 remains the headline.
+# Settings selected only from 2014, 2018 and 2022 count nights by the fixed rule in docs/brazil.md.
+[election]
+cycle = "ele2026"
+ele = 6257
+cargo = 1
+race = "share"
+cand_a = "13"
+cand_b = "22"
+
+[prior]                  # 2022 first round by municipality, Lula (13) vs Bolsonaro (22)
+kind = "open"
+year = 2022
+round = 1
+
+[model]
+kind = "municipal"
+tau = 0.005
+kappa = 100000.0
+rho = 0.5
+
+[replay]
+year = 2026
+round = 1
+
+[trade]
+min_edge = 0.05
+min_counted = 0.01
+half_spread = 0.01
+fee_rate = 0.04
+
+[markets.national]
+event = "brazil-presidential-election-first-round-winner"
+market = "will-lula-win-the-most-votes-in-the-first-round-of-the-2026-brazil-presidential-election"
+
+[markets.states.ac]
+event = "brazil-presidential-election-first-round-1st-place-in-acre"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-acre"
+
+[markets.states.al]
+event = "brazil-presidential-election-first-round-1st-place-in-alagoas"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-alagoas"
+
+[markets.states.ap]
+event = "brazil-presidential-election-first-round-1st-place-in-amapa"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-amapa"
+
+[markets.states.am]
+event = "brazil-presidential-election-first-round-1st-place-in-amazonas"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-amazonas"
+
+[markets.states.ba]
+event = "brazil-presidential-election-first-round-1st-place-in-bahia"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-bahia"
+
+[markets.states.ce]
+event = "brazil-presidential-election-first-round-1st-place-in-ceara"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-ceara"
+
+[markets.states.es]
+event = "brazil-presidential-election-first-round-1st-place-in-espirito-santo"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-espirito-santo"
+
+[markets.states.df]
+event = "brazil-presidential-election-first-round-1st-place-in-federal-district"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-federal-district"
+
+[markets.states.go]
+event = "brazil-presidential-election-first-round-1st-place-in-goias"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-goias"
+
+[markets.states.ma]
+event = "brazil-presidential-election-first-round-1st-place-in-maranhao"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-maranhao"
+
+[markets.states.mt]
+event = "brazil-presidential-election-first-round-1st-place-in-mato-grosso"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-mato-grosso"
+
+[markets.states.ms]
+event = "brazil-presidential-election-first-round-1st-place-in-mato-grosso-do-sul"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-mato-grosso-do-sul"
+
+[markets.states.mg]
+event = "brazil-presidential-election-first-round-1st-place-in-minas-gerais"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-minas-gerais"
+
+[markets.states.pa]
+event = "brazil-presidential-election-first-round-1st-place-in-para"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-para"
+
+[markets.states.pb]
+event = "brazil-presidential-election-first-round-1st-place-in-paraiba"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-paraiba"
+
+[markets.states.pr]
+event = "brazil-presidential-election-first-round-1st-place-in-parana"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-parana"
+
+[markets.states.pe]
+event = "brazil-presidential-election-first-round-1st-place-in-pernambuco"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-pernambuco"
+
+[markets.states.pi]
+event = "brazil-presidential-election-first-round-1st-place-in-piaui"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-piaui"
+
+[markets.states.rj]
+event = "brazil-presidential-election-first-round-1st-place-in-rio-de-janeiro"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-rio-de-janeiro"
+
+[markets.states.rn]
+event = "brazil-presidential-election-first-round-1st-place-in-rio-grande-do-norte"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-rio-grande-do-norte"
+
+[markets.states.rs]
+event = "brazil-presidential-election-first-round-1st-place-in-rio-grande-do-sul"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-rio-grande-do-sul"
+
+[markets.states.ro]
+event = "brazil-presidential-election-first-round-1st-place-in-rondonia"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-rondonia"
+
+[markets.states.rr]
+event = "brazil-presidential-election-first-round-1st-place-in-roraima"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-roraima"
+
+[markets.states.sc]
+event = "brazil-presidential-election-first-round-1st-place-in-santa-catarina"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-santa-catarina"
+
+[markets.states.sp]
+event = "brazil-presidential-election-first-round-1st-place-in-sao-paulo"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-sao-paulo"
+
+[markets.states.se]
+event = "brazil-presidential-election-first-round-1st-place-in-sergipe"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-sergipe"
+
+[markets.states.to]
+event = "brazil-presidential-election-first-round-1st-place-in-tocantins"
+market = "will-lula-win-the-most-votes-in-the-next-brazil-presidential-election-from-tocantins"

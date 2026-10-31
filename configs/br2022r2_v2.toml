@@ -1,0 +1,24 @@
+# RETROSPECTIVE SENSITIVITY — chosen after this result was known; v1 remains the headline.
+# Settings selected only from 2014 and 2018 count nights by the fixed rule in docs/brazil.md.
+[election]
+cycle = "ele2022"
+race = "share"
+cand_a = "13"
+cand_b = "22"
+
+[prior]
+kind = "open"
+year = 2022
+round = 1
+cand_a = "13"
+cand_b = "22"
+
+[model]
+kind = "municipal"
+tau = 0.0025
+kappa = 100000.0
+rho = 0.5
+
+[replay]
+year = 2022
+round = 2

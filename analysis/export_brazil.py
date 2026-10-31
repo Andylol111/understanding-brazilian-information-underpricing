@@ -4,10 +4,10 @@ entries go to results/export_brazil/elections_entries.json for the integrator to
     uv run python analysis/export_brazil.py            # all five Brazil elections
     uv run python analysis/export_brazil.py br2026r2   # one
 
-Everything that was already computed comes from cached outputs (results/night/<id>/{ticks,tally}.parquet,
-final.json, evaluation.csv, capacity[_favoured_only_true].csv; results/history/<id>/{summary.json,ticks.parquet}). What the cache
-lacks is recomputed directly from the section receipts and the frozen model functions, never by rerunning
-night_replay.py / history_review.py (a rerun of a registered config would count as a look):
+The v1 results come from cached outputs (results/night/<id>/{ticks,tally}.parquet, final.json,
+evaluation.csv, capacity[_favoured_only_true].csv; results/history/<id>/{summary.json,ticks.parquet}).
+Sensitivity night-replay ticks are loaded from BRUNDER_DATA/night/<id>/replay_lag0min.parquet. What the
+cache lacks is recomputed directly from the section receipts and the frozen model functions, never by
   - map frames: per-municipality partials (night.replay_partials_mun) and the model's per-municipality
     projection (the s_hat step of nowcast.nowcast, reproduced in `mun_projection` and checked against
     nowcast.nowcast's national share at every frame);
@@ -36,6 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RES = ROOT / "results"
 CACHE = RES / "export_brazil"
 OUT = ROOT / "site" / "data"
+DATA = Path(os.environ.get("BRUNDER_DATA", ROOT / "data"))
 STAGES = Path(os.environ.get("BRUNDER_STAGE_ROOT", Path.home() / "brunder-stage"))
 BRT = "America/Sao_Paulo"
 MAX_FRAMES = 60
@@ -51,9 +52,9 @@ UF_NAMES = {
 GOV_UFS = ("ac", "am", "df", "es", "rn", "to")
 
 SRC_BWEB = {"name": "TSE dados abertos: Boletim de Urna na Web (section results with receipt time)",
-            "url": "https://dadosabertos.tse.jus.br/", "licence": "Brazilian public open data (Lei 12.527/2011), reuse with attribution"}
-SRC_MUN = {"name": "TSE dados abertos: votacao_candidato_munzona (certified results by municipality)",
-           "url": "https://dadosabertos.tse.jus.br/", "licence": "Brazilian public open data (Lei 12.527/2011), reuse with attribution"}
+            "url": "https://dadosabertos.tse.jus.br/", "licence": "Creative Commons Attribution (TSE portal dataset label)"}
+SRC_MUN = {"name": "TSE dados abertos: certified section/municipality results",
+           "url": "https://dadosabertos.tse.jus.br/", "licence": "Creative Commons Attribution (TSE portal dataset label)"}
 SRC_LIVE = {"name": "TSE results feed (resultados.tse.jus.br), archived first-round municipal totals",
             "url": "https://resultados.tse.jus.br/", "licence": "Brazilian public information (Lei 12.527/2011), reuse with attribution"}
 SRC_PM = {"name": "Polymarket public price history (CLOB prices-history API)", "url": "https://polymarket.com/",
@@ -63,11 +64,13 @@ SRC_PM = {"name": "Polymarket public price history (CLOB prices-history API)", "
 ELECTIONS = {
     "br2026r1": {"name": "Brazil presidential election, first round", "date": "2026-10-04", "evidence": "in-sample",
                  "parts": [("configs/brazil_2026_r1_dev_mun.toml", "r1_dev", "br", None)],
-                 "cid": "brazil_2026_r1_dev_mun", "kind": "night", "names": ("Lula", "Flávio Bolsonaro"),
+                 "cid": "brazil_2026_r1_dev_mun", "v2_cfg": "configs/br2026r1_v2.toml", "v2_cid": "br2026r1_v2",
+                 "kind": "night", "names": ("Lula", "Flávio Bolsonaro"),
                  "prior_src": SRC_MUN, "prior_note": "Prior: 2022 first round by municipality, Lula vs Bolsonaro."},
     "br2026r2": {"name": "Brazil presidential runoff", "date": "2026-10-25", "evidence": "pre-specified",
                  "parts": [("configs/night_r2_v1.toml", "night_r2_v1", "br", None)],
-                 "cid": "night_r2_v1", "kind": "night", "names": ("Lula", "Flávio Bolsonaro"),
+                 "cid": "night_r2_v1", "v2_cfg": "configs/br2026r2_v2.toml", "v2_cid": "br2026r2_v2",
+                 "kind": "night", "names": ("Lula", "Flávio Bolsonaro"),
                  "prior_src": SRC_LIVE, "prior_note": "Prior: 2026 first round by municipality, same two candidates."},
     "br2026r2gov": {"name": "Brazil governor runoffs (6 states)", "date": "2026-10-25", "evidence": "pre-specified",
                     "parts": [(f"configs/governor_r2/night_gov_r2_{u}_v1.toml", f"night_gov_r2_{u}_v1", f"gov-{u}", u)
@@ -76,11 +79,13 @@ ELECTIONS = {
                     "prior_note": "Prior per state: 2026 governor first round by municipality, same two candidates."},
     "br2022r1": {"name": "Brazil presidential election, first round", "date": "2022-10-02", "evidence": "model-only",
                  "parts": [("configs/history/hist_2022_r1_v1.toml", "hist2022", "br", None)],
-                 "cid": "hist_2022_r1_v1", "kind": "hist", "names": ("Lula", "Jair Bolsonaro"), "prior_src": SRC_MUN,
+                 "cid": "hist_2022_r1_v1", "v2_cfg": "configs/br2022r1_v2.toml", "v2_cid": "br2022r1_v2",
+                 "kind": "hist", "names": ("Lula", "Jair Bolsonaro"), "prior_src": SRC_MUN,
                  "prior_note": "Prior: 2018 first round by municipality, Haddad (13) vs Bolsonaro (17)."},
     "br2022r2": {"name": "Brazil presidential runoff", "date": "2022-10-30", "evidence": "model-only",
                  "parts": [("configs/history/hist_2022_r2_v1.toml", "hist2022", "br", None)],
-                 "cid": "hist_2022_r2_v1", "kind": "hist", "names": ("Lula", "Jair Bolsonaro"), "prior_src": SRC_MUN,
+                 "cid": "hist_2022_r2_v1", "v2_cfg": "configs/br2022r2_v2.toml", "v2_cid": "br2022r2_v2",
+                 "kind": "hist", "names": ("Lula", "Jair Bolsonaro"), "prior_src": SRC_MUN,
                  "prior_note": "Prior: 2022 first round by municipality, same two candidates."},
 }
 NEWLY_COMPUTED: dict[str, list[str]] = {}
@@ -185,7 +190,10 @@ def settle(ts: pd.Series, ok: pd.Series):
 
 
 def night_ticks(cid: str) -> pd.DataFrame:
-    t = pd.read_parquet(RES / "night" / cid / "ticks.parquet")
+    path = RES / "night" / cid / "ticks.parquet"
+    if not path.exists():
+        path = DATA / "night" / cid / "replay_lag0min.parquet"
+    t = pd.read_parquet(path)
     t["t"] = pd.to_datetime(t["t"], utc=True)
     return t.drop_duplicates(["t", "scope"]).sort_values("t")
 
@@ -263,6 +271,53 @@ def race_stats(rows: pd.DataFrame, final: float) -> dict:
         early[f"{int(q * 100)}%"] = {"model": _r(100 * (r["share"] - final), 2), "raw": _r(100 * (r["raw"] - final), 2)}
     return {"calibration": cal, "early_error": early}
 
+def sensitivity_stats(rows: pd.DataFrame, final: float) -> dict:
+    """Side-by-side v1/v2 accuracy and certainty; v1 remains the headline model."""
+    w = rows["counted"].between(0.01, 0.95, inclusive="right")
+    outcome = float(final > 0.5)
+    gate_rows = rows[rows["counted"] >= 0.01]
+    gate = gate_rows["t"].iloc[0] if len(gate_rows) else pd.NaT
+
+    def one(label: str, share: str, sd: str, prob: str) -> dict:
+        z = (final - rows[share]) / rows[sd]
+        use = w & z.notna() & np.isfinite(z)
+        p = rows[prob]
+        out = {"coverage90_1_95": _r((z[use].abs() < 1.645).mean(), 3),
+               "mae_pt_1_95": _r(100 * (rows.loc[w, share] - final).abs().mean(), 3),
+               "brier_1_95": _r(((p[w] - outcome) ** 2).mean(), 4)}
+        out["mae_pt_by_counted"] = {}
+        for q in (0.01, 0.05, 0.10, 0.25, 0.50):
+            r = rows[rows["counted"] >= q]
+            out["mae_pt_by_counted"][f"{int(100 * q)}%"] = _r(100 * abs(r.iloc[0][share] - final), 3) if len(r) else None
+        pwin = p if outcome else 1 - p
+        for threshold in (0.90, 0.95):
+            t = settle(rows["t"], pwin >= threshold)
+            gated = max(t, gate) if pd.notna(t) and pd.notna(gate) else pd.NaT
+            out[f"settle_{int(threshold * 100)}"] = _iso(t)
+            out[f"settle_{int(threshold * 100)}_gated"] = _iso(gated)
+            out[f"settle_{int(threshold * 100)}_from_gate_min"] = (
+                _r((gated - gate).total_seconds() / 60, 1) if pd.notna(gated) else None)
+        return out
+
+    result = {"v1": one("v1", "share", "sd", "P"),
+              "v2": one("v2", "share_sensitivity", "sd_sensitivity", "P_sensitivity")}
+    pm = rows["pm"]
+    if pm.notna().any():
+        pwin = pm if outcome else 1 - pm
+        market = {"brier_1_95": _r(((pm[w] - outcome) ** 2).mean(), 4)}
+        for threshold in (0.90, 0.95):
+            t = settle(rows.loc[pm.notna(), "t"], (pwin[pm.notna()] >= threshold))
+            gated = max(t, gate) if pd.notna(t) and pd.notna(gate) else pd.NaT
+            market[f"settle_{int(threshold * 100)}"] = _iso(t)
+            market[f"settle_{int(threshold * 100)}_gated"] = _iso(gated)
+            market[f"settle_{int(threshold * 100)}_from_gate_min"] = (
+                _r((gated - gate).total_seconds() / 60, 1) if pd.notna(gated) else None)
+        first = rows.loc[pm.notna()].iloc[0]
+        market["decided_before_count"] = bool(first["counted"] < 0.01 and
+                                               ((first["pm"] >= 0.90) if outcome else (first["pm"] <= 0.10)))
+        result["market"] = market
+    return result
+
 
 def raw_settle(rows: pd.DataFrame, final: float):
     started = rows["counted"] > 0
@@ -300,8 +355,14 @@ def catchup(cids: list[str]) -> dict:
 # ------------------------------------------------------------------ election export
 
 def rows_json(rows: pd.DataFrame) -> list[dict]:
-    return [{"t": _iso(r.t), "counted": _r(r.counted), "raw": _r(r.raw), "share": _r(r.share), "sd": _r(r.sd, 5),
-             "P": _r(r.P), "pm": _r(r.pm), "kalshi": None} for r in rows.itertuples()]
+    def row(r):
+        out = {"t": _iso(r.t), "counted": _r(r.counted), "raw": _r(r.raw), "share": _r(r.share), "sd": _r(r.sd, 5),
+               "P": _r(r.P), "pm": _r(r.pm), "kalshi": None}
+        for src, n in (("share_sensitivity", 4), ("sd_sensitivity", 5), ("P_sensitivity", 4)):
+            if hasattr(r, src):
+                out[src] = _r(getattr(r, src), n)
+        return out
+    return [row(r) for r in rows.itertuples()]
 
 
 def units_json(results: list[dict], names: pd.Series) -> dict:
@@ -329,6 +390,7 @@ def export(eid: str, names: pd.Series) -> dict:
     ev, kind = E["evidence"], E["kind"]
     timeline, races, results = {}, [], []
     stats = {"calibration": {}, "settle": {}, "catchup": {}, "early_error": {}, "capacity": {}, "arbitrage": None,
+             "sensitivity": {}, "evidence_note": "v1 remains the headline. v2 was chosen after the result was known and is sensitivity-only.",
              "evidence": {}, "reasons": {"arbitrage": "Kalshi data licence (docs/kalshi.md)",
                                          "settle.kalshi": "Kalshi data licence (docs/kalshi.md)",
                                          "catchup.kalshi": "Kalshi data licence (docs/kalshi.md)",
@@ -341,6 +403,8 @@ def export(eid: str, names: pd.Series) -> dict:
              "stats.settle = first time after which P (model) or the price (market) stayed >= 0.9 on the eventual "
              "winner to the end (the registered definition, night.evaluate); it can fall before 1% is counted when "
              "the prior alone already gives P >= 0.9.",
+             "Solid model lines and the headline statistics are v1. Dashed v2 lines are a sensitivity whose settings "
+             "were chosen after the result was known, using only earlier elections; map projections remain v1.",
              E["prior_note"]]
     cids = []
     for cfg_path, stage, race_id, region in E["parts"]:
@@ -352,23 +416,36 @@ def export(eid: str, names: pd.Series) -> dict:
         else:
             cid = E["cid"]
             na, nb = E["names"]
+        v2_cfg = cfg_path.replace("_v1.toml", "_v2.toml") if kind == "gov" else E["v2_cfg"]
+        v2_cid = Path(v2_cfg).stem
         cids.append(cid)
         if kind == "hist":
             h = pd.read_parquet(RES / "history" / cid / "ticks.parquet")
             h["t"] = pd.to_datetime(h["t"], utc=True)
-            nat = h.rename(columns={"tally": "raw"}).assign(pm=np.nan)
+            h2 = pd.read_parquet(RES / "history" / v2_cid / "ticks.parquet")
+            h2["t"] = pd.to_datetime(h2["t"], utc=True)
+            sensitivity = h2[["t", "share", "sd", "P"]].rename(columns={
+                "share": "share_sensitivity", "sd": "sd_sensitivity", "P": "P_sensitivity"})
+            nat = h.rename(columns={"tally": "raw"}).assign(pm=np.nan).merge(sensitivity, on="t", how="left")
+            tk2 = None
         else:
             tk = night_ticks(cid)
+            tk2 = night_ticks(v2_cid)
+            sensitivity = tk2[tk2.scope == "br"][["t", "share", "share_sd", "P"]].rename(columns={
+                "share": "share_sensitivity", "share_sd": "sd_sensitivity", "P": "P_sensitivity"})
             nat = tk[tk.scope == "br"].rename(columns={"share_sd": "sd", "price": "pm"})
-            nat = nat.merge(raw_tally(cid).rename("raw"), left_on="t", right_index=True, how="left")
+            nat = nat.merge(raw_tally(cid).rename("raw"), left_on="t", right_index=True, how="left").merge(
+                sensitivity, on="t", how="left")
         t0, t1, step = window(eid, nat.set_index("t")["counted"])
         if kind == "gov":                # one frame grid for all six states: the latest state's window
             t1 = max(window(eid, (lambda x: x[x.scope == "br"].set_index("t")["counted"])(night_ticks(cfg_toml(c)["id"])))[1]
                      for c, *_ in E["parts"])
-        nat = nat[(nat.t >= t0) & (nat.t <= t1)][["t", "counted", "raw", "share", "sd", "P", "pm"]].copy()
-        nat[["counted", "raw", "share", "sd", "P", "pm"]] = nat[["counted", "raw", "share", "sd", "P", "pm"]].ffill()
+        cols = ["counted", "raw", "share", "sd", "P", "pm", "share_sensitivity", "sd_sensitivity", "P_sensitivity"]
+        nat = nat[(nat.t >= t0) & (nat.t <= t1)][["t", *cols]].copy()
+        nat[cols] = nat[cols].ffill()
         state_scopes = sorted(cfg.get("markets", {}).get("states", {})) if kind == "night" else []
         res = run_child(eid, cfg_path, stage, t0, t1, step, state_scopes)
+        res2 = run_child(eid, v2_cfg, stage, t0, t1, step, state_scopes) if state_scopes else None
         results.append(res)
         print(f"  {eid}/{race_id}: frames {len(res['frames'])} ({step}), projection check max |Δshare| "
               f"{res['max_check']:.2e}, section munis not in prior {res['unmatched_sections']}")
@@ -395,13 +472,19 @@ def export(eid: str, names: pd.Series) -> dict:
             stats["calibration"][race_id] = {"coverage90_1_95": s["coverage_90"]["1-95%"], "mean_z": s["mean_z_1_95"]}
             stats["early_error"][race_id] = {k: {"model": v["model_pt"], "raw": v["raw_tally_pt"]} for k, v in s["error_at_counted"].items()}
             stats["settle"][race_id] = {"model": hm(s["model_settles"]), "polymarket": None, "kalshi": None, "raw": hm(s["raw_tally_settles"])}
+            stats["sensitivity"][race_id] = sensitivity_stats(nat, float(s["final_share_a"]))
             continue
         final = json.loads((RES / "night" / cid / "final.json").read_text())["final_share"]
-        full = tk[tk.scope == "br"].rename(columns={"share_sd": "sd"}).merge(raw_tally(cid).rename("raw"), left_on="t",
-                                                                               right_index=True, how="left")
-        full["raw"] = full["raw"].ffill()
+        full_sensitivity = tk2[tk2.scope == "br"][["t", "share", "share_sd", "P"]].rename(columns={
+            "share": "share_sensitivity", "share_sd": "sd_sensitivity", "P": "P_sensitivity"})
+        full = tk[tk.scope == "br"].rename(columns={"share_sd": "sd", "price": "pm"}).merge(
+            raw_tally(cid).rename("raw"), left_on="t", right_index=True, how="left").merge(
+            full_sensitivity, on="t", how="left")
+        full[["raw", "share_sensitivity", "sd_sensitivity", "P_sensitivity"]] = full[[
+            "raw", "share_sensitivity", "sd_sensitivity", "P_sensitivity"]].ffill()
         st = race_stats(full, final)
         stats["calibration"][race_id], stats["early_error"][race_id] = st["calibration"], st["early_error"]
+        stats["sensitivity"][race_id] = sensitivity_stats(full, final)
         evl = pd.read_csv(RES / "night" / cid / "evaluation.csv")
         x = evl[evl.scope == "br"].iloc[0]
         stats["settle"][race_id] = {"model": _iso(pd.Timestamp(x["model_0.9"])) if pd.notna(x["model_0.9"]) else None,
@@ -415,8 +498,14 @@ def export(eid: str, names: pd.Series) -> dict:
             race(uf, uf, f"President, first place in {UF_NAMES[uf]}", smk)
             g = tk[tk.scope == uf][["t", "price", "P", "scope_counted"]].rename(columns={"price": "pm", "scope_counted": "counted"})
             g = g.merge(ser[ser.scope == uf][["t", "share", "sd", "raw", "Pc"]], on="t", how="left")
+            g2 = tk2[tk2.scope == uf][["t", "P"]].rename(columns={"P": "P_sensitivity"})
+            ser2 = res2["series"]
+            g2 = g2.merge(ser2[ser2.scope == uf][["t", "share", "sd"]].rename(columns={
+                "share": "share_sensitivity", "sd": "sd_sensitivity"}), on="t", how="left")
+            g = g.merge(g2, on="t", how="left")
             g = g[(g.t >= t0) & (g.t <= t1)]
-            g[["share", "sd", "raw"]] = g[["share", "sd", "raw"]].ffill()
+            g[["share", "sd", "raw", "share_sensitivity", "sd_sensitivity", "P_sensitivity"]] = g[[
+                "share", "sd", "raw", "share_sensitivity", "sd_sensitivity", "P_sensitivity"]].ffill()
             chk = (g["P"] - g["Pc"]).abs().max()
             if chk > 1e-9:
                 print(f"  WARNING {eid}/{uf}: recomputed state P differs from cached ticks by {chk:.2e}")
@@ -424,6 +513,7 @@ def export(eid: str, names: pd.Series) -> dict:
             fin = res["final_uf"][uf]
             st = race_stats(g, fin)
             stats["calibration"][uf], stats["early_error"][uf] = st["calibration"], st["early_error"]
+            stats["sensitivity"][uf] = sensitivity_stats(g, fin)
             x = evl[evl.scope == uf].iloc[0]
             stats["settle"][uf] = {"model": _iso(pd.Timestamp(x["model_0.9"])) if pd.notna(x["model_0.9"]) else None,
                                    "polymarket": _iso(pd.Timestamp(x["market_0.9"])) if pd.notna(x["market_0.9"]) else None,
@@ -462,11 +552,16 @@ def export(eid: str, names: pd.Series) -> dict:
                  "in that race; lead = minutes from the model's gated settle to lead_vs settling (positive: model first).")
     _new(eid, "settle_gated (model settle counted from the 1% gate, and its lead)")
     sources = [SRC_BWEB, E["prior_src"]] + ([SRC_PM] if kind != "hist" else [])
+    sensitivity_meta = {
+        "label": ("v2: settings from 2014 and 2018" if eid.startswith("br2022")
+                  else "v2: settings from 2014, 2018 and 2022") + " (chosen after the result was known)",
+        "config": ("configs/governor_r2/night_gov_r2_{uf}_v2.toml" if kind == "gov" else E["v2_cfg"]),
+    }
     meta = {"id": eid, "name": E["name"], "date": E["date"], "tz": BRT,
             "poll_close_utc": _iso(pd.Timestamp(f"{E['date']} 17:00", tz=BRT)),
             "geometry": "geo/br_municipalities.topo.json", "geometry_object": "municipalities", "unit_key": "unit_id",
             "regions": [{"id": u, "name": UF_NAMES[u]} for u in sorted({r for x in results for r in x["prior"]["uf"]})],
-            "races": races, "sources": sources, "notes": notes}
+            "races": races, "sensitivity": sensitivity_meta, "sources": sources, "notes": notes}
     # map frames: one national race, or (governors) each unit belongs to its own state's race
     units = {"race_id": None if kind == "gov" else "br", **units_json(results, names)}
     d = OUT / eid
