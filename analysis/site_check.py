@@ -537,6 +537,58 @@ async def check_page(
                     result.failures.append("race/national readout is empty")
                 if current["visiblePaths"] == 0 and not map_audit.mapless(case.path.split("id=")[-1].split("&")[0]) and not await canvas_has_drawing(page):
                     result.failures.append("map has neither visible SVG paths nor non-background canvas pixels")
+                # Layer controls and the no-market cutover.
+                if case.path == "election.html?id=fr2022r2":
+                    polymarket_text = await page.evaluate(
+                        """() => [...document.body.querySelectorAll('*')]
+                          .filter((e) => !['SCRIPT', 'STYLE'].includes(e.tagName))
+                          .some((e) => [...e.childNodes].some((n) => n.nodeType === 3 && /Polymarket/i.test(n.textContent)))"""
+                    )
+                    if polymarket_text:
+                        result.failures.append("fr2022r2 contains Polymarket text despite having no market data")
+                if case.path == "election.html?id=br2026r2":
+                    layer = await page.evaluate(
+                        """async () => {
+                          const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+                          const state = () => ({
+                            column: [...document.querySelectorAll('#pane-races th')].some((h) => h.textContent.trim() === 'Polymarket'),
+                            line: [...document.querySelectorAll('#timeline path')].some((p) => p.getAttribute('stroke') === '#1b1b1b'),
+                            pressed: document.querySelector('[data-layer="polymarket"]')?.getAttribute('aria-pressed'),
+                          });
+                          const button = document.querySelector('[data-layer="polymarket"]');
+                          if (!button) return { error: 'no Polymarket toggle' };
+                          if (button.getAttribute('aria-pressed') === 'true') button.click();
+                          await wait(200);
+                          const off = state(), url = location.search;
+                          return { off, url };
+                        }"""
+                    )
+                    if layer.get("error"):
+                        result.failures.append(layer["error"])
+                    else:
+                        try:
+                            await page.reload(wait_until="load", timeout=timeout * 1000)
+                            await page.wait_for_function(
+                                """() => document.querySelector('[data-layer="polymarket"]')
+                                  && document.querySelector('#pane-races table.races')""",
+                                timeout=timeout * 1000,
+                            )
+                            persisted = await page.evaluate(
+                                """() => ({
+                                  column: [...document.querySelectorAll('#pane-races th')].some((h) => h.textContent.trim() === 'Polymarket'),
+                                  line: [...document.querySelectorAll('#timeline path')].some((p) => p.getAttribute('stroke') === '#1b1b1b'),
+                                  pressed: document.querySelector('[data-layer="polymarket"]')?.getAttribute('aria-pressed'),
+                                  stored: JSON.parse(localStorage.getItem('ubiu.layers.hidden') ?? '[]'),
+                                })"""
+                            )
+                            if layer["off"]["column"] or layer["off"]["line"] or layer["off"]["pressed"] != "false":
+                                result.failures.append(f"br2026r2 Polymarket layer did not switch off: {layer}")
+                            if "show=" not in layer["url"]:
+                                result.failures.append(f"br2026r2 layer state is absent from the URL: {layer['url']}")
+                            if persisted["column"] or persisted["line"] or persisted["pressed"] != "false" or "polymarket" not in persisted["stored"]:
+                                result.failures.append(f"br2026r2 Polymarket layer did not survive reload: {persisted}")
+                        except Exception as error:
+                            result.failures.append(f"br2026r2 layer reload check failed: {error}")
                 if case.path == "election.html?id=pl2025r2":
                     replay = await page.evaluate(
                         """() => ({ now: window.__dashAudit?.time?.(), domain: window.__dashAudit?.domain?.(),
@@ -574,6 +626,26 @@ async def check_page(
                         result.failures.append(f"us2026 default wrote a race to the address: {nat['url']}")
                     if any("house_live" in d for d in result.diagnostics):
                         result.failures.append("us2026 requested the missing house_live/ files")
+                if case.name == "us2026-ca-gov":
+                    await page.evaluate("async () => window.__dashAudit.selectRace('fl-gov')")
+                    await page.wait_for_function(
+                        """() => document.querySelector('[data-layer="early"]')
+                          && document.querySelector('#readout .chip')""",
+                        timeout=timeout * 1000,
+                    )
+                    us_layers = await page.evaluate(
+                        """() => ({
+                          layers: [...document.querySelectorAll('#layer-bar [data-layer]')].map((b) => b.textContent.trim()),
+                          chips: [...document.querySelectorAll('#readout .chip small')].map((c) => c.textContent.trim()),
+                          allOn: [...document.querySelectorAll('#layer-bar [data-layer]')].every((b) => b.getAttribute('aria-pressed') === 'true'),
+                        })"""
+                    )
+                    expected_layers = {"Model", "Polls", "Polymarket", "Kalshi", "Turnout", "Early vote"}
+                    if not expected_layers.issubset(set(us_layers["layers"])) or not us_layers["allOn"]:
+                        result.failures.append(f"us2026 pre-count layer chips are incomplete: {us_layers}")
+                    expected_chips = ("Model, polls", "Polls", "Market-implied", "Chance:", "Turnout", "Early vote")
+                    if any(not any(label.startswith(want) for label in us_layers["chips"]) for want in expected_chips):
+                        result.failures.append(f"us2026 pre-count readout chips are incomplete: {us_layers}")
                 if "id=us2026" in case.path:
                     bad = await page.evaluate(
                         """() => { const re = /baseline|model only|not a forecast|not traded|rough/i;

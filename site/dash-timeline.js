@@ -7,7 +7,7 @@
 import * as d3 from "./vendor/d3.js";
 import { C, clock, probit, sensP } from "./common.js";
 
-const POLLS = "#8d8a82";
+export const POLLS = "#8d8a82";
 // method hovers for the model's line (US)
 const REG = "v3: poll average prior + county count (registered)";
 const EST = "Estimate: 2024 county results shifted to the poll average";
@@ -26,7 +26,10 @@ const rawM = (d) => (d.raw != null && d.counted > 0 ? (2 * d.raw - 1) * 100 : nu
 export const timelineViews = (rows) => (rows.some((d) => mm(d) != null || d.margin_polls != null || mkt(d) != null || d.margin_estimate != null) ? ["margin", "chance"] : ["chance"]);
 
 // view: "margin" | "chance"; us: margins read "D+3" / "R+3" (else "+3" for side a, "−3" for b).
-export function drawTimeline(root, { race, rows, domain, tz, wall, height, view = "chance", us = false, countPanel = true, sensitivities = [], onPreview, onSet }) {
+// show: which layers are on ({ model, polls, pm, kalshi, raw, sens: {key: bool} }, election.js showOf;
+// a missing field counts as on): a layer that is off has no line, band, dot or end label, and does not
+// stretch the axis.
+export function drawTimeline(root, { race, rows, domain, tz, wall, height, view = "chance", us = false, countPanel = true, sensitivities = [], show = {}, onPreview, onSet }) {
   root.innerHTML = "";
   if (!rows.length) {
     root.innerHTML = `<p class="note">No count or price data for this race yet.</p>`;
@@ -34,9 +37,10 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
   }
   const width = Math.max(280, root.clientWidth);
   const narrow = width < 520;
-  const two = rows.some((d) => d.P_v2 != null);
+  const S = (k) => show[k] !== false;
+  const two = S("model") && rows.some((d) => d.P_v2 != null);
   // sensitivities with data in this race (thin dashed lines, one extra end label each)
-  const sens = sensitivities.filter((s) => rows.some((d) => sensP(d, s) != null));
+  const sens = sensitivities.filter((s) => show.sens?.[s.key] !== false && rows.some((d) => sensP(d, s) != null));
   const m = { l: narrow ? 38 : 46, r: narrow ? 104 + 8 * sens.length : 116 + 24 * sens.length, t: 8, b: 22 };
   const h = height - m.t - m.b;
   const x = d3.scaleUtc().domain(domain.map(wall)).range([m.l, width - m.r]);
@@ -54,13 +58,15 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
   let Y;
 
   if (view === "margin") {
-    const lo = (d) => (mm(d) != null && msd(d) != null ? mm(d) - 1.645 * msd(d) : null);
-    const hi = (d) => (mm(d) != null && msd(d) != null ? mm(d) + 1.645 * msd(d) : null);
+    const mmS = (d) => (S("model") ? mm(d) : null), mktS = (d) => (S("pm") ? mkt(d) : null), mktKS = (d) => (S("kalshi") ? mktK(d) : null);
+    const pollS = (d) => (S("polls") ? d.margin_polls ?? null : null), rawS = (d) => (S("raw") ? rawM(d) : null);
+    const lo = (d) => (mmS(d) != null && msd(d) != null ? mmS(d) - 1.645 * msd(d) : null);
+    const hi = (d) => (mmS(d) != null && msd(d) != null ? mmS(d) + 1.645 * msd(d) : null);
     const counting = vis.filter((d) => d.counted > 0.005);
     const span = counting.length ? counting : vis;
-    const est = lastF((d) => d.margin_estimate ?? null); // a race without a live model: the county estimate now
+    const est = S("model") ? lastF((d) => d.margin_estimate ?? null) : null; // a race without a live model: the county estimate now
     const eLo = est?.margin_estimate_sd != null ? est.margin_estimate - 1.645 * est.margin_estimate_sd : null, eHi = eLo != null ? est.margin_estimate + 1.645 * est.margin_estimate_sd : null;
-    const vals = [...span.flatMap((d) => [mm(d), lo(d), hi(d), d.margin_polls, mkt(d), mktK(d), rawM(d)]), est?.margin_estimate, eLo, eHi].filter((v) => v != null && Number.isFinite(v));
+    const vals = [...span.flatMap((d) => [mmS(d), lo(d), hi(d), pollS(d), mktS(d), mktKS(d), rawS(d)]), est?.margin_estimate, eLo, eHi].filter((v) => v != null && Number.isFinite(v));
     const [a, b] = vals.length ? d3.extent([...vals, 0]) : [-10, 10];
     const yM = d3.scaleLinear().domain([a - 1, b + 1]).nice().range([m.t + h, m.t]);
     const [d0, d1] = yM.domain();
@@ -71,26 +77,26 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     hline(yM(0));
     g.append("path").datum(vis.filter((d) => lo(d) != null)).attr("fill", C.model).attr("opacity", 0.14)
       .attr("d", d3.area().x(X).y0((d) => Y(lo(d))).y1((d) => Y(hi(d))).curve(d3.curveStepAfter));
-    path(POLLS, 1.4, (d) => d.margin_polls ?? null, "4,3");
-    g.append("path").datum(vis.filter((d) => rawM(d) != null)).attr("fill", "none").attr("stroke", C.raw).attr("stroke-width", 2).attr("d", d3.line().x(X).y((d) => Y(rawM(d))));
-    path(C.kalshi, 1.2, mktK);
-    path(C.market, 1.6, mkt);
-    path(C.model, 2, mm);
+    if (S("polls")) path(POLLS, 1.4, (d) => d.margin_polls ?? null, "4,3");
+    if (S("raw")) g.append("path").datum(vis.filter((d) => rawM(d) != null)).attr("fill", "none").attr("stroke", C.raw).attr("stroke-width", 2).attr("d", d3.line().x(X).y((d) => Y(rawM(d))));
+    if (S("kalshi")) path(C.kalshi, 1.2, mktK);
+    if (S("pm")) path(C.market, 1.6, mkt);
+    if (S("model")) path(C.model, 2, mm);
     if (est) {
       if (eLo != null) g.append("line").attr("x1", X(est)).attr("x2", X(est)).attr("y1", Y(eLo)).attr("y2", Y(eHi)).attr("stroke", C.model).attr("stroke-width", 1.5).attr("opacity", 0.6);
       g.append("circle").attr("cx", X(est)).attr("cy", Y(est.margin_estimate)).attr("r", 4).attr("fill", C.model).attr("stroke", "#fff");
     }
     // the final result, once fully counted
     const last = rows[rows.length - 1];
-    const final = countPanel && last.counted >= 0.999 && last.raw != null ? (2 * last.raw - 1) * 100 : null;
+    const final = S("raw") && countPanel && last.counted >= 0.999 && last.raw != null ? (2 * last.raw - 1) * 100 : null;
     if (final != null) g.append("line").attr("x1", m.l).attr("x2", width - m.r).attr("y1", Y(final)).attr("y2", Y(final)).attr("stroke", C.model).attr("stroke-dasharray", "5,4").attr("opacity", 0.6);
     endLabels(svg, width - m.r + 5, [
-      [lastF(mm), (d) => Y(mm(d)), `model${two ? ", polls" : ""}`, C.model, us ? REG : ""],
-      [lastF((d) => d.margin_polls ?? null), (d) => Y(d.margin_polls), "polls", POLLS],
+      [lastF(mmS), (d) => Y(mm(d)), `model${two ? ", polls" : ""}`, C.model, us ? REG : ""],
+      [lastF(pollS), (d) => Y(d.margin_polls), "polls", POLLS],
       [est, (d) => Y(d.margin_estimate), "model", C.model, EST],
-      [lastF(mkt), (d) => Y(mkt(d)), "market-implied", C.market],
-      [lastF(mktK), (d) => Y(mktK(d)), "Kalshi-implied", C.kalshi],
-      [lastF(rawM), (d) => Y(rawM(d)), "raw count", C.raw],
+      [lastF(mktS), (d) => Y(mkt(d)), "market-implied", C.market],
+      [lastF(mktKS), (d) => Y(mktK(d)), "Kalshi-implied", C.kalshi],
+      [lastF(rawS), (d) => Y(rawM(d)), "raw count", C.raw],
       [final != null ? {} : null, () => Y(final), `final ${fmt(Math.round(final * 10) / 10)}`, C.model],
     ]);
   } else {
@@ -102,17 +108,17 @@ export function drawTimeline(root, { race, rows, domain, tz, wall, height, view 
     const main = two ? (d) => d.P_v2 ?? null : (d) => d.P ?? null;
     if (two) path(C.model, 1, (d) => d.P ?? null, "3,2").attr("opacity", 0.75);
     for (const s of sens) path(C.model, 1, (d) => sensP(d, s), s.dash).attr("opacity", 0.8).attr("class", `sens-line sens-${s.key}`);
-    path(C.model, 2, main);
-    path(C.kalshi, 1.5, (d) => d.kalshi ?? null);
-    path(C.market, 1.6, (d) => d.pm ?? null);
-    const estP = lastF((d) => d.P_estimate ?? null);
+    if (S("model")) path(C.model, 2, main);
+    if (S("kalshi")) path(C.kalshi, 1.5, (d) => d.kalshi ?? null);
+    if (S("pm")) path(C.market, 1.6, (d) => d.pm ?? null);
+    const estP = S("model") ? lastF((d) => d.P_estimate ?? null) : null;
     if (estP) g.append("circle").attr("cx", X(estP)).attr("cy", yP(estP.P_estimate)).attr("r", 4).attr("fill", C.model).attr("stroke", "#fff");
     endLabels(svg, width - m.r + 5, [
-      [lastF(main), (d) => yP(main(d)), `model${two ? ", polls" : ""}`, C.model, us ? REG : ""],
+      [S("model") ? lastF(main) : null, (d) => yP(main(d)), `model${two ? ", polls" : ""}`, C.model, us ? REG : ""],
       [two ? lastF((d) => d.P ?? null) : null, (d) => yP(d.P), "without polls", C.model],
       ...sens.map((s) => [lastF((d) => sensP(d, s)), (d) => yP(sensP(d, s)), s.key, C.model, s.label]),
-      [lastF((d) => d.pm ?? null), (d) => yP(d.pm), "Polymarket", C.market],
-      [lastF((d) => d.kalshi ?? null), (d) => yP(d.kalshi), "Kalshi", C.kalshi],
+      [S("pm") ? lastF((d) => d.pm ?? null) : null, (d) => yP(d.pm), "Polymarket", C.market],
+      [S("kalshi") ? lastF((d) => d.kalshi ?? null) : null, (d) => yP(d.kalshi), "Kalshi", C.kalshi],
       [estP, (d) => yP(d.P_estimate), "model", C.model, EST],
     ], height - m.b - 2);
   }

@@ -8,7 +8,8 @@
 import * as d3 from "./vendor/d3.js";
 import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, sensitivitiesOf, sensP, probit, marginText, clock, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes, crossDocTransitions } from "./common.js";
 import { createMap } from "./dash-map.js";
-import { drawTimeline, timelineViews, drawTurnout } from "./dash-timeline.js";
+import { drawTimeline, timelineViews, drawTurnout, POLLS } from "./dash-timeline.js";
+import { layerOn as showLayer, setLayers, mountLayers, onLayersChange } from "./dash-layers.js";
 import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
@@ -216,6 +217,64 @@ async function loadSeries() {
   S.stats = stats;
   S.arb = arb;
   S.lastFetch = Date.now();
+}
+
+/* ---------------------------------------------------------------- layers (the "Show:" bar) */
+
+// What data the page has, read once per set of rows (a true stays true: a live price arriving
+// later adds its layer): { pm, kalshi, model, polls, raw, sens: {key: bool} }. An election
+// where no race has a Polymarket or Kalshi price has no market layer at all, and shows no
+// market anywhere (no column, chip, line, mark or sentence).
+function dataLayers() {
+  const sens = sensitivitiesOf(S.meta);
+  const held = S.layerData;
+  if (held && held.rows === S.rows && held.extra === S.extra && held.nat === S.nat) return held;
+  const f = { rows: S.rows, extra: S.extra, nat: S.nat, pm: !!held?.pm, kalshi: !!held?.kalshi, model: !!held?.model, polls: !!held?.polls, raw: !!held?.raw, sens: { ...(held?.sens ?? {}) } };
+  for (const rows of [...(S.rows?.values() ?? []), ...(S.civic?.rows?.values() ?? [])]) {
+    for (const d of rows) {
+      if (d.pm != null) f.pm = true;
+      if (d.kalshi != null) f.kalshi = true;
+      if (d.P != null || d.P_v2 != null || d.share != null || d.margin_model != null || d.margin_v2 != null) f.model = true;
+      if (d.margin_polls != null) f.polls = true;
+      if (d.raw != null && d.counted > 0) f.raw = true;
+      for (const s of sens) if (!f.sens[s.key] && sensP(d, s) != null) f.sens[s.key] = true;
+    }
+  }
+  for (const r of S.extra?.values() ?? []) {
+    const o = r.ov;
+    if (!o) continue;
+    if (o.pm?.price != null || o.history?.some((h) => h[1] != null)) f.pm = true;
+    if (o.kalshi?.price != null || o.history?.some((h) => h[2] != null)) f.kalshi = true;
+    if (r.estimate) f.model = true;
+    if (o.margins?.polls != null || S.nat) f.polls = true;
+  }
+  S.layerData = f;
+  return f;
+}
+// The layers that show: the page has them and the reader has not turned them off.
+function showOf() {
+  const f = dataLayers();
+  return {
+    model: f.model && showLayer("model"), polls: f.polls && showLayer("polls"),
+    pm: f.pm && showLayer("polymarket"), kalshi: f.kalshi && showLayer("kalshi"),
+    raw: f.raw && showLayer("raw"), turnout: showLayer("turnout"), early: showLayer("early"),
+    sens: Object.fromEntries(sensitivitiesOf(S.meta).map((s) => [s.key, !!f.sens[s.key] && showLayer(s.key)])),
+    marketExists: f.pm || f.kalshi,
+  };
+}
+const SENS_NAME = { mix: "Mixture" };
+// The bar's chips: one per layer the page (and the open race) has.
+function refreshLayers() {
+  const f = dataLayers(), list = [];
+  if (f.model) list.push({ key: "model", label: "Model", color: C.model, title: "The model's projection, band and chance" });
+  if (f.polls) list.push({ key: "polls", label: "Polls", color: POLLS, title: "The poll average" });
+  if (f.pm) list.push({ key: "polymarket", label: "Polymarket", color: C.market, title: "Polymarket's price" });
+  if (f.kalshi) list.push({ key: "kalshi", label: "Kalshi", color: C.kalshi, title: "Kalshi's price" });
+  if (f.raw && S.countTimeline) list.push({ key: "raw", label: "Raw count", color: C.raw, title: "The count as reported, with no model" });
+  for (const s of sensitivitiesOf(S.meta)) if (f.sens[s.key]) list.push({ key: s.key, label: SENS_NAME[s.key] ?? s.key, color: C.model, dash: true, title: s.label });
+  if (S.units?.turnout) list.push({ key: "turnout", label: "Turnout", title: "Turnout against the turnout model's expectation" });
+  if (S.ev && (Object.keys(S.ev.states ?? {}).length || Object.keys(S.ev.not_available ?? {}).length)) list.push({ key: "early", label: "Early vote", title: "Ballots cast before election day" });
+  setLayers(list);
 }
 
 // The civicAPI secondary-source races: a separate process writes civic/us2026/{meta,timeline,
@@ -548,6 +607,18 @@ async function setLevel(l, { push = true } = {}) {
 // Hover and click pick whole regions at the region level of the whole country.
 const regionHover = () => levelsOn() && !S.region && S.level === "regions";
 
+// The bottom-left map key stays open on a wide whole-country map. It starts collapsed when the
+// fitted geometry is a region (where the box can cover much of it), and on a narrow screen. The
+// reader can always open or close it with the small button.
+function setLegendOpen(open) {
+  const button = $("legend-toggle"), legend = $("legend");
+  button.setAttribute("aria-expanded", String(open));
+  button.textContent = open ? "Hide legend" : "Legend";
+  legend.hidden = !open;
+}
+function resetLegendOpen() { setLegendOpen(!S.region && WIDE.matches); }
+
+
 // S.region with the level path: entering a region shows its units, leaving shows regions again.
 function setRegionState(reg) {
   if (reg && S.overviewDefault) { S.overviewDefault = false; fillRaceSelect(); $("race").value = S.race?.race_id ?? ""; }
@@ -558,6 +629,7 @@ function setRegionState(reg) {
     if (S.nat && !S.houseSel) { S.overviewDefault = true; fillRaceSelect(); $("readout").replaceChildren(); drawChart(); }
   }
   S.region = reg ?? null;
+  resetLegendOpen();
   for (const b of $("map-level").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.level === S.level));
 }
 
@@ -844,16 +916,17 @@ function render() {
     : `${PRE() ? `${esc(dayOf(S.t))} ` : ""}<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing && !PRE() ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
   if (houseShown() && seriesOf(`house:${S.houseSel}`)) $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel));
   if (S.race && !houseShown() && !S.overviewDefault) {
-    const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: S.liveNote } : null;
+    refreshLayers();
+    const show = showOf();
+    const pre = PRE() ? { day: dayOf(tt), note: S.race.model_note, live: show.pm && S.liveNote ? `${S.liveNote}${show.kalshi && S.liveKalshiAt ? `; Kalshi as of ${S.liveKalshiAt}` : ""}` : null } : null;
     const row = rowAt(S.race.race_id, tt) ?? extraRow(S.race);
     if (pre && S.race.estimate) pre.basis = S.race.estimate.note;
     const aWon = outcomeOf(S.race);
     const priced = [...(rowsOf(S.race.race_id) ?? [])].reverse().find((d) => d.tms <= tt && d.pm != null);
-    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row), sensitivities: sensitivitiesOf(S.meta), nPolls: nPollsOf(S.race), settled: replay() && settledAt(priced ?? row, aWon), winner: replay() ? winnerName(S.race, aWon) : null });
+    renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row), sensitivities: sensitivitiesOf(S.meta), nPolls: nPollsOf(S.race), settled: replay() && settledAt(priced ?? row, aWon), winner: replay() ? winnerName(S.race, aWon) : null, show });
     // the turnout chart follows the map's frame
     if (S.tlView === "turnout" && S.tlK !== k) drawChart();
   }
-  // race list and region picker: at most every 200 ms while playing
   const now = performance.now();
   clearTimeout(listTimer);
   if (now - lastList > 200) updateLists(tt);
@@ -1121,7 +1194,7 @@ function showMapState() {
   $("map-empty").textContent = has ? "" : S.mapError ? `The map could not be drawn: ${S.mapError}` : S.map ? "No map for this race." : S.meta.geometry ? "Loading the map…" : "No map for this election.";
   $("engine-note").hidden = !S.engineNote;
   $("engine-note").textContent = S.engineNote ? `Map drawn without the background worker (${S.engineNote}); playback may be less smooth.` : "";
-  for (const id of ["map-mode", "legend", "frame-label"]) $(id).style.visibility = has ? "" : "hidden";
+  for (const id of ["map-mode", "legend-toggle", "legend", "frame-label"]) $(id).style.visibility = has ? "" : "hidden";
   if (!has) return;
   setupModes();
   setupLayers();
@@ -1268,7 +1341,7 @@ function buildPicker() {
   const list = pickerRegions();
   el.hidden = !list.length;
   if (!list.length) return;
-  el.innerHTML = `<p class="rp-head"><span>${S.nat ? "State" : "Region"}</span><span>${PRE() ? "Polls close" : S.countTimeline ? "Counted" : ""}</span><span title="Model probability or county estimate (orange dot), Polymarket price (black line) and Kalshi price (green line) for the region's race, 0 to 1">Chance</span></p>
+  el.innerHTML = `<p class="rp-head"><span>${S.nat ? "State" : "Region"}</span><span>${PRE() ? "Polls close" : S.countTimeline ? "Counted" : ""}</span><span title="">Chance</span></p>
     <div class="rp-list" role="listbox" aria-label="Regions">${list.map((r, i) => {
       const rs = racesIn(r.id);
       const chips = rs.length > 1 ? `<span class="rp-races">${rs.map((x) => `<button type="button" class="rp-chip" data-race="${esc(x.race_id)}">${esc(shortRaceName(x))}</button>`).join("")}</span>` : "";
@@ -1302,6 +1375,12 @@ function regionRace(reg) {
 function updatePicker(t) {
   const rows = document.querySelectorAll(".rp-row");
   if (!rows.length) return;
+  const show = showOf();
+  // the head's hover text names the marks that show
+  const names = [show.model ? "model probability or county estimate (orange dot)" : "", show.pm ? "Polymarket price (black line)" : "", show.kalshi ? "Kalshi price (green line)" : ""].filter(Boolean);
+  const head = $("regions").querySelector(".rp-head span:last-child");
+  const tip = names.length ? `${names.join(", ").replace(/^./, (c) => c.toUpperCase())} for the region's race, 0 to 1` : "";
+  if (head && head.title !== tip) head.title = tip;
   const U = S.units, k = U ? frameIndex(t) : -1;
   for (const row of rows) {
     const reg = row.dataset.region;
@@ -1316,13 +1395,14 @@ function updatePicker(t) {
     if (S.countTimeline && r?.counted != null) c = r.counted; // the region's own race, when it has one
     row.children[1].textContent = PRE() ? untilText(closeOf(reg) - Date.now(), true) ?? "closed" : c == null ? "" : pct(c, 0);
     const ind = row.children[2];
-    const m = modelP(r), pm = r?.pm ?? null, kx = r?.kalshi ?? null;
+    const m = show.model ? modelP(r) : null, pm = show.pm ? r?.pm ?? null : null, kx = show.kalshi ? r?.kalshi ?? null : null;
     [m, pm, kx].forEach((v, i) => {
       const mark = ind.children[i];
       mark.hidden = v == null;
       if (v != null) mark.style.left = `${v * 100}%`;
     });
-    ind.title = race ? `${race.name}: model ${num(m)}, Polymarket ${num(pm)}${kx != null ? `, Kalshi ${num(kx)}` : ""}` : "No race for this region";
+    const parts = [show.model ? `model ${num(m)}` : "", show.pm ? `Polymarket ${num(pm)}` : "", kx != null ? `Kalshi ${num(kx)}` : ""].filter(Boolean);
+    ind.title = race ? `${race.name}${parts.length ? `: ${parts.join(", ")}` : ""}` : "No race for this region";
     ind.style.visibility = race ? "" : "hidden";
     row.querySelectorAll(".rp-chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.race === S.race?.race_id)));
   }
@@ -1489,7 +1569,8 @@ function drawChart() {
   const tv = turnoutView();
   // live: the Turnout view is offered from page load (disabled until the county turnout data arrives)
   const tvWait = !tv && LIVE && !PRE() && !!S.race.units;
-  const views = [...timelineViews(rows), ...(tv || tvWait ? ["turnout"] : [])];
+  const show = showOf();
+  const views = [...timelineViews(rows), ...((tv || tvWait) && show.turnout ? ["turnout"] : [])];
   if (!views.includes(S.tlView) || (S.tlView === "turnout" && !tv)) S.tlView = views[0];
   const rb = $("tl-range");
   rb.hidden = !S.counting;
@@ -1512,7 +1593,7 @@ function drawChart() {
     ? drawTurnout($("timeline"), { pts: tv.pts, height: chartHeight(), slope: tv.row?.turnout_surprise_slope ?? null, corr: tv.row?.turnout_surprise_corr ?? null, pre: tv.pre, sentence: tv.sentence })
     : drawTimeline($("timeline"), {
       race: S.race, rows, domain: S.domain, tz: S.tz, wall: S.wall, height: chartHeight(), countPanel: S.countTimeline,
-      view: S.tlView, us: countryCode() === "US", sensitivities: sensitivitiesOf(S.meta),
+      view: S.tlView, us: countryCode() === "US", sensitivities: sensitivitiesOf(S.meta), show,
       onPreview: (t) => { S.preview = t; render(); },
       onSet: (t) => { pause(); S.preview = null; setTime(t); },
     });
@@ -1523,12 +1604,12 @@ function drawChart() {
       ? "Margin, Democratic minus Republican, in points: the poll average, the market-implied margins (Polymarket, Kalshi: the price read through the estimate's uncertainty) and the county estimate now (dot, with its 90% range)."
       : `Chance that ${a} wins: Polymarket and Kalshi prices, and the county estimate now (dot).`)
     : S.tlView === "margin"
-    ? `Margin, ${countryCode() === "US" ? "Democratic minus Republican" : `${a} minus ${b}`}, in points: the model (shaded: its 90% band), the raw count once counting starts${countryCode() === "US" ? ", the polls" : ""} and the market-implied margin (the margin at which the model's uncertainty gives the market's price).`
+    ? `Margin, ${countryCode() === "US" ? "Democratic minus Republican" : `${a} minus ${b}`}, in points: the model (shaded: its 90% band), the raw count once counting starts${show.marketExists ? `${countryCode() === "US" ? ", the polls" : ""} and the market-implied margin (the margin at which the model's uncertainty gives the market's price)` : countryCode() === "US" ? " and the polls" : ""}.`
     : S.tlView === "turnout"
       ? "Turnout: each county that has reported (95% or more counted) as a dot, its votes against the turnout model's expectation (up: more than expected), by its low-propensity index (right: a bigger expected midterm drop-off), sized by expected votes; the line is the weighted trend at the map's frame. Display only; the model's projection does not use it."
-      : `Chance that ${a} wins: the model and the market prices.`;
-  const axis = PRE()
-    ? "Before the count: prices every 30 minutes over the last 14 days, and Polymarket's current price as the last point."
+      : `Chance that ${a} wins: ${show.marketExists ? "the model and the market prices" : "the model's probability"}.`;
+  const axis = PRE() && show.marketExists
+    ? `Before the count: prices every 30 minutes over the last 14 days, and Polymarket's current price as the last point.`
     : g ? `Axis starts at ${clock(g.start, S.tz)}: from ${S.meta.poll_close_utc ? `poll close (${clock(S.meta.poll_close_utc, S.tz)})` : "the first row"} to ${clock(g.gate, S.tz)} under 1% of the vote was counted${g.maxBefore != null ? ` (at most ${pct(g.maxBefore)})` : ""}.` : "";
   $("tl-note").innerHTML = `${what} ${axis}`;
   // a race without a live county model: one plain line under the chart on why
@@ -1536,6 +1617,26 @@ function drawChart() {
   $("tl-feed").hidden = !feed;
   $("tl-feed").textContent = feed;
   S.tl.setCursor(S.t, S.preview);
+}
+
+// "Drag the timeline to replay the night. The marks show when the model and the markets reached 90%."
+// The marks are those of the layers that show: the sentence names only them, and is left out when none do.
+function updateReplayHint(show = showOf()) {
+  const el = $("replay-hint");
+  el.hidden = !replay();
+  const who = [show.model ? "the model" : "", show.pm || show.kalshi ? "the markets" : ""].filter(Boolean).join(" and ");
+  el.textContent = `Drag the timeline to replay the night.${who ? ` The marks show when ${who} reached 90%.` : ""}`;
+}
+
+// A chip or Reset in the "Show:" bar: everything that draws a layer is drawn again.
+function layersChanged() {
+  if (S.overviewDefault || !S.race) return;
+  if (!houseShown()) {
+    if (S.office !== "house") { buildRaceList(); updateLists(S.preview ?? S.t); }
+    drawChart();
+    updateScrubber();
+  }
+  render();
 }
 
 const gateOf = (id) => (S.countTimeline ? rowsOf(id)?.find((d) => d.counted >= 0.01)?.t ?? null : null);
@@ -1551,7 +1652,8 @@ function updateScrubber() {
     const out = t < S.domain[0] || t > S.domain[1];
     return { t, label: out ? `${label} (${clock(iso, S.tz)})` : label, color };
   };
-  const gate = gateOf(id);
+  const gate = gateOf(id), show = showOf();
+  updateReplayHint(show);
   // The model is never shown as settled before the 1% gate: if it was already at 0.9 then, its
   // marker sits on the gate.
   const gatedModel = settleOf(id)?.model ?? settle.model;
@@ -1559,11 +1661,11 @@ function updateScrubber() {
   S.scrub.set({
     domain: S.domain, rows: S.countTimeline ? rows : [], wall: S.wall, tz: S.tz,
     events: [
-      gate && !modelAtGate && ev(gate, "1% counted", C.muted),
-      modelAtGate ? ev(gate, "model 90% sure from 1% counted", C.model) : ev(gatedModel, "model 90% sure", C.model),
-      ev(settle.polymarket, "Polymarket 90% sure", C.market),
-      ev(settle.kalshi, "Kalshi 90% sure", C.kalshi),
-      ev(settle.raw, "raw count settles", C.raw),
+      gate && (!modelAtGate || !show.model) && ev(gate, "1% counted", C.muted),
+      show.model && (modelAtGate ? ev(gate, "model 90% sure from 1% counted", C.model) : ev(gatedModel, "model 90% sure", C.model)),
+      show.pm && ev(settle.polymarket, "Polymarket 90% sure", C.market),
+      show.kalshi && ev(settle.kalshi, "Kalshi 90% sure", C.kalshi),
+      show.raw && ev(settle.raw, "raw count settles", C.raw),
     ].filter(Boolean),
   });
   const playable = (S.frameTimes?.length ?? 0) > 1 || (S.countTimeline && rows.length > 1);
@@ -1687,6 +1789,7 @@ function renderTopbar() {
 const US_TABS = ["polls", "pollsters", "markets", "track"];
 function initTabs() {
   if (S.nat) for (const t of US_TABS) $(`tab-${t}`).hidden = false;
+  else $("tab-markets").textContent = ""; // no hidden market wording on a non-US page
   const tabs = [...document.querySelectorAll('[role="tab"]')].filter((t) => !t.hidden);
   // a tab change keeps the page where it is: the panes hold their height until the new content is
   // in, and the window's scroll is put back
@@ -1762,12 +1865,12 @@ function renderStatsTab() {
     const hr = houseRaces();
     if (!hr.length) { $("pane-stats").innerHTML = `<p class="note">The statistics (accuracy, calibration, market comparison, profit) are computed per race once the count is over, for the races with a county count model. No House district has one in this election's files yet: their markets, polls and the model are in the Races, Polls and Markets tabs.</p>`; return; }
     const race = raceById(`house:${S.houseSel}`) ?? hr[0];
-    renderStats($("pane-stats"), { stats: S.stats, race, races: hr, raceName, tz: S.tz, arb: S.arb, settleOf, profitOf });
+    renderStats($("pane-stats"), { stats: S.stats, race, races: hr, raceName, tz: S.tz, arb: S.arb, settleOf, profitOf, hasMarket: showOf().marketExists });
     return;
   }
   // a civicAPI race has no statistics: they are the registered races' (calibration, settling, profit)
   if (S.race?.civic) { $("pane-stats").innerHTML = `<p class="note">${esc(raceName(S.race))}: the statistics (accuracy, calibration, market comparison, profit) are computed for the registered races only, which use the states' official feeds. This race's count comes from <a href="${CIVIC_SOURCE.url}" target="_blank" rel="noopener">${esc(CIVIC_SOURCE.name)}</a>, a secondary source, and is kept out of them.</p>`; return; }
-  renderStats($("pane-stats"), { stats: S.stats, race: S.race, races: statewide(), raceName, tz: S.tz, arb: S.arb, settleOf, profitOf });
+  renderStats($("pane-stats"), { stats: S.stats, race: S.race, races: statewide(), raceName, tz: S.tz, arb: S.arb, settleOf, profitOf, hasMarket: showOf().marketExists });
 }
 
 // Method & sources tab: the election's own notes and sources, plus (civicAPI races loaded) the
@@ -1790,7 +1893,7 @@ function drawMethod() {
     };
   }
   const keep = $("our-model")?.outerHTML;
-  renderMethod($("pane-method"), { meta, entry: S.entry, geometryCredit: geometryCredit(), twoModels, margins, sensitivities: sensitivitiesOf(S.meta) });
+  renderMethod($("pane-method"), { meta, entry: S.entry, geometryCredit: geometryCredit(), twoModels, margins, sensitivities: sensitivitiesOf(S.meta), hasMarket: showOf().marketExists });
   if (keep) $("pane-method").insertAdjacentHTML("afterbegin", keep);
 }
 // civicAPI races that arrived after the page was built (the night's process started later)
@@ -1886,11 +1989,11 @@ function buildRaceList() {
     houseRaceTable($("pane-races"), { state: S.ov?.state ?? null, selected: S.houseSel, onPick: (id) => selectDistrict(id), modelOf: (id) => districtModel(id) });
     return;
   }
-  const hasKalshi = [...(S.rows?.values() ?? [])].some((rows) => rows.some((d) => d.kalshi != null));
+  const show = showOf();
   // US: every race of the office (● live county model), in the open state if one is open
   const list = S.nat ? officeRaces(OFFICE_ID[S.office ?? "senate"] ?? "sen").filter((r) => !S.region || r.region === S.region) : statewide();
   const name = S.nat ? (r) => `${modelled(r) ? "● " : ""}${raceName(r)}` : raceName;
-  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => decisionOf(r)?.decided ? null : leadMinutes(settleOf(r.race_id)), onSelect: selectRace, hasKalshi, sensitivities: sensitivitiesOf(S.meta), profitOf, nPollsOf, decisionOf, winnerOf });
+  S.list = createRaceList($("pane-races"), { races: list, raceName: name, leadOf: (r) => decisionOf(r)?.decided ? null : leadMinutes(settleOf(r.race_id)), onSelect: selectRace, sensitivities: sensitivitiesOf(S.meta), profitOf, nPollsOf, decisionOf, winnerOf, show });
   S.list.select(S.race?.race_id);
 }
 
@@ -1967,8 +2070,10 @@ function startPrices() {
       if (p != null) rows.push({ ...(last ?? {}), t: iso, time: new Date(now), tms: now, pm: p, live: true });
       S.rows.set(r.race_id, rows);
     }
+    S.layerData = null; // a live price may be the page's first
     const kRow = [...(rowsOf(S.race.race_id) ?? [])].reverse().find((d) => !d.live && d.kalshi != null);
-    S.liveNote = `Polymarket price live${kRow ? `; Kalshi as of ${dayOf(kRow.tms)} ${clock(kRow.tms, S.tz)}` : ""}`;
+    S.liveNote = "Polymarket price live";
+    S.liveKalshiAt = kRow ? `${dayOf(kRow.tms)} ${clock(kRow.tms, S.tz)}` : null;
     const follow = S.followLatest || S.t >= S.domain[1];
     computeDomain();
     S.t = follow ? S.domain[1] : clampT(S.t);
@@ -1983,6 +2088,7 @@ function startPrices() {
     const cd = $("countdown");
     if (cd) cd.textContent = left ? `· first polls close in ${left}` : "· polls are closing";
     const s = Math.round((Date.now() - lastOk) / 1000);
+    el.hidden = !showLayer("polymarket"); // the live price note is Polymarket's
     el.innerHTML = lastOk
       ? `<span class="dot" aria-hidden="true"></span>Polymarket live · ${s < 120 ? `${s} s` : `${Math.round(s / 60)} min`} ago${failed ? " (last try failed)" : ""}`
       : failed ? "Polymarket price unavailable; showing the last recorded one" : "Reading Polymarket prices…";
@@ -2235,7 +2341,7 @@ function showNational() {
   $("dash").classList.toggle("nat-on", on);
   $("dash").classList.toggle("us-on", !!S.nat);
   $("dash").classList.toggle("ov-on", !!S.ov?.kind);
-  for (const id of ["map-mode", "legend", "frame-label"]) $(id).classList.toggle("nat-hidden", map || !!S.ov?.kind);
+  for (const id of ["map-mode", "legend-toggle", "legend", "frame-label"]) $(id).classList.toggle("nat-hidden", map || !!S.ov?.kind);
   if (map) afterZoom(() => { if (natShown()) S.nat.draw(); });
   else S.nat?.hover(null);
 }
@@ -2322,9 +2428,14 @@ async function main() {
   await yieldBrowser();
   computeDomain();
   S.t = defaultTime();
-  $("replay-hint").hidden = !replay();
+  updateReplayHint();
   S.followLatest = S.t >= S.domain[1];
   S.scrub = createScrubber($("scrubber"), { onInput: (t) => { pause(); S.preview = null; setTime(t); } });
+  mountLayers($("layer-bar"));
+  refreshLayers(); // apply stored / shared-link state before the first table and chart are drawn
+  onLayersChange(layersChanged);
+  $("legend-toggle").addEventListener("click", () => setLegendOpen($("legend-toggle").getAttribute("aria-expanded") !== "true"));
+  resetLegendOpen();
   initRaceSelect();
   initTabs();
   await yieldBrowser();
@@ -2359,7 +2470,7 @@ async function main() {
     if (w === lastW && WIDE.matches === lastWide) return;
     lastW = w; lastWide = WIDE.matches;
     clearTimeout(rz);
-    rz = setTimeout(() => { drawChart(); placeCard(); }, 120);
+    rz = setTimeout(() => { resetLegendOpen(); drawChart(); placeCard(); }, 120);
   }).observe($("timeline"));
 
   S.uiReady(); // the map (loading in parallel since the top bar) can now attach
@@ -2385,7 +2496,7 @@ async function main() {
     setMode: (m) => { S.mode = m; S.modeChosen = true; S.shownKey = null; setupModes(); render(); },
     setTime, setLevel: (l) => setLevel(l, { push: false }),
     painted: () => work("audit", {}),
-    legend: () => [$("legend"), document.querySelector(".nat-legend")].map((el) => (el?.offsetParent ? el.innerText : "")).join("\n"),
+    legend: () => [$("legend")?.innerText ?? "", document.querySelector(".nat-legend")?.offsetParent ? document.querySelector(".nat-legend").innerText : ""].join("\n"),
     card: (i, reg = null) => {
       S.hover = i; S.hoverReg = reg; S.pinned = -1; placeCard();
       const t = $("place").innerText; S.hover = -1; S.hoverReg = null; $("place").hidden = true; return t;

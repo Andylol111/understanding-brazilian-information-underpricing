@@ -14,7 +14,10 @@ const signed = (x, d = 1) => (x == null ? "–" : `${x > 0 ? "+" : x < 0 ? "−"
 // the model has no pre-count figure for the race, { live } "Polymarket live · 12 s ago" for the
 // latest row, { basis } the estimate's own note. ev: { short, full } early vote for the race's state.
 // turnout: { text, title } the race's projected turnout against expected.
-export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null, ev = null, turnout = null, nPolls = null, settled = false, winner = null, sensitivities = [] }) {
+export function renderReadout(el, { race, row, t, preview, tz, countTimeline, frameT, pre = null, ev = null, turnout = null, nPolls = null, settled = false, winner = null, sensitivities = [], show = {} }) {
+  // show: which layers are on (election.js showOf); a missing field counts as on
+  const S = (k) => show[k] !== false, SENS = (k) => show.sens?.[k] !== false;
+  const mExists = show.marketExists !== false;
   const a = esc(race.a.name);
   const won = winner ? ` — ${esc(winner)} won` : "";
   const head = `<p class="ro-head"><span class="ro-at">${preview ? "Preview at" : "At"} ${pre?.day ? `${esc(pre.day)} ` : ""}<b>${clock(t, tz)}</b> ${esc(tzName(tz, t))}</span><span class="ro-race">${esc(race.name)}${won} · figures for ${a}</span></p>${race.source ? `<p class="note ro-src">Results: <a href="${esc(race.source.url)}">${esc(race.source.name)}</a> (secondary source)</p>` : ""}`;
@@ -23,44 +26,47 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
   const chips = [];
   if (countTimeline && !pre) {
     chips.push(chip("Counted", pct(row.counted, 0)));
-    chips.push(chip("Raw count", pct(row.raw), "r"));
+    if (S("raw")) chips.push(chip("Raw count", pct(row.raw), "r"));
   }
   // US rows carry margins (Democratic minus Republican, points); other races show the share
   const mm = row.margin_v2 ?? row.margin_model ?? null;
   const margins = mm != null || row.margin_market != null || row.margin_polls != null;
   const mmSd = row.margin_v2 != null && row.sd_v2 != null ? 200 * row.sd_v2 : row.margin_model_sd;
-  const mkt = row.margin_market ?? row.margin_market_kalshi ?? null, mktP = row.margin_market != null ? row.pm : row.kalshi;
+  const mkP = S("pm") ? row.margin_market : null, mkK = S("kalshi") ? row.margin_market_kalshi : null;
+  const mkt = mkP ?? mkK ?? null, mktP = mkP != null ? row.pm : row.kalshi;
   const who = "Model", whoTip = row.estimate ? "Estimate: 2024 county results shifted to the poll average" : "v3: poll average prior + county count (registered)";
   if (margins) {
-    chips.push(chip(`${who}${row.margin_v2 != null ? ", polls" : ""}`, marginText(mm), "m", mm != null && mmSd != null ? `± ${mmSd.toFixed(1)}` : "", `${whoTip}. Margin, Democratic minus Republican, points; ± one standard deviation`));
-    chips.push(chip("Polls", marginText(row.margin_polls)));
-    chips.push(chip("Market-implied", marginText(mkt), "k", mkt != null ? `from ${num(mktP)}` : "", `the margin at which the model's uncertainty gives the ${row.margin_market != null ? "Polymarket" : "Kalshi"} price${row.margin_market_kalshi != null && row.margin_market != null ? `; Kalshi-implied ${marginText(row.margin_market_kalshi)}` : ""}`));
-  } else {
+    if (S("model")) chips.push(chip(`${who}${row.margin_v2 != null ? ", polls" : ""}`, marginText(mm), "m", mm != null && mmSd != null ? `± ${mmSd.toFixed(1)}` : "", `${whoTip}. Margin, Democratic minus Republican, points; ± one standard deviation`));
+    if (S("polls")) chips.push(chip("Polls", marginText(row.margin_polls)));
+    if (mExists && (S("pm") || S("kalshi"))) chips.push(chip("Market-implied", marginText(mkt), "k", mkt != null ? `from ${num(mktP)}` : "", `the margin at which the model's uncertainty gives the ${mkP != null ? "Polymarket" : "Kalshi"} price${mkK != null && mkP != null ? `; Kalshi-implied ${marginText(mkK)}` : ""}`));
+  } else if (S("model")) {
     const v2 = row.share_v2 != null, share = v2 ? row.share_v2 : row.share, sd = v2 ? row.sd_v2 : row.sd;
     const label = pre ? "Model, before votes" : "Model projection";
     if (share != null || pre?.note) chips.push(chip(`${label}${v2 ? ", polls" : ""}`, share != null ? pct(share) : "–", "m", share != null && sd != null ? `± ${(164.5 * sd).toFixed(1)}` : "", share != null ? `${race.a.name}'s share of the two-candidate vote; ± the 90% band` : pre.note));
   }
   // Chances: headline model, optional post-result sensitivity, Polymarket and Kalshi.
-  const P = modelP(row), two = row.P_v2 != null && row.P != null, sens = sensitivities.map((s) => [sensP(row, s), s.key]);
-  const ch = [[P, "m", "model"], ...sens.map(([v, k]) => [v, "m", k]), [row.pm, "k", "PM"],
-              [row.kalshi, "kx", "Kalshi"]].filter(([v]) => v != null);
-  if (ch.length) chips.push(settled ? chip("Chance", `settled${winner ? ` — ${esc(winner)} won` : ""}`, "ro-ch") : chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : "", `chance ${race.a.name} wins: ${P != null ? `${margins ? "model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}${sens.filter(([v]) => v != null).map(([v, k]) => `, ${k} sensitivity ${num(v)}`).join("")}; ` : ""}Polymarket ${num(row.pm)}; Kalshi ${num(row.kalshi)}`));
-  if (row.rem_total > 0) {
+  const P = S("model") ? modelP(row) : null, two = row.P_v2 != null && row.P != null, sens = sensitivities.filter((s) => SENS(s.key)).map((s) => [sensP(row, s), s.key]);
+  const pmV = S("pm") ? row.pm : null, kxV = S("kalshi") ? row.kalshi : null;
+  const ch = [[P, "m", "model"], ...sens.map(([v, k]) => [v, "m", k]), [pmV, "k", "PM"],
+              [kxV, "kx", "Kalshi"]].filter(([v]) => v != null);
+  const chTip = `chance ${race.a.name} wins: ${P != null ? `${margins ? "model" : two ? "model with polls" : "model"}${margins && two ? " with polls" : ""} ${num(P)}${two ? `, without polls ${num(row.P)}` : ""}${sens.filter(([v]) => v != null).map(([v, k]) => `, ${k} sensitivity ${num(v)}`).join("")}${pmV != null || kxV != null ? "; " : ""}` : ""}${[pmV != null ? `Polymarket ${num(pmV)}` : "", kxV != null ? `Kalshi ${num(kxV)}` : ""].filter(Boolean).join("; ")}`;
+  if (ch.length) chips.push(settled ? chip("Chance", `settled${winner ? ` — ${esc(winner)} won` : ""}`, "ro-ch") : chip(`Chance: ${ch.map((c) => c[2]).join(" · ")}`, ch.map(([v, c]) => `<span class="${c}">${num(v)}</span>`).join(" · "), "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : "", chTip));
+  if (row.rem_total > 0 && S("model")) {
     const lean = row.rem_margin_total;
     chips.push(chip("Votes left (est.)", `≈ ${votesShort(row.rem_total)}`, "", lean != null ? `lean ${esc(lean >= 0 ? race.a.name : race.b.name)} +${(100 * Math.abs(lean) / row.rem_total).toFixed(1)}` : "", "the model's estimate of the votes still to count and how they lean"));
   }
-  if (turnout) chips.push(chip("Turnout", esc(turnout.text), "", "", turnout.title));
-  if (ev) chips.push(chip("Early vote", esc(ev.short), "", "", ev.full));
+  if (turnout && S("turnout")) chips.push(chip("Turnout", esc(turnout.text), "", "", turnout.title));
+  if (ev && S("early")) chips.push(chip("Early vote", esc(ev.short), "", "", ev.full));
   // one line: the model against the market
-  const market = row.pm ?? row.kalshi, marketName = row.pm != null ? "Polymarket" : "Kalshi";
+  const market = pmV ?? kxV, marketName = pmV != null ? "Polymarket" : "Kalshi";
   let gap = "";
-  if (margins && mm != null && mkt != null) {
+  if (margins && S("model") && mm != null && mkt != null) {
     const g = mkt - mm;
     gap = `${who} ${marginText(mm)}, market-implied ${marginText(mkt)}: ${Math.abs(g) < 0.05 ? "the same margin" : `the market is <b>${Math.abs(g).toFixed(1)} pt</b> more ${g > 0 ? "Democratic" : "Republican"}`}.`;
   } else if (P != null && market != null) {
     const g = P - market;
     gap = `Model ${num(P)}, ${marketName} ${num(market)}: gap <b>${num(Math.abs(g))}</b>${Math.abs(g) >= 0.005 ? `, model ${g > 0 ? "higher" : "lower"}` : ""}.`;
-  } else if (P != null) gap = "No market price at this time.";
+  } else if (P != null && mExists && (S("pm") || S("kalshi"))) gap = "No market price at this time.";
   const notes = [frameT != null && countTimeline && !pre ? `Map: ${clock(frameT, tz)} frame` : "", pre && row.live && pre.live ? esc(pre.live) : "", pre?.basis ? esc(pre.basis) : ""].filter(Boolean).join(" · ");
   el.innerHTML = `${head}<div class="chips">${chips.join("")}</div>${gap || notes ? `<p class="ro-gap">${gap}${notes ? ` <span class="ro-frame">${notes}</span>` : ""}</p>` : ""}`;
 }
@@ -71,30 +77,60 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
 // the race's 1% gate (see gatedSettle in common.js); null when not computable.
 const SORT = { key: "order", dir: 1 }; // kept across rebuilds (live refresh)
 
-// hasKalshi: show a Kalshi column (some race in the election has Kalshi prices). profitOf(race): the
-// race's entry in stats.profit_model_limit.by_race, or null; the Profit column shows when any race has one.
+// show: which layers are on ({ model, pm, kalshi, sens: {key: bool} }, election.js showOf; a missing
+// field counts as on). A column of a layer that is off (or that the election does not have, such as a
+// market in an election with none) is not in the table. Gap needs the model and a market; Lead and
+// Profit need the model and Polymarket. profitOf(race): the race's entry in
+// stats.profit_model_limit.by_race, or null; the Profit column shows when any race has one.
 const profitText = (p) => (p == null ? "–" : `${p.bankroll_pnl > 0 ? "+" : p.bankroll_pnl < 0 ? "−" : ""}$${Math.abs(Math.round(p.bankroll_pnl ?? 0)).toLocaleString("en-US")}`);
 const profitTitle = (p) => (p == null ? "" : p.eligible_trades ? `${p.eligible_trades.toLocaleString("en-US")} trades at least 5¢ below the model, $${Math.round(p.eligible_volume).toLocaleString("en-US")} in all; the $10,000 put $${Math.round(p.bankroll_stake ?? 0).toLocaleString("en-US")} into this race` : p.reason ? `No trade qualified: ${p.reason}` : "No trade qualified");
-export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalshi = false, sensitivities = [], profitOf = () => null, nPollsOf = () => null, decisionOf = () => null, winnerOf = () => null }) {
+export function createRaceList(el, { races, raceName, leadOf, onSelect, sensitivities = [], profitOf = () => null, nPollsOf = () => null, decisionOf = () => null, winnerOf = () => null, show = {} }) {
   const st = { values: new Map() };
   const lead = (r) => leadOf(r);
-  const hasProfit = races.some((r) => profitOf(r));
+  const S = (k) => show[k] !== false;
+  const sens = sensitivities.filter((s) => show.sens?.[s.key] !== false);
+  const hasPm = S("pm"), hasKx = S("kalshi"), hasModel = S("model");
+  const hasGap = hasModel && (hasPm || hasKx), hasLead = hasModel && hasPm;
+  const hasProfit = hasModel && hasPm && races.some((r) => profitOf(r));
   const anyThin = races.some((r) => thinPolls(nPollsOf(r)) != null);
   const cols = [
-    ["name", "Race", false], ["P", "Model", true], ...sensitivities.map((s) => [`sens_${s.key}`, esc(s.key), true]),
-    ["pm", "Polymarket", true], ...(hasKalshi ? [["k", "Kalshi", true]] : []),
-    ["gap", "Gap", true], ["lead", "Lead from 1% counted (min)", true],
+    ["name", "Race", false],
+    ...(hasModel ? [["P", "Model", true]] : []),
+    ...sens.map((s) => [`sens_${s.key}`, esc(s.key), true]),
+    ...(hasPm ? [["pm", "Polymarket", true]] : []),
+    ...(hasKx ? [["k", "Kalshi", true]] : []),
+    ...(hasGap ? [["gap", "Gap", true]] : []),
+    ...(hasLead ? [["lead", "Lead from 1% counted (min)", true]] : []),
     ...(hasProfit ? [["profit", "Profit on $10,000", true]] : []),
   ];
+  const at = (k) => cols.findIndex((c) => c[0] === k);
+  if (SORT.key !== "order" && !cols.some((c) => c[0] === SORT.key)) { SORT.key = "order"; SORT.dir = 1; } // the sorted column is not shown
+  const note = [
+    anyThin ? "† 3 or fewer polls in the poll average.<br>" : "",
+    hasModel ? "Model: the model's probability that the first-named candidate wins, at the scrubber time." : "",
+    ...sens.map((s) => ` ${esc(s.key)}: ${esc(s.text)}.`),
+    hasPm || hasKx ? ` ${hasPm && hasKx ? "Polymarket and Kalshi: each venue's price" : hasPm ? "Polymarket: the price" : "Kalshi: the price"} for the same outcome (–: not listed there).` : "",
+    hasGap ? ` Gap: model minus the ${hasPm ? `Polymarket price${hasKx ? " (or Kalshi's, where only Kalshi lists the race)" : ""}` : "Kalshi price"}.` : "",
+    hasLead ? " Lead: minutes by which the model reached 90% on the winner before Polymarket did, both counted from the moment the race reached 1% counted (negative: after). A “decided before count” market was already at least 90% on the winner at poll close and stayed at least 80%; its lead is not meaningful." : "",
+    hasProfit ? " Profit on $10,000: what the election's $10,000 made in this race under the buying rule in the Statistics tab (hover for the trades that qualified)." : "",
+  ].join("");
   el.innerHTML = `<table class="races"><thead><tr>${cols.map(([k, label, n]) => `<th class="${n ? "n" : ""}" aria-sort="${SORT.key === k ? (SORT.dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${label}</button></th>`).join("")}</tr></thead><tbody></tbody></table>
-    <p class="note">${anyThin ? "† 3 or fewer polls in the poll average.<br>" : ""}Model: the model's probability that the first-named candidate wins, at the scrubber time.${sensitivities.map((s) => ` ${esc(s.key)}: ${esc(s.text)}.`).join("")} Polymarket${hasKalshi ? " and Kalshi: each venue's price" : ": the price"} for the same outcome (–: not listed there). Gap: model minus the Polymarket price (or Kalshi's, where only Kalshi lists the race). Lead: minutes by which the model reached 90% on the winner before Polymarket did, both counted from the moment the race reached 1% counted (negative: after). A “decided before count” market was already at least 90% on the winner at poll close and stayed at least 80%; its lead is not meaningful.${hasProfit ? " Profit on $10,000: what the election's $10,000 made in this race under the buying rule in the Statistics tab (hover for the trades that qualified)." : ""}</p>`;
+    ${note ? `<p class="note">${note}</p>` : ""}`;
   const tbody = el.querySelector("tbody");
   const rows = races.map((r, order) => {
     const tr = document.createElement("tr");
     tr.tabIndex = 0;
     tr.dataset.race = r.race_id;
-    const pr = hasProfit ? profitOf(r) : null, decision = decisionOf(r), winner = winnerOf(r);
-    tr.innerHTML = `<td>${esc(raceName(r))}${winner ? ` ${esc(winner)}` : ""}${decision?.decided ? ` <span class="label decided">decided before count</span>` : ""}${thinPolls(nPollsOf(r)) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(nPollsOf(r)))}">†</sup>` : ""}</td><td class="n m"></td>${sensitivities.map(() => `<td class="n m"></td>`).join("")}<td class="n"></td>${hasKalshi ? `<td class="n kx"></td>` : ""}<td class="n"><span class="gapbar"><i></i></span></td><td class="n">${decision?.decided ? "not meaningful" : lead(r) == null ? "–" : signed(lead(r), 0)}</td>${hasProfit ? `<td class="n" title="${esc(profitTitle(pr))}">${profitText(pr)}</td>` : ""}`;
+    const pr = hasProfit ? profitOf(r) : null, decision = hasPm || hasKx ? decisionOf(r) : null, winner = winnerOf(r);
+    tr.innerHTML = cols.map(([k]) => {
+      if (k === "name") return `<td>${esc(raceName(r))}${winner ? ` ${esc(winner)}` : ""}${decision?.decided ? ` <span class="label decided">decided before count</span>` : ""}${thinPolls(nPollsOf(r)) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(nPollsOf(r)))}">†</sup>` : ""}</td>`;
+      if (k === "P" || k.startsWith("sens_")) return `<td class="n m"></td>`;
+      if (k === "k") return `<td class="n kx"></td>`;
+      if (k === "gap") return `<td class="n"><span class="gapbar"><i></i></span></td>`;
+      if (k === "lead") return `<td class="n">${decision?.decided ? "not meaningful" : lead(r) == null ? "–" : signed(lead(r), 0)}</td>`;
+      if (k === "profit") return `<td class="n" title="${esc(profitTitle(pr))}">${profitText(pr)}</td>`;
+      return `<td class="n"></td>`;
+    }).join("");
     tr.addEventListener("click", () => onSelect(r));
     tr.addEventListener("keydown", (e) => { if (e.key === "Enter") onSelect(r); });
     return { r, tr, order, cells: tr.children };
@@ -108,10 +144,11 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalsh
     b.parentElement.setAttribute("aria-sort", SORT.dir > 0 ? "ascending" : "descending");
     sort();
   }));
+  const market = (v) => (hasPm ? v.pm : null) ?? (hasKx ? v.k : null);
   function val(x) {
     const v = st.values.get(x.r.race_id) ?? {};
-    const m = v.pm ?? v.k;
-    return { order: x.order, name: x.r.name, P: v.P, pm: v.pm, k: v.k, ...Object.fromEntries(sensitivities.map((s) => [`sens_${s.key}`, v.sens?.[s.key]])),
+    const m = market(v);
+    return { order: x.order, name: x.r.name, P: v.P, pm: v.pm, k: v.k, ...Object.fromEntries(sens.map((s) => [`sens_${s.key}`, v.sens?.[s.key]])),
       gap: v.P != null && m != null ? Math.abs(v.P - m) : null, lead: lead(x.r),
       profit: profitOf(x.r)?.bankroll_pnl }[SORT.key];
   }
@@ -125,27 +162,30 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalsh
     });
     sorted.forEach((x) => tbody.append(x.tr));
   }
+  const [iP, iPm, iK, iGap] = ["P", "pm", "k", "gap"].map(at);
+  const iSens = sens.map((s) => at(`sens_${s.key}`));
   return {
     update(valuesByRace) {
       st.values = valuesByRace;
       for (const x of rows) {
         const v = valuesByRace.get(x.r.race_id) ?? {};
         const c = x.cells;
-        c[1].textContent = num(v.P);
-        sensitivities.forEach((s, i) => { c[2 + i].textContent = num(v.sens?.[s.key]); });
-        const pmIndex = 2 + sensitivities.length;
-        c[pmIndex].textContent = num(v.pm);
-        if (hasKalshi) c[pmIndex + 1].textContent = num(v.k);
-        const gapCell = c[pmIndex + (hasKalshi ? 2 : 1)];
-        const bar = gapCell.firstChild.firstChild;
-        const m = v.pm ?? v.k;
-        if (v.P != null && m != null) {
-          const g = v.P - m;
-          bar.style.width = `${Math.min(50, Math.abs(g) * 50)}%`;
-          bar.style.left = g >= 0 ? "50%" : `${50 - Math.min(50, Math.abs(g) * 50)}%`;
-          bar.style.background = g >= 0 ? C.model : C.market;
-          gapCell.title = `gap ${signed(g, 2)}`;
-        } else bar.style.width = "0";
+        if (iP >= 0) c[iP].textContent = num(v.P);
+        sens.forEach((s, i) => { c[iSens[i]].textContent = num(v.sens?.[s.key]); });
+        if (iPm >= 0) c[iPm].textContent = num(v.pm);
+        if (iK >= 0) c[iK].textContent = num(v.k);
+        if (iGap >= 0) {
+          const gapCell = c[iGap];
+          const bar = gapCell.firstChild.firstChild;
+          const m = market(v);
+          if (v.P != null && m != null) {
+            const g = v.P - m;
+            bar.style.width = `${Math.min(50, Math.abs(g) * 50)}%`;
+            bar.style.left = g >= 0 ? "50%" : `${50 - Math.min(50, Math.abs(g) * 50)}%`;
+            bar.style.background = g >= 0 ? C.model : C.market;
+            gapCell.title = `gap ${signed(g, 2)}`;
+          } else bar.style.width = "0";
+        }
       }
       if (!["order", "name", "lead", "profit"].includes(SORT.key)) sort();
     },
@@ -157,11 +197,13 @@ export function createRaceList(el, { races, raceName, leadOf, onSelect, hasKalsh
 
 /* ---------------------------------------------------------------- statistics tab */
 
-export function renderStats(el, { stats, race, races, raceName, tz, arb, settleOf, profitOf = () => null }) {
+// hasMarket: false where no race of the election has a market price: the tab then has no market
+// line, section or column (and no profit audit, which is a market strategy).
+export function renderStats(el, { stats, race, races, raceName, tz, arb, settleOf, profitOf = () => null, hasMarket = true }) {
   if (!stats) { el.innerHTML = `<p class="note">No statistics for this election yet.</p>`; return; }
-  const ev = (k) => (stats.evidence?.[k] ? evidenceLabel(stats.evidence[k]) : "");
+  const ev = (k) => (hasMarket && stats.evidence?.[k] ? evidenceLabel(stats.evidence[k]) : "");
   const reasons = stats.reasons ?? stats.null_reasons ?? {};
-  const why = (k) => reasons[k] ?? "not available";
+  const why = (k) => !hasMarket && /market/i.test(reasons[k] ?? "") ? "not available for this election" : reasons[k] ?? "not available";
   const t = (iso) => (iso ? clock(iso, tz) : "–");
   const id = race.race_id;
   const cal = stats.calibration?.[id], set = stats.settle?.[id], ee = stats.early_error?.[id];
@@ -173,7 +215,7 @@ export function renderStats(el, { stats, race, races, raceName, tz, arb, settleO
       ? `${pct(cal.coverage90_1_95, 0)} of minutes from 1% to 95% counted; mean error ${signed(cal.mean_z, 2)} sd`
       : na(`calibration.${id}`)),
     line("Settled at 90% on the winner", "settle", stats.settle == null ? na("settle") : set
-      ? `model ${t(set.model)} · Polymarket ${set.polymarket ? t(set.polymarket) : "–"}${set.kalshi !== undefined ? ` · Kalshi ${set.kalshi ? t(set.kalshi) : "–"}` : ""} · raw count ${t(set.raw)}${leadMinutes(settleOf(id)) != null ? ` · from 1% counted, the model was ${Math.abs(leadMinutes(settleOf(id)))} min ${leadMinutes(settleOf(id)) >= 0 ? "earlier" : "later"} than Polymarket` : ""}`
+      ? `model ${t(set.model)}${hasMarket ? ` · Polymarket ${set.polymarket ? t(set.polymarket) : "–"}${set.kalshi !== undefined ? ` · Kalshi ${set.kalshi ? t(set.kalshi) : "–"}` : ""}` : ""} · raw count ${t(set.raw)}${hasMarket && leadMinutes(settleOf(id)) != null ? ` · from 1% counted, the model was ${Math.abs(leadMinutes(settleOf(id)))} min ${leadMinutes(settleOf(id)) >= 0 ? "earlier" : "later"} than Polymarket` : ""}`
       : na(`settle.${id}`)),
     line("Early error, model / raw count (points)", "early_error", stats.early_error == null ? na("early_error") : ee
       ? ["1%", "5%", "10%", "25%"].map((c) => `${c}: <span class="m">${signed(ee[c]?.model)}</span> / <span class="r">${signed(ee[c]?.raw)}</span>`).join(" · ")
@@ -195,27 +237,29 @@ export function renderStats(el, { stats, race, races, raceName, tz, arb, settleO
 
   const others = races.filter((r) => r.race_id !== id && (stats.calibration?.[r.race_id] || stats.settle?.[r.race_id]));
   const othersTable = others.length ? `<details class="st-others"><summary>Other races (${others.length})</summary>
-    <table class="compact"><thead><tr><th>Race</th><th class="n">In band</th><th class="n">Mean error</th><th class="n">Lead from 1% (min)</th></tr></thead><tbody>${others.map((r) => {
+    <table class="compact"><thead><tr><th>Race</th><th class="n">In band</th><th class="n">Mean error</th>${hasMarket ? `<th class="n">Lead from 1% (min)</th>` : ""}</tr></thead><tbody>${others.map((r) => {
       const c = stats.calibration?.[r.race_id];
       const l = leadMinutes(settleOf(r.race_id));
-      return `<tr><td>${esc(raceName(r))}</td><td class="n">${c ? pct(c.coverage90_1_95, 0) : "–"}</td><td class="n">${c ? signed(c.mean_z, 2) : "–"}</td><td class="n">${l == null ? "–" : signed(l, 0)}</td></tr>`;
+      return `<tr><td>${esc(raceName(r))}</td><td class="n">${c ? pct(c.coverage90_1_95, 0) : "–"}</td><td class="n">${c ? signed(c.mean_z, 2) : "–"}</td>${hasMarket ? `<td class="n">${l == null ? "–" : signed(l, 0)}</td>` : ""}</tr>`;
     }).join("")}</tbody></table></details>` : "";
 
-  const extras = Object.entries(stats).filter(([k, v]) => !KNOWN.has(k) && v != null);
+  const extras = Object.entries(stats).filter(([k, v]) => !KNOWN.has(k) && v != null && (hasMarket || !MARKET_STATS.has(k)));
   const extraHTML = extras.length ? `<h3 class="tab-h">Further measures for this election</h3><dl class="st">${extras.map(([k, v]) =>
     `<div class="st-row"><dt>${esc(k.replace(/_/g, " "))} ${ev(k)}</dt><dd>${flat(v)}</dd></div>`).join("")}</dl>` : "";
 
-  el.innerHTML = `${stats.evidence_note ? `<p class="st-evnote">${esc(stats.evidence_note)}</p>` : ""}
-    ${auditHTML(stats, race, raceName, races, raceProfitHTML(profitOf(race), race, raceName, tz))}
+  el.innerHTML = `${stats.evidence_note && (hasMarket || !/market/i.test(stats.evidence_note)) ? `<p class="st-evnote">${esc(stats.evidence_note)}</p>` : ""}
+    ${auditHTML(stats, race, raceName, races, raceProfitHTML(profitOf(race), race, raceName, tz), hasMarket)}
     <h3 class="tab-h">${esc(raceName(race))}</h3><dl class="st">${raceRows.join("")}</dl>
-    <h3 class="tab-h">All markets in this election</h3><dl class="st">${allRows.join("")}</dl>
-    ${arb?.length ? arbHTML(arb, race, raceName, races, tz) : ""}
+    ${hasMarket ? `<h3 class="tab-h">All markets in this election</h3><dl class="st">${allRows.join("")}</dl>
+    ${arb?.length ? arbHTML(arb, race, raceName, races, tz) : ""}` : ""}
     ${extraHTML}
     ${othersTable}
     <p class="note">The same measures are computed for every election; the <a href="./#measures">overview page</a> defines them.</p>`;
 }
 
 const KNOWN = new Set(["calibration", "settle", "settle_gated", "catchup", "early_error", "capacity", "arbitrage", "evidence", "evidence_note", "reasons", "null_reasons", "accuracy", "profit", "invest10k", "profit_model_limit"]);
+// the further measures that are about markets: left out of an election with none
+const MARKET_STATS = new Set(["n_markets", "n_decided_before_count", "market_classification", "lead_contested"]);
 
 /* ---------------------------------------------------------------- edge audit (stats.accuracy, stats.profit) */
 
@@ -224,8 +268,8 @@ const money = (x) => (x == null ? "–" : `${x < 0 ? "−" : x > 0 ? "+" : ""}$$
 const ret = (x) => (x == null ? "–" : `${x < 0 ? "−" : "+"}${Math.abs(100 * x).toFixed(0)}%`);
 const races_ = (n) => `${n} race${n === 1 ? "" : "s"}`;
 
-function auditHTML(stats, race, raceName, races, raceBlock) {
-  return `<section class="audit">${accuracyHTML(stats.accuracy, race, raceName)}${profitHTML(stats.invest10k, stats.profit_model_limit, stats.profit, races, raceBlock)}</section>`;
+function auditHTML(stats, race, raceName, races, raceBlock, hasMarket = true) {
+  return `<section class="audit">${accuracyHTML(stats.accuracy, race, raceName, hasMarket)}${hasMarket ? profitHTML(stats.invest10k, stats.profit_model_limit, stats.profit, races, raceBlock) : ""}</section>`;
 }
 
 // The selected race under the headline buying rule (stats.profit_model_limit.by_race); "" when absent.
@@ -241,8 +285,8 @@ function raceProfitHTML(p, race, raceName, tz) {
   return `<p class="answer race-profit">${name} ${p.eligible_trades.toLocaleString("en-US")} trades, ${usd0(p.eligible_volume)} in all, were at least 5¢ below the model; together they made ${money(p.eligible_pnl)}. ${bank}${first}</p>`;
 }
 
-function accuracyHTML(acc, race, raceName) {
-  const head = (ans) => `<h3 class="tab-h">Did the projection hold? ${acc?.evidence ? evidenceLabel(acc.evidence) : ""}</h3>${ans ? `<p class="answer">${ans}</p>` : ""}`;
+function accuracyHTML(acc, race, raceName, hasMarket = true) {
+  const head = (ans) => `<h3 class="tab-h">Did the projection hold? ${hasMarket && acc?.evidence ? evidenceLabel(acc.evidence) : ""}</h3>${ans ? `<p class="answer">${ans}</p>` : ""}`;
   if (!acc) return `${head("")}<p class="na">Not computed for this election yet.</p>`;
   const lines = [];
   // coverage of the 90% band: the selected race, then pooled (the pre-stated test: most races at or above ~80%)
@@ -266,7 +310,7 @@ function accuracyHTML(acc, race, raceName) {
   if (pw?.minutes) {
     const vs = pw.brier_market != null
       ? `model ${num(pw.brier_model, 3)}, market ${num(pw.brier_market, 3)}; difference ${signed(pw.brier_diff, 3)}${ci(pw.brier_diff_ci, (x) => signed(x, 3))}. Model lower in ${races_(pw.races_model_better_brier)}, market lower in ${races_(pw.races_market_better_brier)}.`
-      : `model ${num(pw.brier_model, 3)} (no market prices to compare).`;
+      : `model ${num(pw.brier_model, 3)}${hasMarket ? " (no market prices to compare)" : ""}.`;
     lines.push(`<div class="st-row"><dt>Probability of winning: Brier score (lower is better)</dt><dd>${vs} ${races_(pw.races)}, ${pw.minutes.toLocaleString("en-US")} minutes.${acc.pwin_window ? `<br><small>${esc(acc.pwin_window)}</small>` : ""}</dd></div>`);
   }
   const plot = reliabilityPlot(pw?.reliability_model, pw?.reliability_market);
@@ -414,20 +458,25 @@ function arbChart(rows, tz) {
 
 /* ---------------------------------------------------------------- method tab */
 
-export function renderMethod(el, { meta, entry, geometryCredit, twoModels = false, margins = false, sensitivities = [] }) {
-  const notes = (meta.notes ?? []).map((n) => `<li>${esc(n)}</li>`).join("");
-  const src = (meta.sources ?? []).map((s) => `<li><a href="${esc(s.url)}">${esc(s.name)}</a>, ${esc(s.licence)}</li>`).join("");
-  const evs = Object.entries(EVIDENCE).map(([k, e]) => `<li>${evidenceLabel(k)} ${esc(e.long[0].toUpperCase() + e.long.slice(1))}.</li>`).join("");
+// hasMarket: false where no race of the election has a market price: the notes' Polymarket / Kalshi
+// lines (about where markets were looked for) become one plain sentence, and the market sources go.
+export function renderMethod(el, { meta, entry, geometryCredit, twoModels = false, margins = false, sensitivities = [], hasMarket = true }) {
+  const noteList = hasMarket ? (meta.notes ?? []) : (meta.notes ?? []).filter((n) => !/market|polymarket|kalshi/i.test(n));
+  const notes = noteList.map((n) => `<li>${esc(n)}</li>`).join("");
+  const srcList = hasMarket ? (meta.sources ?? []) : (meta.sources ?? []).filter((s) => !/market|polymarket|kalshi/i.test(s.name));
+  const src = srcList.map((s) => `<li><a href="${esc(s.url)}">${esc(s.name)}</a>, ${esc(s.licence)}</li>`).join("");
+  const evidence = Object.entries(EVIDENCE).filter(([k]) => hasMarket || !["model-only", "market-only"].includes(k));
+  const evs = evidence.map(([k, e]) => `<li>${evidenceLabel(k)} ${esc(e.long[0].toUpperCase() + e.long.slice(1))}.</li>`).join("");
   el.innerHTML = `
     <h3 class="tab-h">How this election was modelled</h3>
     ${sensitivities.length ? `<p>The solid line is the headline model. Thin dashed lines are sensitivities, not the headline: ${sensitivities.map((s) => `<b>${esc(s.key)}</b> = <span class="m">${esc(s.text)}</span>`).join("; ")}.</p>` : twoModels ? `<p>Two versions of the model are shown. The <span class="m">model with polls</span> (the main line and figure) starts from past certified results shifted toward the recent polling average for the race, then updates as votes are counted. The <span class="m">model without polls</span> (thin dashed line) starts from past certified results alone and updates from the count in the same way. Both use only what was known at each minute. As more votes are counted both rely more on the count, so the two come closer; the difference matters most before and early in the count.</p>` : ""}
-    ${margins ? `<p><b>Market-implied margin</b>: the vote margin at which the model's own uncertainty would give the market's price. A price p becomes the margin Φ⁻¹(p) × the model's standard deviation of the margin (Φ⁻¹: the inverse normal distribution), so 0.50 is an even race and 0.84 is a lead of one standard deviation.</p>` : ""}
+    ${margins && hasMarket ? `<p><b>Market-implied margin</b>: the vote margin at which the model's own uncertainty would give the market's price. A price p becomes the margin Φ⁻¹(p) × the model's standard deviation of the margin (Φ⁻¹: the inverse normal distribution), so 0.50 is an even race and 0.84 is a lead of one standard deviation.</p>` : ""}
     ${notes ? `<ul>${notes}</ul>` : `<p class="note">No notes.</p>`}
     <h3 class="tab-h">Evidence labels</h3>
-    <p>This election: ${entry?.evidence ? evidenceLabel(entry.evidence) : "–"}</p>
+    <p>This election: ${entry?.evidence ? hasMarket || !["model-only", "market-only"].includes(entry.evidence) ? evidenceLabel(entry.evidence) : "model replay" : "–"}</p>
     <ul class="evs">${evs}</ul>
     <h3 class="tab-h">Sources</h3>
-    ${(meta.sources ?? []).some((s) => /^Kalshi/.test(s.name)) ? `<p>Market prices: Polymarket and, where Kalshi lists the same race, Kalshi. Kalshi data: Kalshi Inc.</p>` : ""}
+    ${hasMarket && (meta.sources ?? []).some((s) => /^Kalshi/.test(s.name)) ? `<p>Market prices: Polymarket and, where Kalshi lists the same race, Kalshi. Kalshi data: Kalshi Inc.</p>` : ""}
     <ul>${src}${geometryCredit ? `<li>${geometryCredit}</li>` : ""}</ul>
     <p class="note"><a href="./">All elections and definitions</a> · <a href="brazil-2026.html">Brazil 2026 write-up</a> · Code under MIT licence.</p>`;
 }

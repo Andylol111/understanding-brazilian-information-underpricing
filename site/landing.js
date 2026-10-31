@@ -56,7 +56,7 @@ function stateOf(e, m) {
   if (e.status === "scheduled") return { head: `After the count on ${longDate(e.date)}`, note: "The rule starts once 1% of the vote is counted." };
   if (e.status === "live") return { head: "Counting now", note: "The rule starts once 1% of the vote is counted." };
   if (m?.count_timeline === false) return { head: "No count over time", note: "The official count over time was not published, so the model cannot run." };
-  if (m && !hasMarkets(m)) return { head: "No market during the count", note: "No market prices are available for this night, so there was nothing to buy." };
+  if (m && !hasMarkets(m)) return { head: "No market during the count", note: "The trading rule does not apply to this night." };
   return { head: "Not run", note: "The rule has not been run on this election." };
 }
 
@@ -257,7 +257,7 @@ function describe(e, m) {
   else if (e.status === "live") base = "Counting now; the model and the prices update live.";
   else if (e.count_private) base = "Count model run; its minute-by-minute data is private (licence).";
   else if (m?.count_timeline === false) base = "Market prices and final results only. No count over time.";
-  else if (m && !hasMarkets(m)) return "Model against the raw count. No market prices for this night.";
+  else if (m && !hasMarkets(m)) return "Model against the raw count.";
   else base = "Model and market compared minute by minute.";
   return `${base} ${SETTINGS[e.evidence] ?? ""}`.trim();
 }
@@ -333,7 +333,7 @@ async function fillPast(tr, e, m) {
       fillHead(tr, `<p class="hl">Model first on ${ld.model_first_gate1pct} of ${ld.n} contested markets, median ${dur(g)}</p><p class="note hl-sub">Counted from 1% of the vote. ${esc(decidedNote)}</p>`);
     } else fillHead(tr, `<p class="hl hl-none">Count model run</p><p class="note hl-sub">Minute-by-minute data is private (licence). ${esc(decidedNote)}</p>`);
   } else if (m?.count_timeline === false) fillHead(tr, `<p class="hl hl-none">Prices and final results only</p><p class="note hl-sub">No count over time. ${esc(decidedNote)}</p>`);
-  else if (m && !hasMarkets(m)) fillHead(tr, `<p class="hl hl-none">No market to compare with</p><p class="note hl-sub">${esc(sub)}; model only</p>`);
+  else if (m && !hasMarkets(m)) fillHead(tr, `<p class="hl hl-none">Model replay</p><p class="note hl-sub">${esc(sub)}</p>`);
   else fillHead(tr, `<p class="hl hl-none">No contested-market lead to measure</p><p class="note hl-sub">${esc([sub, decidedNote].filter(Boolean).join(" · "))}</p>`);
   const cal = race ? stats?.calibration?.[race.race_id] : null;
   if (cal?.coverage90_1_95 != null) tr.querySelector(".cal").textContent = pct(cal.coverage90_1_95, 0);
