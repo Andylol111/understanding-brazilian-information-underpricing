@@ -42,12 +42,15 @@ export const num = (x, d = 2) => (x == null || Number.isNaN(x) ? "–" : x.toFix
 export const usd = (x) => (x == null ? "–" : `$${Math.round(x).toLocaleString("en-US")}`);
 export const pts = (x, d = 1) => (x == null ? "–" : `${x.toFixed(d)} pt`);
 // A probability is stored for side a. Presentation can instead name whichever side leads while
-// preserving that underlying value. `compact` uses party initials for US races and otherwise lets
-// CSS truncate the side's name.
-export const sideLabel = (side, compact = false) => {
+// preserving that underlying value. `compact` gives US races a party letter (D, R; I for an
+// independent facing a major party) and other elections the side's name.
+const partyLetter = (s) => (s?.id === "dem" || s?.color === "#1f5fbf" ? "D" : s?.id === "rep" || s?.color === "#c8102e" ? "R" : null);
+export const sideLabel = (side, compact = false, other = null) => {
   if (!side) return "–";
-  if (compact && side.id === "dem") return "D";
-  if (compact && side.id === "rep") return "R";
+  if (compact) {
+    const l = partyLetter(side) ?? (partyLetter(other) ? "I" : null);
+    if (l) return l;
+  }
   return side.name ?? side.id ?? "–";
 };
 export const probabilityLead = (p, a, b) => {
@@ -61,7 +64,7 @@ export function splitChanceHTML(p, a, b, { compact = false, cls = "", source = "
   const lead = probabilityLead(p, a, b);
   if (!lead) return `<span class="chance-est empty">–</span>`;
   const ap = Math.max(0, Math.min(1, p));
-  const name = sideLabel(lead.side, compact);
+  const name = sideLabel(lead.side, compact, lead.other);
   const full = `${source ? `${source}: ` : ""}${lead.side?.name ?? name} ${pct(lead.chance, 0)}; ${a?.name ?? "side a"} ${pct(ap, 0)}, ${b?.name ?? "side b"} ${pct(1 - ap, 0)}`;
   return `<span class="chance-est ${cls}" data-p="${p}" title="${esc(full)}"><span class="chance-est-value"><i style="background:${esc(lead.side?.color ?? C.muted)}"></i><b>${esc(name)}</b> ${pct(lead.chance, 0)}</span><span class="chance-split" role="img" aria-label="${esc(full)}"><i style="width:${(100 * ap).toFixed(1)}%;background:${esc(a?.color ?? C.muted)}"></i><i style="width:${(100 * (1 - ap)).toFixed(1)}%;background:${esc(b?.color ?? C.muted)}"></i><b></b></span></span>`;
 }

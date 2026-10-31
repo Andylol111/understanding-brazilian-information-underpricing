@@ -341,6 +341,9 @@ table.kv td { padding: 2px 6px 2px 0; border-bottom: 1px solid var(--rule); }
 .lead-sources { display: flex; flex-wrap: wrap; gap: 2px 7px; margin-top: 5px; font: 600 13px/1.25 var(--sans); color: var(--ink); }
 .lead-sources > span { white-space: nowrap; }
 .lead-sources > span + span::before { content: "·"; margin-right: 7px; color: var(--muted); }
+.ro-src-bar { display: inline-flex; flex-direction: column; gap: 2px; font-weight: 400; }
+.ro-src-bar > em { font: normal 11px/1.2 var(--sans); color: var(--muted); }
+.chip .chance-est b { font: 700 12px/1.1 var(--sans); }
 .race-context { margin: -1px 0 7px; font: 12.5px/1.35 var(--sans); color: var(--muted); }
 .chance-est { display: inline-grid; grid-template-rows: auto 5px; gap: 2px; width: 96px; max-width: 100%; vertical-align: middle; font: 11.5px/1.1 var(--sans); font-variant-numeric: tabular-nums; text-align: left; }
 .chance-est.empty { display: inline; color: var(--muted); }
@@ -365,7 +368,7 @@ table.kv td { padding: 2px 6px 2px 0; border-bottom: 1px solid var(--rule); }
 .chance-chart-polls { margin: 6px 0 0; padding-top: 6px; border-top: 1px solid var(--rule); }
 .chance-gap { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .chance-gap small { display: block; color: var(--muted); font-size: 10px; }
-.races td .chance-est { width: 78px; }
+.races td .chance-est { width: 88px; }
 .races td .chance-est-value { justify-content: flex-end; }
 
 /* the "Show:" bar over the readout (dash-layers.js): one toggle chip per layer; wraps on narrow screens */

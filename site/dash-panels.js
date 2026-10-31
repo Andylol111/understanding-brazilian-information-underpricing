@@ -67,7 +67,7 @@ export function renderReadout(el, { race, row, t, preview, tz, countTimeline, fr
     leadCall = `<p class="lead-call"><span class="lead-side" style="--side:${esc(lead.side.color)}">${esc(sideName(lead.side))}</span> leads<span class="lead-sources">${figures}</span></p>`;
   }
   if (chances.length) {
-    const bars = chances.map(([v, cls, label]) => `<span class="${cls}" data-source="${esc(label)}" data-p="${v}">${splitChanceHTML(v, race.a, race.b, { compact: true, source: label })}</span>`).join("");
+    const bars = chances.map(([v, cls, label]) => `<span class="${cls} ro-src-bar" data-source="${esc(label)}" data-p="${v}"><em>${esc(label === "model" ? "Model" : label)}</em>${splitChanceHTML(v, race.a, race.b, { compact: true, source: label === "model" ? "Model" : label })}</span>`).join("");
     chips.push(chip("Chance of winning", bars, "ro-ch", thinPolls(nPolls) != null ? `<span class="thin-poll">${thinLabel(nPolls)}</span>` : ""));
   }
   if (row.rem_total > 0 && S("model")) {
