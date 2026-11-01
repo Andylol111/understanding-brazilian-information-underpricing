@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>US midterms 2026: how different kinds of places are counting</title>
+<meta name="description" content="US 2026 midterm count by kind of place: big cities, suburbs and rural counties; education, age, income and race and ethnicity of counties; key regions per state. Shift against 2024 and 2022 from fully counted counties, the projected margin and turnout.">
+<!-- BUILD: the one version constant of this page, changed on every deploy. It versions the page's own JS and CSS (an import
+     map over common.js and groups-agg.js), so cached code cannot mix with new data. -->
+<link id="page-css" rel="stylesheet">
+<link id="gr-css" rel="stylesheet">
+<script>
+window.__BUILD = "20261101g7";
+window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
+document.getElementById("page-css").href = "style.css?v=" + window.__V;
+document.getElementById("gr-css").href = "groups.css?v=" + window.__V;
+(() => {
+  const imports = {};
+  for (const f of ["common.js", "groups-agg.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  const m = document.createElement("script");
+  m.type = "importmap";
+  m.textContent = JSON.stringify({ imports });
+  document.head.append(m);
+})();
+</script>
+</head>
+<body class="gr">
+<main>
+<nav class="col sitenav" aria-label="Site"><a href="./">Election nights</a> / <a href="earlyvote.html">US early vote</a> / <a href="midterms.html">Electorate by state</a> / <span aria-current="page">Live by place</span> / <a href="scorecard.html">Track record</a></nav>
+
+<header class="gr-wrap">
+  <p class="kicker"><a id="dash-link" href="election.html?id=us2026">US midterms 2026</a></p>
+  <h1>How different kinds of places are counting</h1>
+  <p class="gr-note" id="gr-note">Groups of counties, not of voters.</p>
+  <p class="byline" id="gr-status">Loading…</p>
+</header>
+
+<section class="gr-wrap" aria-label="Choices">
+  <div class="gr-controls">
+    <label class="select">Race <select id="gr-race"></select></label>
+    <div class="toggle" id="gr-vs" role="group" aria-label="Compared with">
+      <button type="button" data-vs="p24" aria-pressed="true">vs 2024 president</button>
+      <button type="button" data-vs="o22" aria-pressed="false">vs 2022, same office</button>
+    </div>
+    <div class="toggle" id="gr-tab" role="group" aria-label="Figures">
+      <button type="button" data-tab="count" aria-pressed="true">Count</button>
+      <button type="button" data-tab="base" aria-pressed="false">Past results and makeup</button>
+    </div>
+  </div>
+  <p class="gr-key" id="gr-key"></p>
+</section>
+
+<section class="gr-wrap gr-grid" id="gr-panels" aria-live="polite"></section>
+
+<section class="gr-wrap" id="gr-night-sec" aria-labelledby="gr-night-h">
+  <h2 id="gr-night-h">Over the night</h2>
+  <div class="toggle" id="gr-dim" role="group" aria-label="Grouping"></div>
+  <div class="gr-pair">
+    <figure class="gr-fig"><p class="chart-title">Shift in fully counted counties</p><div class="gr-chart" id="gr-c1"></div></figure>
+    <figure class="gr-fig"><p class="chart-title">Projected margin</p><div class="gr-chart" id="gr-c2"></div></figure>
+  </div>
+  <div class="gr-legend" id="gr-legend"></div>
+</section>
+
+<footer class="gr-wrap gr-foot" id="gr-foot"></footer>
+</main>
+<script type="module">import("./groups.js?v=" + window.__V).catch((e) => { document.getElementById("gr-status").textContent = "The page could not load: " + e.message; console.error(e); });</script>
+</body>
+</html>

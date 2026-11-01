@@ -700,8 +700,15 @@ def run(a) -> None:
     live = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                             env={**{k: v for k, v in os.environ.items() if k != "BRUNDER_DATA"},   # as the unit
                                  "PYTHONUNBUFFERED": "1"}, start_new_session=True)
+    # --civic: the civicAPI process as well (deploy/brunder-us-civic-live.service, out <root>/civic), served like the VM does
+    civic = subprocess.Popen([*a.cmd.split(), "brunder", "us", "live", *map(str, CIVIC), "--out", str(out / "civic"),
+                              "--snap", str(snap), "--interval", "30", "--until", until], cwd=ROOT, stdout=log,
+                             stderr=subprocess.STDOUT, env={**{k: v for k, v in os.environ.items() if k != "BRUNDER_DATA"},
+                                                            "PYTHONUNBUFFERED": "1"},
+                             start_new_session=True) if a.civic else None
     srv = subprocess.Popen([sys.executable if not a.py else a.py, "-m", "brunder.liveserve", "--root", str(out),
-                            "--election", "us2026", "--election", "nz2026", "--host", "127.0.0.1",
+                            "--election", "us2026", "--election", "nz2026", *(["--election", "civic"] if a.civic else []),
+                            "--host", "127.0.0.1",
                             "--port", str(a.live_port), "--allow-origin", a.origin, "--report-every", "60"],
                            cwd=ROOT, env={**os.environ, "PYTHONPATH": str(ROOT / "src"), "PYTHONUNBUFFERED": "1",
                                           "PYTHONDONTWRITEBYTECODE": "1"},
@@ -730,8 +737,8 @@ def run(a) -> None:
             samples.append({"t": round(time.time()), "live_rss_mb": round(s[0], 1), "live_cpu_s": cpu,
                             "live_cpu_pct": pct, "serve_rss_mb": round(sv[0], 1) if sv else None})
         time.sleep(5)
-    for p in (live, srv):
-        if p.poll() is None:
+    for p in (live, srv, civic):
+        if p is not None and p.poll() is None:
             p.terminate()
     sizes = {}
     for f in sorted((out / "us2026").rglob("*.json")):
@@ -1027,6 +1034,7 @@ def main() -> None:
     r.add_argument("--cmd", default="uv run --frozen", help="prefix for the brunder command")
     r.add_argument("--py", default=None, help="python for liveserve (the VM unit uses /usr/bin/python3)")
     r.add_argument("--keep", action="store_true")
+    r.add_argument("--civic", action="store_true", help="also run the civicAPI process (out <root>/civic) and serve it")
     p = sub.add_parser("page")
     p.add_argument("--site-port", type=int, default=8792)
     p.add_argument("--live", required=True)

@@ -1,0 +1,49 @@
+/* groups.html: the US count by kind of place. Builds on style.css (type, colours, tables, .toggle, .select). */
+body.gr main { padding-top: 40px; }
+.gr .sitenav { margin-bottom: 28px; }
+.gr-wrap { max-width: 1320px; margin: 0 auto; }
+.gr-wrap h1 { margin-bottom: 10px; }
+.gr-wrap h2 { margin-top: 48px; }
+.gr-note { font: 14px/1.4 var(--sans); color: var(--muted); margin: 0 0 6px; }
+.gr .byline { margin-bottom: 18px; }
+.gr-controls { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+.gr-controls .toggle { margin: 0; }
+.gr-key { font: 12.5px/1.45 var(--sans); color: var(--muted); margin: 8px 0 18px; max-width: 110ch; }
+
+.gr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 600px), 1fr)); gap: 18px 28px; align-items: start; }
+.gr-card { min-width: 0; border-top: 2px solid var(--ink); padding-top: 6px; }
+.gr-card.gr-wide { grid-column: 1 / -1; }
+.gr-card h3 { font: 700 15px/1.3 var(--sans); margin: 0 0 4px; }
+.gr-card .table-scroll { overflow-x: auto; }
+table.gr-t { width: 100%; font: 13px/1.35 var(--sans); margin: 0; border-collapse: collapse; }
+.gr-t th, .gr-t td { padding: 6px 8px 6px 0; }
+.gr-t thead th { font-size: 12px; color: var(--muted); font-weight: 600; vertical-align: bottom; white-space: normal; }
+.gr-t td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gr-t th.n { text-align: right; }
+.gr-t tbody th { font-weight: 600; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; cursor: help; min-width: 140px; }
+.gr-card h3 select { font: 13px var(--sans); margin-left: 8px; }
+.gr-t small { display: block; font: 11.5px/1.3 var(--sans); color: var(--muted); font-weight: 400; white-space: normal; }
+.gr-t td.n small { white-space: nowrap; }
+.gr-t td.gr-hl { font-weight: 700; font-size: 14px; }
+.gr-t tr.gr-partial td { color: #9a9890; font-size: 11.5px; border-bottom: 1px solid var(--rule); padding-top: 0; }
+.gr-t tr:has(+ tr.gr-partial) th, .gr-t tr:has(+ tr.gr-partial) td { border-bottom: 0; }
+
+.gr .toggle { flex-wrap: wrap; }
+.gr-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 18px 28px; }
+.gr-fig { margin: 0; }
+.gr-chart svg { display: block; width: 100%; height: auto; }
+.gr-axis text { font: 11px var(--sans); fill: var(--muted); }
+.gr-axis path, .gr-axis line { stroke: #c9c6bd; }
+.gr-zero { stroke: var(--ink); stroke-width: 0.8; stroke-dasharray: 2 3; }
+.gr-line { fill: none; stroke-width: 2; }
+.gr-empty { font: 13px var(--sans); fill: var(--muted); }
+.gr-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font: 12.5px/1.4 var(--sans); color: var(--ink); margin-top: 8px; }
+.gr-legend i { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: 3px; }
+.gr-foot { margin-top: 48px; font: 12.5px/1.5 var(--sans); color: var(--muted); border-top: 1px solid var(--rule); padding-top: 10px; }
+.gr-foot p { margin: 0 0 6px; }
+
+@media (max-width: 640px) {
+  .gr-t th, .gr-t td { padding-right: 5px; }
+  .gr-t tbody th { min-width: 105px; }
+  table.gr-t { font-size: 12px; }
+}
