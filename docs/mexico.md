@@ -303,3 +303,16 @@ Code: `src/brunder/mexico.py`, with tests in `tests/test_mexico.py` on real INE 
 ## Tau mixture (retrospective sensitivity)
 
 Mexico 2024 also carries a `mix` line: the base model with the uncertainty mixed over the reporting-order errors that the 2012, 2018 and two Brazilian 2022 nights needed (0.015, 0.02, 0, 0.005), chosen after the result was known. It does not change the picture: the official count stays outside its 90% band in 87% of minutes (coverage 13%; v1 10%, v2 14%), because this night's error is a mismatch between the PREP and the official count, not a reporting-order error. See `docs/model_review.md` section 8.
+
+## Poll start (v3 sensitivity, chosen after the result was known)
+
+`configs/mx2024_v3.toml` is v1 (tau 0.01, nowcast defaults, 2018 prior) plus a starting estimate of the national swing from the last 14 days of polls
+(`data_public/mx_polls_2024.csv`; Sheinbaum / (Sheinbaum + Gálvez) per poll, so undecided and raw-versus-effective printing drop out), with the root-mean-square
+error of the same average in 2006, 2012 and 2018 as its sd (López Obrador against all other main candidates). Rule, numbers and caveats in `docs/poll_priors.md`.
+v1 stays the headline; the dashed `v3` line and its 90% mark are in the Show bar.
+
+```
+uv run python analysis/poll_prior_replay.py build mx2024
+BRUNDER_DATA=~/brunder-data-local uv run python analysis/poll_prior_replay.py run mx2024
+uv run python analysis/decided_stats.py mx2024
+```

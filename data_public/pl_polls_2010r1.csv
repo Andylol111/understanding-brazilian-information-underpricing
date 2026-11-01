@@ -1,0 +1,27 @@
+# Source: https://en.wikipedia.org/wiki/2010_Polish_presidential_election (REST HTML, revision 1382054420, modified 2026-10-26T08:29:55Z); retrieved 2026-10-31; licence: CC BY-SA 4.0 (Wikipedia text/tables); polls published by the named pollsters.
+# Table: first-round vote intention (polling table inside the election article). Election day 2010-06-20; single-day dates are the date printed (year 2010 added). Sample size blank where not printed.
+# Fieldwork end <= election day - 1 and >= election day - 60 days; values in % as printed ('<0.5' kept as printed; blank = not reported); sample size as printed; the Wikipedia 'Lead' column is dropped; election-night exit/late polls excluded.
+pollster,fieldwork_start,fieldwork_end,sample_size,Komorowski,Kaczyński,Napieralski,Pawlak,Olechowski,Lepper,Korwin-Mikke,Jurek,Morawiecki,Ziętek,Others,Don't know
+Millward Brown SMG/KRC,2010-06-18,2010-06-18,,44,29,13,2,2,1,3,1,0,0,,5
+TNS OBOP,2010-06-17,2010-06-17,,42,35,13,2,2,1,3,1,0,0,,
+Millward Brown SMG/KRC,2010-06-16,2010-06-16,"1,001",41,29,12,2,1,1,2,1,,,,
+GfK Polonia,2010-06-16,2010-06-16,,48,34,9,2,2,2,3,1,1,1,,
+CBOS,2010-06-10,2010-06-16,977,42,28,10,2,2,1,3,1,0,0,,8
+TNS OBOP,2010-06-10,2010-06-15,965,41,31,8,2,1,1,3,1,0,0,,12
+GfK Polonia,2010-06-12,2010-06-12,,42,29,11,4,1,1,2,1,0,0,,9
+SMG/KRC Millward Brown,2010-06-09,2010-06-09,,45,31,7,2,2,1,2,0,0,0,,5
+SMG/KRC Millward Brown,2010-06-07,2010-06-07,,43,32,8,3,2,1,2,1,0,1,,5
+Homo Homini,2010-06-05,2010-06-05,,46.5,32.4,6.1,4.4,2.2,0.6,0.4,0.4,0.1,0,,6.4
+SMG/KRC Millward Brown,2010-06-04,2010-06-04,,42,31,6,1,1,1,3,0,0,0,,15
+PBS DGA,2010-06-02,2010-06-02,,48,33,8,3,2,2,2,0,0,0,,
+SMG/KRC Millward Brown,2010-05-31,2010-05-31,,46,30,9,1,1,1,3,0,0,0,,5
+Homo Homini,2010-05-29,2010-05-29,,47.6,32.5,6.1,4.2,1.6,0.7,0.6,0.7,0.1,0.1,,5.6
+GfK Polonia,2010-05-22,2010-05-22,,53,28,4,3,4,4,3,1,0,0,,
+SMG/KRC Millward Brown,2010-05-17,2010-05-17,,49,29,3,2,3,3,1,1,0,0,,7
+Homo Homini,2010-05-15,2010-05-15,,42.2,35.9,4.7,5.7,2.3,0.6,0.7,1.9,0,0,,6
+GfK Polonia,2010-05-15,2010-05-15,,48,30,5,2,4,2,2,1,0,0,,6
+TNS OBOP,2010-05-07,2010-05-10,949,45,33,3,2,2,1,1,1,,,0,12
+GfK Polonia,2010-05-12,2010-05-12,,41,28,4,0,3,0,0,0,0,0,,16
+SMG/KRC Millward Brown,2010-05-10,2010-05-10,,45,34,5,4,3,1,2,1,0,0,,
+CBOS,2010-05-08,2010-05-13,"1,000",50,27,5,3,3,2,2,1,0,0,,8
+TNS OBOP,2010-05-06,2010-05-06,"1,000",50,36,4,3,2,2,1,1,,,,

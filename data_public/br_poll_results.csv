@@ -1,0 +1,12 @@
+# Brazil presidential elections, official results (TSE) as reproduced on English Wikipedia (CC BY-SA 4.0), retrieved 2026-10-31. Sources: "Opinion polling for the 2026 Brazilian presidential election" rev 1382146002 (rows "Results"); "Opinion polling for the 2022 Brazilian general election" rev 1368964934 (rows "Results"); "Opinion polling for the 2018 Brazilian general election" rev 1365268056 (rows "Results of the first/second round"); "2014 Brazilian general election" rev 1381845583 (Results table, source Election Resources).
+# Candidate columns = % of VALID votes (votos validos; blank and null votes excluded). Others = sum of remaining candidates as printed on the page. Blank_Null_pct_of_total_votes = blank+null share of total votes printed in the "Total votes" row (2026, 2022) or invalid/blank share in the 2014 results table; empty for 2018 (not printed reliably: the 2018 R1 Results row prints an extra 1.9 in the Abst/Undec column, not stored, and R2 row prints none).
+# 2026/2022 values have 1-2 decimals as printed on the page (2022: 43.2/48.4/3.0/4.2/1.2; the page does not print the 2nd decimal). Columns follow the poll files: J_Bolsonaro = Jair Bolsonaro (2018, 2022), F_Bolsonaro = Flavio Bolsonaro (2026).
+year,election,round,Lula,F_Bolsonaro,J_Bolsonaro,Rousseff,Neves,Haddad,Gomes,Silva,Meirelles,Dias,Alckmin,Amoedo,Tebet,Caiado,Zema,Santos,Cury,Genro,Pereira,Jorge,Others,Blank_Null_pct_of_total_votes
+2026,2026-10-04,1,45.16,47.03,,,,,,,,,,,,2.18,0.27,2.24,2.89,,,,0.23,4.77
+2026,2026-10-25,2,51.79,48.21,,,,,,,,,,,,,,,,,,,,3.24
+2022,2022-10-02,1,48.4,,43.2,,,,3.0,,,,,,4.2,,,,,,,,1.2,4.4
+2022,2022-10-30,2,50.9,,49.1,,,,,,,,,,,,,,,,,,,4.6
+2018,2018-10-07,1,,,46.0,,,29.3,12.5,1.0,1.2,0.8,4.8,2.5,,,,,,,,,1.9,
+2018,2018-10-28,2,,,55.13,,,44.87,,,,,,,,,,,,,,,,
+2014,2014-10-05,1,,,,41.59,33.55,,,21.32,,,,,,,,,,1.55,0.75,0.61,0.64,9.64
+2014,2014-10-26,2,,,,51.64,48.36,,,,,,,,,,,,,,,,,6.34

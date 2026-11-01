@@ -1,0 +1,112 @@
+# Source: Wikipedia "Opinion polling for the 2026 Brazilian presidential election", section Second round > 2026: table "October (after 1st round)" (phase=post_R1) and, for completeness of the 60-day window, the "Aug-Oct (Campaign period)" hypothetical second-round table (phase=pre_R1_hypothetical, only the Lula vs F. Bolsonaro scenario rows); revision 1382146002.
+# Licence: CC BY-SA 4.0 (Wikipedia contributors; see page history). Retrieved 2026-10-31 via https://en.wikipedia.org/api/rest_v1/page/html/ (User-Agent brunder/0.1 (research; recorder)); raw HTML in $BRUNDER_DATA/raw/brazil/polls/pp_Opinion_polling_for_the_2026_Brazilian_presidential_election.html
+# Election: Brazil presidential 2026 round 2, 2026-10-25 (Lula vs Flavio Bolsonaro). Fieldwork end <= 2026-10-24; window = fieldwork end >= 2026-08-26 (60 days). Pre-R1 rows are head-to-head hypotheticals asked before the first round (end <= 2026-10-03); the model should use phase=post_R1 rows first.
+# Numbers are % of ALL respondents as printed (NOT valid votes): Blank_Null_Undec = blank/null/undecided. Page prints no valid-vote version; official result is % of valid votes (rescale polls: x/(100-Blank_Null_Undec)).
+# Sample size as printed (thousands separators removed).
+pollster,fieldwork_start,fieldwork_end,sample_size,Lula,F_Bolsonaro,Blank_Null_Undec,phase
+Futura,2026-10-23,2026-10-24,2000,47.9,48.2,3.9,post_R1
+Quaest,2026-10-23,2026-10-24,3702,45,46,9,post_R1
+Datafolha,2026-10-23,2026-10-24,4050,47,48,5,post_R1
+Nexus,2026-10-23,2026-10-24,2000,46,47,7,post_R1
+PoderData,2026-10-23,2026-10-24,4000,48,49,4,post_R1
+Palver,2026-10-22,2026-10-24,5000,49,50,1,post_R1
+Gerp,2026-10-22,2026-10-24,2400,46,49,4,post_R1
+Colectta,2026-10-23,2026-10-23,3000,46.5,46,7.5,post_R1
+MDA,2026-10-21,2026-10-23,2032,45,46.3,8.7,post_R1
+Instituto França,2026-10-21,2026-10-23,1537,43.1,45.1,11.3,post_R1
+Verita,2026-10-19,2026-10-23,15554,47.8,49.8,2.4,post_R1
+AtlasIntel,2026-10-18,2026-10-23,4990,48.4,49.9,1.7,post_R1
+Ipespe,2026-10-20,2026-10-22,1500,47,48,5,post_R1
+Vox Brasil,2026-10-20,2026-10-22,2100,45.4,44.3,10.3,post_R1
+Datafolha,2026-10-20,2026-10-22,2520,46,47,7,post_R1
+Alfa,2026-10-19,2026-10-22,2700,46,49.9,4.1,post_R1
+Real Time,2026-10-19,2026-10-22,2000,45,49,6,post_R1
+Veritá,2026-10-18,2026-10-22,15554,47.5,50.2,2.3,post_R1
+Indexa,2026-10-20,2026-10-21,2000,44.1,45.2,10.7,post_R1
+Datatrends,2026-10-19,2026-10-21,2000,46,50,4,post_R1
+PoderData,2026-10-19,2026-10-21,4000,48,49,4,post_R1
+Gerp,2026-10-19,2026-10-21,2400,45,50,5,post_R1
+Futura,2026-10-19,2026-10-20,2000,46.8,48.9,4.3,post_R1
+Palver,2026-10-18,2026-10-20,5000,48,50,1,post_R1
+Quaest,2026-10-17,2026-10-20,2154,44,45,11,post_R1
+Verita,2026-10-15,2026-10-19,15554,48.2,49.7,2.1,post_R1
+Ideia,2026-10-15,2026-10-19,1500,46,48,6,post_R1
+Alfa,2026-10-15,2026-10-19,2700,45.9,48.8,5.3,post_R1
+Real Time,2026-10-15,2026-10-19,2000,45,48,7,post_R1
+PoderData,2026-10-16,2026-10-18,3000,46,49,5,post_R1
+Nexus,2026-10-16,2026-10-18,2002,45.9,46.5,7.6,post_R1
+AtlasIntel,2026-10-13,2026-10-18,4998,47.6,49.8,2.6,post_R1
+Futura,2026-10-16,2026-10-17,2000,47.5,48.3,4.3,post_R1
+DataTrends,2026-10-15,2026-10-17,2000,46,49,5,post_R1
+Vox Brasil,2026-10-15,2026-10-17,2100,46.4,44.6,8.9,post_R1
+Gerp,2026-10-14,2026-10-16,2400,45,50,5,post_R1
+Verita,2026-10-12,2026-10-16,15554,47.7,49.7,2.6,post_R1
+Futura,2026-10-14,2026-10-15,2000,47.5,49,3.6,post_R1
+Ipespe,2026-10-13,2026-10-15,1500,46,48,6,post_R1
+MDA,2026-10-13,2026-10-15,2014,45.9,46.8,7.3,post_R1
+PoderData,2026-10-13,2026-10-15,3000,47,47,6,post_R1
+Datafolha,2026-10-13,2026-10-15,2520,45,47,8,post_R1
+Indexa,2026-10-13,2026-10-14,2000,42,44,4,post_R1
+Palver,2026-10-10,2026-10-13,5000,49,50,1,post_R1
+Quaest,2026-10-10,2026-10-13,2154,44,46,10,post_R1
+PoderData,2026-10-10,2026-10-12,3000,46,48,7,post_R1
+Nexus,2026-10-10,2026-10-12,2000,45,48,7,post_R1
+Gerp,2026-10-08,2026-10-12,2400,44,53,3,post_R1
+Futura,2026-10-07,2026-10-10,2000,46.6,50,3.4,post_R1
+Ipespe,2026-10-06,2026-10-08,1500,44,49,7,post_R1
+AtlasIntel,2026-10-03,2026-10-08,5026,45.7,51.1,3.2,post_R1
+Datafolha,2026-10-06,2026-10-07,2520,45,49,6,post_R1
+PoderData,2026-10-05,2026-10-07,3000,44,49,7,post_R1
+Vox Brasil,2026-10-05,2026-10-07,2100,44.2,42.7,13.1,post_R1
+Datafolha,2026-10-03,2026-10-03,4006,47,46,8,pre_R1_hypothetical
+Quaest,2026-10-02,2026-10-03,3702,42,44,14,pre_R1_hypothetical
+Futura,2026-10-02,2026-10-03,2000,45.1,48,6.9,pre_R1_hypothetical
+Palver,2026-09-30,2026-10-03,5000,44,49,7,pre_R1_hypothetical
+PoderData,2026-09-30,2026-10-02,4000,46,46,8,pre_R1_hypothetical
+MDA,2026-09-29,2026-10-02,2007,47,43,10,pre_R1_hypothetical
+AtlasIntel,2026-09-27,2026-10-02,4945,47.6,47.4,5,pre_R1_hypothetical
+Vox Brasil,2026-09-29,2026-10-01,2100,45.2,48.2,6.6,pre_R1_hypothetical
+Datafolha,2026-09-28,2026-09-30,2506,48,45,7,pre_R1_hypothetical
+Real Time,2026-09-26,2026-09-30,2000,45,46,9,pre_R1_hypothetical
+Indexa,2026-09-27,2026-09-29,2000,43,42,15,pre_R1_hypothetical
+Futura,2026-09-25,2026-09-29,2000,43.5,49,7.5,pre_R1_hypothetical
+Vox Brasil,2026-09-26,2026-09-28,2100,44.7,45.2,10.1,pre_R1_hypothetical
+Ideia,2026-09-25,2026-09-28,2000,48.5,48,3.6,pre_R1_hypothetical
+AtlasIntel,2026-09-23,2026-09-28,5005,47.6,47.7,4.8,pre_R1_hypothetical
+Nexus,2026-09-25,2026-09-27,2000,46,44,9,pre_R1_hypothetical
+Quaest,2026-09-24,2026-09-27,2004,42,42,16,pre_R1_hypothetical
+Palver,2026-09-24,2026-09-27,5000,45,47,8,pre_R1_hypothetical
+Datafolha,2026-09-22,2026-09-24,2002,47,45,8,pre_R1_hypothetical
+Futura,2026-09-18,2026-09-24,2000,43.7,49.4,6.9,pre_R1_hypothetical
+PoderData,2026-09-20,2026-09-23,3000,45,46,9,pre_R1_hypothetical
+Palver,2026-09-20,2026-09-23,5000,45,48,7,pre_R1_hypothetical
+Real Time,2026-09-19,2026-09-23,2000,44,45,11,pre_R1_hypothetical
+AtlasIntel,2026-09-17,2026-09-22,5015,47.7,47.4,4.9,pre_R1_hypothetical
+Nexus,2026-09-18,2026-09-20,2006,46,45,8,pre_R1_hypothetical
+Quaest,2026-09-17,2026-09-20,2004,41,42,17,pre_R1_hypothetical
+Palver,2026-09-15,2026-09-20,5000,43,47,10,pre_R1_hypothetical
+Datafolha,2026-09-15,2026-09-16,2002,46,44,9,pre_R1_hypothetical
+PoderData,2026-09-13,2026-09-16,3000,44,46,10,pre_R1_hypothetical
+AtlasIntel,2026-09-11,2026-09-16,5018,46.8,47.2,6,pre_R1_hypothetical
+Futura,2026-09-11,2026-09-15,2000,43.7,48.1,8.2,pre_R1_hypothetical
+Nexus,2026-09-11,2026-09-13,2003,47,46,7,pre_R1_hypothetical
+Quaest,2026-09-10,2026-09-13,2004,40,42,18,pre_R1_hypothetical
+Indexa,2026-09-10,2026-09-13,2000,43,42,15,pre_R1_hypothetical
+MDA,2026-09-09,2026-09-13,2002,47.3,40,12.7,pre_R1_hypothetical
+Datafolha,2026-09-08,2026-09-10,2002,46,44,9,pre_R1_hypothetical
+Futura,2026-09-04,2026-09-10,2000,45,45.4,9.6,pre_R1_hypothetical
+PoderData,2026-09-06,2026-09-09,3000,45,47,8,pre_R1_hypothetical
+AtlasIntel,2026-09-04,2026-09-09,5000,46.2,46.4,7.4,pre_R1_hypothetical
+Palver,2026-09-04,2026-09-07,5000,44,46,10,pre_R1_hypothetical
+Ideia,2026-09-04,2026-09-07,1500,46,46,8,pre_R1_hypothetical
+Nexus,2026-09-04,2026-09-07,2002,45,46,9,pre_R1_hypothetical
+Quaest,2026-09-03,2026-09-06,2004,41,41,18,pre_R1_hypothetical
+Datafolha,2026-09-01,2026-09-02,2002,46,44,11,pre_R1_hypothetical
+PoderData,2026-08-30,2026-09-02,3000,44,45,11,pre_R1_hypothetical
+Quaest,2026-08-30,2026-09-01,2005,42,41,17,pre_R1_hypothetical
+Futura,2026-08-27,2026-09-01,2000,45.6,45.2,9.2,pre_R1_hypothetical
+Real Time,2026-08-27,2026-08-31,2000,44,44,12,pre_R1_hypothetical
+Nexus,2026-08-28,2026-08-30,2005,46,45,9,pre_R1_hypothetical
+AtlasIntel,2026-08-25,2026-08-30,5014,47.1,42.6,10.3,pre_R1_hypothetical
+Vox Brasil,2026-08-25,2026-08-27,2100,44.5,45.1,10.4,pre_R1_hypothetical
+PoderData,2026-08-23,2026-08-26,2400,45,44,11,pre_R1_hypothetical

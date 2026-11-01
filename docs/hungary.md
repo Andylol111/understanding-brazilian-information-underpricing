@@ -358,3 +358,18 @@ uv run python analysis/mix_hu.py run && uv run python analysis/mix_hu.py export 
 - The next-PM price is mapped to "most seats".
 - The 2018 postal split used as the 2022 calibration prior is an assumption (5% opposition). It affects only the 2022
   list calibration.
+
+## Poll start (v3 sensitivity, chosen after the result was known)
+
+`configs/hu2026_v3.toml` is v1 plus a starting estimate of the national swing from the last 14 days of polls (`data_public/hu_polls_2026.csv`, decided voters;
+Tisza / (Tisza + Fidesz-KDNP)), with the root-mean-square error of the same average in 2014, 2018 and 2022 (Fidesz-KDNP against the runner-up list) as its sd.
+`brunder.hungary` gained the same swing prior for the district model (`swing_prior_mean/sd`, `count_scaled_terms`; off by default, v1 unchanged), and one
+national error now drives both the list and every district. Its first value is the first count publication (the seat model needs third-party shares); the list
+chance from the poll alone before any count is in `stats.sensitivities.v3.precount`. Rule, numbers and caveats in `docs/poll_priors.md`.
+
+```
+BRUNDER_DATA=~/brunder-data-local uv run python analysis/hu_poll_prior.py build
+BRUNDER_DATA=~/brunder-data-local uv run python analysis/hu_score.py configs/hu2026_v3.toml     # -> results/hungary_v3/
+BRUNDER_DATA=~/brunder-data-local uv run python analysis/hu_poll_prior.py export
+uv run python analysis/decided_stats.py hu2026
+```

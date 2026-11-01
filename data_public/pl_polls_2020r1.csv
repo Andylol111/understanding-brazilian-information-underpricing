@@ -1,0 +1,55 @@
+# Source: https://en.wikipedia.org/wiki/Opinion_polling_for_the_2020_Polish_presidential_election (REST HTML, revision 1380193388, modified 2026-10-14T09:24:23Z); retrieved 2026-10-31; licence: CC BY-SA 4.0 (Wikipedia text/tables); polls published by the named pollsters.
+# Table: first-round vote intention with the final lineup (Duda, Trzaskowski, Hołownia, Bosak, Kosiniak-Kamysz, Biedroń; first table of the page, polls after Trzaskowski replaced Kidawa-Błońska on 2020-05-15). Earlier polls with Kidawa-Błońska (second table) are a different lineup and not included. Rows with unknown day ('N/A') skipped; for polls printed twice with identical pollster and dates only the first variant is kept. The Wikipedia table has no sample-size column (blank). Duda=PiS, Trzaskowski=KO, Hołownia=independent, Bosak=Konfederacja, Kosiniak-Kamysz=PSL, Biedroń=Lewica.
+# Fieldwork end <= election day - 1 and >= election day - 60 days; values in % as printed ('<0.5' kept as printed; blank = not reported); sample size as printed; the Wikipedia 'Lead' column is dropped; election-night exit/late polls excluded.
+pollster,fieldwork_start,fieldwork_end,sample_size,Duda,Trzaskowski,Hołownia,Bosak,Kosiniak-Kamysz,Biedroń,Others,Don't know
+IBSP,2020-06-25,2020-06-26,,42.31,31.03,13.88,7.41,1.69,2.54,1.14,
+Indicator,2020-06-23,2020-06-26,,41.1,30.2,12.3,7.2,5.4,3.8,,
+IBRiS,2020-06-25,2020-06-25,,41.2,30.7,12.0,7.2,4.1,3.9,1.0,
+Estymator,2020-06-24,2020-06-25,,42.7,28.4,10.3,7.6,6.3,3.6,1.1,
+Kantar,2020-06-24,2020-06-25,,40,27,13,7,2,3,,8
+Pollster,2020-06-24,2020-06-25,,41.27,30.30,10.74,7.23,5.81,3.35,1.30,
+PGB Opinium,2020-06-23,2020-06-25,,40.5,29.7,11.0,7.3,7.0,3.8,0.7,
+CBOS,2020-06-15,2020-06-25,,45,20,11,4,4,2,,14
+IBRiS,2020-06-24,2020-06-24,,41.1,26.4,9.7,4.6,5.4,4.9,1.3,6.6
+IPSOS,2020-06-22,2020-06-23,,40,27,10,7,5,4,1,4
+Social Changes,2020-06-19,2020-06-23,,41,29,13,7,4,4,2,
+Pollster,2020-06-22,2020-06-22,,41.38,29.86,11.18,7.34,6.55,2.93,0.76,
+Maison & Partners,2020-06-19,2020-06-22,,33.1,28.2,15.8,7.8,3.4,6.2,,5.5
+IBRiS,2020-06-20,2020-06-20,,41.0,27.1,8.9,5.6,7.3,4.2,1.2,4.7
+IBRiS,2020-06-19,2020-06-20,,43.1,27.4,10.1,6.2,7.5,4.5,,1.2
+United Survey,2020-06-19,2020-06-19,,41.5,28.3,8.6,5.4,8.0,2.2,0.2,5.9
+Estymator,2020-06-18,2020-06-19,,44.6,29.3,8.9,7.3,6.9,2.1,0.9,
+IBRiS,2020-06-18,2020-06-18,,41.3,28.2,8.1,4.6,8.3,3.8,1.3,4.5
+Kantar,2020-06-17,2020-06-18,,40,32,10,7,3,2,,6
+Pollster,2020-06-16,2020-06-17,,40.82,30.28,11.74,6.24,6.06,3.28,1.58,
+IPSOS,2020-06-16,2020-06-17,,40,30,10,7,4,2,,6
+Social Changes,2020-06-12,2020-06-16,,39,28,15,7,6,3,2,
+Maison & Partners,2020-06-12,2020-06-15,,37.0,28.4,14.8,6.3,4.4,4.0,,5.0
+PGB Opinium,2020-06-12,2020-06-15,,40.5,28.9,10.6,7.3,8.6,3.8,,
+Estymator,2020-06-12,2020-06-13,,44.1,28.3,10.7,7.1,6.6,2.7,0.5,
+IBRiS,2020-06-12,2020-06-13,,40.7,28.0,7.8,7.1,9.7,3.0,,3.6
+Pollster,2020-06-09,2020-06-10,,41.17,28.14,14.00,4.97,4.99,5.22,1.51,
+Kantar,2020-06-05,2020-06-10,,38,27,8,6,6,4,,11
+Social Changes,2020-06-05,2020-06-09,,40,29,15,7,4,4,1,
+IBRiS,2020-06-05,2020-06-06,,42.7,26.6,7.7,6.9,7.4,3.4,0.1,5.2
+Estymator,2020-06-03,2020-06-04,,43.1,25.3,14.4,7.4,6.8,2.6,0.4,
+CBOS,2020-05-22,2020-06-04,,48.6,16.2,10.7,4.2,4.3,1.8,0.8,13.4
+Pollster,2020-06-02,2020-06-03,,40,28,14,7,6,4,1,
+Social Changes,2020-05-29,2020-06-02,,41,29,13,6,5,5,1,
+IBRiS,2020-05-29,2020-05-30,,41.0,26.1,12.0,6.5,7.1,2.3,,5.0
+United Survey,2020-05-29,2020-05-29,,41.2,27.0,12.0,6.6,7.0,2.2,,4.0
+SWPS,2020-05-28,2020-05-29,,32,25,22,9,5,6,1,
+PGB Opinium,2020-05-26,2020-05-29,,36.5,25.0,12.0,6.5,8.4,3.5,0.4,7.6
+Pollster,2020-05-26,2020-05-27,,38.94,26.60,16.41,5.71,5.46,5.14,1.74,
+Social Changes,2020-05-22,2020-05-25,,40,27,17,6,5,4,1,
+IBRiS,2020-05-22,2020-05-23,,41.0,26.7,10.0,5.0,8.2,3.0,,6.1
+Estymator,2020-05-21,2020-05-22,,44.8,22.1,14.1,5.6,9.2,3.1,1.1,
+PBS,2020-05-19,2020-05-20,,35,21,19,13,5,8,,
+Kantar,2020-05-18,2020-05-19,,39,18,15,8,3,2,4,12
+Maison & Partners,2020-05-15,2020-05-18,,34,17,21,7,6,6,,10
+Social Changes,2020-05-11,2020-05-18,,41,21,18,6,7,5,2,
+Pollster,2020-05-15,2020-05-17,,43.76,16.54,15.88,6.45,9.73,5.51,2.13,
+IBRiS,2020-05-16,2020-05-16,,43.2,16.0,9.9,6.8,9.6,6.8,,7.7
+United Survey,2020-05-15,2020-05-15,,43.7,14.0,13.3,6.9,9.8,5.2,,7.1
+Kantar Public,2020-05-15,2020-05-15,,51,11,17,5,6,3,1,6
+Estymator,2020-05-14,2020-05-15,,52.7,10.2,10.5,7.8,11.8,5.7,1.3,

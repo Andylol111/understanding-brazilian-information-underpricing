@@ -1,0 +1,23 @@
+# Hungary National Assembly election 2018-04-08: final national party-list polls
+# Source page: en.wikipedia.org "Opinion polling for the 2018 Hungarian parliamentary election", revision 1372593758 (2026-09-01T11:12:20Z), single poll table. Retrieved 2026-10-31 via Wikipedia REST API (https://en.wikipedia.org/api/rest_v1/page/html/Opinion_polling_for_the_2018_Hungarian_parliamentary_election), text CC BY-SA 4.0; polls published by the named firms. Raw HTML: $BRUNDER_DATA/raw/hungary/polls/pp_Opinion_polling_for_the_2018_Hungarian_parliamentary_election.html
+# Numbers are % of active/certain (decided) voters as stated on the page; sample size and year are not printed (year taken as 2018). Printed "(MSZP)", "(other)" = party counted inside another column -> blank here. MSZP column = MSZP(-Dialogue joint list).
+# Rows with only a month printed (e.g. "Mar | Szazadveg") have blank fieldwork_start/end and are kept when the month overlaps the 60-day window (2018-02-07..2018-04-07).
+# Kept every poll with fieldwork end 2018-02-07..2018-04-07.
+pollster,date_printed,fieldwork_start,fieldwork_end,sample_size,Fidesz-KDNP,MSZP,Jobbik,LMP,DK,Together,Dialogue,MLP,MKKP,Momentum,Other
+Századvég,Mar 2018,,,,51,15,13,7,6,1,,,,,7
+Iránytű,Feb 2018,,,,44,11,24,8,8,0,0,0,0,4,1
+Publicus,28 Mar–3 Apr 2018,2018-03-28,2018-04-03,,45,19,20,7,5,0,,0,0,2,2
+Medián,23–27 Mar 2018,2018-03-23,2018-03-27,,53,12,16,7,6,1,,0,2,2,1
+Iránytű,21–24 Mar 2018,2018-03-21,2018-03-24,,41,12,25,8,7,0,,0,2,3,2
+Republikon,10–23 Mar 2018,2018-03-10,2018-03-23,,49,17,19,4,5,2,,,0,2,2
+Nézőpont,3–19 Mar 2018,2018-03-03,2018-03-19,,52,11,15,8,8,0,,0,2,3,1
+ZRi,7–14 Mar 2018,2018-03-07,2018-03-14,,47,13,19,6,8,1,,0,0,3,1
+Publicus,9–14 Mar 2018,2018-03-09,2018-03-14,,49,18,17,8,5,1,,0,1,1,0
+Medián,2–7 Mar 2018,2018-03-02,2018-03-07,,54,12,16,5,9,2,,0,0,2,0
+Nézőpont,1–5 Mar 2018,2018-03-01,2018-03-05,,52,10,17,9,6,0,,0,2,4,0
+Századvég,26–28 Feb 2018,2018-02-26,2018-02-28,,53,11,14,8,6,1,,,,,7
+Republikon,9–22 Feb 2018,2018-02-09,2018-02-22,,48,17,19,5,5,2,,,0,2,1
+Nézőpont,3–21 Feb 2018,2018-02-03,2018-02-21,,54,10,13,8,8,1,,1,2,3,0
+ZRi,7–15 Feb 2018,2018-02-07,2018-02-15,,51,13,17,6,8,1,,0,0,2,0
+Publicus,9–14 Feb 2018,2018-02-09,2018-02-14,,48,18,16,8,5,0,0,0,2,1,2
+Századvég,6–13 Feb 2018,2018-02-06,2018-02-13,,51,10,14,10,7,1,,,,,7

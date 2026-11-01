@@ -266,3 +266,16 @@ lead of v1 was bought with bands that were too narrow.
 ## Tau mixture (retrospective sensitivity)
 
 Both Polish rounds carry a `mix` line: the base model (rho 0.8, kappa 50,000) with the uncertainty mixed over the reporting-order errors that earlier nights needed (round 1: five nights; runoff: six, including round 1), chosen after the results were known. On the runoff the 90% band holds the final share in 77% of minutes (v1 46%, pooled v2 100%) and the model reaches 90% on the winner 42 minutes before Polymarket (median of 3 contested markets; v1 +46, v2 -126). The band is still short of 90%. Margin-band markets use the same mixture. See `docs/model_review.md` section 8.
+
+## Poll start (v3 sensitivity, chosen after the result was known)
+
+`configs/pl2025r1_v3.toml` and `configs/pl2025r2_v3.toml` are v1 plus a starting estimate from the last 14 days of polls (Wikipedia poll tables in
+`data_public/pl_polls_*.csv`): the national swing starts at the poll's Trzaskowski / (Trzaskowski + Nawrocki) minus the 2020 prior's share, with the
+root-mean-square error of the same average in the 2010, 2015, 2020 (and, for the runoff, 2025 round 1) rounds as its sd. Rule, numbers and caveats:
+`docs/poll_priors.md`. v1 stays the headline; the dashed `v3` line and its 90% mark are in the Show bar.
+
+```
+uv run python analysis/poll_prior_replay.py build pl2025r1 pl2025r2     # configs/*_v3.toml
+BRUNDER_DATA=~/brunder-data-local uv run python analysis/poll_prior_replay.py run pl2025r1 pl2025r2
+uv run python analysis/decided_stats.py pl2025r1 pl2025r2
+```

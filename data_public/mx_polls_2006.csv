@@ -1,0 +1,34 @@
+# Mexico presidential election 2006-07-02: final national presidential polls (Calderon, Lopez Obrador, Madrazo)
+# Source: en.wikipedia.org "2006 Mexican general election" (no separate polling article), revision 1382536201 (2026-10-29T03:59:51Z), opinion poll table (columns Date, Publisher). Retrieved 2026-10-31 via Wikipedia REST API (https://en.wikipedia.org/api/rest_v1/page/html/2006_Mexican_general_election), text CC BY-SA 4.0; polls published by the named firms. Raw HTML: $BRUNDER_DATA/raw/mexico/polls/2006_Mexican_general_election.html
+# The page prints ONE date per poll = PUBLICATION date (no fieldwork range, no sample size): fieldwork_start blank, fieldwork_end holds the publication date (date_kind=publication); real fieldwork ended earlier.
+# Numbers AS PRINTED, undecided not printed (rows sum to 85-95). Likely typos kept as printed: "Milenio Diario 29 May 2006 Madrazo 3%", "Reforma 21 Feb 2006 Madrazo 29". Kept every poll published 2006-05-03..2006-07-01.
+pollster,date_printed,fieldwork_start,fieldwork_end,date_kind,sample_size,Lopez_Obrador,Calderon,Madrazo
+Ulises Beltran y Asociados,23 June 2006,,2006-06-23,publication,,34,34,26
+Reforma,23 June 2006,,2006-06-23,publication,,36,34,25
+El Universal,23 June 2006,,2006-06-23,publication,,36,34,26
+Milenio Diario,22 June 2006,,2006-06-22,publication,,35.4,30.5,29.6
+GEA-ISA,22 June 2006,,2006-06-22,publication,,36,38,23
+Consulta Mitofsky,22 June 2006,,2006-06-22,publication,,36,33,27
+Alducin y Asociados,22 June 2006,,2006-06-22,publication,,34,38,24
+Marketing Político,21 June 2006,,2006-06-21,publication,,34,37,26
+Indermerc,21 June 2006,,2006-06-21,publication,,33,32,28
+Parametría,20 June 2006,,2006-06-20,publication,,36.5,32.5,27
+Zogby,19 June 2006,,2006-06-19,publication,,31,35,27
+Reforma,14 June 2006,,2006-06-14,publication,,37,35,23
+Milenio Diario,13 June 2006,,2006-06-13,publication,,34.2,31,29.6
+Consulta Mitofsky,13 June 2006,,2006-06-13,publication,,35,32,28
+El Universal,12 June 2006,,2006-06-12,publication,,34,37,22
+GEA-ISA,11 June 2006,,2006-06-11,publication,,35,39,23
+Parametría,6 June 2006,,2006-06-06,publication,,35.5,34.4,27
+El Universal,6 June 2006,,2006-06-06,publication,,36,36,24
+"BGC, Beltrán y Asociados",5 June 2006,,2006-06-05,publication,,35,35,26
+Milenio Diario,29 May 2006,,2006-05-29,publication,,33,33,3
+Consulta Mitofsky,29 May 2006,,2006-05-29,publication,,34,34,28
+GEA-ISA,28 May 2006,,2006-05-28,publication,,31,40,27
+Reforma,24 May 2006,,2006-05-24,publication,,35,39,22
+Zogby,19 May 2006,,2006-05-19,publication,,29,34,22
+El Universal,15 May 2006,,2006-05-15,publication,,35,39,21
+Parametría,8 May 2006,,2006-05-08,publication,,34,36,26
+GEA-ISA,4 May 2006,,2006-05-04,publication,,31,41,25
+Reforma,3 May 2006,,2006-05-03,publication,,33,40,22
+Consulta Mitofsky,3 May 2006,,2006-05-03,publication,,34,35,27

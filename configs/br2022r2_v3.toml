@@ -1,0 +1,44 @@
+# br2022r2 v3 SENSITIVITY: POLL START (RETROSPECTIVE, NOT PRE-REGISTERED: designed after the result was known, chosen after the
+# result was known). v1 stays the headline. Everything is v1's (prior, tau, rho, kappa, count states) except a starting
+# estimate of the national swing from the final polls (analysis/poll_priors.py; rule written before this night was replayed with it):
+#   swing_prior_mean = poll two-way share of Lula / (Lula + Bolsonaro) 0.5206 (plain mean of 24 polls whose fieldwork ended
+#       2022-10-16 .. 2022-10-29, the 14 days before the vote; Wikipedia poll tables, CC BY-SA, data_public/)
+#       minus the prior's vote-weighted two-way share 0.5285 (2022 round 1 by municipality);
+#   swing_prior_sd = root-mean-square error of the same kind of poll average over 5 earlier elections = 0.0566;
+#   count_scaled_terms: tau enters in proportion to the weight the counted votes have in the swing, so before any count the
+#       uncertainty is the poll error alone; no count, price or exit poll of this night is an input.
+[election]
+cycle = "ele2022"
+race = "share"
+cand_a = "13"
+cand_b = "22"
+
+[prior]
+kind = "open"
+year = 2022
+round = 1
+cand_a = "13"
+cand_b = "22"
+
+[model]
+kind = "municipal"
+tau = 0.015          # v1
+kappa = 50000.0
+rho = 0.8
+swing_prior_mean = -0.00799    # poll 0.52056 - prior base 0.52855
+swing_prior_sd = 0.05665      # RMS poll error, 5 earlier elections
+count_scaled_terms = true
+
+[poll]
+file = "br_polls_2022r2.csv"
+election_date = "2022-10-30"
+n_polls = 24
+two_way = 0.52056
+prior_base = 0.52855
+sd = 0.05665
+n_errors = 5
+pollsters = ["Abrapel/Ipespe", "Atlas", "CNT/MDA", "Datafolha", "Genial/Quaest", "Gerp", "Ideia", "Ipec", "ModalMais/Futura", "Paraná Pesquisas", "PoderData"]
+
+[replay]
+year = 2022
+round = 2

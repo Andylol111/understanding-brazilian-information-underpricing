@@ -1,0 +1,39 @@
+# Hungary National Assembly election 2026-04-12: final national party-list polls
+# Source page: en.wikipedia.org "Opinion polling for the 2026 Hungarian parliamentary election", revision 1374350543 (2026-09-11T13:35:32Z), first table "Polling" (2026 rows). Retrieved 2026-10-31 via Wikipedia REST API (https://en.wikipedia.org/api/rest_v1/page/html/Opinion_polling_for_the_2026_Hungarian_parliamentary_election), text CC BY-SA 4.0; polls published by the named firms. Raw HTML: $BRUNDER_DATA/raw/hungary/polls/pp_Opinion_polling_for_the_2026_Hungarian_parliamentary_election.html
+# Numbers are % of DECIDED party voters (the page states undecided responses are removed), as printed; they sum to ~100, no undecided column. The page prints no all-respondent variant.
+# Kept every poll with fieldwork end 2026-02-11..2026-04-11 (last 60 days before election day, day-before at most). Others column = printed "Others" (blank = dash). Lead column dropped. affiliation = Wikipedia classification (Government / Independent/opposition).
+# Last published fieldwork ends 2026-04-11 (Alapjogokert Kozpont 9-11 Apr, 21 Kutatokozpont 8-11 Apr, Median 7-11 Apr). No legal publication blackout noted on the page; the page lists no poll fieldwork on 12 Apr.
+# Event rows in the table (party withdrawals, election date) omitted. Poll pollster names are as printed.
+pollster,date_printed,fieldwork_start,fieldwork_end,sample_size,Fidesz-KDNP,Tisza,DK,MH,MKKP,Others
+Medián,7–11 Apr 2026,2026-04-07,2026-04-11,"2,286",37.9,55.5,1.4,3.9,1.3,
+Alapjogokért Központ,9–11 Apr 2026,2026-04-09,2026-04-11,"1,000",44.5,42.0,4.0,7.0,2.5,
+21 Kutatóközpont,8–11 Apr 2026,2026-04-08,2026-04-11,"1,500",38,55,1,5,1,
+Minerva,7–10 Apr 2026,2026-04-07,2026-04-10,"3,332",41.1,50.8,1.7,4.2,2.3,
+AtlasIntel,5–10 Apr 2026,2026-04-05,2026-04-10,"1,587",39.3,52.1,1.5,5.1,1.4,0.6
+Závecz Research,7–9 Apr 2026,2026-04-07,2026-04-09,"1,000",40,54,1,4,1,
+Publicus,7–9 Apr 2026,2026-04-07,2026-04-09,"1,004",39,52,2,5,2,
+McLaughlin & Associates,7 Apr 2026,2026-04-07,2026-04-07,"1,000",45.4,39.7,4.6,7.5,2.2,0.6
+Iránytű Institute,31 Mar–4 Apr 2026,2026-03-31,2026-04-04,"1,000",40,51,1,4,4,0
+IDEA,29 Mar–4 Apr 2026,2026-03-29,2026-04-04,"1,500",37,50,4,5,2,2
+Publicus,27–30 Mar 2026,2026-03-27,2026-03-30,"1,002",40,49,3,6,3,
+Alapjogokért Központ,28–29 Mar 2026,2026-03-28,2026-03-29,"1,000",50,42,2,5,1,
+Závecz Research,24–28 Mar 2026,2026-03-24,2026-03-28,"1,000",38,51,3,5,3,
+21 Kutatóközpont,23–28 Mar 2026,2026-03-23,2026-03-28,"1,500",37,56,1,5,1,
+XXI. Század,26–27 Mar 2026,2026-03-26,2026-03-27,"1,000",46,41,5,6,2,
+Republikon,23–26 Mar 2026,2026-03-23,2026-03-26,"1,000",40,49,2,5,4,
+Nézőpont,23–24 Mar 2026,2026-03-23,2026-03-24,"1,000",46,40,3,8,3,
+Medián,17–20 Mar 2026,2026-03-17,2026-03-20,"1,000",35,58,1,4,2,
+Nézőpont,16–17 Mar 2026,2026-03-16,2026-03-17,"1,000",46,40,3,8,3,
+Minerva,10–11 Mar 2026,2026-03-10,2026-03-11,"1,000",40.1,51.3,1.4,5.5,1.7,
+XXI. Század,7–9 Mar 2026,2026-03-07,2026-03-09,"1,200",46,41,4,6,3,
+IDEA,28 Feb–6 Mar 2026,2026-02-28,2026-03-06,"1,500",37,49,5,6,2,1
+21 Kutatóközpont,2–6 Mar 2026,2026-03-02,2026-03-06,"1,200",39,53,2,5,1,
+McLaughlin & Associates,25 Feb–2 Mar 2026,2026-02-25,2026-03-02,"1,000",43,37,5,5,3,
+Závecz Research,22–28 Feb 2026,2026-02-22,2026-02-28,"1,000",38,50,3,7,2,
+Publicus,24–27 Feb 2026,2026-02-24,2026-02-27,"1,001",39,47,4,6,4,
+Nézőpont,23–25 Feb 2026,2026-02-23,2026-02-25,"1,000",45,40,3,8,4,
+Minerva,20–25 Feb 2026,2026-02-20,2026-02-25,"1,200",41.5,50.0,2.8,4.1,1.7,
+Medián,18–23 Feb 2026,2026-02-18,2026-02-23,"1,000",35,55,2,6,2,
+Republikon,12–17 Feb 2026,2026-02-12,2026-02-17,"1,000",39,47,3,6,5,
+Publicus,9–12 Feb 2026,2026-02-09,2026-02-12,"1,000",39,48,5,5,4,
+Nézőpont,9–11 Feb 2026,2026-02-09,2026-02-11,"1,000",46,40,4,7,3,0

@@ -1,0 +1,27 @@
+# Mexico presidential election 2012-07-01: final national presidential polls (Pena Nieto, Lopez Obrador, Vazquez Mota, Quadri)
+# Source: es.wikipedia.org "Elecciones federales de Mexico de 2012", revision 176067868 (2026-10-30T11:16:21Z), table of the reputable polls (the English article "2012 Mexican general election" prints the same table but it stops before the last-week polls and has no separate polling article; en revision 1379907173). Raw HTML: $BRUNDER_DATA/raw/mexico/polls/es_Elecciones_federales_de_Mexico_de_2012.html and 2012_Mexican_general_election.html. Wikipedia text CC BY-SA 4.0.
+# The page prints only a publication MONTH, no fieldwork dates and no sample sizes, so fieldwork_start/fieldwork_end are BLANK and date_printed holds the month. All May and June 2012 rows (published in the 60 days before the vote) are kept, in page order. Rows labelled "Ultima encuesta previa a la eleccion" = final pre-election releases (El Universal/Buendia & Laredo, BGC-Excelsior, GEA/ISA-Milenio).
+# Numbers AS PRINTED; the page states the undecided share is excluded (effective vote). Reforma 2012-06 row and others have the debate-night "conteo rapido" notes in the note column. Berumen y asociados/OUE row prints probable-vote intervals only (no point estimates) and so has blank numbers; interval text in note (the English article prints 17.0-20.7 / 30.9-35.9 / 27.3-31.8 as single numbers, upper ends). Rows are in page order (not sorted). The English and Spanish articles differ slightly in some June rows (e.g. Reforma and Mitofsky); the Spanish table is used as printed.
+pollster,date_printed,fieldwork_start,fieldwork_end,sample_size,Vazquez_Mota,Pena_Nieto,Lopez_Obrador,Quadri,note
+GEA/ISA-Milenio,Mayo 2012,,,,26.1,51.2,21.1,1.6,Publicada el 1.º may. 2012.
+Consulta Mitofsky,Mayo 2012,,,,28,48,23,1,Publicada el 1.º may. 2012.
+El Sol de México/Parametría,Mayo 2012,,,,26,49,24,1,Publicada a una semana antes del debate.
+El Universal/Buendía & Laredo,Mayo 2012,,,,22.9,54.3,21.4,1.4,"Publicada el 6 de mayo, antes del debate."
+GEA/ISA-Milenio,Mayo 2012,,,,27.6,49.1,21.9,1.4,"Publicada el 6 de mayo, antes del debate."
+El Universal,Mayo 2012,,,,22.0,36.3,23.4,9.5,Conteo rápido al cierre del debate.
+Uno TV/María de la Heras,Mayo 2012,,,,17.98,16.85,31.46,17.98,Conteo rápido al cierre del debate.
+El Universal/Buendía & Laredo,Mayo 2012,,,,23.1,49.6,24.8,2.1,
+Covarrubias y Asociados,Mayo 2012,,,,26,40,30,4,
+Uno TV/María de las Heras,Mayo 2012,,,,26,39,31,4,
+Reforma,Mayo 2012,,,,23,38,34,5,EPN y AMLO = empate estadístico (m±2.9).
+Mitofsky,Junio 2012,,,,21,36,25.3,1.9,
+GEA/ISA-Milenio,Junio 2012,,,,22.8,44.8,28.9,3.5,
+Parametria,Junio 2012,,,,24,43,30,3,
+Reforma,Junio 2012,,,,34.0,20.0,32.0,8.0,Conteo rápido al cierre del debate.
+Berumen y asociados / OUE,Junio 2012,,,,,,,,Intervalos de votación probable. Sin datos sobre PANAL.
+Covarrubias y Asociados,Junio 2012,,,,26,41,30,3,
+Uno TV/María de las Heras,Junio 2012,,,,22.93,40.09,32.43,4.55,
+Ipsos/Bimsa,Junio 2012,,,,24,41,34,1,-
+El Universal/Buendía & Laredo,Junio 2012,,,,24.4,45.0,27.9,2.7,Última encuesta previa a la elección.
+BGC-Excelsior,Junio 2012,,,,25,44,28,3,Última encuesta previa a la elección.
+GEA/ISA-Milenio,Junio 2012,,,,22.4,46.9,28.5,2.2,Última encuesta previa a la elección.

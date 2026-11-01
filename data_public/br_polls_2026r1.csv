@@ -1,0 +1,63 @@
+# Source: Wikipedia "Opinion polling for the 2026 Brazilian presidential election", section First round > 2026 > Aug-Oct (Campaign period) table; revision 1382146002 (page dc:modified 2026-10-26).
+# Licence: CC BY-SA 4.0 (Wikipedia contributors; see page history). Retrieved 2026-10-31 via https://en.wikipedia.org/api/rest_v1/page/html/ (User-Agent brunder/0.1 (research; recorder)); raw HTML in $BRUNDER_DATA/raw/brazil/polls/pp_Opinion_polling_for_the_2026_Brazilian_presidential_election.html
+# Election: Brazil presidential 2026 round 1, 2026-10-04. Fieldwork end <= 2026-10-03; the page table starts 2026-08-15 so the whole table (campaign period) is covered (final-60-day window = ends >= 2026-08-05).
+# Table choice: stimulated first-round vote, final candidate list (Lula PT, F. Bolsonaro PL, Caiado PSD, Zema Novo, Santos Mission, Cury Avante). One row per published poll in the main table.
+# Numbers are % of ALL respondents as printed (NOT valid votes): Blank_Null_Undec = blank/null/undecided share; the page prints no valid-vote version. Official result in br_poll_results.csv is % of valid votes, so rescale polls (divide by 100-Blank_Null_Undec) before comparing.
+# Others = column "Others" as printed. Sample size as printed (thousands separators removed). Empty = not printed.
+pollster,fieldwork_start,fieldwork_end,sample_size,Lula,F_Bolsonaro,Caiado,Zema,Santos,Cury,Others,Blank_Null_Undec
+Datafolha,2026-10-03,2026-10-03,4006,42,40,4,0,3,3,0,7
+Quaest,2026-10-02,2026-10-03,3702,40,38,3,0,3,3,0,13
+Futura,2026-10-02,2026-10-03,2000,40.5,42.5,3.7,0.8,2.6,3.9,1,2.6
+Palver,2026-09-30,2026-10-03,5000,43,47,1,0,7,1,0,0
+PoderData,2026-09-30,2026-10-02,4000,42,41,2,1,3,3,1,6
+MDA,2026-09-29,2026-10-02,2007,43.1,38,3,0.8,1.5,3.2,0.5,9.7
+AtlasIntel,2026-09-27,2026-10-02,4945,46.7,43.8,1.4,0.3,4.6,2.1,0.6,0.6
+Vox Brasil,2026-09-29,2026-10-01,2100,40.4,41.2,3.3,1.3,2.2,1.2,0.2,10.2
+Datafolha,2026-09-28,2026-09-30,2506,42,38,3,1,3,4,2,7
+Real Time,2026-09-26,2026-09-30,2000,43,39,3,1,4,3,1,6
+Indexa,2026-09-27,2026-09-29,2000,39,34,4,1,3,4,0,11
+Futura,2026-09-25,2026-09-29,2000,39.4,42.2,4,1.6,3.2,3.8,0.8,5
+Vox Brasil,2026-09-26,2026-09-28,2100,41.4,37.8,3.8,1.8,2.7,2.2,0.3,10.3
+Ideia,2026-09-25,2026-09-28,2000,39.4,38.4,4.4,3.5,4.5,6.7,1.4,2.2
+AtlasIntel,2026-09-23,2026-09-28,5005,45.3,42.2,1.8,0.9,5.2,2,0.5,2.1
+Nexus,2026-09-25,2026-09-27,2000,42,37,5,1,4,5,1,5
+Quaest,2026-09-24,2026-09-27,2004,39,34,4,1,3,4,0,15
+Palver,2026-09-24,2026-09-27,5000,44,44,1,1,8,1,0,2
+Datafolha,2026-09-22,2026-09-24,2002,40,36,4,1,3,5,1,7
+Futura,2026-09-18,2026-09-24,2000,38.4,40.4,5.7,0.9,2.4,5.6,1.2,5.3
+PoderData,2026-09-20,2026-09-23,3000,41,39,2,1,3,6,3,6
+Palver,2026-09-20,2026-09-23,5000,43,43,1,1,8,2,1,2
+Real Time,2026-09-19,2026-09-23,2000,41,37,2,1,6,6,1,6
+AtlasIntel,2026-09-17,2026-09-22,5015,45.8,43.4,1.3,0.9,4.5,2.1,0.8,1.2
+Nexus,2026-09-18,2026-09-20,2006,40,37,5,1,3,6,1,6
+Quaest,2026-09-17,2026-09-20,2004,37,33,4,1,3,6,1,15
+Palver,2026-09-15,2026-09-20,5000,41,42,1,1,11,2,1,1
+Datafolha,2026-09-15,2026-09-16,2002,39,36,4,2,3,6,2,9
+PoderData,2026-09-13,2026-09-16,3000,37,36,3,1,3,8,6,6
+AtlasIntel,2026-09-11,2026-09-16,5018,44.1,41.7,1.7,1.1,5.1,3.5,0.7,2.1
+Futura,2026-09-11,2026-09-15,2000,38.3,37.7,4.5,1,3.4,6.5,2.4,6.1
+Nexus,2026-09-11,2026-09-13,2003,42,37,5,1,2,6,1,6
+Quaest,2026-09-10,2026-09-13,2004,36,31,4,1,4,7,0,17
+Indexa,2026-09-10,2026-09-13,2000,38,34,4,1,3,6,0,14
+MDA,2026-09-09,2026-09-13,2002,40.5,30.4,3,1,2.7,6,2.9,13.5
+Datafolha,2026-09-08,2026-09-10,2002,39,35,4,2,3,6,4,10
+Futura,2026-09-04,2026-09-10,2000,39.2,33.6,4.4,0.7,4.3,6.4,3,8.3
+PoderData,2026-09-06,2026-09-09,3000,38,36,2,1,3,10,5,4
+AtlasIntel,2026-09-04,2026-09-09,5000,43,37.4,1.1,2.1,6.5,6.6,2.3,1
+Palver,2026-09-04,2026-09-07,5000,40,39,1,1,11,4,1,2
+Ideia,2026-09-04,2026-09-07,1500,38.4,37.3,4,1.5,4,6.6,3.1,5.3
+Nexus,2026-09-04,2026-09-07,2002,39,35,4,1,4,9,2,5
+Quaest,2026-09-03,2026-09-06,2004,36,29,3,2,3,8,1,18
+Datafolha,2026-09-01,2026-09-02,2002,38,33,4,2,3,8,3,9
+PoderData,2026-08-30,2026-09-02,3000,37,34,2,1,3,10,8,7
+Quaest,2026-08-30,2026-09-01,2004,37,29,1,1,3,10,1,18
+Futura,2026-08-27,2026-09-01,2000,38.7,33.6,3.5,1.6,2.8,9.9,3.8,6.1
+Real Time,2026-08-27,2026-08-31,2000,38,30,4,2,7,11,2,6
+Nexus,2026-08-28,2026-08-30,2005,39,33,5,1,3,11,1,6
+AtlasIntel,2026-08-25,2026-08-30,5014,43.4,33.7,3.3,1,7.6,7.8,4,0.3
+Vox Brasil,2026-08-25,2026-08-27,2100,37.1,34.8,5,2.8,3.3,2.6,4.1,10.3
+PoderData,2026-08-23,2026-08-26,2400,38,35,4,2,4,4,7,7
+Nexus,2026-08-21,2026-08-23,2006,41,37,5,3,3,2,1,8
+Indexa,2026-08-20,2026-08-23,2000,39,34,5,1,4,1,0,16
+Datafolha,2026-08-18,2026-08-20,2058,39,33,5,3,4,2,4,10
+Nexus,2026-08-14,2026-08-16,2003,41,36,5,4,4,1,1,7

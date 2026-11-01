@@ -1,0 +1,19 @@
+# Mexico presidential election 2018-07-01: final national presidential polls (Lopez Obrador, Anaya, Meade, Rodriguez Calderon; Zavala until her withdrawal on 2018-05-16)
+# Source: en.wikipedia.org "Opinion polling for the 2018 Mexican general election", revision 1306337786 (2025-08-17T06:26:21Z), table "By candidates (January-June 2018)". Retrieved 2026-10-31 via Wikipedia REST API (https://en.wikipedia.org/api/rest_v1/page/html/Opinion_polling_for_the_2018_Mexican_general_election), text CC BY-SA 4.0; polls published by the named firms. Raw HTML: $BRUNDER_DATA/raw/mexico/polls/pp_Opinion_polling_for_the_2018_Mexican_general_election.html
+# Numbers AS PRINTED (mixed: some rows raw with Other/None undecided share, others effective vote summing to ~100). Sample sizes are NOT printed on the page; year is not printed (taken as 2018). The Wikipedia table is sparse (about 12 polls in the last 60 days) and lacks e.g. Consulta Mitofsky/Parametria June releases.
+# Kept every poll with fieldwork end 2018-05-02..2018-06-30. Column "Rodriguez" = Jaime Rodriguez Calderon (El Bronco).
+pollster,date_printed,fieldwork_start,fieldwork_end,sample_size,Lopez_Obrador,Anaya,Meade,Zavala,Rodriguez_Calderon,Other_None
+BGC,June 22-25,2018-06-22,2018-06-25,,49,26,21,,4,
+Reforma,June 20-24,2018-06-20,2018-06-24,,51,27,19,,3,
+El Financiero,June 15-23,2018-06-15,2018-06-23,,54,21,22,,3,
+Arias Consultores,June 13-15,2018-06-13,2018-06-15,,62,19.8,13.7,,3.3,
+De Las Heras Demotecnia,June 10-13,2018-06-10,2018-06-13,,50,25,19,5,1,
+Varela y Asociados,May 30-June 4,2018-05-30,2018-06-04,,50.6,29.5,17.6,,2.2,
+BGC,May 31-June 4,2018-05-31,2018-06-04,,47,29,21,,3,
+Parametría,May 23-29,2018-05-23,2018-05-29,,54,24,17,3,2,
+Reforma,May 24-27,2018-05-24,2018-05-27,,52,26,19,,4,
+Eje Central,May 21-22,2018-05-21,2018-05-22,,49,26,21,,4,
+SDP Noticias,May 18-19,2018-05-18,2018-05-19,,42.4,25.8,24.2,0.6,3.3,3.7
+Ipsos,May 11-15,2018-05-11,2018-05-15,,43,24,16,,2,15
+Varela y Asociados,April 28-May 4,2018-04-28,2018-05-04,,47.5,33.1,16.2,1.7,1.4,
+El Financiero,April 26-May 2,2018-04-26,2018-05-02,,46,26,20,5,3,

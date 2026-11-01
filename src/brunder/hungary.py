@@ -418,7 +418,27 @@ def _district_moments(state: pd.DataFrame, prior: pd.DataFrame, p: nc.Params) ->
     var_delta = (sig_m2 * W2p.sum() + sig_b2 * (Wp ** 2).sum()) / Wp.sum() ** 2 if Wp.sum() > 0 else 0.0
     df["var_i"] = sig_m2 * np.where(counted, 1 - df["f"], 1.0)
     df = df.join(by[["var_u"]], on="uf").join((1 - lam).rename("one_m_lam"), on="uf")
-    df.attrs.update({"var_delta": var_delta, "tau": p.tau, "k": k, "delta": delta})
+    nat_sd = None                    # set with a swing prior: one national error (sd of tau and of the swing's posterior together)
+    if p.swing_prior_sd is not None:
+        # Starting estimate of the national swing (as brunder.nowcast.nowcast): the swing is the precision-weighted combination of
+        # the prior (mean, sd) and the swing observed in the counted districts; every district moves by the same amount and the
+        # national error is the posterior variance. count_scaled_terms scales tau and the between-county deviations by the
+        # weight the counted votes have in the swing (0 before any count).
+        var_obs = np.inf
+        if Wp.sum() > 0:
+            var_obs = sig_m2 * W2p.sum() / Wp.sum() ** 2
+            if len(by) > 1:
+                var_obs += sig_b2 * (Wp ** 2).sum() / Wp.sum() ** 2
+        s2 = p.swing_prior_sd ** 2
+        w_obs = s2 / (s2 + var_obs) if np.isfinite(var_obs) else 0.0
+        delta_post = w_obs * delta + (1 - w_obs) * (p.swing_prior_mean or 0.0)
+        df["delta_u"] = df["delta_u"] + (delta_post - delta)
+        df["s_hat"] = (df["s0"] + df["delta_u"] + p.rho * (df["d"] - df["delta_u"]).fillna(0.0) * counted).clip(0, 1)
+        scale = w_obs if p.count_scaled_terms else 1.0
+        df["var_u"] = df["var_u"] * scale
+        nat_sd = float(np.sqrt(p.tau ** 2 * scale + (1 - w_obs) * s2))
+        delta = delta_post
+    df.attrs.update({"var_delta": var_delta, "tau": p.tau, "k": k, "delta": delta, "nat_sd": nat_sd})
     return df.reset_index(drop=True)
 
 
@@ -436,7 +456,9 @@ def district_draws(state: pd.DataFrame, prior: pd.DataFrame, p: nc.Params, z_nat
     z2 = rng.standard_normal(D)
     nat = m.attrs["tau"] * z_nat[:, None] + \
         (m["one_m_lam"].to_numpy() * np.sqrt(m.attrs["var_delta"]))[None, :] * z2[:, None]
-    s = m["s_hat"].to_numpy()[None, :] + nat + zu[m["uf"]].to_numpy() * np.sqrt(m["var_u"].to_numpy())[None, :] + \
+    if m.attrs["nat_sd"] is not None:           # swing prior: one national error for every district, shared with the list race
+        nat = m.attrs["nat_sd"] * z_nat[:, None] + np.zeros((1, len(m)))
+    s = m["s_hat"].to_numpy()[None, :] + nat + zu[m["uf"]].to_numpy() * np.sqrt(m["var_u"].to_numpy(float))[None, :] + \
         rng.standard_normal((D, len(m))) * np.sqrt(m["var_i"].to_numpy())[None, :]
     s = np.clip(s, 0, 1)
     s_e = np.clip(s + env_shift + env_sd * rng.standard_normal(D)[:, None], 0, 1)

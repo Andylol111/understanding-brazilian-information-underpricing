@@ -1,0 +1,75 @@
+# Source: Wikipedia "Opinion polling for the 2022 Brazilian general election", revision 1368964934 (page dc:modified 2026-08-12). Section Second round > Bolsonaro vs. Lula > "After 2 October 2022" table (phase=post_R1) plus the "2021 to 2 October 2022" head-to-head table restricted to the 60-day window (phase=pre_R1_hypothetical).
+# Licence: CC BY-SA 4.0 (Wikipedia contributors; see page history). Retrieved 2026-10-31 via https://en.wikipedia.org/api/rest_v1/page/html/ (User-Agent brunder/0.1 (research; recorder)); raw HTML in $BRUNDER_DATA/raw/brazil/polls/Opinion_polling_for_the_2022_Brazilian_general_election.html
+# Election: Brazil presidential 2022 round 2, 2022-10-30 (Bolsonaro vs Lula). Fieldwork end <= 2022-10-29 and >= 2022-08-31 (60-day window). Pre-R1 rows are hypothetical head-to-head asked before the first round; model should prefer post_R1.
+# Numbers are % of ALL respondents as printed (NOT valid votes), incl. Blank_Null_Undec; no valid-vote version on the page (rescale by dividing by 100-Blank_Null_Undec). J_Bolsonaro = Jair Bolsonaro.
+# Pollster names as printed, footnote markers removed. Sample size as printed (thousands separators removed).
+pollster,fieldwork_start,fieldwork_end,sample_size,J_Bolsonaro,Lula,Blank_Null_Undec,phase
+Datafolha,2022-10-28,2022-10-29,8308,45,49,7,post_R1
+Genial/Quaest,2022-10-27,2022-10-29,2000,42,45,13,post_R1
+Ipec,2022-10-27,2022-10-29,4272,43,50,7,post_R1
+Atlas,2022-10-26,2022-10-29,7500,45.7,52.4,1.9,post_R1
+CNT/MDA,2022-10-26,2022-10-28,2002,44.9,46.9,8.2,post_R1
+Paraná Pesquisas,2022-10-26,2022-10-28,2400,46.3,47.1,6.6,post_R1
+Datafolha,2022-10-25,2022-10-27,4580,44,49,7,post_R1
+ModalMais/Futura,2022-10-24,2022-10-26,2000,47.2,46.6,6.1,post_R1
+Gerp,2022-10-21,2022-10-26,2095,47,43,9,post_R1
+PoderData,2022-10-23,2022-10-25,5000,44,49,7,post_R1
+Genial/Quaest,2022-10-23,2022-10-25,2000,42,48,10,post_R1
+Abrapel/Ipespe,2022-10-22,2022-10-24,1100,44,50,6,post_R1
+Ipec,2022-10-22,2022-10-24,3008,43,50,7,post_R1
+Paraná Pesquisas,2022-10-20,2022-10-24,2020,45.9,46.3,7.8,post_R1
+Atlas,2022-10-18,2022-10-22,4500,46.2,52,1.8,post_R1
+ModalMais/Futura,2022-10-17,2022-10-19,2000,46.9,45.9,7.1,post_R1
+Datafolha,2022-10-17,2022-10-19,2912,45,49,5,post_R1
+Paraná Pesquisas,2022-10-15,2022-10-19,2020,44.5,46.9,8.6,post_R1
+Ideia,2022-10-14,2022-10-19,1500,46,50,4,post_R1
+Abrapel/Ipespe,2022-10-17,2022-10-18,1100,43,49,8,post_R1
+PoderData,2022-10-16,2022-10-18,5000,44,48,8,post_R1
+Genial/Quaest,2022-10-16,2022-10-18,2000,42,47,11,post_R1
+Ipec,2022-10-11,2022-10-17,3008,43,50,7,post_R1
+CNT/MDA,2022-10-14,2022-10-16,2002,41.8,48.1,10.1,post_R1
+Datafolha,2022-10-13,2022-10-14,2898,45,49,6,post_R1
+ModalMais/Futura,2022-10-10,2022-10-12,2000,46.5,46.9,6.6,post_R1
+Abrapel/Ipespe,2022-10-10,2022-10-12,2000,43,49,8,post_R1
+Atlas,2022-10-08,2022-10-12,4500,46.5,51.1,3.3,post_R1
+Paraná Pesquisas,2022-10-08,2022-10-12,2020,44.1,47.6,8.4,post_R1
+PoderData,2022-10-09,2022-10-11,5000,44,48,8,post_R1
+Gerp,2022-10-06,2022-10-11,2095,46,48,6,post_R1
+Abrapel/Ipespe,2022-10-08,2022-10-10,1100,43,50,7,post_R1
+IPEC,2022-10-08,2022-10-10,2000,42,51,7,post_R1
+Datafolha,2022-10-05,2022-10-07,2884,44,49,7,post_R1
+Genial/Quaest,2022-10-03,2022-10-05,2000,41,48,11,post_R1
+PoderData,2022-10-03,2022-10-05,3500,44,48,8,post_R1
+IPEC,2022-10-03,2022-10-05,2000,43,51,6,post_R1
+ModalMais/Futura,2022-10-03,2022-10-04,2000,46,49.3,4.7,post_R1
+Datafolha,2022-09-30,2022-10-01,12800,38,54,8,pre_R1_hypothetical
+IPEC,2022-09-29,2022-10-01,3008,37,52,11,pre_R1_hypothetical
+Abrapel/Ipespe,2022-09-30,2022-09-30,1100,38,55,7,pre_R1_hypothetical
+Atlas,2022-09-28,2022-09-30,4500,42.8,53.1,4.1,pre_R1_hypothetical
+CNT/MDA,2022-09-28,2022-09-30,2002,41.2,50.4,8.4,pre_R1_hypothetical
+Atlas,2022-09-24,2022-09-28,4500,42.4,51.8,5.8,pre_R1_hypothetical
+Exame/Ideia,2022-09-23,2022-09-28,1500,41,52,7,pre_R1_hypothetical
+Genial/Quaest,2022-09-24,2022-09-27,2000,38,52,10,pre_R1_hypothetical
+Atlas,2022-09-22,2022-09-26,4500,43.7,51.3,5,pre_R1_hypothetical
+Ipec,2022-09-25,2022-09-26,3008,35,54,14,pre_R1_hypothetical
+BTG Pactual/FSB,2022-09-23,2022-09-25,2000,40,52,8,pre_R1_hypothetical
+Abrapel/Ipespe,2022-09-21,2022-09-23,1100,38,54,8,pre_R1_hypothetical
+Datafolha,2022-09-20,2022-09-22,6754,38,54,9,pre_R1_hypothetical
+XP/Ipespe,2022-09-19,2022-09-21,2000,37,54,9,pre_R1_hypothetical
+PoderData,2022-09-18,2022-09-20,3500,42,50,8,pre_R1_hypothetical
+Genial/Quaest,2022-09-17,2022-09-20,2000,40,50,10,pre_R1_hypothetical
+Arko/Atlas,2022-09-16,2022-09-20,7514,41.4,53.1,5.5,pre_R1_hypothetical
+Ipec,2022-09-17,2022-09-18,3008,35,54,11,pre_R1_hypothetical
+BTG/FSB,2022-09-16,2022-09-18,2000,39,52,9,pre_R1_hypothetical
+Aprapel/Ipespe,2022-09-14,2022-09-16,1100,38,53,9,pre_R1_hypothetical
+Datafolha,2022-09-13,2022-09-15,5926,38,54,8,pre_R1_hypothetical
+PoderData,2022-09-11,2022-09-13,3500,42,51,6,pre_R1_hypothetical
+Genial/Quaest,2022-09-10,2022-09-13,2000,40,48,12,pre_R1_hypothetical
+Globo/Ipec,2022-09-09,2022-09-11,2512,36,53,12,pre_R1_hypothetical
+BTG/FSB,2022-09-09,2022-09-11,2000,38,51,11,pre_R1_hypothetical
+Datafolha,2022-09-08,2022-09-09,2676,39,53,9,pre_R1_hypothetical
+Abrapel/Ipespe,2022-09-07,2022-09-09,1100,39,52,9,pre_R1_hypothetical
+BTG/FSB,2022-09-02,2022-09-04,2000,40,53,8,pre_R1_hypothetical
+Globo/Ipec,2022-09-02,2022-09-04,2512,36,52,12,pre_R1_hypothetical
+Genial/Quaest,2022-09-01,2022-09-04,2000,39,51,10,pre_R1_hypothetical
+Abrapel/Ipespe,2022-08-30,2022-09-01,1100,38,53,9,pre_R1_hypothetical

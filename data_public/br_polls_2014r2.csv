@@ -1,0 +1,20 @@
+# Source: Wikipedia "2014 Brazilian general election", revision 1381845583, section Opinion polls > Second round table (two blocks: "Valid votes" and "Total votes").
+# Licence: CC BY-SA 4.0 (Wikipedia contributors; see page history). Retrieved 2026-10-31 via https://en.wikipedia.org/api/rest_v1/page/html/ (User-Agent brunder/0.1 (research; recorder)); raw HTML in $BRUNDER_DATA/raw/brazil/polls/2014_Brazilian_general_election.html
+# Election: Brazil presidential 2014 round 2, 2014-10-26 (Rousseff vs Neves). Fieldwork end <= 2014-10-25; table starts 2014-10-07 so the whole table lies in the window (15 polls).
+# MAIN columns Rousseff, Neves = VALID-VOTE version as printed (votos validos). Columns Rousseff_total, Neves_total, Abst_Undec_total = the same polls expressed as % of ALL respondents ("Total votes" block, Abst_Undec = abstention/undecided/blank/null). Sample size as printed (thousands separators removed).
+pollster,fieldwork_start,fieldwork_end,sample_size,Rousseff,Neves,Rousseff_total,Neves_total,Abst_Undec_total
+Vox Populi,2014-10-25,2014-10-25,2000,54,46,48,41,10
+Datafolha,2014-10-24,2014-10-25,19318,52,48,47,43,10
+Ibope,2014-10-24,2014-10-25,3010,53,47,49,43,8
+CNT/MDA,2014-10-23,2014-10-24,2002,49.7,50.3,44.7,45.3,10.1
+Datafolha,2014-10-22,2014-10-23,9910,53,47,48,42,10
+Datafolha,2014-10-21,2014-10-21,4355,52,48,47,43,10
+Ibope,2014-10-20,2014-10-22,3010,54,46,49,41,10
+Datafolha,2014-10-20,2014-10-20,4389,52,48,46,43,11
+Vox Populi,2014-10-18,2014-10-19,2000,52,48,46,43,11
+CNT/MDA,2014-10-18,2014-10-19,2002,50.5,49.5,45.5,44.5,10
+Datafolha,2014-10-14,2014-10-15,9081,49,51,43,45,12
+Ibope,2014-10-12,2014-10-14,3010,49,51,43,45,12
+Vox Populi,2014-10-11,2014-10-12,2000,51,49,45,44,11
+Datafolha,2014-10-08,2014-10-09,2879,49,51,44,46,10
+Ibope,2014-10-07,2014-10-08,3010,49,51,44,46,10

@@ -1,0 +1,69 @@
+# Source: https://en.wikipedia.org/wiki/Opinion_polling_for_the_2020_Polish_presidential_election (REST HTML, revision 1380193388, modified 2026-10-14T09:24:23Z); retrieved 2026-10-31; licence: CC BY-SA 4.0 (Wikipedia text/tables); polls published by the named pollsters.
+# Table: runoff Duda vs Trzaskowski (4th table of the page). Election day 2020-07-12. Polls before 2020-06-28 are head-to-head scenarios from before the first round (kept as printed; filter by date). No sample-size column.
+# Fieldwork end <= election day - 1 and >= election day - 60 days; values in % as printed ('<0.5' kept as printed; blank = not reported); sample size as printed; the Wikipedia 'Lead' column is dropped; election-night exit/late polls excluded.
+pollster,fieldwork_start,fieldwork_end,sample_size,Duda,Trzaskowski,Undecided
+Social Changes,2020-07-08,2020-07-10,,47,46,7
+IBRiS,2020-07-09,2020-07-09,,45.7,47.4,6.9
+CBOS,2020-06-30,2020-07-09,,44.4,44.6,11.0
+Kantar,2020-07-08,2020-07-09,,45.9,46.4,7.7
+Pollster,2020-07-08,2020-07-09,,50.72,49.28,
+Indicator,2020-07-08,2020-07-09,,45.9,44.7,9.4
+CBOS,2020-06-29,2020-07-09,,50.0,38.0,12
+IBRiS,2020-07-08,2020-07-08,,44.4,45.3,10.3
+PGB Opinium,2020-07-07,2020-07-09,,49.16,50.84,
+IPSOS,2020-07-07,2020-07-08,,50,47,3
+Kantar,2020-07-03,2020-07-08,,44,45,11
+Social Changes,2020-07-03,2020-07-07,,47,46,7
+IBRiS,2020-07-04,2020-07-04,,48.7,47.8,3.5
+United Surveys,2020-07-04,2020-07-04,,46.8,45.9,7.4
+IBRiS,2020-07-04,2020-07-04,,45.9,47.2,6.9
+PGB Opinium,2020-07-02,2020-07-04,,49.62,50.38,
+Estymator,2020-07-02,2020-07-03,,50.9,49.1,
+Kantar,2020-07-02,2020-07-03,,46,47,7
+IBRiS,2020-07-01,2020-07-01,,49.0,46.4,4.6
+Indicator,2020-06-30,2020-07-02,,50.7,49.3,
+IPSOS,2020-06-30,2020-07-01,,48,49,3
+Pollster,2020-06-30,2020-07-01,,51.14,48.86,
+Kantar,2020-06-30,2020-06-30,,44,45,11
+IBRiS,2020-06-28,2020-06-28,,45.8,48.1,6.1
+Indicator,2020-06-28,2020-06-28,,50.9,49.1,
+Kantar,2020-06-28,2020-06-28,,45.4,44.7,9.9
+Social Changes,2020-06-26,2020-06-27,,48,43,9
+IBRiS,2020-06-26,2020-06-26,,45.8,48.1,6.1
+IBSP,2020-06-25,2020-06-26,,48.51,51.49,
+Indicator,2020-06-23,2020-06-26,,50.9,49.1,
+Estymator,2020-06-24,2020-06-25,,50.6,49.4,
+Pollster,2020-06-24,2020-06-25,,44.83,46.48,8.69
+Kantar,2020-06-24,2020-06-25,,47,45,8
+IBRiS,2020-06-24,2020-06-24,,48.7,47.5,3.8
+IPSOS,2020-06-22,2020-06-23,,43,47,9
+Social Changes,2020-06-19,2020-06-23,,46,44,10
+Pollster,2020-06-22,2020-06-22,,51,49,
+IBRiS,2020-06-20,2020-06-20,,45.6,45.5,8.9
+IBRiS,2020-06-19,2020-06-20,,45.2,46.0,8.8
+United Survey,2020-06-19,2020-06-19,,45.8,46.9,7.4
+Estymator,2020-06-18,2020-06-19,,50.9,49.1,
+Kantar,2020-06-17,2020-06-18,,48,48,4
+IPSOS,2020-06-16,2020-06-17,,46,46,8
+Social Changes,2020-06-12,2020-06-16,,45,43,12
+Maison & Partners,2020-06-12,2020-06-15,,43,46,11
+Estymator,2020-06-12,2020-06-13,,50.7,49.3,
+IBRiS,2020-06-12,2020-06-13,,48.8,48.0,3.2
+Pollster,2020-06-09,2020-06-10,,53,47,
+Kantar,2020-06-05,2020-06-10,,41,43,16
+Social Changes,2020-06-05,2020-06-09,,47,45,8
+Estymator,2020-06-03,2020-06-04,,51.1,48.9,
+Pollster,2020-06-02,2020-06-03,,53,47,
+N/A,2020-06-01,2020-06-02,,47,53,
+Social Changes,2020-05-29,2020-06-02,,46,42,12
+United Survey,2020-05-29,2020-05-29,,44.5,44.3,11.2
+IBRiS,2020-05-29,2020-05-29,,49.0,46.4,4.6
+SWPS,2020-05-28,2020-05-29,,43,57,
+Pollster,2020-05-26,2020-05-27,,51.32,48.68,
+Social Changes,2020-05-22,2020-05-25,,46,45,9
+IBRiS,2020-05-22,2020-05-23,,49.6,44.7,5.7
+Estymator,2020-05-21,2020-05-22,,54.2,45.8,
+Kantar,2020-05-18,2020-05-19,,48,41,11
+Social Changes,2020-05-11,2020-05-18,,48,41,11
+Pollster,2020-05-15,2020-05-17,,53,47,
+United Survey,2020-05-15,2020-05-15,,49.3,40.5,10.2

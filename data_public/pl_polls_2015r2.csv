@@ -1,0 +1,13 @@
+# Source: https://en.wikipedia.org/wiki/2015_Polish_presidential_election (REST HTML, revision 1359444757, modified 2026-06-15T09:43:10Z); retrieved 2026-10-31; licence: CC BY-SA 4.0 (Wikipedia text/tables); polls published by the named pollsters.
+# Table: runoff Komorowski vs Duda (inside election article). Election day 2015-05-24. Polls dated before 2015-05-10 are head-to-head scenarios made before the first round (kept as printed; filter by date). No sample-size column.
+# Fieldwork end <= election day - 1 and >= election day - 60 days; values in % as printed ('<0.5' kept as printed; blank = not reported); sample size as printed; the Wikipedia 'Lead' column is dropped; election-night exit/late polls excluded.
+pollster,fieldwork_start,fieldwork_end,sample_size,Abstention,Komorowski,Duda,Undecided
+Millward Brown,2015-05-20,2015-05-20,,,47,45,8
+Estymator,2015-05-18,2015-05-18,,,48,52,
+Millward Brown,2015-05-18,2015-05-18,,,47,44,9
+IBRiS,2015-05-14,2015-05-14,,,43.2,48,6.9
+Millward Brown,2015-05-14,2015-05-14,,,40,44,15
+Estymator,2015-05-13,2015-05-14,,,46,54,
+Millward Brown,2015-05-07,2015-05-07,,,54,41,5
+Millward Brown,2015-04-13,2015-04-13,,,55,40,5
+Millward Brown,2015-03-30,2015-03-30,,,52,41,7

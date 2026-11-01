@@ -1,0 +1,8 @@
+# Mexico presidential elections: official national result, % of VALID votes (Wikipedia "Total" row = candidate votes plus non-registered write-ins; invalid/blank votes excluded, so basis is valid votes, not turnout). Coalition candidates are the coalition total (e.g. 2024 Sheinbaum = Morena+PVEM+PT 61.18).
+# Figures as printed in the results tables of the Wikipedia articles (INE/IFE/DOF official counts), retrieved 2026-10-31, CC BY-SA 4.0. Raw HTML: $BRUNDER_DATA/raw/mexico/polls/<article>.html. 2006 = IFE count (Calderon 15,000,284 vs Lopez Obrador 14,756,350).
+# Blank = not a candidate that year. Non_registered = write-ins. Zavala 2018 = withdrawn candidate still on the ballot (0.06).
+year,election,round,Sheinbaum,Galvez,Maynez,Lopez_Obrador,Anaya,Meade,Zavala,Rodriguez_Calderon,Pena_Nieto,Vazquez_Mota,Quadri,Calderon,Madrazo,Mercado,Campa,Non_registered,source
+2006,2006-07-02,presidential,,,,36.09,,,,,,,,36.69,22.75,2.76,0.98,0.73,2006_Mexican_general_election rev 1382536201 (source IFES)
+2012,2012-07-01,presidential,,,,32.41,,,,,39.17,26.03,2.34,,,,,0.04,2012_Mexican_general_election rev 1379907173 (source DOF)
+2018,2018-07-01,presidential,,,,54.71,22.91,16.88,0.06,5.38,,,,,,,,0.06,2018_Mexican_general_election rev 1375344701
+2024,2024-06-02,presidential,61.18,28.11,10.57,,,,,,,,,,,,,0.14,2024_Mexican_general_election rev 1382137744 (source INE)

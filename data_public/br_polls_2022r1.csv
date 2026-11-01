@@ -1,0 +1,57 @@
+# Source: Wikipedia "Opinion polling for the 2022 Brazilian general election", revision 1368964934 (page dc:modified 2026-08-12). Section First round > 2022 > Jul-Oct table.
+# Licence: CC BY-SA 4.0 (Wikipedia contributors; see page history). Retrieved 2026-10-31 via https://en.wikipedia.org/api/rest_v1/page/html/ (User-Agent brunder/0.1 (research; recorder)); raw HTML in $BRUNDER_DATA/raw/brazil/polls/Opinion_polling_for_the_2022_Brazilian_general_election.html
+# Election: Brazil presidential 2022 round 1, 2022-10-02. Fieldwork end <= 2022-10-01 and >= 2022-08-03 (60-day window); the whole Aug-3..Oct-1 part of the table is included.
+# Table choice: stimulated first-round vote, final candidate list as printed (Bolsonaro PL, Lula PT, Gomes PDT, Tebet MDB, Others, Blank/Null/Undecided). J_Bolsonaro = Jair Bolsonaro.
+# Numbers are % of ALL respondents as printed (NOT valid votes), incl. Blank_Null_Undec; the page prints no separate valid-vote version. Official result in br_poll_results.csv is % of valid votes (rescale polls by dividing by 100-Blank_Null_Undec).
+# Pollster names as printed, footnote markers removed. Sample size as printed (thousands separators removed).
+pollster,fieldwork_start,fieldwork_end,sample_size,J_Bolsonaro,Lula,Gomes,Tebet,Others,Blank_Null_Undec
+Datafolha,2022-09-30,2022-10-01,12800,34,48,5,6,2,5
+IPEC,2022-09-29,2022-10-01,3008,34,47,5,5,2,7
+Abrapel/Ipespe,2022-09-30,2022-09-30,1100,33,46,7,6,1,4
+Atlas,2022-09-28,2022-09-30,4500,40.7,49.8,3.9,2.6,1.8,1
+CNT/MDA,2022-09-28,2022-09-30,2002,36.3,44.2,4.5,4.3,2.2,8.5
+Datafolha,2022-09-27,2022-09-29,6800,34,48,6,5,1.2,4
+Atlas,2022-09-24,2022-09-28,4500,39.9,49.3,3.5,2.5,1.9,2.7
+Exame/Ideia,2022-09-23,2022-09-28,1500,37,47,6,5,1.2,4
+Genial/Quaest,2022-09-24,2022-09-27,2000,33,46,6,5,1,9
+Atlas,2022-09-22,2022-09-26,4500,41,48.3,3.5,2.1,2.7,2.3
+Ipec,2022-09-25,2022-09-26,3008,31,48,6,5,2,8
+BTG Pactual/FSB,2022-09-23,2022-09-25,2000,35,45,7,4,2,6
+Abrapel/Ipespe,2022-09-21,2022-09-23,1100,35,46,6,4,0,9
+Datafolha,2022-09-20,2022-09-22,6754,33,47,7,5,1,6
+XP/Ipespe,2022-09-19,2022-09-21,2000,35,46,7,4,1,7
+PoderData,2022-09-18,2022-09-20,3500,37,44,7,4,2,5
+Genial/Quaest,2022-09-17,2022-09-20,2000,34,44,6,5,1,10
+Arko/Atlas,2022-09-16,2022-09-20,7514,38.6,48.4,6.3,4,1.8,1
+Ipec,2022-09-17,2022-09-18,3008,31,47,7,5,1,9
+BTG/FSB,2022-09-16,2022-09-18,2000,35,44,7,5,1,7
+Abrapel/Ipespe,2022-09-14,2022-09-16,1100,35,45,7,5,2,5
+Datafolha,2022-09-13,2022-09-15,5926,33,45,8,5,2,6
+PoderData,2022-09-11,2022-09-13,3500,37,43,8,5,1,5
+Genial/Quaest,2022-09-10,2022-09-13,2000,34,42,7,4,2,11
+Globo/Ipec,2022-09-09,2022-09-11,2512,31,46,7,4,2,10
+BTG/FSB,2022-09-09,2022-09-11,2000,35,41,9,7,2,6
+Datafolha,2022-09-08,2022-09-09,2676,34,45,7,5,1,7
+Abrapel/Ipespe,2022-09-07,2022-09-09,1100,36,44,8,5,2,5
+BTG/FSB,2022-09-02,2022-09-04,2000,34,42,8,6,3,7
+Globo/Ipec,2022-09-02,2022-09-04,2512,31,44,8,4,2,11
+Genial/Quaest,2022-09-01,2022-09-04,2000,34,44,7,4,2,9
+Abrapel/Ipespe,2022-08-30,2022-09-01,1100,35,44,9,5,2,5
+Datafolha,2022-08-30,2022-09-01,5734,32,45,9,5,3,6
+PoderData,2022-08-28,2022-08-30,3500,36,44,8,4,1,5
+Paraná Pesquisas,2022-08-26,2022-08-30,2020,37.1,41.3,7.7,2.4,1.6,9.9
+XP/Ipespe,2022-08-26,2022-08-29,2000,35,43,9,5,1,6
+BTG/FSB,2022-08-26,2022-08-28,2000,36,43,9,4,2,7
+Ipec,2022-08-26,2022-08-28,2000,32,44,7,3,1,13
+Quaest,2022-08-25,2022-08-28,2000,32,44,8,3,2,11
+CNT/MDA,2022-08-25,2022-08-28,2002,34.1,42.3,7.3,2.1,1.1,12.8
+Atlas,2022-08-20,2022-08-25,7475,38.3,46.7,6.4,3.6,3.1,1.9
+Exame/Ideia,2022-08-19,2022-08-24,1500,36,44,9,4,3.6,5
+Paraná Pesquisas,2022-08-19,2022-08-23,2020,37,41.7,7.3,2.7,1,10.1
+BTG/FSB,2022-08-19,2022-08-21,2000,36,45,6,3,2,9
+Datafolha,2022-08-16,2022-08-18,5744,32,47,7,2,1,8
+PoderData,2022-08-14,2022-08-16,3500,37,44,6,4,1,7
+IPEC,2022-08-12,2022-08-14,2000,32,44,6,2,1,15
+FSB Comunicação,2022-08-12,2022-08-14,2000,34,45,8,2,3,8
+Quaest/Genial,2022-08-11,2022-08-14,2000,33,45,6,3,1,12
+FSB Comunicação,2022-08-05,2022-08-07,2000,34,41,7,3,4,11

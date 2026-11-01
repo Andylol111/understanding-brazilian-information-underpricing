@@ -1,0 +1,19 @@
+# Source: https://en.wikipedia.org/wiki/2015_Polish_presidential_election (REST HTML, revision 1359444757, modified 2026-06-15T09:43:10Z); retrieved 2026-10-31; licence: CC BY-SA 4.0 (Wikipedia text/tables); polls published by the named pollsters.
+# Table: first-round vote intention (polling table inside the election article; no separate Wikipedia opinion-polling page exists). Election day 2015-05-10; candidates are the 12 in the Wikipedia table (Tanajno appears in no poll). No sample-size column.
+# Fieldwork end <= election day - 1 and >= election day - 60 days; values in % as printed ('<0.5' kept as printed; blank = not reported); sample size as printed; the Wikipedia 'Lead' column is dropped; election-night exit/late polls excluded.
+pollster,fieldwork_start,fieldwork_end,sample_size,Undecided,Komorowski,Duda,Ogórek,Jarubas,Palikot,Korwin-Mikke,Braun,Grodzka,Kowalski,Kukiz,Wilk,Nowicka,Others
+IBRiS,2015-05-08,2015-05-08,,7.5,39,31,3,2,1,3,1,,1,19,0,,0
+TNS Poland,2015-05-06,2015-05-07,,13,35,27,3,2,1,3,1,,0,15,0,,0
+Millward Brown,2015-05-07,2015-05-07,,3,39,27,4,2,3,5,1,,0,13,0,,0
+IBRiS,2015-05-06,2015-05-06,,5,39.7,29,2.4,3.2,1.7,4.2,0.8,,0.7,14.3,0,,0.1
+Pressmix,2015-05-03,2015-05-03,,5.1,33.3,33.3,3.3,1.8,0.9,6.6,0.8,,0.6,13.7,0.5,,0.1
+Millward Brown,2015-04-13,2015-04-13,,7,45,28,4,2,2,6,,,,6,,,
+TNS Poland,2015-04-07,2015-04-08,,13,46,24,3,1,2,4,,,,6,,,
+Millward Brown,2015-03-30,2015-03-30,,9,42,26,7,2,3,6,,,1,4,,,
+IBRiS,2015-03-27,2015-03-28,,11.1,40.7,26.6,4.9,5.1,2.7,4.8,0.4,,0.4,3.3,0,,
+TNS Poland,2015-03-13,2015-03-18,,21,41,24,6,2,1,2,,,,2,,1,
+Millward Brown,2015-03-16,2015-03-16,,2,46,31,4,1,4,4,,0,1,5,,1,1
+PPW,2015-03-09,2015-03-15,,,48,30,4,2,6,4,,1,1,2,1,0,1
+IBRiS,2015-03-13,2015-03-13,,12,46,26,5,4,3,3,,,,1,,,
+TNS Poland,2015-03-10,2015-03-11,,12,45,27,5,1,1,4,<1,1,<1,2,<1,1,1
+CBOS,2015-03-05,2015-03-11,,18,52,19,3,1,2,1,,<0.5,<0.5,2,,<0.5,2

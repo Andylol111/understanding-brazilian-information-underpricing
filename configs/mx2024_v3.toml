@@ -1,0 +1,72 @@
+# mx2024 v3 SENSITIVITY: POLL START (RETROSPECTIVE, NOT PRE-REGISTERED: designed after the result was known, chosen after the
+# result was known). v1 stays the headline. Everything is v1's (prior, tau, rho, kappa, count states) except a starting
+# estimate of the national swing from the final polls (analysis/poll_priors.py; rule written before this night was replayed with it):
+#   swing_prior_mean = poll two-way share of Sheinbaum / (Sheinbaum + Gálvez) 0.6054 (plain mean of 6 polls whose fieldwork ended
+#       2024-05-24 .. 2024-05-29, the 14 days before the vote; Wikipedia poll tables, CC BY-SA, data_public/)
+#       minus the prior's vote-weighted two-way share 0.5772 (2018 cómputos by section);
+#   swing_prior_sd = root-mean-square error of the same kind of poll average over 3 earlier elections = 0.0381;
+#   count_scaled_terms: tau enters in proportion to the weight the counted votes have in the swing, so before any count the
+#       uncertainty is the poll error alone; no count, price or exit poll of this night is an input.
+id = "mx2024_v3"
+eid = "mx2024"
+
+[election]
+date = "2024-06-02"
+# A = Sheinbaum (Sigamos Haciendo Historia: MORENA, PT, PVEM), B = Gálvez (Fuerza y Corazón por México: PAN, PRI,
+# PRD); share = A / (A + B) > ½ is "Sheinbaum beats Gálvez" (Máynez, MC, is a distant third and cannot win).
+prep = "mx2024/pres/PRES_2024.csv"
+a_cols = ["MORENA", "PT", "PVEM", "PVEM_PT_MORENA", "PVEM_PT", "PVEM_MORENA", "PT_MORENA"]
+b_cols = ["PAN", "PRI", "PRD", "PAN-PRI-PRD", "PAN-PRI", "PAN-PRD", "PRI-PRD"]
+
+[final]                  # official cómputos distritales by section (SICEE 2024), scoring only
+file = "mx2024c/2024_SEE_PRE_NAL_SEC.csv"
+a_cols = ["MORENA", "PT", "PVEM", "PVEM_PT_MORENA", "PVEM_PT", "PVEM_MORENA", "PT_MORENA"]
+b_cols = ["PAN", "PRI", "PRD", "PAN_PRI_PRD", "PAN_PRI", "PAN_PRD", "PRI_PRD"]
+
+[prior]                  # 2018 cómputos by casilla: López Obrador vs Anaya + Meade (same definition as the dev set)
+file = "mx2018c/pres/20180708_2130_CW_presidencia/presidencia.csv"
+a_cols = ["PT", "MORENA", "ENCUENTRO SOCIAL", "PT_MORENA_PES", "PT_MORENA", "PT_PES", "MORENA_PES"]
+b_cols = ["PAN", "PRI", "PRD", "PVEM", "MOVIMIENTO CIUDADANO", "NUEVA ALIANZA", "PAN_PRD_MC", "PAN_PRD", "PAN_MC",
+          "PRD_MC", "PRI_PVEM_NA", "PRI_PVEM", "PRI_NA", "PVEM_NA"]
+
+[publication]            # PREP 2024 opened 20:00 central time (UTC-6) = 02:00 UTC; 5-minute cuts (brunder.mexico)
+opening_utc = "2024-06-03T02:00:00Z"
+step_min = 5.0
+include_min = 3.5
+delay_min = 5.0
+
+[model]                  # section-level brunder.nowcast; every other parameter at the nowcast defaults
+unit = "section"
+tau = 0.01
+swing_prior_mean = 0.02822    # poll 0.60538 - prior base 0.57716
+swing_prior_sd = 0.03806      # RMS poll error, 3 earlier elections
+count_scaled_terms = true
+
+[poll]
+file = "mx_polls_2024.csv"
+election_date = "2024-06-02"
+n_polls = 6
+two_way = 0.60538
+prior_base = 0.57716
+sd = 0.03806
+n_errors = 3
+pollsters = ["AtlasIntel", "LaEncuesta.mx", "MEBA", "Mitofsky", "Reforma", "Áltica"]
+
+[trade]                  # the registered Brazil rule, unchanged
+min_edge = 0.05
+min_counted = 0.01
+favoured_only = true
+half_spread = 0.01
+fee_rate = 0.0           # Polymarket charged no taker fee on these markets (2024)
+
+[markets.sheinbaum]
+event = "mexican-presidential-election-who-will-win"
+market = "mexican-presidential-election-will-claudia-sheinbaum-win"
+yes_is = "a"
+outcome = 1
+
+[markets.galvez]
+event = "mexican-presidential-election-who-will-win"
+market = "mexican-presidential-election-will-xochitl-galvez-win"
+yes_is = "b"
+outcome = 0

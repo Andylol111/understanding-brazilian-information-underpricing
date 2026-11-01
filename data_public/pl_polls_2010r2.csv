@@ -1,0 +1,18 @@
+# Source: https://en.wikipedia.org/wiki/2010_Polish_presidential_election (REST HTML, revision 1382054420, modified 2026-10-26T08:29:55Z); retrieved 2026-10-31; licence: CC BY-SA 4.0 (Wikipedia text/tables); polls published by the named pollsters.
+# Table: runoff Komorowski vs Kaczyński (inside election article). Election day 2010-07-04. Polls dated before 2010-06-20 are head-to-head scenarios made before the first round (kept as printed; filter by date). No sample-size column; the date printed is the publication/fieldwork date (single date) or range.
+# Fieldwork end <= election day - 1 and >= election day - 60 days; values in % as printed ('<0.5' kept as printed; blank = not reported); sample size as printed; the Wikipedia 'Lead' column is dropped; election-night exit/late polls excluded.
+pollster,fieldwork_start,fieldwork_end,sample_size,Komorowski,Kaczyński,Undecided
+TNS OBOP,2010-05-07,2010-05-07,,61,39,
+SMG/KRC,2010-05-10,2010-05-10,,54,41,5
+GfK Polonia,2010-05-12,2010-05-12,,53,34,13
+TNS OBOP,2010-05-14,2010-05-14,,55,39,6
+SMG/KRC Millward Brown,2010-05-17,2010-05-17,,58,33,9
+PBS DGA,2010-06-02,2010-06-02,,64,36,
+SMG/KRC Millward Brown,2010-06-04,2010-06-04,,56,35,9
+SMG/KRC Millward Brown,2010-06-09,2010-06-09,,54,36,7
+SMG/KRC Millward Brown,2010-06-16,2010-06-16,,60,40,
+MillwardBrown SMG/KRC,2010-06-18,2010-06-18,,56,33,11
+TNS OBOP,2010-06-30,2010-07-01,,45,37,18
+GfK Polonia,2010-07-01,2010-07-01,,47,49,4
+Millward Brown SMG/KRC,2010-07-02,2010-07-02,,51,44,5
+Homo Homini,2010-07-02,2010-07-02,,47.6,45.2,7.2

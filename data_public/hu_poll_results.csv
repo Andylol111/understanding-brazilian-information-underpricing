@@ -1,0 +1,8 @@
+# Hungary National Assembly: official nationwide party-list vote, % of valid list votes (NVI / valasztas.hu figures as printed in the Wikipedia article results tables, section "Party-list"; retrieved 2026-10-31, CC BY-SA 4.0).
+# Raw HTML: $BRUNDER_DATA/raw/hungary/polls/<article>.html. "Others" = 100 minus listed parties (all other lists incl. nationality lists). EM = United for Hungary list 2022; Unity = 2014 joint list (MSZP/E14-PM/DK/MLP/Liberals); MSZP column 2018 = MSZP-Dialogue joint list.
+# Blank = list did not run / not separately reported in that year. Note: the "National Election" row in the 2026 polling article prints Tisza 55.76 / Fidesz 36.33 / MH 5.90 / DK 1.16 / MKKP 0.85 which does NOT match the results table of the 2026 election article (Tisza 53.18 / Fidesz 38.61 / MH 5.63 / DK 1.10 / MKKP 0.82); this file uses the results table (Votes column 3,385,890 for Tisza).
+year,election,round,Fidesz-KDNP,Tisza,EM,Unity,Jobbik,MSZP,LMP,DK,Together,Momentum,MKKP,MH,Others,source
+2014,2014-04-06,list,44.87,,,25.57,20.22,,5.34,,,,,,4.0,2014_Hungarian_parliamentary_election rev 1377466463
+2018,2018-04-08,list,49.27,,,,19.06,11.91,7.06,5.38,0.66,3.06,1.73,,1.87,2018_Hungarian_parliamentary_election rev 1381499271
+2022,2022-04-03,list,54.13,,34.44,,,,,,,,3.27,5.88,2.28,2022_Hungarian_parliamentary_election rev 1379515086
+2026,2026-04-12,list,38.61,53.18,,,,,,1.1,,,0.82,5.63,0.66,2026_Hungarian_parliamentary_election rev 1382449251

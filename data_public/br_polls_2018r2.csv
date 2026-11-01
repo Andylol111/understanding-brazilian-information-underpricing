@@ -1,0 +1,28 @@
+# Source: Wikipedia "Opinion polling for the 2018 Brazilian general election", revision 1365268056, section Second round > Polling table.
+# Licence: CC BY-SA 4.0 (Wikipedia contributors; see page history). Retrieved 2026-10-31 via https://en.wikipedia.org/api/rest_v1/page/html/ (User-Agent brunder/0.1 (research; recorder)); raw HTML in $BRUNDER_DATA/raw/brazil/polls/Opinion_polling_for_the_2018_Brazilian_general_election.html
+# Election: Brazil presidential 2018 round 2, 2018-10-28 (Haddad vs Bolsonaro). Fieldwork end <= 2018-10-27; the table starts 2018-10-08 (first-round results), so the whole table is within the 60-day window.
+# Numbers are % of ALL respondents as printed (NOT valid votes); Abst_Undec = abstention/undecided/blank/null as printed. The page prints no valid-vote version; official result is % of valid votes.
+# Sample size as printed (thousands separators removed).
+pollster,fieldwork_start,fieldwork_end,sample_size,Haddad,J_Bolsonaro,Abst_Undec
+Datafolha,2018-10-26,2018-10-27,18731,39,47,13
+Ibope,2018-10-26,2018-10-27,3010,41,47,12
+CNT/MDA,2018-10-26,2018-10-27,2002,37,49,14
+Datafolha,2018-10-24,2018-10-25,9173,38,48,14
+Paraná Pesquisas,2018-10-23,2018-10-25,2120,35,53,12
+RealTime Big Data,2018-10-24,2018-10-24,5000,38,49,13
+Ipespe,2018-10-23,2018-10-24,2000,37,51,12
+Ibope,2018-10-21,2018-10-23,3010,37,50,13
+FSB Pesquisa,2018-10-20,2018-10-21,2000,35,52,13
+CNT/MDA,2018-10-20,2018-10-21,2002,37,49,14
+RealTime Big Data,2018-10-19,2018-10-20,5000,37,52,11
+DataPoder360,2018-10-17,2018-10-18,4000,31,57,12
+Datafolha,2018-10-17,2018-10-18,9137,35,50,15
+RealTime Big Data,2018-10-16,2018-10-17,5000,35,52,13
+Ipespe,2018-10-15,2018-10-17,2000,37,51,13
+Paraná Pesquisas,2018-10-14,2018-10-17,2080,34,53,13
+Ibope,2018-10-13,2018-10-14,2506,37,52,12
+FSB Pesquisa,2018-10-13,2018-10-14,2000,35,51,14
+RealTime Big Data,2018-10-12,2018-10-13,5000,33,48,19
+Datafolha,2018-10-10,2018-10-10,3235,36,49,15
+Idea Big Data,2018-10-08,2018-10-10,2036,41,48,11
+Ipespe,2018-10-08,2018-10-09,2000,36,51,13

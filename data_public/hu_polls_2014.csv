@@ -1,0 +1,17 @@
+# Hungary National Assembly election 2014-04-06: final national party-list polls
+# Source page: en.wikipedia.org "2014 Hungarian parliamentary election" (no separate polling article exists; table "Opinion polls"), revision 1377466463 (2026-09-29T14:52:54Z). Retrieved 2026-10-31 via Wikipedia REST API (https://en.wikipedia.org/api/rest_v1/page/html/2014_Hungarian_parliamentary_election), text CC BY-SA 4.0; polls published by the named firms. Raw HTML: $BRUNDER_DATA/raw/hungary/polls/2014_Hungarian_parliamentary_election.html
+# Numbers are % among active/certain voters (page: pollsters release both; the table refers to the latter). Sample sizes are not printed. Columns MSZP/DK/E14-PM were replaced by Unity (joint opposition list) in polls from late Jan 2014 (dashes = blank). fieldwork dates from "Survey dates", publication_date as printed.
+# Kept every poll with fieldwork end 2014-02-05..2014-04-05. Ipsos 28 Mar-3 Apr 2014 Others cell is empty on the page.
+pollster,date_printed,fieldwork_start,fieldwork_end,sample_size,publication_date,Fidesz-KDNP,MSZP,Jobbik,LMP,DK,E14-PM,Unity,Others
+Ipsos,28 March 2014- 3 April 2014,2014-03-28,2014-04-03,,5 April 2014,46,,19,4,,,26,
+Nézőpont,31 March 2014- 2 April 2014,2014-03-31,2014-04-02,,3 April 2014,47,,19,5,,,28,1
+Századvég,27 March 2014- 30 March 2014,2014-03-27,2014-03-30,,31 March 2014,51,,18,5,,,25,1
+Medián,21 March 2014- 25 March 2014,2014-03-21,2014-03-25,,3 April 2014,47,,21,3,,,23,0
+Tárki,12 March 2014- 19 March 2014,2014-03-12,2014-03-19,,26 March 2014,51,,20,6,,,21,2
+Nézőpont,17 March 2014- 19 March 2014,2014-03-17,2014-03-19,,26 March 2014,59,,14,2,,,23,1
+Ipsos,4 March 2014- 10 March 2014,2014-03-04,2014-03-10,,13 March 2014,48,,15,4,,,31,2
+Századvég,26 February 2014- 28 February 2014,2014-02-26,2014-02-28,,7 March 2014,51,,16,5,,,27,1
+Medián,21 February 2014- 25 February 2014,2014-02-21,2014-02-25,,5 March 2014,49,,18,3,,,30,0
+Nézőpont,17 February 2014- 20 February 2014,2014-02-17,2014-02-20,,27 February 2014,59,,15,3,,,22,1
+Tárki,12 February 2014- 18 February 2014,2014-02-12,2014-02-18,,26 February 2014,49,,19,6,,,27,1
+Ipsos,1 February 2014- 9 February 2014,2014-02-01,2014-02-09,,13 February 2014,51,,13,2,,,33,1

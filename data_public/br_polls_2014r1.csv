@@ -1,0 +1,22 @@
+# Source: Wikipedia "2014 Brazilian general election" (no separate opinion-polling page exists for 2014), revision 1381845583 (page dc:modified 2026-10-25), section Opinion polls > First round table.
+# Licence: CC BY-SA 4.0 (Wikipedia contributors; see page history). Retrieved 2026-10-31 via https://en.wikipedia.org/api/rest_v1/page/html/ (User-Agent brunder/0.1 (research; recorder)); raw HTML in $BRUNDER_DATA/raw/brazil/polls/2014_Brazilian_general_election.html
+# Election: Brazil presidential 2014 round 1, 2014-10-05. Fieldwork end <= 2014-10-04. Only rows with a Silva (PSB/PV) figure are kept (final lineup after Campos died 2014-08-13); the Ibope 3-6 Aug poll (end 2014-08-06, Campos as candidate) and earlier ones, and the Ibope exit poll of 2014-10-05, are excluded. The 14-15 Aug Datafolha scenario row without Silva is excluded.
+# Numbers are % of ALL respondents as printed (NOT valid votes); "<1" kept as printed; Abst_Undec = blank/null/abstention/undecided as printed. Official result is % of valid votes.
+# Genro = Luciana Genro PSOL, Pereira = Everaldo PSC, Jorge = Eduardo Jorge PV; Others as printed. Sample size as printed (thousands separators removed). Pollster names as printed ("Archived ..." notes removed).
+pollster,fieldwork_start,fieldwork_end,sample_size,Rousseff,Neves,Silva,Genro,Pereira,Jorge,Others,Abst_Undec
+Datafolha,2014-10-03,2014-10-04,18116,40,24,22,1,1,1,<1,10
+Datafolha,2014-09-29,2014-09-30,7520,40,20,25,1,1,<1,<1,10
+Ibope,2014-09-27,2014-09-29,3010,39,19,25,1,1,<1,<1,14
+Ibope,2014-09-20,2014-09-22,3010,38,19,29,<1,1,<1,<1,12
+Vox Populi,2014-09-20,2014-09-21,2000,40,17,22,1,1,0,0,18
+Datafolha,2014-09-17,2014-09-18,5340,37,17,30,1,1,<1,<1,13
+Ibope,2014-09-13,2014-09-15,3010,36,19,30,<1,1,<1,<1,13
+Vox Populi,2014-09-13,2014-09-14,2000,36,15,27,1,1,1,<1,20
+Datafolha,2014-09-08,2014-09-09,10568,36,15,33,1,1,1,<1,13
+CNI/Ibope,2014-09-05,2014-09-08,2002,39,15,31,<1,1,<1,<1,13
+Datafolha,2014-09-01,2014-09-03,10054,35,14,34,1,1,1,1,13
+Ibope,2014-08-31,2014-09-02,2506,37,15,33,<1,1,<1,<1,12
+Datafolha,2014-08-28,2014-08-29,2874,34,15,34,<1,2,<1,<1,14
+CNT/MDA,2014-08-21,2014-08-24,2202,36.2,16,28.2,0.3,1.3,0.4,0.5,19.1
+Ibope,2014-08-23,2014-08-25,2506,34,19,29,1,1,<1,<1,15
+Datafolha,2014-08-14,2014-08-15,2843,36,20,21,<1,3,1,<1,17

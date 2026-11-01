@@ -272,7 +272,7 @@ async def check_home_card(page: Page) -> list[str]:
     return fails
 
 
-# --- Model sensitivities (thin dashed lines: v2, mix) and the homepage's original / recalibrated / mixture comparison ---
+# --- Model sensitivities (thin dashed lines: v2, mix, v3) and the homepage's original / recalibrated / mixture comparison ---
 # Expectations are registered only for data that is published: an election with a mixture in its stats.json
 # (br2026r1) must draw the v2 and mix lines, chips and table columns; an election with only the legacy v2 must
 # still draw v2 (a real one if any exists, else br2026r1 with its new sensitivities hidden by route interception).
@@ -318,7 +318,8 @@ def sens_cases() -> list[Case]:
     out = []
     if SENS_ELECTION in mix_elections():
         out.append(Case("br2026r1-sens", f"election.html?{urlencode({'id': SENS_ELECTION})}", "election"))
-        SENS_CASE_KEYS["br2026r1-sens"] = ["v2", "mix"]
+        meta = _read_json(DATA / SENS_ELECTION / "meta.json") or {}       # v2 (legacy), mix, v3 (poll start), ...: whatever is published
+        SENS_CASE_KEYS["br2026r1-sens"] = (["v2"] if meta.get("sensitivity") else []) + [s["key"] for s in meta.get("sensitivities", [])]
     legacy = legacy_only_elections()
     if legacy:
         out.append(Case(f"legacy-v2-{legacy[0]}", f"election.html?{urlencode({'id': legacy[0]})}", "election"))

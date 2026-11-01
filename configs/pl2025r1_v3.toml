@@ -1,0 +1,72 @@
+# pl2025r1 v3 SENSITIVITY: POLL START (RETROSPECTIVE, NOT PRE-REGISTERED: designed after the result was known, chosen after the
+# result was known). v1 stays the headline. Everything is v1's (prior, tau, rho, kappa, count states) except a starting
+# estimate of the national swing from the final polls (analysis/poll_priors.py; rule written before this night was replayed with it):
+#   swing_prior_mean = poll two-way share of Trzaskowski / (Trzaskowski + Nawrocki) 0.5555 (plain mean of 19 polls whose fieldwork ended
+#       2025-05-07 .. 2025-05-16, the 14 days before the vote; Wikipedia poll tables, CC BY-SA, data_public/)
+#       minus the prior's vote-weighted two-way share 0.4088 (2020 round 1 by cell);
+#   swing_prior_sd = root-mean-square error of the same kind of poll average over 6 earlier elections = 0.0339;
+#   count_scaled_terms: tau enters in proportion to the weight the counted votes have in the swing, so before any count the
+#       uncertainty is the poll error alone; no count, price or exit poll of this night is an input.
+id = "pl2025r1_v3"
+election = "Poland, presidential election round 1, 2025-05-18; polls closed 19:00 UTC (21:00 CEST)"
+round = 1
+poll_close_utc = "2025-05-18T19:00:00Z"
+
+[model]                      # brunder.nowcast.Params over 128 cells (16 voivodeships x 8 gmina-size classes) + abroad
+tau = 0.04                   # smallest tau with 90% coverage >= 0.90 over 48 simulated 2020 runoff frames at 1-95% counted
+sigma_mun0 = 0.06            # nowcast default, held fixed (see analysis/pl_calibrate.py)
+kappa = 100000.0             # lowest MAE at that tau (simulation)
+rho = 0.5                    # same
+nu_mun = 20.0
+sigma_uf0 = 0.03
+nu_uf = 5.0
+swing_prior_mean = 0.14677    # poll 0.55553 - prior base 0.40876
+swing_prior_sd = 0.03392      # RMS poll error, 6 earlier elections
+count_scaled_terms = true
+
+[poll]
+file = "pl_polls_2025r1.csv"
+election_date = "2025-05-18"
+n_polls = 19
+two_way = 0.55553
+prior_base = 0.40876
+sd = 0.03392
+n_errors = 6
+pollsters = ["CBOS", "IBRiS / \"Polityka\"", "IBRiS / \"RZ\"", "IBRiS / Onet", "IBRiS / Polsat News", "IBRiS / Polskie Radio 24", "IPSOS / TVP Info", "OGB", "Opinia24 / \"Fakty\" TVN, TVN24", "Opinia24 / \"Newsweek\"", "Opinia24 / RMF FM", "Pollster / \"SE.pl\"", "Research Partner", "United Surveys / WP.pl", "ewybory.eu"]
+
+[prior]                      # 2020 round 1, Trzaskowski vs Duda, by cell (brunder.poland.prior)
+source = "https://prezydent20200628.pkw.gov.pl/prezydent20200628/data/1/csv/wyniki_gl_na_kand_po_gminach_csv.zip"
+
+[prices]
+start_utc = "2025-05-18T04:00:00Z"
+end_utc = "2025-05-19T08:00:00Z"
+
+# ---- A = Trzaskowski, B = Nawrocki. The model compares their two-way share; Mentzen (14.8%) finished a distant third.
+[[race]]
+id = "winner"
+name = "Most votes in round 1: Trzaskowski vs Nawrocki"
+kind = "winner"
+a = "Trzaskowski"
+b = "Nawrocki"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election-1st-round-winner"
+  market = "will-rafa-trzaskowski-win-the-most-votes-in-the-first-round-of-the-polish-presidential-election"
+  yes_is = "a"
+  [[race.market]]
+  platform = "polymarket"
+  event = "poland-presidential-election-1st-round-winner"
+  market = "will-karol-nawrocki-win-the-most-votes-in-the-first-round-of-the-polish-presidential-election"
+  yes_is = "b"
+  [[race.market]]
+  platform = "kalshi"
+  event = "KXPOLANDROUND1-25"
+  market = "KXPOLANDROUND1-25-RTRZ"
+  yes_is = "a"
+  wording = "Trzaskowski wins the most votes in round 1"
+  [[race.market]]
+  platform = "kalshi"
+  event = "KXPOLANDROUND1-25"
+  market = "KXPOLANDROUND1-25-KNAW"
+  yes_is = "b"
+  wording = "Nawrocki wins the most votes in round 1"

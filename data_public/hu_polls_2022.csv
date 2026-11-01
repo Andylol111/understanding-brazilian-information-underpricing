@@ -1,0 +1,30 @@
+# Hungary National Assembly election 2022-04-03: final national party-list polls (Fidesz-KDNP vs united opposition list "EM"=United for Hungary, MKKP, Mi Hazank)
+# Source page: en.wikipedia.org "Opinion polling for the 2022 Hungarian parliamentary election", revision 1369327362 (2026-08-14T08:23:01Z), first polling table (national, united opposition list scenario). Retrieved 2026-10-31 via Wikipedia REST API (https://en.wikipedia.org/api/rest_v1/page/html/Opinion_polling_for_the_2022_Hungarian_parliamentary_election), text CC BY-SA 4.0; polls published by the named firms. Raw HTML: $BRUNDER_DATA/raw/hungary/polls/pp_Opinion_polling_for_the_2022_Hungarian_parliamentary_election.html
+# Numbers as printed; they sum to ~100, i.e. % among decided/certain voters (not stated explicitly on the page). Missing (N/a) = blank. Row "30-31 Mar Apr 2022" printed with a typo, read as 30-31 Mar 2022.
+# Kept every poll with fieldwork end 2022-02-02..2022-04-02 (last 60 days before election day).
+pollster,date_printed,fieldwork_start,fieldwork_end,sample_size,Fidesz-KDNP,EM,MKKP,MH,Other
+Publicus,29–31 Mar 2022,2022-03-29,2022-03-31,1025,47,47,2,3,1
+Medián,30–31 Mar Apr 2022,2022-03-30,2022-03-31,1531,49,41,4.5,4.5,1
+Társadalomkutató,28–30 Mar 2022,2022-03-28,2022-03-30,1000,50,40,4,6,0
+Republikon,26–29 Mar 2022,2022-03-26,2022-03-29,800,49.3,46.5,,,4.2
+IDEA,22–28 Mar 2022,2022-03-22,2022-03-28,1800,50,45,2,3,0
+Závecz Research,21–27 Mar 2022,2022-03-21,2022-03-27,1000,50,46,1,3,0
+Századvég,21–27 Mar 2022,2022-03-21,2022-03-27,1000,49,44,3,3,1
+Medián,24–26 Mar 2022,2022-03-24,2022-03-26,1096,50,40,4,4,2
+Závecz Research,23–25 Mar 2022,2022-03-23,2022-03-25,800,48.8,46.4,,,4.8
+Publicus,21–25 Mar 2022,2022-03-21,2022-03-25,1000,48.2,45.9,2.4,2.4,1.2
+Nézőpont,23–25 Mar 2022,2022-03-23,2022-03-25,1000,49.0,43.8,3.1,3.1,1
+Real-PR 93,22–24 Mar 2022,2022-03-22,2022-03-24,1000,49,41,3,5,2
+Társadalomkutató,21–23 Mar 2022,2022-03-21,2022-03-23,1000,52,41,3,3,1
+Nézőpont,16–21 Mar 2022,2022-03-16,2022-03-21,1000,51.5,43,3,2,0
+Republikon,16–18 Mar 2022,2022-03-16,2022-03-18,1000,49,46,2,3,0
+Publicus,7–11 Mar 2022,2022-03-07,2022-03-11,1001,48.5,45.5,1.4,2.9,1.4
+IDEA,2–11 Mar 2022,2022-03-02,2022-03-11,2000,50,43,3,4,0
+e-benchmark,26 Feb–5 Mar 2022,2022-02-26,2022-03-05,1000,54,46,,,
+Medián,22–26 Feb 2022,2022-02-22,2022-02-26,1100,49,43,3,4,1
+Republikon,18–24 Feb 2022,2022-02-18,2022-02-24,1000,48,46,3,3,0
+Nézőpont,14–16 Feb 2022,2022-02-14,2022-02-16,1000,50,43,3,3,1
+Publicus,10–14 Feb 2022,2022-02-10,2022-02-14,1000,45.7,48.5,1.4,2.8,1.4
+Real-PR 93,9–11 Feb 2022,2022-02-09,2022-02-11,1000,54,41,2,3,0
+Závecz Research,2–10 Feb 2022,2022-02-02,2022-02-10,1000,49,46,2,3,0
+IDEA,31 Jan–9 Feb 2022,2022-01-31,2022-02-09,2000,49,44,3,4,0

@@ -1,0 +1,54 @@
+# Source: https://en.wikipedia.org/wiki/Opinion_polling_for_the_2025_Polish_presidential_election (REST HTML, revision 1328916009, modified 2025-12-22T15:26:22Z); retrieved 2026-10-31; licence: CC BY-SA 4.0 (Wikipedia text/tables); polls published by the named pollsters.
+# Table: runoff Nawrocki vs Trzaskowski (Wikipedia 6th table). Election day 2025-06-01. Social Changes / wnet.fm prints three turnout scenarios (75%, 71%, 64%); the 71% scenario (actual turnout 71.3%) is kept. Rows printed with 7 cells (no Abstain cell) are recorded with Abstain blank. Rows with month-only fieldwork are skipped. Also contains the 2025-05-18 poll rows made on first-round night.
+# Fieldwork end <= election day - 1 and >= election day - 60 days; values in % as printed ('<0.5' kept as printed; blank = not reported); sample size as printed; the Wikipedia 'Lead' column is dropped; election-night exit/late polls excluded.
+pollster,fieldwork_start,fieldwork_end,sample_size,Nawrocki,Trzaskowski,Don't know,Abstain
+AtlasIntel,2025-05-27,2025-05-30,"2,596",47.4,47.6,1.4,0.9
+United Surveys / WP.pl,2025-05-25,2025-05-30,"1,800",47.7,47.3,5,
+Social Changes / wnet.fm (71% turnout scenario),2025-05-28,2025-05-29,"1,060",49.95,50.05,,
+OGB / “WP.pl”,2025-05-28,2025-05-29,"1,000",50.63,49.37,,
+Pollster / “SE.pl”,2025-05-28,2025-05-29,"1,039",45.60,47.97,6.43,
+IBRiS / Polsat News,2025-05-27,2025-05-29,"1,000",48.1,49.1,2.8,
+"Opinia24 / ""Fakty"" TVN, TVN24",2025-05-27,2025-05-29,"1,500",46.3,47.4,3.6,
+"IPSOS / ""19:30"" TVP Info",2025-05-26,2025-05-29,"1,000",48,49,3,
+Research Partner / ARIADNA,2025-05-27,2025-05-28,"1,080",46.1,45.8,8.1,
+IPSOS / “OKO.press”,2025-05-27,2025-05-28,"1,000",47,48,5,
+IBRiS / Onet,2025-05-26,2025-05-28,"1,090",46.0,47.7,6.3,
+CBOS,2025-05-26,2025-05-28,"1,000",49.7,50.3,,
+Opinia24 / RMF FM,2025-05-25,2025-05-27,"1,000",45.9,47.5,6.6,
+United Surveys / “WP.pl”,2025-05-25,2025-05-26,"1,000",45.0,47.4,7.6,
+Opinia24 / Radio ZET,2025-05-23,2025-05-26,"1,021",48,51,1,
+Pollster / “SE.pl”,2025-05-25,2025-05-25,"1,011",43.61,45.7,10.69,
+IBRiS / Polskie Radio 24,2025-05-25,2025-05-25,"1,070",44.9,45.7,9.4,
+OGB,2025-05-22,2025-05-24,800,48,45.5,6.5,
+"IPSOS / ""19:30"" TVP Info",2025-05-20,2025-05-22,"1,000",47,47,6,
+Opinia24,2025-05-19,2025-05-21,624,47,45,8,
+"Opinia24 / ""Fakty"" TVN, TVN24",2025-05-18,2025-05-18,,44,46,10,
+OGB,2025-05-16,2025-05-16,800,51.5,48.5,,
+"Opinia24 / ""Fakty"" TVN, TVN24",2025-05-14,2025-05-15,"1,002",45,48,7,
+IPSOS / TVP Info,2025-05-13,2025-05-15,"1,000",45,49,6,
+IBRiS / Polsat News,2025-05-13,2025-05-15,"1,000",37.6,50.2,5.4,6.8
+United Surveys / “WP.pl”,2025-05-13,2025-05-15,"1,500",43.8,56.2,,
+AtlasIntel,2025-05-11,2025-05-14,"1,827",45.2,46.5,8.3,
+Opinia24 / RMF FM,2025-05-12,2025-05-14,"1,003",44.4,48.5,7.1,
+IBRiS / Onet,2025-05-12,2025-05-13,"1,072",36.3,53.9,5.3,4.6
+"IBRiS / ""RZ""",2025-05-11,2025-05-12,"1,073",38.4,53.9,7.7,
+ewybory.eu,2025-04-22,2025-05-11,"14,815",45.43,48.64,5.93,
+IBRiS / Polskie Radio 24,2025-05-10,2025-05-11,"1,067",36.6,55.6,3.1,4.7
+"IBRiS / ""Polityka""",2025-05-07,2025-05-10,"2,000",37.7,54.5,7.8,
+Pollster / “SE.pl”,2025-05-07,2025-05-08,"1,077",45,55,,
+United Surveys / WP.pl,2025-05-07,2025-05-07,"1,000",39.1,57.7,3.2,
+"Opinia24 / ""Fakty"" TVN, TVN24",2025-05-06,2025-05-07,"1,012",41,50,9,
+"Opinia24 / ""Newsweek""",2025-05-05,2025-05-07,"1,001",45,53,2,
+United Surveys / WP.pl,2025-04-28,2025-04-29,"1,000",39.5,53.3,7.2,
+"Pollster / ""SE.pl""",2025-04-28,2025-04-29,"1,007",46,54,,
+United Surveys / WP.pl,2025-04-17,2025-04-19,"1,000",40.2,50.5,9.3,
+IBRiS / Polsat News,2025-04-16,2025-04-17,"1,000",40.9,48.1,5.4,5.6
+Pollster / “SE.pl”,2025-04-15,2025-04-16,"1,003",45,55,,
+Opinia24,2025-04-14,2025-04-16,"1,002",41.6,52.4,6,
+IPSOS / TVP Info,2025-04-14,2025-04-16,"1,000",43,50,7,
+OGB,2025-04-09,2025-04-14,"1,001",49.3,50.7,,
+United Surveys / WP.pl,2025-04-12,2025-04-12,"1,000",38.0,55.7,6.3,
+CBOS,2025-04-07,2025-04-09,"1,000",44,52,4,
+Opinia24 / RMF FM,2025-04-07,2025-04-09,"1,000",35.1,42.5,10.5,11.9
+United Surveys / WP.pl,2025-04-04,2025-04-06,"1,000",33.6,56.1,10.3,
+Opinia24 / ZET,2025-04-02,2025-04-06,"1,000",42,52,6,
