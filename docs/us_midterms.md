@@ -970,6 +970,34 @@ Commission audit files). CO Senate lists two primary losers (Powers, Apelbaum) b
 Republican is "Bobby Charles" in civicAPI, "Robert Charles" in the registry. Michigan's governor race lacks Mike Duggan
 (registry: independent). The two-party model uses only the Democratic and Republican lines.
 
+## The map's controls (every election page; display only; `site/dash-map.js`, `dash-ux.js`, `dash-engine.js`)
+
+Everything below changes only what is drawn; no number the model uses depends on it.
+
+- **Keys** (not while typing in a box): `+` `−` zoom, `0` fit the whole view, arrows pan (when the focus is on the scrubber
+  or a button the arrows keep their own job), `Space` play or pause, `,` and `.` step to the previous or next map frame,
+  `L` the Layers menu, `/` search a place by name (units, regions and, on the US page, House districts), `Esc` clears the
+  selection and closes a menu, `?` lists the keys. Ctrl or ⌘ with the wheel (or a trackpad pinch) zooms about the pointer; a drag pans.
+- **Click** a unit: its card is pinned, now with the expected, counted and remaining votes and a sparkline of the model's
+  estimate over the night (the count so far beside it). **Shift-click** adds a unit to the selection or takes it out;
+  **Shift-drag** draws a lasso round the units to add. The Selection panel gives the vote-weighted share counted, the
+  model's estimate, the difference between the two, the share counted, the votes left (the model's estimate where the file has
+  one, otherwise the expected vote not yet counted), the swing from the comparison election and the selection's own sparkline.
+  Units are weighted by their expected vote (`V0`), as the state totals are. Selection works at the unit level only.
+- **Layers menu**: a second encoding over the fill (hatching for the share still to count, dots for the votes left, an outline for
+  the turnout against the expectation where the units carry it), each layer with its own opacity, and "Margin × counted":
+  the margin map's four strengths per side, washed toward grey while under 30% (then 80%) of the unit is counted
+  (`bivColour` in `dash-agg.js`).
+- **The address hash** carries the view, so a link shares it: `#z=<zoom>,<x>,<y>&s=<unit ids>&enc=<layer>&eo=<opacity>&fo=<fill opacity>&m=<colouring>&t=<UTC time>`
+  (`z` relative to the fitted view; `s` only up to 400 units; `t` only when the viewer is not following the newest frame).
+  The race, region and level stay in the query string; the Show chips' `show=` is unchanged.
+
+Measured before and after (Chromium, headless, 4× CPU slowdown, `/tmp` profile scripts of the build 20261101m1): interaction was
+already cheap (scrub 1.5–4 ms per step, hover 0.1–0.6 ms, zoom frames at the display rate). What cost time was the load: the
+US map waited for the 9.3 MB `timeline.json` before its first colour (now attached beforehand), layout shifts while panels
+appeared (CLS 0.19 → 0.05), `Intl.DateTimeFormat` objects rebuilt on every clock label, the House layer built as one long
+task during playback, and a region lookup repeated per border arc in the geometry.
+
 ## Known weaknesses
 
 - The expected vote is the weak point where completion flags are ignored (CA): a turnout far from the assumption

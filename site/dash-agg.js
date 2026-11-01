@@ -28,6 +28,20 @@ export function tieBreak(U, k, j) {
   const p = U.prior[j];
   return p >= 0 && p !== 500 ? Math.sign(p - 500) : 0;
 }
+// Bivariate colouring (margin x share counted), shared by the map and its legend: the leader's band colour,
+// washed toward grey while little of the vote is counted (three levels of share counted).
+export const BIV_LEVELS = [{ upTo: 0.3, wash: 0.62, label: "under 30% counted" }, { upTo: 0.8, wash: 0.3, label: "30–80%" }, { upTo: Infinity, wash: 0, label: "80% or more" }];
+export const BIV_GREY = "#d9d5cb";
+export const bivLevel = (counted) => BIV_LEVELS.findIndex((l) => counted < l.upTo);
+const bivMemo = new Map();
+export function bivColour(colour, counted, level = bivLevel(counted)) {
+  const w = BIV_LEVELS[level].wash;
+  if (!w || colour === TIE) return colour;
+  const key = `${colour}|${level}`;
+  let c = bivMemo.get(key);
+  if (!c) bivMemo.set(key, (c = d3.interpolateLab(colour, BIV_GREY)(w)));
+  return c;
+}
 export function unitsByRegion(region) {
   const out = new Map();
   region.forEach((r, j) => {

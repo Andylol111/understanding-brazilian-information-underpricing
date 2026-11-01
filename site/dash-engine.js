@@ -9,7 +9,7 @@
 //    and headless pages throttle or never run), so the first frame appears once data is bound.
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
-import { unitsByRegion, regionAgg, regionWinner, bandColours, bandColour, tieBreak, TIE } from "./dash-agg.js";
+import { unitsByRegion, regionAgg, regionWinner, bandColours, bandColour, tieBreak, TIE, bivColour } from "./dash-agg.js";
 
 const BASE = 1000; // base projection extent, shared with dash-map.js
 const SCALE = { swing: 0.1, margin: 0.4, prior: 0.4, turnout: 0.2 }; // value at which a diverging colour is full
@@ -78,6 +78,8 @@ const R = { // drawing state
   levelMix: 1, aggregate: false,
   units: null, featIdx: null, unitLUT: null, regionByUnits: false, parties: new Map(), partyLUTs: new Map(), countTimeline: true,
   mode: "margin", t: 0, tween: false, cache: new Map(), buf: null, lastCols: null, scheduled: false, painted: 0, drawMs: [],
+  // the page's Layers menu: a second encoding over the fill (none | hatch | dots | outline) and the opacities of the two layers
+  over: { enc: "none", encOp: 0.8, fillOp: 1 },
 };
 
 export async function geo({ url, objectName, unitKey, country }) {
@@ -90,7 +92,13 @@ export async function geo({ url, objectName, unitKey, country }) {
   const path = d3.geoPath(projection);
   // features without a unit id (a base layer of land under the units, as in Israel's map): "" (ground)
   const ids = features.map((f) => (f.properties[unitKey] == null ? "" : String(f.properties[unitKey])));
-  const regionOf = (f) => (f.properties[unitKey] == null ? undefined : String(f.properties[unitKey]).split("-")[1]);
+  // a feature's or topology geometry's region, found once (the mesh filters below call this for every arc of every region)
+  const regionMemo = new WeakMap();
+  const regionOf = (f) => {
+    let r = regionMemo.get(f.properties);
+    if (r === undefined && !regionMemo.has(f.properties)) { r = f.properties[unitKey] == null ? undefined : String(f.properties[unitKey]).split("-")[1]; regionMemo.set(f.properties, r); }
+    return r;
+  };
   const isPoint = new Uint8Array(n);
   const centres = new Float64Array(2 * n).fill(NaN);
   const bounds = new Float64Array(4 * n);
@@ -129,7 +137,7 @@ export async function geo({ url, objectName, unitKey, country }) {
     regionFeat.set(r, list.map(([, i]) => i));
   }
   const result = {
-    ids, names: features.map((f) => f.properties.name ?? null), paths, isPoint, centres, bounds, areas,
+    ids, names: features.map((f) => f.properties.name ?? null), paths, isPoint, centres, bounds, areas, labels: labels.slice(), // label points: the lasso's test point
     unitMesh: mesh((a, b) => a !== b), regionMesh: mesh((a, b) => a !== b && regionOf(a) !== regionOf(b)), outline: mesh((a, b) => a === b),
     regionOutlines,
     regionShapes, // each region's merged shape, for the page's hover highlight at the state level
@@ -141,7 +149,7 @@ export async function geo({ url, objectName, unitKey, country }) {
     ids, regionOf: ids.map((id) => id.split("-")[1]), regionFill, regionCentre, regionFeat, labels,
     radius: new Float32Array(n).fill(3), pointOrder: Array.from({ length: n }, (_, i) => i).filter((i) => isPoint[i]),
   });
-  return { result, transfer: [isPoint.buffer, centres.buffer, bounds.buffer, areas.buffer] };
+  return { result, transfer: [isPoint.buffer, centres.buffer, bounds.buffer, areas.buffer, result.labels.buffer] };
 }
 
 // Warm the parse cache for units files the page is likely to open next (static files only).
@@ -360,6 +368,7 @@ export function control(msg) {
       break;
     }
     case "paint":
+      R.armed = true;
       // a new colouring (mode): the old fills fade out over the new ones for XFADE_MS
       if (msg.mode !== R.mode && R.drawn && !msg.tween) R.xfade = { units: R.drawn, regions: R.drawnRegion, t0: performance.now() };
       Object.assign(R, { mode: msg.mode, t: msg.t, tween: msg.tween });
@@ -406,7 +415,7 @@ function colours() {
   if (!U || !idx || idx.length !== nf) return R.lastCols;
   const k = frameIndex(R.t);
   R.curK = k; // the frame for tie-breaks in band()
-  const tween = R.tween && R.mode !== "winner" && k >= 0 && k + 1 < U.K;
+  const tween = R.tween && R.mode !== "winner" && R.mode !== "biv" && k >= 0 && k + 1 < U.K;
   const key = `${R.mode}|${k}`;
   if (!tween && R.cache.has(key)) return (R.lastCols = R.cache.get(key));
   const out = tween ? (R.buf && R.buf.length === nf ? R.buf : (R.buf = new Array(nf))) : new Array(nf);
@@ -446,6 +455,7 @@ function colours() {
       }
       out[i] = counted ? (v >= 0 ? COUNTED_LUT[Math.min(100, Math.round(v * 100))] : NONE) : Number.isNaN(v) ? NONE
         : R.mode === "margin" || R.mode === "margin1" ? band(j, v * SCALE.margin * 100, true)
+        : R.mode === "biv" ? bivColour(band(j, v * SCALE.margin * 100, true), U.F[b0 + j] / 1000)
         : R.mode === "turnout" ? TURN_LUT[Math.round((v + 1) * 100)] : luts[j][Math.round((v + 1) * 100)];
     }
   }
@@ -483,7 +493,7 @@ function aggColours() {
       }
       else {
         const v = R.countTimeline ? g.proj : g.raw ?? g.proj;
-        c = v != null ? band(js[0], (2 * v - 1) * 100) : NONE;
+        c = v != null ? (R.mode === "biv" ? bivColour(band(js[0], (2 * v - 1) * 100), g.counted ?? 0) : band(js[0], (2 * v - 1) * 100)) : NONE;
       }
     }
     out.set(r, c);
@@ -577,12 +587,14 @@ function paint(ctx) {
   // Every unit without a figure (outside the race, not reporting yet, no result) is hatched, so
   // it never passes for a colour on the map's scale; a base layer (no unit id) is plain ground.
   const fillUnits = (list) => {
+    const baseAlpha = ctx.globalAlpha;
+    ctx.globalAlpha = baseAlpha * R.over.fillOp; // the fill layer's own opacity
     const groups = new Map();
     for (const i of list) {
       if (!paths[i] || hidden?.[i]) continue;
       const c = cols ? cols[i] : NONE;
       const base = !R.ids[i];
-      const noData = !base && ((hatch && R.hatch.has(R.regionOf[i])) || (R.mode !== "ev" && R.featIdx?.[i] < 0) || c === NONE);
+      const noData = R.armed && !base && ((hatch && R.hatch.has(R.regionOf[i])) || (R.mode !== "ev" && R.featIdx?.[i] < 0) || c === NONE);
       const s = base ? NONE : noData ? noDataFill() : c;
       drawn[i] = base ? "ground" : noData ? "hatch" : c;
       const g = groups.get(s);
@@ -599,6 +611,7 @@ function paint(ctx) {
       for (const [s, g] of prev) { ctx.fillStyle = styleOf(s); for (const i of g) ctx.fill(paths[i]); }
       ctx.globalAlpha = ga;
     }
+    ctx.globalAlpha = baseAlpha;
   };
   const nat = R.natColours;
   // a region layer: the national map's state colours (nat) or the units' region totals (aggregate)
@@ -610,7 +623,7 @@ function paint(ctx) {
     const uO = R.levelMix, uF = inFocus ? Math.max(R.levelMix, R.natMix) : uO;
     if (uO < 1 || uF < 1) {
       for (const [r, p] of R.regionFill) {
-        ctx.globalAlpha = 1;
+        ctx.globalAlpha = R.over.fillOp;
         const c = regionCols.get(r);
         const noData = r != null && ((hatch && R.hatch.has(r)) || c == null || c === NONE);
         ctx.fillStyle = r == null ? NONE : noData ? noDataFill() : c;
@@ -679,6 +692,7 @@ function paint(ctx) {
       }
     }
   }
+  encodings(ctx, px, (i) => !(regionCols && R.levelMix < 1 && !(focus && R.regionOf[i] === focus && R.natMix >= 1)), dim);
   // region borders: white, 2 px at the state level, 1.5 px with a fine dark core at the unit level
   // (so state lines stay visible among county lines)
   const unitLevel = regionCols ? R.levelMix : 1;
@@ -775,6 +789,85 @@ function remCircles(ctx, px, dim, nat) {
     ctx.arc(R.labels[2 * i], R.labels[2 * i + 1], r, 0, 2 * Math.PI);
     ctx.fill();
     ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// A denser diagonal hatch than hatchOverlay's, for the "share still to count" encoding.
+function hatchHeavy(ctx, px) {
+  if (!R.hatchHeavy) {
+    const c = new OffscreenCanvas(6, 6), g = c.getContext("2d");
+    g.strokeStyle = "rgba(27,27,27,0.75)";
+    g.lineWidth = 1.3;
+    g.beginPath(); g.moveTo(0, 6); g.lineTo(6, 0); g.moveTo(-1, 1); g.lineTo(1, -1); g.moveTo(5, 7); g.lineTo(7, 5); g.stroke();
+    R.hatchHeavy = c;
+  }
+  const pat = ctx.createPattern(R.hatchHeavy, "repeat");
+  pat.setTransform(new DOMMatrix().scaleSelf(px, px));
+  return pat;
+}
+
+const DOT_R = 13; // largest dot radius of the votes-left encoding, CSS px
+// Second encodings over the fill (the page's Layers menu, R.over.enc), at R.over.encOp: hatching where the vote is
+// not all counted (denser: less counted), a dot per unit sized by the votes still to come, an outline coloured by the
+// turnout against the expectation. Only on units that show a figure and are shown (`shown`: not under a region fill).
+function encodings(ctx, px, shown, dim) {
+  const { enc, encOp } = R.over, U = R.units, idx = R.featIdx;
+  if (enc === "none" || !(encOp > 0) || !U || !idx || idx.length !== R.n) return;
+  const k = frameIndex(R.t);
+  if (k < 0) return;
+  const focus = R.focus, paths = R.paths, base = (i) => encOp * (focus && R.regionOf[i] !== focus ? dim : 1);
+  // the unit's index into the units arrays, or -1 where it is not drawn with a figure
+  const unit = (i) => {
+    const j = idx[i], d = R.drawn?.[i];
+    return j < 0 || R.hidden?.[i] || d === "hatch" || d === "ground" || d === undefined || !shown(i) ? -1 : j;
+  };
+  if (enc === "hatch") {
+    ctx.fillStyle = hatchHeavy(ctx, px);
+    for (let i = 0; i < R.n; i++) {
+      const j = unit(i);
+      if (j < 0 || !paths[i]) continue;
+      const left = 1 - U.F[k * U.n + j] / 1000;
+      if (!(left > 0.02)) continue;
+      ctx.globalAlpha = base(i) * (left > 0.66 ? 1 : left > 0.33 ? 0.65 : 0.35);
+      ctx.fill(paths[i]);
+    }
+  } else if (enc === "outline") {
+    if (!U.TR) return;
+    ctx.lineWidth = 2 * px;
+    ctx.lineJoin = "round";
+    for (let i = 0; i < R.n; i++) {
+      const j = unit(i);
+      if (j < 0 || !paths[i]) continue;
+      const tr = U.TR[k * U.n + j];
+      if (tr < 0) continue;
+      ctx.strokeStyle = TURN_LUT[Math.round((Math.max(-1, Math.min(1, (tr / 1000 - 1) / SCALE.turnout)) + 1) * 100)];
+      ctx.globalAlpha = base(i);
+      ctx.stroke(paths[i]);
+    }
+  } else if (enc === "dots") {
+    // votes still to count: the model's estimate where the file has one, else the expected vote not yet counted
+    const rem = U.rem;
+    const max = rem ? U.remScale.maxRem : (U.maxV0 ??= U.V0.reduce((m, v) => Math.max(m, v), 0));
+    if (!(max > 0)) return;
+    const items = [];
+    for (let i = 0; i < R.n; i++) {
+      const j = unit(i);
+      if (j < 0 || !Number.isFinite(R.labels[2 * i])) continue;
+      const v = rem ? rem.votes[k * U.n + j] : U.V0[j] * (1 - U.F[k * U.n + j] / 1000);
+      if (v > 0) items.push([i, v]);
+    }
+    items.sort((a, b) => b[1] - a[1]); // big dots under small ones
+    ctx.fillStyle = "#1b1b1b";
+    ctx.strokeStyle = "#fcfbf8";
+    ctx.lineWidth = 0.7 * px;
+    for (const [i, v] of items) {
+      ctx.globalAlpha = base(i) * 0.8;
+      ctx.beginPath();
+      ctx.arc(R.labels[2 * i], R.labels[2 * i + 1], Math.max(0.9, DOT_R * Math.sqrt(v / max)) * px, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+    }
   }
   ctx.globalAlpha = 1;
 }

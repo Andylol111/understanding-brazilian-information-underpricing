@@ -139,25 +139,35 @@ export function probit(p) {
   return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
 }
 
+// Intl formatters cost far more to build than to use, and these run on every frame of a replay
+// (the scrubber's clock, the day label): one per time zone / format, made on first use.
+const fmtCache = new Map();
+const fmtOf = (key, make) => { let f = fmtCache.get(key); if (!f) fmtCache.set(key, (f = make())); return f; };
+
 export function fmtDate(iso) {
   const d = new Date(`${iso}T12:00:00Z`);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  return fmtOf("date", () => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })).format(d);
 }
 
 // Clock time in the election's own time zone, e.g. "19:04".
 export function clock(t, tz) {
-  return new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz });
+  return fmtOf(`clock|${tz}`, () => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz })).format(new Date(t));
+}
+
+// "12 Apr" in the election's time zone.
+export function dayLabel(t, tz) {
+  return fmtOf(`day|${tz}`, () => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: tz })).format(t);
 }
 
 export function tzName(tz, at) {
-  const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" }).formatToParts(new Date(at));
+  const p = fmtOf(`tzn|${tz}`, () => new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" })).formatToParts(new Date(at));
   return p.find((x) => x.type === "timeZoneName")?.value ?? tz;
 }
 
 // Minutes to add to UTC to get the election's wall clock at `at` (constant over one night).
 export function tzOffsetMin(tz, at) {
   const d = new Date(at);
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+  const p = Object.fromEntries(fmtOf(`off|${tz}`, () => new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }))
     .formatToParts(d).map((x) => [x.type, x.value]));
   const wall = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
   return Math.round((wall - Math.floor(d.getTime() / 60000) * 60000) / 60000);

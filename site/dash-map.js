@@ -15,7 +15,11 @@ const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce
 // offscreen: hand the canvas to a worker (else the engine draws on it in place).
 // populatedFirst: open fitted to the units below the 90th percentile of area (e.g. Canada's south).
 // onFrame(ms): called with each transition frame's interval (for measurements).
-export function createMap(container, { geo, post, offscreen = true, populatedFirst = false, onHover, onClick, onFrame }) {
+// Selection: the page owns the selected set (setSelection draws its outlines); a shift-drag draws a lasso and calls
+// onLasso(feature indexes, ev) with the selectable() features whose label point it encloses (only while lassoOk()).
+// The user's own zoom and pan (zoomBy, panBy, resetView, ctrl/cmd + wheel or pinch, dragging) are kept relative to the
+// fitted view (viewState / setViewState); onView() says one has changed. Any programmatic move (focus, extent) refits.
+export function createMap(container, { geo, post, offscreen = true, populatedFirst = false, onHover, onClick, onFrame, onLasso, onView, lassoOk = () => false, selectable = () => true }) {
   const n = geo.ids.length;
   const ids = geo.ids;
   const regionOf = (i) => ids[i].split("-")[1];
@@ -78,6 +82,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     inUnits: null, focus: null, focusToken: 0, hover: -1, pinned: -1, hoverRegion: null, nat: false, agg: false, natHover: false,
     radius: new Float32Array(n).fill(3),
     extent: populatedFirst ? "populated" : "all", populated: null,
+    sel: new Set(), user: false, moving: false, drag: null, lasso: null, swallow: false,
   };
   const frame = () => {
     post({ type: "frame", view: st.view, fadeMix: st.fadeMix, natMix: st.natMix, levelMix: st.levelMix });
@@ -91,7 +96,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     const { k, x, y } = st.view;
     octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.clearRect(0, 0, overlay.width, overlay.height);
-    if (st.animating) return;
+    if (st.animating || st.moving) return;
     octx.setTransform(st.dpr * k, 0, 0, st.dpr * k, st.dpr * x, st.dpr * y);
     const px = 1 / k;
     // hover: a light wash and a dark outline (the whole region at the state level)
@@ -105,11 +110,37 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       octx.stroke(outlineOf(hoverR));
       octx.setLineDash([]);
     }
+    if (st.sel.size) {
+      // the selection: a dark outline on a white halo
+      octx.lineJoin = "round";
+      for (const [col, w] of [["#ffffff", 3.6], ["#1b1b1b", 1.7]]) {
+        octx.strokeStyle = col;
+        octx.lineWidth = w * px;
+        for (const i of st.sel) {
+          if (!isPoint[i]) octx.stroke(hitPath(i));
+          else if (Number.isFinite(centres[2 * i])) { octx.beginPath(); octx.arc(centres[2 * i], centres[2 * i + 1], (st.radius[i] + 1) * px, 0, 2 * Math.PI); octx.stroke(); }
+        }
+      }
+      octx.strokeStyle = "#1b1b1b";
+    }
     for (const [i, w] of [[st.pinned, 2.2], [st.natHover ? -1 : st.hover, 1.4]]) {
       if (i < 0) continue;
       octx.lineWidth = w * px;
       if (!isPoint[i]) { if (i === st.hover) wash(hitPath(i)); octx.stroke(hitPath(i)); }
       else if (Number.isFinite(centres[2 * i])) { octx.beginPath(); octx.arc(centres[2 * i], centres[2 * i + 1], (st.radius[i] + 1) * px, 0, 2 * Math.PI); octx.stroke(); }
+    }
+    if (st.lasso?.pts.length > 1) {
+      octx.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
+      octx.beginPath();
+      st.lasso.pts.forEach(([lx, ly], j) => (j ? octx.lineTo(lx, ly) : octx.moveTo(lx, ly)));
+      octx.closePath();
+      octx.fillStyle = "rgba(27,27,27,0.08)";
+      octx.fill();
+      octx.strokeStyle = "#1b1b1b";
+      octx.lineWidth = 1.4;
+      octx.setLineDash([5, 3]);
+      octx.stroke();
+      octx.setLineDash([]);
     }
   }
 
@@ -130,11 +161,48 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     return st.extent === "populated" && st.populated?.length ? st.populated : all;
   }
 
+  // The user's own view relative to the fitted one (so a resize or a shared link keeps the same picture): z = zoom
+  // against the fit, (cx, cy) = the base-space point at the middle of the map.
+  const ZMIN = 0.6, ZMAX = 90;
+  const viewState = () => { const f = fitView(currentFitIdx()), { k, x, y } = st.view; return { z: k / f.k, cx: (st.w / 2 - x) / k, cy: (st.h / 2 - y) / k }; };
+  const viewFrom = ({ z, cx, cy }) => { const k = fitView(currentFitIdx()).k * Math.max(ZMIN, Math.min(ZMAX, z)); return { k, x: st.w / 2 - cx * k, y: st.h / 2 - cy * k }; };
+  let moveTimer = 0;
+  let goal = null; // where a glide in progress ends: keys pressed in quick succession add up
+  // an interactive move: the page-side outlines wait until it stops (the worker paints a frame later)
+  const moved = () => {
+    st.user = true;
+    st.moving = true;
+    frame();
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(() => { st.moving = false; drawOverlay(); onView?.(); }, 140);
+  };
+  const zoomed = (f, sx, sy) => {
+    const fit = fitView(currentFitIdx()), v = goal ?? st.view;
+    const k = Math.max(fit.k * ZMIN, Math.min(fit.k * ZMAX, v.k * f));
+    return { k, x: sx - ((sx - v.x) * k) / v.k, y: sy - ((sy - v.y) * k) / v.k };
+  };
+  // a short glide to a view (keys, search); at once for reduced motion
+  function glide(view) {
+    cancelAnimationFrame(st.anim);
+    const from = st.view;
+    goal = view;
+    if (document.hidden || reducedMotion() || !st.w) { goal = null; st.view = view; moved(); return; }
+    const t0 = performance.now(), dur = 150;
+    const step = (now) => {
+      const u = Math.min(1, (now - t0) / dur), e = d3.easeCubicOut(u);
+      st.view = { k: from.k + (view.k - from.k) * e, x: from.x + (view.x - from.x) * e, y: from.y + (view.y - from.y) * e };
+      moved();
+      if (u < 1) st.anim = requestAnimationFrame(step); else goal = null;
+    };
+    st.anim = requestAnimationFrame(step);
+  }
+
   function resize() {
     const r = container.getBoundingClientRect();
     if (r.width < 10 || r.height < 10) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     if (r.width === st.w && r.height === st.h && dpr === st.dpr) return;
+    const rel = st.user && st.w && !st.animating ? viewState() : null; // the user's view, kept through the resize
     st.w = r.width;
     st.h = r.height;
     st.dpr = dpr;
@@ -144,7 +212,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     post({ type: "size", w: st.w, h: st.h, dpr: st.dpr });
     // a transition in progress keeps running and refits when it ends
     if (st.animating) { st.refit = true; return; }
-    st.view = fitView(currentFitIdx());
+    st.view = rel ? viewFrom(rel) : fitView(currentFitIdx());
     frame();
   }
 
@@ -161,7 +229,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
   // map level: 0 states, 1 units); fading in, it waits for `ready` like nat. Without a change of
   // view (a level switch) the fades take LEVEL_MS from the start.
   function transition(view, { fade, nat, level = st.levelMix, ready } = {}) {
-    cancelAnimationFrame(st.anim);
+    cancelAnimationFrame(st.anim); goal = null;
     st.animating = false;
     let natReady = !ready;
     // a failed load still ends the fade (the last colours stay), so the transition always finishes
@@ -261,8 +329,34 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     return -1;
   }
 
-  // pointer events reach the overlay (it sits on top)
+  // pointer events reach the overlay (it sits on top). A press that travels more than a few pixels is a drag: it pans
+  // the map, or with Shift draws a lasso; the click that ends it is not a click.
+  const DRAG = 5;
+  const local = (ev) => { const r = canvas.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
+  overlay.addEventListener("pointerdown", (ev) => {
+    st.swallow = false;
+    if (ev.button !== 0 || ev.pointerType === "touch" || st.animating) return;
+    st.drag = { x: ev.clientX, y: ev.clientY, view: { ...st.view }, mode: ev.shiftKey && lassoOk() ? "lasso" : "pan", on: false, pts: [local(ev)] };
+  });
   overlay.addEventListener("pointermove", (ev) => {
+    if (st.drag && !(ev.buttons & 1)) st.drag = null; // the button was released outside (nothing captured it yet)
+    const d = st.drag;
+    if (d) {
+      if (!d.on && Math.hypot(ev.clientX - d.x, ev.clientY - d.y) < DRAG) return; // still a click
+      if (!d.on) {
+        d.on = true;
+        try { overlay.setPointerCapture(ev.pointerId); } catch { /* a synthetic pointer */ }
+        cancelAnimationFrame(st.anim); goal = null;
+        st.hover = -1;
+        onHover?.(-1, null);
+        overlay.style.cursor = d.mode === "lasso" ? "crosshair" : "grabbing";
+      }
+      if (d.mode === "pan") { st.view = { ...d.view, x: d.view.x + ev.clientX - d.x, y: d.view.y + ev.clientY - d.y }; moved(); } else {
+        const p = local(ev), last = d.pts[d.pts.length - 1];
+        if (Math.hypot(p[0] - last[0], p[1] - last[1]) >= 3) { d.pts.push(p); st.lasso = { pts: d.pts }; drawOverlay(); }
+      }
+      return;
+    }
     const i = pick(ev);
     const changed = st.natHover ? (i >= 0 ? regionOf(i) : null) !== (st.hover >= 0 ? regionOf(st.hover) : null) : i !== st.hover;
     st.hover = i;
@@ -271,10 +365,55 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     onHover?.(i, ev);
   });
   overlay.addEventListener("pointerleave", () => {
+    if (st.drag?.on) return;
     if (st.hover !== -1) { st.hover = -1; drawOverlay(); }
     onHover?.(-1, null);
   });
-  overlay.addEventListener("click", (ev) => onClick?.(pick(ev), ev));
+  // the feature indexes whose label point lies inside a lasso (screen points)
+  function inside(pts) {
+    const { k, x, y } = st.view;
+    const poly = pts.map(([sx, sy]) => [(sx - x) / k, (sy - y) / k]);
+    const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
+    const bx0 = Math.min(...xs), bx1 = Math.max(...xs), by0 = Math.min(...ys), by1 = Math.max(...ys);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const px = geo.labels[2 * i], py = geo.labels[2 * i + 1];
+      if (!(px >= bx0 && px <= bx1 && py >= by0 && py <= by1) || !ids[i] || st.hidden?.[i] || !selectable(i)) continue;
+      let c = false;
+      for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) {
+        if ((poly[a][1] > py) !== (poly[b][1] > py) && px < ((poly[b][0] - poly[a][0]) * (py - poly[a][1])) / (poly[b][1] - poly[a][1]) + poly[a][0]) c = !c;
+      }
+      if (c) out.push(i);
+    }
+    return out;
+  }
+  const endDrag = (ev) => {
+    const d = st.drag;
+    st.drag = null;
+    if (!d?.on) return;
+    st.swallow = true; // the click that follows a drag is not a click
+    overlay.style.cursor = "default";
+    if (d.mode === "lasso") {
+      st.lasso = null;
+      drawOverlay();
+      if (d.pts.length >= 3) onLasso?.(inside(d.pts), ev);
+    }
+  };
+  overlay.addEventListener("pointerup", endDrag);
+  overlay.addEventListener("pointercancel", endDrag);
+  overlay.addEventListener("click", (ev) => {
+    if (st.swallow) { st.swallow = false; return; }
+    onClick?.(pick(ev), ev);
+  });
+  // ctrl / cmd + wheel, and a trackpad pinch (which arrives as ctrl + wheel), zoom about the pointer; a plain wheel scrolls the page
+  overlay.addEventListener("wheel", (ev) => {
+    if (!(ev.ctrlKey || ev.metaKey) || st.animating) return;
+    ev.preventDefault();
+    cancelAnimationFrame(st.anim); goal = null;
+    const [sx, sy] = local(ev);
+    st.view = zoomed(Math.exp((-ev.deltaY * (ev.deltaMode === 1 ? 16 : 1)) / 220), sx, sy);
+    moved();
+  }, { passive: false });
 
   const ro = new ResizeObserver(() => resize());
   ro.observe(container);
@@ -293,6 +432,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       const layered = st.nat || st.agg;
       const natT = nat ?? (layered && next ? 1 : 0);
       const token = ++st.focusToken;
+      st.user = false;
       if (next !== st.focus) {
         // a new region's units start hidden under its region fill and fade in when bound
         if (next && layered && st.focus) st.natMix = 0;
@@ -300,7 +440,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
         st.focus = next;
       }
       const jump = (view) => {
-        cancelAnimationFrame(st.anim);
+        cancelAnimationFrame(st.anim); goal = null;
         st.animating = false;
         if (view) st.view = view;
         st.fadeMix = next ? 1 : 0;
@@ -322,7 +462,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     // Switch the map level without zooming: level / nat as in focus().
     setLevel({ level, nat = st.natMix, ready = null, animate = true }) {
       if (!animate || !st.w) {
-        cancelAnimationFrame(st.anim);
+        cancelAnimationFrame(st.anim); goal = null;
         st.animating = false;
         const set = () => { st.natMix = nat; st.levelMix = level; frame(); };
         if (ready && level > st.levelMix) ready.then(set, set); else set();
@@ -375,6 +515,28 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
       drawOverlay();
     },
     pin(i) { st.pinned = i; drawOverlay(); },
+    // the selected features (outlined on the overlay)
+    setSelection(list) { st.sel = new Set(list); drawOverlay(); },
+    // the Layers menu: { enc: "none" | "hatch" | "dots" | "outline", encOp, fillOp } for the engine to draw
+    setOver(over) { post({ type: "state", state: { over } }); },
+    // the user's view: zoom by a factor about a screen point (default the middle), pan by screen pixels, back to the fit
+    zoomBy(f, at = null) { if (!st.w || st.animating) return; glide(zoomed(f, at?.[0] ?? st.w / 2, at?.[1] ?? st.h / 2)); },
+    panBy(dx, dy) { if (!st.w || st.animating) return; { const v = goal ?? st.view; glide({ ...v, x: v.x + dx, y: v.y + dy }); } },
+    resetView() {
+      st.user = false;
+      if (st.w) { transition(fitView(currentFitIdx()), { fade: st.fadeMix, nat: st.natMix }); afterEnd(() => onView?.()); }
+    },
+    // null while the map shows its fitted view
+    get viewState() { return st.user && st.w ? viewState() : null; },
+    setViewState(s) { if (s && st.w && Number.isFinite(s.z + s.cx + s.cy)) { cancelAnimationFrame(st.anim); goal = null; st.view = viewFrom(s); moved(); } },
+    // bring one feature into view: zoom to it
+    zoomToUnit(i) {
+      if (!st.w || st.animating || !Number.isFinite(bounds[4 * i])) return;
+      const fit = fitView(currentFitIdx()), bw = bounds[4 * i + 2] - bounds[4 * i], bh = bounds[4 * i + 3] - bounds[4 * i + 1];
+      const cx = (bounds[4 * i] + bounds[4 * i + 2]) / 2, cy = (bounds[4 * i + 1] + bounds[4 * i + 3]) / 2;
+      const k = isPoint[i] || bw < 1 || bh < 1 ? fit.k * 6 : Math.max(fit.k, Math.min(fit.k * ZMAX, Math.min((st.w - 2 * PAD) / bw, (st.h - 2 * PAD) / bh) * 0.35));
+      glide({ k, x: st.w / 2 - cx * k, y: st.h / 2 - cy * k });
+    },
     // for the map checks: the page point at the middle of a unit's bounds, and the unit under a page point
     pointOf(i) {
       const r = canvas.getBoundingClientRect();
@@ -386,6 +548,7 @@ export function createMap(container, { geo, post, offscreen = true, populatedFir
     hasPopulatedView: populatedFirst,
     setExtent(ext) {
       st.extent = ext;
+      st.user = false;
       if (st.w) transition(fitView(currentFitIdx()), { fade: st.fadeMix, nat: st.natMix });
     },
     resize,
