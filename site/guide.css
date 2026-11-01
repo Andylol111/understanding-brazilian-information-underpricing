@@ -1,0 +1,111 @@
+/* guide.html: the election-night entry point. Builds on style.css (type, colours, tables, .toggle, .chips). */
+body.gd main { padding-top: 40px; }
+.gd .sitenav { margin-bottom: 28px; }
+.gd-wrap { max-width: 1180px; margin: 0 auto; }
+.gd-wrap h1 { margin-bottom: 10px; }
+.gd-wrap h2, #gd-pre-h { font: 700 22px/1.25 var(--serif); margin: 36px 0 10px; }
+.gd-wrap h3 { font: 700 15px/1.3 var(--sans); margin: 0 0 6px; }
+.gd .byline { margin-bottom: 8px; }
+.gd-note { font: 12.5px/1.45 var(--sans); color: var(--muted); margin: 8px 0 0; max-width: 110ch; }
+.gd-empty { font: 14px/1.45 var(--sans); color: var(--muted); margin: 6px 0; }
+
+/* what to watch now */
+.gd-feed { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--ink); }
+.gd-feed li { display: grid; grid-template-columns: 64px 74px 1fr auto; gap: 0 10px; align-items: baseline; margin: 0; padding: 6px 0; border-bottom: 1px solid var(--rule); font: 14px/1.4 var(--sans); }
+.gd-feed time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gd-tag { font: 600 11px/1 var(--sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.gd-tag.model { color: var(--model); }
+.gd-tag.market { color: var(--kalshi); }
+.gd-tag.gap { color: #6f4e22; }
+.gd-tag.count { color: var(--raw); }
+.gd-tag.groups { color: #8a6fb0; }
+.gd-go { font: 12.5px var(--sans); color: var(--muted); white-space: nowrap; }
+
+/* race board */
+.gd-t { width: 100%; font: 13.5px/1.35 var(--sans); margin: 0; border-collapse: collapse; border-top: 2px solid var(--ink); }
+.gd-t th, .gd-t td { padding: 6px 10px 6px 0; vertical-align: middle; }
+.gd-t thead th { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; border-bottom: 1px solid var(--rule); }
+.gd-t thead th button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+.gd-t thead th button:hover { color: var(--ink); }
+.gd-t th[aria-sort] button { color: var(--ink); }
+.gd-t th[aria-sort="ascending"] button::after { content: " \25B2"; font-size: 9px; }
+.gd-t th[aria-sort="descending"] button::after { content: " \25BC"; font-size: 9px; }
+.gd-t td.n, .gd-t th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gd-t td.gd-race { font-weight: 600; min-width: 130px; }
+.gd-t td.gd-race a { text-decoration: none; }
+.gd-t td.gd-race a:hover { text-decoration: underline; }
+.gd-lean b { font-weight: 700; }
+.gd-lean span { color: var(--muted); font-size: 12px; margin-left: 4px; }
+.gd-t td.m { color: var(--model); font-weight: 600; }
+.gd-t td.gd-pm { color: var(--market); }
+.gd-t td.gd-kx { color: var(--kalshi); }
+.gd-t tr.gd-house td { border-top: 1px solid var(--ink); }
+.gd-chip { font: 600 11px/1 var(--sans); letter-spacing: 0.03em; text-transform: uppercase; padding: 3px 6px; border-radius: 2px; white-space: nowrap; background: #eeeeec; color: #55575a; }
+.gd-chip.counting { background: #f3eadc; color: #6f4e22; }
+.gd-chip.m90 { background: #f6e3d8; color: #8a3a12; }
+.gd-chip.decided { background: #e6f0e8; color: #2f5c3a; }
+.gd-t td.lead-pos { color: var(--model); font-weight: 700; }
+.gd-t td.lead-neg { color: var(--market); font-weight: 700; }
+.gd-more { font: 13px var(--sans); margin-top: 8px; padding: 6px 12px; border: 1px solid var(--rule); background: transparent; color: var(--ink); border-radius: 3px; cursor: pointer; }
+.gd-more:hover { border-color: var(--ink); }
+
+/* model and market */
+.gd-mm { display: grid; grid-template-columns: minmax(0, 2.4fr) minmax(240px, 1fr); gap: 24px 36px; align-items: start; }
+.gd-multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 14px 18px; }
+.gd-mini { margin: 0; min-width: 0; }
+.gd-mini a { display: block; font: 700 13px/1.3 var(--sans); text-decoration: none; }
+.gd-mini a:hover { text-decoration: underline; }
+.gd-mini svg { display: block; width: 100%; height: auto; margin-top: 2px; }
+.gd-mini figcaption { font: 11.5px/1.35 var(--sans); margin: 2px 0 0; }
+.gd-mini .gd-ax text { font: 10px var(--sans); fill: var(--muted); }
+.gd-mini .gd-ax line, .gd-mini .gd-ax path { stroke: #c9c6bd; }
+.gd-gridline { stroke: #ecebe6; stroke-width: 1; }
+.gd-mid { stroke: #c9c6bd; stroke-width: 1; stroke-dasharray: 2 3; }
+.gd-l-model { fill: none; stroke: var(--model); stroke-width: 1.8; }
+.gd-l-pm { fill: none; stroke: var(--market); stroke-width: 1.4; }
+.gd-mark-model { stroke: var(--model); stroke-width: 1; stroke-dasharray: 3 2; }
+.gd-mark-pm { stroke: var(--market); stroke-width: 1; stroke-dasharray: 3 2; }
+.gd-conv { fill: #fcfbf8; stroke: var(--ink); stroke-width: 1.5; }
+.gd-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font: 12.5px/1.4 var(--sans); margin-top: 8px; }
+.gd-legend i { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: 3px; }
+.gd-dis { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--ink); font: 13.5px/1.4 var(--sans); }
+.gd-dis li { margin: 0; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.gd-dis b { font-weight: 700; }
+.gd-dis a { text-decoration: none; font-weight: 600; }
+.gd-dis a:hover { text-decoration: underline; }
+.gd-dis small { display: block; color: var(--muted); font-size: 12px; }
+
+#gd-mm-sec[data-state="empty"] .gd-mm { grid-template-columns: 1fr; }
+#gd-mm-sec[data-state="empty"] .gd-mm > div + div { display: none; }
+
+/* where the electorate went */
+.gd-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 18px 36px; }
+.gd-card h3 select { font: 13px var(--sans); margin-left: 8px; }
+.gd-list { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--ink); font: 14px/1.4 var(--sans); }
+.gd-list li { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; margin: 0; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.gd-list small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.gd-list b { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* before the results */
+details#gd-pre > summary { cursor: pointer; list-style: none; }
+details#gd-pre > summary::-webkit-details-marker { display: none; }
+details#gd-pre > summary::before { content: "\25B8"; display: inline-block; width: 1em; color: var(--muted); }
+details#gd-pre[open] > summary::before { content: "\25BE"; }
+#gd-pre-body h3 { margin-top: 22px; }
+#gd-pre-body .chips { margin: 8px 0 4px; }
+.gd-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 0 36px; }
+.gd-foot { margin-top: 48px; font: 12.5px/1.5 var(--sans); color: var(--muted); border-top: 1px solid var(--rule); padding-top: 10px; }
+.gd-foot p { margin: 0 0 6px; }
+
+@media (max-width: 820px) {
+  .gd-mm { grid-template-columns: 1fr; }
+  .gd-feed li { grid-template-columns: 58px 1fr; }
+  .gd-feed li .gd-tag { grid-column: 2; }
+  .gd-feed li .gd-txt { grid-column: 1 / -1; }
+  .gd-feed li .gd-go { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .gd-t { font-size: 12.5px; }
+  .gd-t th, .gd-t td { padding-right: 6px; }
+}
+.gd .table-scroll { overflow-x: auto; }

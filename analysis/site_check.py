@@ -82,7 +82,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 def cases() -> list[Case]:
     out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article"), Case("earlyvote", "earlyvote.html", "earlyvote"), Case("scorecard", "scorecard.html", "scorecard"), Case("midterms", "midterms.html", "midterms"),
-           Case("groups", "groups.html", "groups"), Case("groups-ga-sen", "groups.html?race=ga-sen", "groups")]
+           Case("groups", "groups.html", "groups"), Case("groups-ga-sen", "groups.html?race=ga-sen", "groups"), Case("guide", "guide.html", "guide")]
     out.extend(Case(eid, f"election.html?{urlencode({'id': eid})}", "election") for eid in ELECTIONS)
     # Exercise the US county map as well as its default national state map.
     out.append(Case("us2026-ca-gov", f"election.html?{urlencode({'id': 'us2026', 'race': 'ca-gov'})}", "election"))
@@ -134,6 +134,7 @@ async def state(page: Page, kind: str) -> dict[str, Any]:
             scReady: !!window.__scReady,
             mtReady: !!window.__mtReady,
             grReady: !!window.__groups?.ready,
+            gdReady: !!window.__guide?.ready,
             kind,
           };
         }""",
@@ -156,6 +157,8 @@ def ready(s: dict[str, Any], mapless: bool = False) -> bool:
         return s["mtReady"]
     if s["kind"] == "groups":
         return s["grReady"]
+    if s["kind"] == "guide":
+        return s["gdReady"]
     return bool(s["title"] and s["raceOptions"] and s["readout"] and (mapless or s["visiblePaths"] or (s["visibleCanvas"] and s["painted"])))
 
 
@@ -495,7 +498,7 @@ async def check_home_mix(page: Page) -> list[str]:
     return fails
 
 
-NAV_EXPECT = ["Election nights", "US early vote", "Electorate by state", "Live by place", "Track record"]
+NAV_EXPECT = ["Night guide", "Election nights", "US early vote", "Electorate by state", "Live by place", "Track record"]
 
 
 async def check_site_nav(page: Page) -> list[str]:
@@ -630,6 +633,42 @@ async def check_groups(page: Page, viewport_name: str) -> list[str]:
     return out
 
 
+async def check_guide(page: Page, viewport_name: str) -> list[str]:
+    """Night guide (guide.html), before the count: the race board with every counted race and the House row, sortable; the empty
+    event feed says why; the before-the-results part has early-vote numbers, the poll-closing schedule and counties to watch."""
+    out: list[str] = []
+    try:
+        await page.wait_for_function("document.querySelectorAll('#gd-pre-body table').length >= 2", timeout=15000)
+    except Exception:
+        out.append("guide page has no schedule and counties-to-watch tables")
+    p = await page.evaluate("""() => ({ rows: document.querySelectorAll('#gd-board tbody tr[data-race]').length, house: !!document.querySelector('#gd-board tr.gd-house'),
+        heads: document.querySelectorAll('#gd-board thead th').length, feedNote: document.querySelector('#gd-feed-note')?.textContent ?? '', feed: document.querySelectorAll('#gd-feed li').length,
+        chips: document.querySelectorAll('#gd-pre-body .chip').length, sched: document.querySelectorAll('#gd-pre-body table')[0]?.querySelectorAll('tbody tr').length ?? 0,
+        watch: document.querySelectorAll('#gd-pre-body table')[1]?.querySelectorAll('tbody tr').length ?? 0, build: window.__guide?.build === window.__BUILD,
+        links: [...document.querySelectorAll('#gd-board tbody tr[data-race] a')].every((a) => a.getAttribute('href').startsWith('election.html?id=us2026&race=')) })""")
+    if p["rows"] < 20 or not p["house"] or p["heads"] != 8:
+        out.append(f"guide race board is incomplete: {p}")
+    if p["feed"] or "Nothing yet" not in p["feedNote"]:
+        out.append(f"guide feed should be empty with a reason before the count: {p}")
+    if p["chips"] < 3 or p["sched"] < 10 or p["watch"] < 15:
+        out.append(f"guide before-the-results part is short: {p}")
+    if not p["build"] or not p["links"]:
+        out.append(f"guide build stamp or race links are wrong: {p}")
+    names = "() => [...document.querySelectorAll('#gd-board tbody tr[data-race] td.gd-race')].map((td) => td.textContent)"
+    before = await page.evaluate(names)
+    await page.click("#gd-board thead button[data-sort='race']")
+    head = await page.evaluate("() => document.querySelector('#gd-board thead th[aria-sort]')?.textContent ?? ''")
+    after = await page.evaluate(names)
+    in_order = await page.evaluate("(a) => a.every((x, i) => i === 0 || a[i - 1].localeCompare(x) <= 0)", after)
+    if head != "Race" or not in_order or after == before:
+        out.append(f"guide board does not sort by race: {head!r}")
+    if viewport_name == "mobile":
+        wide = await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 2")
+        if wide:
+            out.append("page scrolls sideways on mobile")
+    return out
+
+
 async def check_scorecard(page: Page, viewport_name: str) -> list[str]:
     """Track-record page: every section drawn from the generated files, calibration charts and tables present, wording."""
     out: list[str] = []
@@ -709,6 +748,9 @@ async def check_page(
                 result.failures.extend(await check_site_nav(page))
             elif case.kind == "groups":
                 result.failures.extend(await check_groups(page, viewport_name))
+                result.failures.extend(await check_site_nav(page))
+            elif case.kind == "guide":
+                result.failures.extend(await check_guide(page, viewport_name))
                 result.failures.extend(await check_site_nav(page))
             elif case.kind == "election":
                 if not current["title"] or current["title"].startswith("Loading"):

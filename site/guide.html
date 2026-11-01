@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>US midterms 2026: election-night guide</title>
+<meta name="description" content="One page for US midterm election night: what changed in the last minutes, every Senate and governor race with the model's chance, Polymarket, Kalshi and share counted, where the model and the markets disagree, and where the electorate went. Before the count: early vote, poll-closing times and the counties to watch first.">
+<!-- BUILD: the one version constant of this page, changed on every deploy. It versions the page's own JS and CSS (an import
+     map over common.js, groups-agg.js and guide-rules.js), so cached code cannot mix with new data. -->
+<link id="page-css" rel="stylesheet">
+<link id="gd-css" rel="stylesheet">
+<script>
+window.__BUILD = "20261101u1";
+window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
+document.getElementById("page-css").href = "style.css?v=" + window.__V;
+document.getElementById("gd-css").href = "guide.css?v=" + window.__V;
+(() => {
+  const imports = {};
+  for (const f of ["common.js", "groups-agg.js", "guide-rules.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  const m = document.createElement("script");
+  m.type = "importmap";
+  m.textContent = JSON.stringify({ imports });
+  document.head.append(m);
+})();
+</script>
+</head>
+<body class="gd">
+<main>
+<nav class="col sitenav" aria-label="Site"><span aria-current="page">Night guide</span> / <a href="./">Election nights</a> / <a href="earlyvote.html">US early vote</a> / <a href="midterms.html">Electorate by state</a> / <a href="groups.html">Live by place</a> / <a href="scorecard.html">Track record</a></nav>
+
+<header class="gd-wrap">
+  <p class="kicker"><a id="dash-link" href="election.html?id=us2026">US midterms 2026</a></p>
+  <h1>Election-night guide</h1>
+  <p class="byline" id="gd-status">Loading…</p>
+</header>
+
+<section class="gd-wrap" id="gd-feed-sec" aria-labelledby="gd-feed-h">
+  <h2 id="gd-feed-h">What to watch now</h2>
+  <ol class="gd-feed" id="gd-feed"></ol>
+  <p class="gd-note" id="gd-feed-note"></p>
+</section>
+
+<section class="gd-wrap" id="gd-board-sec" aria-labelledby="gd-board-h">
+  <h2 id="gd-board-h">Races</h2>
+  <div class="table-scroll"><table class="gd-t" id="gd-board"></table></div>
+  <p class="gd-note" id="gd-board-note"></p>
+</section>
+
+<section class="gd-wrap" id="gd-mm-sec" aria-labelledby="gd-mm-h">
+  <h2 id="gd-mm-h">Model and market through the night</h2>
+  <div class="gd-mm">
+    <div>
+      <div class="gd-multiples" id="gd-multiples"></div>
+      <div class="gd-legend" id="gd-mm-legend"></div>
+    </div>
+    <div>
+      <h3>Largest disagreements now</h3>
+      <ol class="gd-dis" id="gd-dis"></ol>
+    </div>
+  </div>
+</section>
+
+<section class="gd-wrap" id="gd-grp-sec" aria-labelledby="gd-grp-h">
+  <h2 id="gd-grp-h">Where the electorate went</h2>
+  <div class="gd-pair" id="gd-grp"></div>
+  <p class="gd-note"><a href="groups.html">All kinds of places and regions</a></p>
+</section>
+
+<section class="gd-wrap" id="gd-pre-sec" aria-labelledby="gd-pre-h">
+  <details id="gd-pre" open>
+    <summary id="gd-pre-h">Before the results</summary>
+    <div id="gd-pre-body"></div>
+  </details>
+</section>
+
+<footer class="gd-wrap gd-foot" id="gd-foot"></footer>
+</main>
+<script type="module">import("./guide.js?v=" + window.__V).catch((e) => { document.getElementById("gd-status").textContent = "The page could not load: " + e.message; console.error(e); });</script>
+</body>
+</html>
