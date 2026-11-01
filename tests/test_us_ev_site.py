@@ -159,3 +159,21 @@ def test_built_site_files_count_pa_once_and_leave_out_secondary_rows(tmp_path, m
     assert nc["status"] != "collected" and nc["total"] is None
     assert idx["tracker"]["url"] == "https://example.org/uf_election_lab" and "999999999" not in json.dumps(idx)
     assert res["audit"]["county_not_equal_state"] == []
+
+
+def test_county_only_source_is_not_a_state_total(tmp_path, monkeypatch):
+    """Clark County alone (EVGaps' nv_clark_ev) must show as 'county only' coverage, never as Nevada's total."""
+    monkeypatch.setenv("BRUNDER_DATA", str(tmp_path))
+    p = tmp_path / "ev.sqlite"
+    tiny_db(p)
+    con = sqlite3.connect(p)
+    con.execute("INSERT INTO sources(state, source_id, url, kind, format, cadence, access, licence, notes) VALUES ('nv','nv_clark_ev','https://example.org/clark','county','x','daily','open','x','Clark County only.')")
+    con.execute("INSERT INTO ev_county(state, county_fips, as_of_date, measure, party, age_band, count, source_id, snapshot_id) VALUES ('nv','32003','2026-10-30','total','ALL','ALL',350000,'nv_clark_ev',1)")
+    con.commit()
+    con.close()
+    site.build(p, tmp_path / "out", use_daily=False, log=lambda *_: None)
+    idx = json.loads((tmp_path / "out" / "index.json").read_text())
+    nv = next(c for c in idx["states"] if c["st"] == "nv")
+    assert nv["status"] == "collected" and nv["level"] == "county" and nv["partial"] is True and nv["total"] is None
+    assert "not a state total" in nv["detail"]
+    assert not (tmp_path / "out" / "state_nv.json").exists() and (tmp_path / "out" / "counties_nv.json").exists()
