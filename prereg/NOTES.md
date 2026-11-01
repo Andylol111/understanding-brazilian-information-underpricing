@@ -250,6 +250,28 @@ rule was written, so the rule is built to favour the status quo.
   and are frozen with it. An L2 county turnout model for statewide races was tested and rejected (11% worse out of
   sample than the challenger's expected votes in 2022 and 2024).
 
+## US midterms 2026: unified challenger registered (2026-11-01, before any 2026 result)
+
+110 configs (`configs/us2026_unified/*.toml`: 35 statewide incl. civicAPI races; `configs/us2026_unified/house/*.toml`:
+75 House districts), registered at commit `0a70972` with polls refreshed the same day. It is a labelled challenger,
+not run live: after the count it is replayed on the recorded feeds with the same count engine and scored like the
+registered versions. Statewide it is a secondary; for House districts before any votes it is the headline declared
+above. The House replay swaps in the L2 piece split (`analysis/us_l2turnout.py export`); statewide uses
+`analysis/us_unified_replay.py`. Inputs the configs depend on, frozen with them (SHA-256, first 16 hex):
+
+| file | sha256 |
+|---|---|
+| `data_public/us2026_unified_priors.csv` | `d8b9cdd8b804480c` |
+| `data_public/us2026_unified_house_priors.csv` | `348a30900edc6844` |
+| `data_public/us2026_unified_house_priors_l2.csv` | `4d66addc66a54a05` |
+| `data_public/us_unified_params.json` | `744045f59733b447` |
+| `data_public/us_unified_house_params.json` | `826382ab06c967ad` |
+| `data_public/us2026_polls.json` | `885ccc31f941a363` |
+| `src/brunder/us_unified.py` | `dc78ece707bcebf6` |
+| `src/brunder/us_l2turnout.py` | `13b088f78788c212` |
+| `analysis/us_unified_replay.py` | `98ba1388c16e370e` |
+| `analysis/us_l2turnout.py` | `9a19ecd9a0165e78` |
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap
