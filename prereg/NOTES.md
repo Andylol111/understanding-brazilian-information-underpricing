@@ -272,6 +272,14 @@ above. The House replay swaps in the L2 piece split (`analysis/us_l2turnout.py e
 | `analysis/us_unified_replay.py` | `98ba1388c16e370e` |
 | `analysis/us_l2turnout.py` | `9a19ecd9a0165e78` |
 
+## Correction (appended, not edited in place)
+
+The entry titled "headline per race class from the consolidated benchmark (declared 2026-11-02 …)" was written and
+committed on **2026-11-01 at 23:11:40 UTC** (commit `13051a5`), not on 2026-11-02; its heading carries the wrong date.
+The git commit times are the authority for every entry here: `13051a5` (benchmark headline, 23:11 UTC),
+`5040556` (House piece split, 23:15 UTC), `0a70972` and `a5a5c66` (challenger build and registration, 23:35 UTC and
+later), all on 2026-11-01, before any 2026 result.
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap
