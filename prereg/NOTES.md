@@ -216,6 +216,31 @@ only states limits known before the count.
   was still out. Most of those replays use archived media feeds whose terms allow internal checks only, so their
   figures are not published; the one official-source night (Michigan 2022 governor) is. Nothing registered changes.
 
+## US midterms 2026: headline per race class from the consolidated benchmark (declared 2026-11-02, before any 2026 result)
+
+`docs/us_benchmark.md` compares every version on the same past races (leave-one-cycle-out 2016–2024, Georgia simulated
+count nights, real past nights). Its selection rule was committed (`a898845`) before any benchmark number was computed:
+the registered primary stays unless a candidate wins with an interval that excludes zero after Holm correction over
+all tested comparisons, in a class of at least 30 race-cycles. Pooled v1/v3/unified numbers had been seen before the
+rule was written, so the rule is built to favour the status quo.
+
+- **Statewide Senate and governor: v3 (Ohio v4) stays the headline** before and during the count, in every volatility
+  class. No candidate cleared the rule; in the high-volatility class the evidence is flat.
+- **House districts: the forward test is scored against two headlines.** Before any votes, the reported House
+  probability is the unified challenger's (it beat v2 in all six past cycles, Holm-significant); it is scored after
+  the night from the recorded feeds. During the count the headline stays v2, the version the live page shows,
+  because the unified challenger has no House count replay.
+- **The live US page is frozen and keeps v3 (Ohio v4) and House v2 as its main lines.** Where this entry names a
+  different headline (House, before votes), the page and this entry differ on purpose; results are reported
+  against this entry.
+- **House v1 and v2 differ in more than the starting estimate:** v2 also changes count settings (vote-type handling
+  off in 37 districts, a different county correlation in 38), although its header says it is identical to v1 except
+  for the swing. The registered files stay as they are; any v1-vs-v2 House comparison is read with this in mind.
+- **Expected votes:** v4's county turnout template (Ohio's primary) had a 27% statewide-level error on the 2022
+  races where it could be rebuilt (v3: 10%); its share estimates equal v3's. The map's "turnout vs expected" layer
+  places votes across counties well (median county error 6.4%) but its statewide level was off by 7% on average in
+  2022 and 2024, so early "turnout above or below expected" readings are approximate.
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap
