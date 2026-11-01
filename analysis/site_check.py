@@ -81,7 +81,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def cases() -> list[Case]:
-    out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article")]
+    out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article"), Case("earlyvote", "earlyvote.html", "earlyvote")]
     out.extend(Case(eid, f"election.html?{urlencode({'id': eid})}", "election") for eid in ELECTIONS)
     # Exercise the US county map as well as its default national state map.
     out.append(Case("us2026-ca-gov", f"election.html?{urlencode({'id': 'us2026', 'race': 'ca-gov'})}", "election"))
@@ -129,6 +129,7 @@ async def state(page: Page, kind: str) -> dict[str, Any]:
             visiblePaths,
             visibleCanvas,
             painted: window.__dashPerf?.firstRenderMs != null,
+            evReady: !!window.__evReady,
             kind,
           };
         }""",
@@ -143,6 +144,8 @@ def ready(s: dict[str, Any], mapless: bool = False) -> bool:
         return s["rows"] >= len(ELECTIONS) and s["homeCards"] > 0
     if s["kind"] == "article":
         return s["articlePaths"] > 10
+    if s["kind"] == "earlyvote":
+        return s["evReady"]
     return bool(s["title"] and s["raceOptions"] and s["readout"] and (mapless or s["visiblePaths"] or (s["visibleCanvas"] and s["painted"])))
 
 
@@ -482,6 +485,52 @@ async def check_home_mix(page: Page) -> list[str]:
     return fails
 
 
+async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
+    """US early-vote page: coverage of all 51, map, charts for the default state and for others, county map, wording."""
+    out: list[str] = []
+    probe = """() => ({ rows: document.querySelectorAll('#cov-table tbody tr[data-st]').length,
+        mapPaths: document.querySelectorAll('#cov-map path.ev-st').length,
+        c1: document.querySelectorAll('#c1 svg path').length, c2: document.querySelectorAll('#c2 svg rect').length,
+        picks: document.querySelectorAll('#st-pick option').length, chips: document.querySelectorAll('#st-chips .chip').length })"""
+    p = await page.evaluate(probe)
+    if p["rows"] != 51 or p["picks"] != 51:
+        out.append(f"coverage has {p['rows']} table rows and {p['picks']} picker entries, expected 51")
+    if p["mapPaths"] < 51:
+        out.append(f"coverage map has {p['mapPaths']} states")
+    if not p["c1"] or not p["c2"] or not p["chips"]:
+        out.append(f"default state is missing charts or key figures: {p}")
+    # a state with party detail, daily files and history; one with county data only; a blocked one
+    for st, want in (("nc", {"party": True, "county": True, "compare": True}), ("tx", {"party": False, "county": True, "compare": False}), ("wi", {"blocked": True})):
+        await page.select_option("#st-pick", st)
+        await page.wait_for_function("(s) => new URLSearchParams(location.search).get('st') === s", arg=st)
+        await page.wait_for_timeout(700)
+        q = await page.evaluate("""() => ({ title: document.querySelector('#st-h').textContent,
+            c1: document.querySelectorAll('#c1 svg path').length, partyShown: !document.querySelector('#party-fig').hidden && document.querySelectorAll('#c3 svg path').length > 0,
+            ctyShown: !document.querySelector('#cty-fig').hidden && document.querySelectorAll('#cty-map svg path').length > 3,
+            cmpRows: document.querySelectorAll('#cmp-table tbody tr').length, cmpCharts: document.querySelectorAll('#c4 svg path').length,
+            basis: document.querySelector('#st-basis').textContent.length })""")
+        if want.get("blocked"):
+            if q["c1"] or not q["basis"]:
+                out.append(f"{st}: a blocked state should show its reason and no charts: {q}")
+            continue
+        if not q["c1"] or q["partyShown"] != want["party"] or q["ctyShown"] != want["county"] or bool(q["cmpCharts"]) != want["compare"]:
+            out.append(f"{st}: unexpected panels {q}")
+    text = await page.evaluate("document.body.innerText")
+    for bad in ("NaN", "undefined", "null", "[object"):
+        if bad in text:
+            out.append(f"page text contains {bad!r}")
+    if re.search(r"\b(forecast(?!\.)|probabilit|chance of winning|odds)\b", text, re.I):
+        out.append("page text mentions a forecast, probability or odds")
+    fw = await page.evaluate("""() => [...document.querySelectorAll('body *')].filter((e) => !e.closest('script,style') && [...e.childNodes].some((n) => n.nodeType === 3 && /firewall/i.test(n.textContent))).map((e) => !!e.closest('.ev-explain'))""")
+    if not all(fw):
+        out.append("the word 'firewall' appears outside the explainer")
+    if viewport_name == "mobile":
+        wide = await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 2")
+        if wide:
+            out.append("page scrolls sideways on mobile")
+    return out
+
+
 async def check_page(
     browser: Browser,
     engine: str,
@@ -528,6 +577,8 @@ async def check_page(
                     result.failures.extend(await check_home_card(page))
             elif case.kind == "article" and current["articlePaths"] <= 10:
                 result.failures.append("article charts were not drawn")
+            elif case.kind == "earlyvote":
+                result.failures.extend(await check_earlyvote(page, viewport_name))
             elif case.kind == "election":
                 if not current["title"] or current["title"].startswith("Loading"):
                     result.failures.append("election title was not set")
@@ -661,6 +712,9 @@ async def check_page(
                         result.failures.append(f"US page shows retired model labels: {bad[:3]}")
             if case.name in SENS_CASE_KEYS:
                 result.failures.extend(await check_sens(page, case, SENS_CASE_KEYS[case.name]))
+            if screenshots and case.name == "earlyvote":
+                screenshots.mkdir(parents=True, exist_ok=True)
+                await page.screenshot(path=screenshots / f"{engine}-earlyvote-{viewport_name}.png", full_page=True)
             if screenshots and viewport_name == "desktop" and (
                 (engine == "firefox" and case.name in {"index", "br2026r2gov"})
                 or (engine == "webkit" and case.name == "us2026")
@@ -692,7 +746,7 @@ async def run(args: argparse.Namespace, base: str) -> int:
                 check_page(browser, engine, viewport_name, viewport, case, base, args.timeout, screenshots, semaphore)
                 for viewport_name, viewport in chosen_viewports.items()
                 for case in cases()
-                if case.kind != "maps" or viewport_name == "desktop"
+                if (case.kind != "maps" or viewport_name == "desktop") and (not args.only or any(o in case.name for o in args.only.split(",")))
             ]
             results = await asyncio.gather(*tasks)
             await browser.close()
@@ -717,6 +771,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jobs", type=int, default=2, help="concurrent pages per browser")
     parser.add_argument("--timeout", type=float, default=45, help="seconds allowed for each page")
     parser.add_argument("--screenshots", help="directory for representative full-page screenshots")
+    parser.add_argument("--only", help="comma-separated substrings: run only the cases whose name contains one (e.g. earlyvote)")
     return parser.parse_args()
 
 

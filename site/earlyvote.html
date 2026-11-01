@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>US early vote 2026: ballots already cast, state by state</title>
+<meta name="description" content="Official counts of US mail and in-person early ballots already cast for the 2026 election, state by state and county by county, by day and by party registration, with the same day before past elections. A count of ballots, not a forecast.">
+<!-- BUILD: the one version constant of this page, changed on every deploy. It versions the page's own JS and CSS (an import
+     map over common.js, the stylesheets), so cached code cannot mix with new data. The Reload button of a failed load adds a
+     fresh ?_r stamp, which refetches all of it. The data files under data/ev2026/ are refreshed in place. -->
+<link id="page-css" rel="stylesheet">
+<link id="ev-css" rel="stylesheet">
+<script>
+window.__BUILD = "20261101a";
+window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
+document.getElementById("page-css").href = "style.css?v=" + window.__V;
+document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
+(() => {
+  const imports = {};
+  for (const f of ["common.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  const m = document.createElement("script");
+  m.type = "importmap";
+  m.textContent = JSON.stringify({ imports });
+  document.head.append(m);
+})();
+</script>
+</head>
+<body class="ev">
+<main>
+<nav class="col sitenav"><a href="./">Election nights</a> / US early vote 2026</nav>
+
+<header class="col">
+  <p class="kicker">Ballots already cast</p>
+  <h1>US early vote 2026</h1>
+  <p class="dek">What the states have published about mail and early in-person ballots that are already in, with the same day before past general elections. It counts ballots. It does not say who will win.</p>
+  <p class="byline" id="ev-asof">Loading…</p>
+  <details class="ev-explain">
+    <summary>How to read this page</summary>
+    <ul>
+      <li><b>Where the numbers come from.</b> Only official state publications (reports, spreadsheets and open-data files). A program fetches them on a schedule and keeps every version. States that publish nothing, or whose sites turn this program away, are listed as such in the table below, and are not estimated.</li>
+      <li><b>What is counted.</b> Ballots a state reports as returned or accepted (mail) and early votes cast in person. States differ on whether a ballot that is later rejected is still counted; each state's panel says which definition it uses.</li>
+      <li><b>Party.</b> Where a state publishes it, ballots are split by the voter's party <em>registration</em>. Registration is not a vote: unaffiliated voters are a large share of the early vote in many states, and registered Democrats and Republicans cross over. The "Democratic minus Republican" figure is the difference in those two groups' shares of returned ballots, in percentage points. Nothing here says how any group voted.</li>
+      <li><b>The word "firewall".</b> Commentators call a lead built up in early voting a "firewall": votes banked before Election Day that the other side would have to overcome on the day. This page does not use that idea to predict anything. It only reports the counts, and the lead above is a count of registrations on returned ballots.</li>
+      <li><b>Comparison with past elections.</b> The same number of days before Election Day in earlier general elections (<span id="ev-years"></span>), from the day-by-day files those states published. Turnout in a presidential year is not comparable with a midterm; the table marks each cycle. Many states published no day-by-day history, and the table says so.</li>
+    </ul>
+  </details>
+</header>
+
+<section class="ev-wrap" id="cov-sec" aria-labelledby="cov-h">
+  <h2 id="cov-h">Which states publish, and what we have</h2>
+  <p class="chart-sub" id="cov-sum">Loading…</p>
+  <div class="ev-covgrid">
+    <figure class="ev-mapfig">
+      <div id="cov-map" class="ev-map" role="img" aria-label="Map of the states by data status"></div>
+      <div class="ev-legend" id="cov-legend"></div>
+    </figure>
+    <div class="ev-covtable">
+      <div class="toggle" id="cov-filter" role="group" aria-label="Filter the table"></div>
+      <div class="table-scroll"><table class="ev-cov" id="cov-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
+    </div>
+  </div>
+  <p class="note" id="cov-note"></p>
+</section>
+
+<section class="ev-wrap" id="st-sec" aria-labelledby="st-h" hidden>
+  <h2 id="st-h">One state</h2>
+  <div class="ev-pick"><label class="select">State <select id="st-pick"></select></label> <span id="st-status" class="ev-status"></span></div>
+  <div class="chips" id="st-chips"></div>
+  <p class="note" id="st-basis"></p>
+
+  <figure class="ev-fig">
+    <p class="chart-title">Ballots cast so far, by days before Election Day</p>
+    <p class="chart-sub" id="c1-sub"></p>
+    <div class="ev-chart" id="c1"></div>
+    <p class="readout" id="c1-read" aria-live="polite"></p>
+  </figure>
+
+  <figure class="ev-fig">
+    <p class="chart-title">Ballots added each day</p>
+    <p class="chart-sub" id="c2-sub"></p>
+    <div class="ev-chart" id="c2"></div>
+    <p class="readout" id="c2-read" aria-live="polite"></p>
+  </figure>
+
+  <figure class="ev-fig" id="party-fig">
+    <p class="chart-title">Democratic minus Republican share of returned ballots, by party registration</p>
+    <p class="chart-sub" id="c3-sub"></p>
+    <div class="ev-chart" id="c3"></div>
+    <p class="readout" id="c3-read" aria-live="polite"></p>
+    <p class="note ev-caveat">Registration is not a vote. Unaffiliated voters and crossover voting are large, so this is not a measure of who is ahead.</p>
+    <div class="table-scroll"><table class="compact" id="party-table"></table></div>
+  </figure>
+
+  <figure class="ev-fig" id="cmp-fig">
+    <p class="chart-title">The same day before Election Day, in past elections</p>
+    <p class="chart-sub" id="cmp-sub"></p>
+    <div class="table-scroll"><table class="compact ev-cmp" id="cmp-table"></table></div>
+    <div class="ev-pair">
+      <div><p class="chart-sub">Ballots cast, by days before Election Day</p><div class="ev-chart" id="c4"></div></div>
+      <div id="c5-wrap"><p class="chart-sub">Democratic minus Republican share of returned ballots, by party registration</p><div class="ev-chart" id="c5"></div></div>
+    </div>
+    <p class="readout" id="c4-read" aria-live="polite"></p>
+    <p class="note" id="cmp-note"></p>
+  </figure>
+
+  <figure class="ev-fig" id="cty-fig">
+    <p class="chart-title">By county</p>
+    <p class="chart-sub" id="cty-sub"></p>
+    <div class="toggle" id="cty-metric" role="group" aria-label="Map shading"></div>
+    <div class="ev-ctygrid">
+      <div><div id="cty-map" class="ev-map"></div><div class="ev-legend" id="cty-legend"></div></div>
+      <div class="table-scroll ev-ctytable"><table class="compact" id="cty-table"></table></div>
+    </div>
+  </figure>
+
+  <div class="note" id="st-sources"></div>
+</section>
+
+<footer class="col ev-foot">
+  <p class="note">Counts: official state election offices and open-data portals (listed for each state above). Past elections: the same offices' day-by-day files and certified county results. Maps: U.S. Census Bureau cartographic boundary files (public domain). Each number on this page is generated from the data files; the code and the checks behind them are in the <a href="https://github.com/Andylol111/understanding-brazilian-information-underpricing">GitHub repository</a>. Charts: D3.</p>
+</footer>
+</main>
+<script src="load-error.js"></script>
+<script type="module">import("./earlyvote.js?v=" + window.__V).catch(window.__showLoadError);</script>
+</body>
+</html>

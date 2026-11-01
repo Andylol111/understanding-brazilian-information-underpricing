@@ -61,6 +61,72 @@ def test_pa_daily_xlsx_rejects_inconsistent_parties():
         c.parse_pa_daily_xlsx(buf.getvalue(), expect_counties=2)
 
 
+def _pa_three_tabs():
+    """Workbook shaped like the real report: Total = Mail-In + Absentee, per county and in the TOTAL row."""
+    import openpyxl
+    hdr = ["CountyName", "Total Applications Approved", "Dem Applications Approved", "Rep Applications Approved",
+           "Oth Applications Approved", "Total Ballots Returned", "Dem Ballots Returned", "Rep Ballots Returned",
+           "Oth Ballots Returned"]
+    mail = [["ADAMS", 11000, 5600, 4000, 1400, 9600, 5000, 3500, 1100],
+            ["ALLEGHENY", 160000, 116000, 27000, 17000, 124000, 91000, 22000, 11000],
+            ["TOTAL", 171000, 121600, 31000, 18400, 133600, 96000, 25500, 12100]]
+    absn = [["ADAMS", 200, 100, 80, 20, 90, 50, 30, 10],
+            ["ALLEGHENY", 1300, 1000, 200, 100, 430, 400, 20, 10],
+            ["TOTAL", 1500, 1100, 280, 120, 520, 450, 50, 20]]
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Total"
+    ws.append(["Information as of 10/31/2026 08:00 AM "])
+    ws.append(hdr)
+    for a, b in zip(mail, absn):
+        ws.append([a[0]] + [str(x + y) for x, y in zip(a[1:], b[1:])])
+    for name, rows in (("Mail-In", mail), ("Absentee", absn)):
+        t = wb.create_sheet(name)
+        t.append(["Information as of 10/31/2026 08:00 AM "])
+        t.append(hdr)
+        for r in rows:
+            t.append([r[0]] + [str(x) for x in r[1:]])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def test_pa_reads_total_tab_once_not_three_tabs():
+    """Regression: Total already contains Mail-In + Absentee. State returned = the TOTAL row of the Total tab, not the sum
+    of the three tabs, and the county rows add up to it."""
+    as_of, county, state = c.parse_pa_daily_xlsx(_pa_three_tabs(), expect_counties=2)
+    official = 133600 + 520                                   # Mail-In TOTAL + Absentee TOTAL = Total tab TOTAL
+    assert _by(state, measure="mail_returned", party="ALL") == official
+    assert _by(state, measure="mail_requested", party="ALL") == 171000 + 1500
+    assert _by(state, measure="mail_returned", party="ALL") != 133600 + 520 + official      # not Total + Mail-In + Absentee
+    for meas in ("mail_returned", "mail_requested"):          # county rows add up to the state row, party by party
+        for party in ("ALL", "D", "R", "other"):
+            cs = sum(r["count"] for r in county if r["measure"] == meas and r["party"] == party)
+            assert cs == _by(state, measure=meas, party=party)
+
+
+def test_pa_rejects_total_tab_that_is_not_mail_in_plus_absentee():
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(_pa_three_tabs()))
+    wb["Absentee"]["F5"] = "999999"                           # Absentee TOTAL no longer completes the Total tab
+    buf = io.BytesIO()
+    wb.save(buf)
+    with pytest.raises(ValueError):
+        c.parse_pa_daily_xlsx(buf.getvalue(), expect_counties=2)
+
+
+def test_pa_rejects_county_rows_that_do_not_add_to_total_row():
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(_pa_three_tabs()))
+    ws = wb["Total"]
+    ws["F3"] = str(int(ws["F3"].value) + 1)                   # ADAMS returned +1 (and its D count), TOTAL row untouched
+    ws["G3"] = str(int(ws["G3"].value) + 1)
+    buf = io.BytesIO()
+    wb.save(buf)
+    with pytest.raises(ValueError):
+        c.parse_pa_daily_xlsx(buf.getvalue(), expect_counties=2)
+
+
 # -------------------------------------------------------------------------------------------------------- PA Socrata
 def test_pa_socrata_aggregate():
     body = json.dumps({

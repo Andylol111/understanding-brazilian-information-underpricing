@@ -79,7 +79,34 @@ def parse_pa_daily_xlsx(body: bytes, expect_counties: int = 67) -> tuple[str, li
             parts = sum(r["count"] for r in scope if r["measure"] == meas and r["party"] != "ALL")
             if tot != parts:
                 raise ValueError(f"PA {meas}: parties {parts} != total {tot}")
+    for meas in ("mail_requested", "mail_returned"):         # the 67 county rows must add up to the report's own TOTAL row
+        got = sum(r["count"] for r in county if r["measure"] == meas and r["party"] == "ALL")
+        want = sum(r["count"] for r in state if r["measure"] == meas and r["party"] == "ALL")
+        if got != want:
+            raise ValueError(f"PA {meas}: the county rows add up to {got}, the TOTAL row says {want}")
+    _pa_check_tabs(wb, rows)
     return as_of, county, state
+
+
+def _pa_total_row(rows) -> list[int]:
+    for r in rows:
+        if r and str(r[0] or "").strip().upper() == "TOTAL":
+            return [db.num(c) for c in r[1:9]]
+    raise ValueError("PA xlsx: a tab has no TOTAL row")
+
+
+def _pa_check_tabs(wb, total_rows) -> None:
+    """The 'Total' tab already IS the 'Mail-In' tab plus the 'Absentee' tab. The parser reads Total only, once; this fails the
+    parse if the workbook stops saying so. Adding the three tabs up would count every ballot twice. (The 2,086,905 'returned'
+    seen once was not this: it was this xlsx's 1,041,756 plus data.pa.gov's 1,045,149, two sources for the same ballots, see
+    us_ev_canon.py.)"""
+    if "Mail-In" not in wb.sheetnames or "Absentee" not in wb.sheetnames:
+        return
+    a = _pa_total_row(wb["Mail-In"].iter_rows(values_only=True))
+    b = _pa_total_row(wb["Absentee"].iter_rows(values_only=True))
+    t = _pa_total_row(total_rows)
+    if [x + y for x, y in zip(a, b)] != t:
+        raise ValueError(f"PA xlsx: Total tab {t} != Mail-In + Absentee tabs {[x + y for x, y in zip(a, b)]}")
 
 
 def _pa_validate(body: bytes) -> None:
