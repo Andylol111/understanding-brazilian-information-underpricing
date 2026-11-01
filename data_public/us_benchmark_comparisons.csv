@@ -1,0 +1,153 @@
+layer,primary,candidate,scheme,class,n,cycles,status,primary_metric,cand_metric,improvement,ci_lo,ci_hi,p,cycles_same_sign,cycles_eval,brier_diff,cov90_cand,improvement_vs_registered_sd,reg_ci_lo,reg_ci_hi,p_holm,rule_p_holm,rule_cycles,rule_brier_cov,rule_registered_sd,recommended
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,pooled,all races,264,"2016,2018,2020,2022,2024",tested,2.285897,4.364662,-2.078765,-2.559309,-1.642615,5e-05,5.0,5.0,0.064548,0.890152,-2.09221,-2.583969,-1.653586,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,pooled,all races,264,"2016,2018,2020,2022,2024",tested,2.285897,2.307931,-0.022034,-0.043533,-0.000534,0.046,4.0,5.0,0.002529,0.931818,-0.035479,-0.056473,-0.014274,1.0,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,pooled,all races,264,"2016,2018,2020,2022,2024",tested,2.285897,2.11506,0.170837,-0.053089,0.374243,0.125,4.0,5.0,-0.004335,0.886364,0.157393,-0.065631,0.356077,1.0,False,True,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C1,high,65,"2016,2018,2020,2022,2024",tested,3.180834,6.018472,-2.837638,-4.090948,-1.685756,5e-05,5.0,5.0,0.040882,0.830769,-2.854604,-4.113646,-1.687922,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C1,high,65,"2016,2018,2020,2022,2024",tested,3.180834,3.165475,0.015359,-0.018364,0.050549,0.3919,3.0,5.0,0.002222,0.830769,-0.001607,-0.028182,0.025646,1.0,False,False,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C1,high,65,"2016,2018,2020,2022,2024",tested,3.180834,3.13951,0.041324,-0.759751,0.745224,0.8827,3.0,5.0,-0.00763,0.861538,0.024358,-0.784704,0.736532,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C1,low,102,"2016,2018,2020,2022,2024",tested,1.430673,2.436867,-1.006194,-1.17362,-0.841986,5e-05,5.0,5.0,0.057976,1.0,-1.016907,-1.183471,-0.851759,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C1,low,102,"2016,2018,2020,2022,2024",tested,1.430673,1.502526,-0.071853,-0.106905,-0.035391,5e-05,4.0,5.0,0.002428,0.980392,-0.082567,-0.11904,-0.045105,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C1,low,102,"2016,2018,2020,2022,2024",tested,1.430673,1.331922,0.098751,0.015582,0.176545,0.0203,5.0,5.0,-0.002022,0.911765,0.088037,0.00593,0.167752,0.8557,False,True,True,True,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C1,medium,97,"2016,2018,2020,2022,2024",tested,2.585505,5.283605,-2.698099,-3.643937,-1.877533,5e-05,5.0,5.0,0.087317,0.814433,-2.712057,-3.658645,-1.906439,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C1,medium,97,"2016,2018,2020,2022,2024",tested,2.585505,2.580209,0.005296,-0.029861,0.041586,0.7691,2.0,5.0,0.002841,0.948454,-0.008661,-0.043273,0.027917,1.0,False,False,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C1,medium,97,"2016,2018,2020,2022,2024",tested,2.585505,2.252078,0.333427,0.112952,0.557876,0.0032,4.0,5.0,-0.00456,0.876289,0.31947,0.101361,0.539124,0.1696,False,True,True,True,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C2,1-5 polls,91,"2016,2018,2020,2022,2024",tested,2.228366,5.008727,-2.780361,-3.838495,-1.840951,5e-05,5.0,5.0,0.059043,0.89011,-2.805246,-3.851659,-1.888256,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C2,1-5 polls,91,"2016,2018,2020,2022,2024",tested,2.228366,2.219569,0.008797,-0.01712,0.036377,0.5236,4.0,5.0,0.000763,0.901099,-0.016088,-0.037495,0.00638,1.0,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C2,1-5 polls,91,"2016,2018,2020,2022,2024",tested,2.228366,2.261047,-0.032681,-0.27604,0.197405,0.8003,2.0,5.0,-0.004125,0.857143,-0.057566,-0.302666,0.175475,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C2,6+ polls,128,"2016,2018,2020,2022,2024",tested,1.550122,3.860912,-2.310789,-2.905411,-1.760404,5e-05,5.0,5.0,0.091154,0.890625,-2.320828,-2.929739,-1.777834,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C2,6+ polls,128,"2016,2018,2020,2022,2024",tested,1.550122,1.601821,-0.051699,-0.089758,-0.012612,0.0089,4.0,5.0,0.004674,0.96875,-0.061737,-0.100087,-0.021095,0.4361,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C2,6+ polls,128,"2016,2018,2020,2022,2024",tested,1.550122,1.420675,0.129447,0.025737,0.237381,0.0146,4.0,5.0,-0.001958,0.898438,0.119409,0.015372,0.227753,0.6716,False,True,True,True,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C2,unpolled,45,"2018,2020,2022,2024",tested,4.49511,4.49511,0.0,0.0,0.0,1.0,0.0,4.0,0.0,0.888889,0.0,0.0,0.0,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C2,unpolled,45,"2018,2020,2022,2024",tested,4.49511,4.49511,0.0,0.0,0.0,1.0,0.0,4.0,0.0,0.888889,0.0,0.0,0.0,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C2,unpolled,45,"2018,2020,2022,2024",tested,4.49511,3.794982,0.700128,-0.448451,1.686068,0.201,3.0,4.0,-0.011523,0.911111,0.700128,-0.439714,1.671325,1.0,False,True,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C3,3-6 pts,45,"2016,2018,2020,2022,2024",tested,1.811759,3.152674,-1.340915,-1.733052,-0.919674,5e-05,5.0,5.0,0.065239,1.0,-1.343471,-1.738967,-0.914084,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C3,3-6 pts,45,"2016,2018,2020,2022,2024",tested,1.811759,1.82704,-0.015282,-0.077954,0.052486,0.6467,3.0,5.0,-0.00692,0.955556,-0.017838,-0.08384,0.05327,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C3,3-6 pts,45,"2016,2018,2020,2022,2024",tested,1.811759,1.565435,0.246324,0.059788,0.449018,0.0093,4.0,5.0,-0.006266,0.911111,0.243767,0.058237,0.447698,0.4464,False,True,True,True,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C3,<3 pts,97,"2016,2018,2020,2022,2024",tested,1.56143,2.350024,-0.788595,-0.915224,-0.655488,5e-05,5.0,5.0,0.042488,1.0,-0.803749,-0.931767,-0.66633,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C3,<3 pts,97,"2016,2018,2020,2022,2024",tested,1.56143,1.620755,-0.059325,-0.090801,-0.028399,5e-05,4.0,5.0,0.006004,0.969072,-0.07448,-0.105092,-0.043748,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C3,<3 pts,97,"2016,2018,2020,2022,2024",tested,1.56143,1.520438,0.040992,-0.08303,0.158271,0.5165,3.0,5.0,0.002956,0.927835,0.025837,-0.098924,0.146488,1.0,False,False,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C3,>=6 pts,77,"2016,2018,2020,2022,2024",tested,2.184534,7.534651,-5.350117,-6.674216,-4.153294,5e-05,5.0,5.0,0.129656,0.688312,-5.375629,-6.691272,-4.173703,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C3,>=6 pts,77,"2016,2018,2020,2022,2024",tested,2.184534,2.176414,0.00812,-0.037303,0.054386,0.7355,2.0,5.0,0.005152,0.896104,-0.017392,-0.058196,0.024638,1.0,False,False,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C3,>=6 pts,77,"2016,2018,2020,2022,2024",tested,2.184534,2.203567,-0.019032,-0.301849,0.241977,0.9075,2.0,5.0,-0.008191,0.805195,-0.044544,-0.321845,0.215032,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C3,unpolled,45,"2018,2020,2022,2024",tested,4.49511,4.49511,0.0,0.0,0.0,1.0,0.0,4.0,0.0,0.888889,0.0,0.0,0.0,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C3,unpolled,45,"2018,2020,2022,2024",tested,4.49511,4.49511,0.0,0.0,0.0,1.0,0.0,4.0,0.0,0.888889,0.0,0.0,0.0,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C3,unpolled,45,"2018,2020,2022,2024",tested,4.49511,3.794982,0.700128,-0.467015,1.692439,0.2073,3.0,4.0,-0.011523,0.911111,0.700128,-0.432338,1.693052,1.0,False,True,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C4,2-4 pts,110,"2016,2018,2020,2022,2024",tested,2.863209,4.936103,-2.072893,-2.84269,-1.376539,5e-05,5.0,5.0,0.030771,0.872727,-2.089249,-2.862323,-1.396645,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C4,2-4 pts,110,"2016,2018,2020,2022,2024",tested,2.863209,2.850203,0.013006,-0.018635,0.045295,0.4225,3.0,5.0,0.001418,0.881818,-0.003349,-0.032259,0.026585,1.0,False,False,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C4,2-4 pts,110,"2016,2018,2020,2022,2024",tested,2.863209,2.579065,0.284144,-0.197917,0.707654,0.2263,2.0,5.0,-0.006984,0.872727,0.267789,-0.213495,0.694608,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C4,<2 pts,144,"2016,2018,2020,2022,2024",tested,1.833275,3.816896,-1.983621,-2.575264,-1.481875,5e-05,5.0,5.0,0.09503,0.909722,-1.99528,-2.591149,-1.494096,0.0053,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C4,<2 pts,144,"2016,2018,2020,2022,2024",tested,1.833275,1.881886,-0.04861,-0.077704,-0.018481,0.0022,4.0,5.0,0.003416,0.965278,-0.060269,-0.089739,-0.029316,0.121,False,True,False,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C4,<2 pts,144,"2016,2018,2020,2022,2024",tested,1.833275,1.7187,0.114576,-0.012878,0.240413,0.0786,3.0,5.0,-0.0025,0.895833,0.102917,-0.026833,0.228822,1.0,False,False,True,False,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v1,C4,>=4 pts or none,10,"2016,2018,2022,2024",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),v2,C4,>=4 pts or none,10,"2016,2018,2022,2024",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+statewide share CRPS (pts),v3 (LOCO-refit sd),unified,C4,>=4 pts or none,10,"2016,2018,2022,2024",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,v1,pooled,all races,260,"2016,2018,2020,2022,2024",tested,3.671723,5.663481,-1.991757,-2.554919,-1.470403,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,pooled,all races,65,2022,tested,3.618169,3.600879,0.01729,-0.066262,0.083882,0.5965,1.0,1.0,,,,,,1.0,False,True,True,True,False
+county share wMAE (pts),v3,unified,pooled,all races,260,"2016,2018,2020,2022,2024",tested,3.671723,3.18453,0.487193,0.193031,0.757421,0.0022,5.0,5.0,,,,,,0.121,False,True,True,True,False
+county share wMAE (pts),v3,v1,C1,high,64,"2016,2018,2020,2022,2024",tested,4.96868,7.847821,-2.879141,-4.240636,-1.658681,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C1,high,21,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C1,high,64,"2016,2018,2020,2022,2024",tested,4.96868,4.61318,0.3555,-0.677094,1.268248,0.4569,3.0,5.0,,,,,,1.0,False,False,True,True,False
+county share wMAE (pts),v3,v1,C1,low,101,"2016,2018,2020,2022,2024",tested,2.64651,3.694844,-1.048333,-1.50231,-0.613258,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C1,low,25,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C1,low,101,"2016,2018,2020,2022,2024",tested,2.64651,2.377496,0.269014,0.14102,0.399711,5e-05,5.0,5.0,,,,,,0.0053,True,True,True,True,True
+county share wMAE (pts),v3,v1,C1,medium,95,"2016,2018,2020,2022,2024",tested,3.887948,6.284897,-2.39695,-3.509705,-1.421847,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C1,medium,19,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C1,medium,95,"2016,2018,2020,2022,2024",tested,3.887948,3.080077,0.807871,0.481297,1.148122,5e-05,5.0,5.0,,,,,,0.0053,True,True,True,True,True
+county share wMAE (pts),v3,v1,C2,1-5 polls,90,"2016,2018,2020,2022,2024",tested,3.885066,7.061304,-3.176238,-4.445118,-2.016045,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C2,1-5 polls,20,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C2,1-5 polls,90,"2016,2018,2020,2022,2024",tested,3.885066,3.561898,0.323168,-0.00399,0.629023,0.0534,3.0,5.0,,,,,,1.0,False,False,True,True,False
+county share wMAE (pts),v3,v1,C2,6+ polls,126,"2016,2018,2020,2022,2024",tested,2.881798,4.723032,-1.841234,-2.485616,-1.235621,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C2,6+ polls,35,2022,tested,3.123271,3.060932,0.062339,0.008742,0.119874,0.0199,1.0,1.0,,,,,,0.8557,False,True,True,True,False
+county share wMAE (pts),v3,unified,C2,6+ polls,126,"2016,2018,2020,2022,2024",tested,2.881798,2.518878,0.362919,0.226348,0.501687,5e-05,4.0,5.0,,,,,,0.0053,True,True,True,True,True
+county share wMAE (pts),v3,v1,C2,unpolled,44,"2018,2020,2022,2024",tested,5.497402,5.497402,0.0,0.0,0.0,1.0,0.0,4.0,,,,,,1.0,False,False,True,True,False
+county share wMAE (pts),v3,v4,C2,unpolled,10,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C2,unpolled,44,"2018,2020,2022,2024",tested,5.497402,4.318827,1.178575,-0.296321,2.46332,0.1068,3.0,4.0,,,,,,1.0,False,True,True,True,False
+county share wMAE (pts),v3,v1,C3,3-6 pts,45,"2016,2018,2020,2022,2024",tested,3.092545,4.674185,-1.58164,-2.344562,-0.821487,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C3,3-6 pts,12,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C3,3-6 pts,45,"2016,2018,2020,2022,2024",tested,3.092545,2.597532,0.495013,0.235652,0.746445,0.0004,5.0,5.0,,,,,,0.0236,True,True,True,True,True
+county share wMAE (pts),v3,v1,C3,<3 pts,96,"2016,2018,2020,2022,2024",tested,2.846013,3.666628,-0.820616,-1.361257,-0.367536,5e-05,4.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C3,<3 pts,24,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C3,<3 pts,96,"2016,2018,2020,2022,2024",tested,2.846013,2.643032,0.202981,0.03039,0.37047,0.022,5.0,5.0,,,,,,0.902,False,True,True,True,False
+county share wMAE (pts),v3,v1,C3,>=6 pts,75,"2016,2018,2020,2022,2024",tested,4.005075,8.910462,-4.905387,-6.478853,-3.468021,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C3,>=6 pts,19,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C3,>=6 pts,75,"2016,2018,2020,2022,2024",tested,4.005075,3.564393,0.440682,0.053864,0.80051,0.0279,4.0,5.0,,,,,,1.0,False,True,True,True,False
+county share wMAE (pts),v3,v1,C3,unpolled,44,"2018,2020,2022,2024",tested,5.497402,5.497402,0.0,0.0,0.0,1.0,0.0,4.0,,,,,,1.0,False,False,True,True,False
+county share wMAE (pts),v3,v4,C3,unpolled,10,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C3,unpolled,44,"2018,2020,2022,2024",tested,5.497402,4.318827,1.178575,-0.296807,2.481201,0.111,3.0,4.0,,,,,,1.0,False,True,True,True,False
+county share wMAE (pts),v3,v1,C4,2-4 pts,108,"2016,2018,2020,2022,2024",tested,4.375894,6.295917,-1.920023,-2.794221,-1.133939,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C4,2-4 pts,34,2022,tested,4.578014,4.571061,0.006953,-0.150104,0.122841,0.8451,1.0,1.0,,,,,,1.0,False,True,True,True,False
+county share wMAE (pts),v3,unified,C4,2-4 pts,108,"2016,2018,2020,2022,2024",tested,4.375894,3.655969,0.719925,0.097515,1.272358,0.0239,4.0,5.0,,,,,,0.956,False,True,True,True,False
+county share wMAE (pts),v3,v1,C4,<2 pts,142,"2016,2018,2020,2022,2024",tested,3.111345,5.071256,-1.959911,-2.710819,-1.306198,5e-05,5.0,5.0,,,,,,0.0053,False,True,True,True,False
+county share wMAE (pts),v3,v4,C4,<2 pts,29,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C4,<2 pts,142,"2016,2018,2020,2022,2024",tested,3.111345,2.743374,0.367971,0.18965,0.55148,5e-05,4.0,5.0,,,,,,0.0053,True,True,True,True,True
+county share wMAE (pts),v3,v1,C4,>=4 pts or none,10,"2016,2018,2022,2024",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,v4,C4,>=4 pts or none,2,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county share wMAE (pts),v3,unified,C4,>=4 pts or none,10,"2016,2018,2022,2024",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,pooled,all races,65,2022,tested,10.192475,27.380706,-17.188231,-20.236265,-14.388775,5e-05,1.0,1.0,,,,,,0.0053,False,True,True,True,False
+county expected-vote wMAPE (%),v3,unified,pooled,all races,132,"2018,2022",tested,14.694723,16.613639,-1.918916,-3.095769,-0.793281,0.0003,1.0,2.0,,,,,,0.0183,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C1,high,21,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C1,high,35,"2018,2022",tested,15.672742,17.755844,-2.083102,-4.838828,0.548329,0.1253,1.0,2.0,,,,,,1.0,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C1,low,25,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C1,low,48,"2018,2022",tested,13.206179,14.728158,-1.521979,-3.178617,-0.055164,0.0396,1.0,2.0,,,,,,1.0,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C1,medium,19,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C1,medium,49,"2018,2022",tested,15.454305,17.644781,-2.190476,-4.06213,-0.454048,0.0101,1.0,2.0,,,,,,0.4747,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C2,1-5 polls,20,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C2,1-5 polls,43,"2018,2022",tested,14.530096,17.466112,-2.936015,-5.260713,-0.820159,0.0052,1.0,2.0,,,,,,0.2652,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C2,6+ polls,35,2022,tested,7.003605,21.106878,-14.103274,-16.51451,-11.649774,5e-05,1.0,1.0,,,,,,0.0053,False,True,True,True,False
+county expected-vote wMAPE (%),v3,unified,C2,6+ polls,66,"2018,2022",tested,13.192472,14.850436,-1.657964,-2.988945,-0.459309,0.0056,1.0,2.0,,,,,,0.28,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C2,unpolled,10,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C2,unpolled,23,"2018,2022",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C3,3-6 pts,12,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C3,3-6 pts,19,"2018,2022",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C3,<3 pts,24,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C3,<3 pts,47,"2018,2022",tested,13.824356,16.847906,-3.02355,-5.123575,-1.09615,0.0009,1.0,2.0,,,,,,0.0513,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C3,>=6 pts,19,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C3,>=6 pts,43,"2018,2022",tested,14.933618,17.238141,-2.304523,-4.200086,-0.639085,0.0038,1.0,2.0,,,,,,0.1976,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C3,unpolled,10,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C3,unpolled,23,"2018,2022",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C4,2-4 pts,34,2022,tested,12.510716,29.980213,-17.469497,-22.871052,-12.579502,5e-05,1.0,1.0,,,,,,0.0053,False,True,True,True,False
+county expected-vote wMAPE (%),v3,unified,C4,2-4 pts,61,"2018,2022",tested,13.785237,17.383243,-3.598006,-5.606419,-1.685714,0.0003,1.0,2.0,,,,,,0.0183,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C4,<2 pts,29,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C4,<2 pts,66,"2018,2022",tested,15.221251,15.930136,-0.708884,-2.124968,0.485098,0.2718,1.0,2.0,,,,,,1.0,False,False,True,True,False
+county expected-vote wMAPE (%),v3,v4,C4,>=4 pts or none,2,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county expected-vote wMAPE (%),v3,unified,C4,>=4 pts or none,5,"2018,2022",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,v4,pooled,all races,65,2022,tested,2.348551,2.402714,-0.054163,-0.499923,0.305627,0.8768,1.0,1.0,,,,,,1.0,False,True,True,True,False
+county turnout-share TV (%),v3,unified,pooled,all races,132,"2018,2022",tested,2.14345,1.919951,0.223499,0.123596,0.316975,5e-05,2.0,2.0,,,,,,0.0053,True,True,True,True,True
+county turnout-share TV (%),v3,v4,C1,high,21,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C1,high,35,"2018,2022",tested,2.368498,2.101329,0.267169,0.097426,0.451094,0.0016,2.0,2.0,,,,,,0.0896,False,True,True,True,False
+county turnout-share TV (%),v3,v4,C1,low,25,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C1,low,48,"2018,2022",tested,1.977212,1.832713,0.144498,-0.071506,0.319949,0.1654,1.0,2.0,,,,,,1.0,False,False,True,True,False
+county turnout-share TV (%),v3,v4,C1,medium,19,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C1,medium,49,"2018,2022",tested,2.145548,1.875853,0.269695,0.162215,0.376759,5e-05,2.0,2.0,,,,,,0.0053,True,True,True,True,True
+county turnout-share TV (%),v3,v4,C2,1-5 polls,20,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C2,1-5 polls,43,"2018,2022",tested,2.222381,1.983125,0.239256,0.109162,0.384451,0.0004,2.0,2.0,,,,,,0.0236,True,True,True,True,True
+county turnout-share TV (%),v3,v4,C2,6+ polls,35,2022,tested,2.254687,1.889728,0.364959,0.212387,0.514895,5e-05,1.0,1.0,,,,,,0.0053,True,True,True,True,True
+county turnout-share TV (%),v3,unified,C2,6+ polls,66,"2018,2022",tested,2.047722,1.833729,0.213993,0.05017,0.355242,0.0154,2.0,2.0,,,,,,0.693,False,True,True,True,False
+county turnout-share TV (%),v3,v4,C2,unpolled,10,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C2,unpolled,23,"2018,2022",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,v4,C3,3-6 pts,12,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C3,3-6 pts,19,"2018,2022",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,v4,C3,<3 pts,24,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C3,<3 pts,47,"2018,2022",tested,2.151361,2.014967,0.136394,-0.076034,0.31256,0.1834,2.0,2.0,,,,,,1.0,False,True,True,True,False
+county turnout-share TV (%),v3,v4,C3,>=6 pts,19,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C3,>=6 pts,43,"2018,2022",tested,2.167916,1.840036,0.32788,0.204159,0.461858,5e-05,2.0,2.0,,,,,,0.0053,True,True,True,True,True
+county turnout-share TV (%),v3,v4,C3,unpolled,10,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C3,unpolled,23,"2018,2022",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,v4,C4,2-4 pts,34,2022,tested,2.448751,2.897922,-0.449171,-1.26896,0.18391,0.2122,1.0,1.0,,,,,,1.0,False,True,True,True,False
+county turnout-share TV (%),v3,unified,C4,2-4 pts,61,"2018,2022",tested,2.361756,2.209373,0.152383,-0.038331,0.3162,0.1052,2.0,2.0,,,,,,1.0,False,True,True,True,False
+county turnout-share TV (%),v3,v4,C4,<2 pts,29,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C4,<2 pts,66,"2018,2022",tested,2.015097,1.729699,0.285398,0.188877,0.381969,5e-05,2.0,2.0,,,,,,0.0053,True,True,True,True,True
+county turnout-share TV (%),v3,v4,C4,>=4 pts or none,2,2022,not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+county turnout-share TV (%),v3,unified,C4,>=4 pts or none,5,"2018,2022",not tested (n<30),,,,,,,,,,,,,,,False,False,True,True,False
+House district share CRPS (pts),v2 (LOCO-refit sd),v1,pooled,all races,2223,"2014,2016,2018,2020,2022,2024",tested,2.616641,2.907267,-0.290626,-0.339628,-0.240132,5e-05,5.0,6.0,0.007447,0.900135,-0.292569,-0.342238,-0.244195,0.0053,False,True,False,False,False
+House district share CRPS (pts),v2 (LOCO-refit sd),unified,pooled,all races,2223,"2014,2016,2018,2020,2022,2024",tested,2.616641,2.299617,0.317024,0.252236,0.381783,5e-05,6.0,6.0,-0.012439,0.900135,0.315081,0.252255,0.378135,0.0053,True,True,True,True,True
+House district share CRPS (pts),v2 (LOCO-refit sd),v1,H1,polled,319,"2018,2020,2022,2024",tested,2.264186,2.627869,-0.363683,-0.499639,-0.224324,5e-05,4.0,4.0,0.004355,0.952978,-0.341326,-0.475497,-0.204415,0.0053,False,True,False,False,False
+House district share CRPS (pts),v2 (LOCO-refit sd),unified,H1,polled,319,"2018,2020,2022,2024",tested,2.264186,1.956017,0.308169,0.058635,0.572388,0.0159,3.0,4.0,0.003352,0.862069,0.330526,0.085201,0.59199,0.6996,False,True,False,True,False
+House district share CRPS (pts),v2 (LOCO-refit sd),v1,H1,unpolled,1904,"2014,2016,2018,2020,2022,2024",tested,2.675692,2.954077,-0.278386,-0.330812,-0.224876,5e-05,5.0,6.0,0.007966,0.891282,-0.2844,-0.336488,-0.231766,0.0053,False,True,False,False,False
+House district share CRPS (pts),v2 (LOCO-refit sd),unified,H1,unpolled,1904,"2014,2016,2018,2020,2022,2024",tested,2.675692,2.357184,0.318508,0.256362,0.380949,5e-05,4.0,6.0,-0.015085,0.906513,0.312493,0.252829,0.370816,0.0053,True,True,True,True,True
+House district share CRPS (pts),v2 (LOCO-refit sd),v1,H2,close (<0.05),463,"2014,2016,2018,2020,2022,2024",tested,3.256953,3.840812,-0.583859,-0.695283,-0.469339,5e-05,6.0,6.0,0.039727,0.803456,-0.622239,-0.737579,-0.507384,0.0053,False,True,False,False,False
+House district share CRPS (pts),v2 (LOCO-refit sd),unified,H2,close (<0.05),463,"2014,2016,2018,2020,2022,2024",tested,3.256953,2.493094,0.763859,0.619606,0.906096,5e-05,4.0,6.0,-0.049484,0.848812,0.725479,0.591504,0.862935,0.0053,True,True,True,True,True
+House district share CRPS (pts),v2 (LOCO-refit sd),v1,H2,lean (0.05-0.15),991,"2014,2016,2018,2020,2022,2024",tested,2.496369,2.863247,-0.366879,-0.437718,-0.295447,5e-05,5.0,6.0,-0.001856,0.903128,-0.365044,-0.436411,-0.294487,0.0053,False,True,True,False,False
+House district share CRPS (pts),v2 (LOCO-refit sd),unified,H2,lean (0.05-0.15),991,"2014,2016,2018,2020,2022,2024",tested,2.496369,2.211163,0.285206,0.188397,0.384634,5e-05,5.0,6.0,-0.004779,0.913219,0.28704,0.192109,0.381869,0.0053,True,True,True,True,True
+House district share CRPS (pts),v2 (LOCO-refit sd),v1,H2,safe (>0.15),769,"2014,2016,2018,2020,2022,2024",tested,2.386115,2.401924,-0.01581,-0.096117,0.06471,0.7062,4.0,6.0,1e-06,0.954486,-0.000684,-0.078076,0.078114,1.0,False,True,False,False,False
+House district share CRPS (pts),v2 (LOCO-refit sd),unified,H2,safe (>0.15),769,"2014,2016,2018,2020,2022,2024",tested,2.386115,2.297117,0.088998,-0.009441,0.190435,0.0777,4.0,6.0,-8e-06,0.914174,0.104124,0.00593,0.203793,1.0,False,True,True,True,False

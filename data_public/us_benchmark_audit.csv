@@ -1,0 +1,115 @@
+family,race,versions,feed,state,n_units_registered_prior,n_units_unified,n_units_v4,consistent,issues,info
+statewide,az_gov,"unified,v1,v2,v3,v5",az,az,15.0,15.0,0.0,True,,
+statewide,ca_gov,"unified,v1,v2,v3,v4,v5",ca,ca,58.0,58.0,58.0,True,,
+statewide,fl_gov,"unified,v1,v2,v3,v5",fl,fl,67.0,67.0,0.0,True,,
+statewide,fl_sen,"unified,v1,v2,v3,v5",fl,fl,67.0,67.0,0.0,True,,
+statewide,ga_gov,"unified,v1,v2,v3,v4",ga,ga,159.0,159.0,159.0,True,,
+statewide,ga_sen,"unified,v1,v2,v3,v4",ga,ga,159.0,159.0,159.0,True,,
+statewide,mn_gov,"unified,v1,v2,v3",mn,mn,87.0,87.0,0.0,True,,
+statewide,mn_sen,"unified,v1,v2,v3",mn,mn,87.0,87.0,0.0,True,,
+statewide,nc_sen,"unified,v1,v2,v3",nc,nc,100.0,100.0,0.0,True,,
+statewide,ne_gov,"unified,v1,v2,v3",ne,ne,93.0,93.0,0.0,True,,
+statewide,ne_sen,"unified,v1,v2,v3",ne,ne,93.0,93.0,0.0,True,,
+statewide,nm_gov,"unified,v1,v2,v5",nm,nm,33.0,33.0,0.0,True,,
+statewide,nm_sen,"unified,v1,v2,v3,v5",nm,nm,33.0,33.0,0.0,True,,
+statewide,oh_gov,"unified,v1,v2,v3,v4,v5",oh,oh,88.0,88.0,88.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,v4=0.72,v5=0.72,unified=1.0"
+statewide,oh_sen,"unified,v1,v2,v3,v4,v5",oh,oh,88.0,88.0,88.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,v4=0.72,v5=0.72,unified=1.0"
+statewide,pa_gov,"unified,v1,v2,v3",pa,pa,67.0,67.0,0.0,True,,
+statewide,sc_gov,"unified,v1,v2,v3,v4",sc,sc,46.0,46.0,46.0,True,,
+statewide,sc_sen,"unified,v1,v2,v3,v4",sc,sc,46.0,46.0,46.0,True,,unified poll_n 3 vs registered 2 (different window/pollster rules)
+statewide,tx_gov,"unified,v1,v2,v3,v4,v5",tx,tx,254.0,254.0,254.0,True,,unified poll_n 18 vs registered 16 (different window/pollster rules)
+statewide,tx_sen,"unified,v1,v2,v3,v4,v5",tx,tx,254.0,254.0,254.0,True,,unified poll_n 20 vs registered 17 (different window/pollster rules)
+statewide,vt_gov,"unified,v1,v2,v3,v4",vt,vt,14.0,14.0,14.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,v4=0.72,unified=1.0"
+civic,co_gov,"unified,v1,v2",civic_co,co,64.0,64.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+civic,co_sen,"unified,v1,v2",civic_co,co,64.0,64.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+civic,ia_gov,"unified,v1,v2,v3",civic_ia,ia,99.0,99.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+civic,ia_sen,"unified,v1,v2,v3",civic_ia,ia,99.0,99.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+civic,ks_gov,"unified,v1,v2,v3",civic_ks,ks,105.0,105.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+civic,ks_sen,"unified,v1,v2,v3",civic_ks,ks,105.0,105.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+civic,mi_gov,"unified,v1,v2,v3",civic_mi,mi,83.0,83.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+civic,mi_sen,"unified,v1,v2,v3",civic_mi,mi,83.0,83.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+civic,ny_gov,"unified,v1,v2,v3",civic_ny,ny,62.0,62.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+civic,oh_gov,"unified,v1,v2,v3",civic_oh,oh,88.0,88.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+civic,oh_sen,"unified,v1,v2,v3",civic_oh,oh,88.0,88.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+civic,sc_gov,"unified,v1,v2,v3",civic_sc,sc,46.0,46.0,0.0,True,,
+civic,sc_sen,"unified,v1,v2,v3",civic_sc,sc,46.0,46.0,0.0,True,,
+civic,wi_gov,"unified,v1,v2,v3",civic_wi,wi,72.0,72.0,0.0,True,,"turnout_ratio v1=0.72,v2=0.72,v3=0.72,unified=1.0"
+house,az-01,"unified,v1,v2",az_house,az,1.0,1.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.75,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,az-02,"unified,v1,v2",az_house,az,9.0,9.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.75,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,az-05,"unified,v1,v2",az_house,az,2.0,2.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.75,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,az-06,"unified,v1,v2",az_house,az,5.0,5.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.75,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,az-08,"unified,v1,v2",az_house,az,1.0,1.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.75,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-02,"unified,v1,v2",fl_house,fl,16.0,16.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-03,"unified,v1,v2",fl_house,fl,12.0,12.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-04,"unified,v1,v2",fl_house,fl,3.0,3.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-05,"unified,v1,v2",fl_house,fl,2.0,2.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-07,"unified,v1,v2",fl_house,fl,2.0,2.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-08,"unified,v1,v2",fl_house,fl,2.0,2.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-09,"unified,v1,v2",fl_house,fl,7.0,7.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-11,"unified,v1,v2",fl_house,fl,3.0,3.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-12,"unified,v1,v2",fl_house,fl,2.0,2.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-13,"unified,v1,v2",fl_house,fl,2.0,2.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-14,"unified,v1,v2",fl_house,fl,1.0,1.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-15,"unified,v1,v2",fl_house,fl,4.0,4.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-16,"unified,v1,v2",fl_house,fl,6.0,6.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-18,"unified,v1,v2",fl_house,fl,2.0,2.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-21,"unified,v1,v2",fl_house,fl,3.0,3.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-22,"unified,v1,v2",fl_house,fl,4.0,4.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-25,"unified,v1,v2",fl_house,fl,3.0,3.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-26,"unified,v1,v2",fl_house,fl,2.0,2.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-27,"unified,v1,v2",fl_house,fl,1.0,1.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,fl-28,"unified,v1,v2",fl_house,fl,2.0,2.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,ga-01,"unified,v1,v2",ga_house,ga,15.0,15.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.64,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,ga-03,"unified,v1,v2",ga_house,ga,15.0,15.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.64,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,ga-07,"unified,v1,v2",ga_house,ga,6.0,6.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.64,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,ga-12,"unified,v1,v2",ga_house,ga,24.0,24.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.64,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,mn-01,"unified,v1,v2",mn_house,mn,21.0,21.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,mn-02,"unified,v1,v2",mn_house,mn,5.0,5.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,mn-06,"unified,v1,v2",mn_house,mn,7.0,7.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,mn-08,"unified,v1,v2",mn_house,mn,21.0,21.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-01,"unified,v1,v2",nc_house,nc,25.0,25.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-03,"unified,v1,v2",nc_house,nc,9.0,9.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-05,"unified,v1,v2",nc_house,nc,10.0,10.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-06,"unified,v1,v2",nc_house,nc,6.0,6.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-07,"unified,v1,v2",nc_house,nc,8.0,8.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-08,"unified,v1,v2",nc_house,nc,9.0,9.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-09,"unified,v1,v2",nc_house,nc,7.0,7.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-10,"unified,v1,v2",nc_house,nc,5.0,5.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-11,"unified,v1,v2",nc_house,nc,16.0,16.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-13,"unified,v1,v2",nc_house,nc,8.0,8.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nc-14,"unified,v1,v2",nc_house,nc,6.0,6.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.46,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,ne-01,"unified,v1,v2",ne_house,ne,12.0,12.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,ne-02,"unified,v1,v2",ne_house,ne,3.0,3.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,nm-02,"unified,v1,v2",nm_house,nm,15.0,15.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,oh-01,"unified,v1,v2",oh_house,oh,3.0,3.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,oh-07,"unified,v1,v2",oh_house,oh,4.0,4.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,oh-08,"unified,v1,v2",oh_house,oh,5.0,5.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,oh-09,"unified,v1,v2",oh_house,oh,10.0,10.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,oh-10,"unified,v1,v2",oh_house,oh,3.0,3.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,oh-12,"unified,v1,v2",oh_house,oh,11.0,11.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,oh-15,"unified,v1,v2",oh_house,oh,7.0,7.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,pa-01,"unified,v1,v2",pa_house,pa,2.0,2.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.23,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,pa-07,"unified,v1,v2",pa_house,pa,4.0,4.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.23,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,pa-08,"unified,v1,v2",pa_house,pa,5.0,5.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.23,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,pa-10,"unified,v1,v2",pa_house,pa,3.0,3.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.23,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,pa-16,"unified,v1,v2",pa_house,pa,6.0,6.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.23,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,sc-01,"unified,v1,v2",sc_house,sc,6.0,6.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,sc-02,"unified,v1,v2",sc_house,sc,5.0,5.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,sc-05,"unified,v1,v2",sc_house,sc,10.0,10.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,sc-07,"unified,v1,v2",sc_house,sc,8.0,8.0,0.0,False,v2: model.rho 0.6 != 0.3,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-02,"unified,v1,v2",tx_house,tx,2.0,2.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-03,"unified,v1,v2",tx_house,tx,7.0,7.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-09,"unified,v1,v2",tx_house,tx,2.0,2.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-10,"unified,v1,v2",tx_house,tx,13.0,13.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-15,"unified,v1,v2",tx_house,tx,11.0,11.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-23,"unified,v1,v2",tx_house,tx,27.0,27.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-24,"unified,v1,v2",tx_house,tx,2.0,2.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-28,"unified,v1,v2",tx_house,tx,12.0,12.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-32,"unified,v1,v2",tx_house,tx,8.0,8.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-34,"unified,v1,v2",tx_house,tx,5.0,5.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-35,"unified,v1,v2",tx_house,tx,4.0,4.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+house,tx-38,"unified,v1,v2",tx_house,tx,1.0,1.0,0.0,False,v2: count.vote_type False != True | v2: count.early_share None != 0.6,"turnout_ratio v1=0.72,v2=0.72,unified=1.0"
+cross-feed,oh_gov,civic v1 vs statewide v1,civic_oh vs oh,oh,,,,False,election.race_id civic 'oh-gov-civic' != statewide 'oh-gov' | election.name civic 'Ohio Governor' != statewide 'Ohio governor',
+cross-feed,oh_sen,civic v1 vs statewide v1,civic_oh vs oh,oh,,,,False,election.race_id civic 'oh-sen-civic' != statewide 'oh-sen',
+cross-feed,sc_gov,civic v1 vs statewide v1,civic_sc vs sc,sc,,,,False,election.race_id civic 'sc-gov-civic' != statewide 'sc-gov' | election.name civic 'South Carolina Governor' != statewide 'South Carolina governor',
+cross-feed,sc_sen,civic v1 vs statewide v1,civic_sc vs sc,sc,,,,False,election.race_id civic 'sc-sen-civic' != statewide 'sc-sen',

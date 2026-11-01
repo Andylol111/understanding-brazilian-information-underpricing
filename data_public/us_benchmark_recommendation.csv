@@ -1,0 +1,63 @@
+layer,scheme,class,n,primary,benchmark_pick,pick_improvement,pick_ci_lo,pick_ci_hi,pick_p_holm,recommendation,recommended_margin
+statewide share CRPS (pts),pooled,all races,264,v3 (LOCO-refit sd),unified,0.17084,-0.05309,0.37424,1.0,keep primary,
+statewide share CRPS (pts),C1,high,65,v3 (LOCO-refit sd),unified,0.04132,-0.75975,0.74522,1.0,keep primary,
+statewide share CRPS (pts),C1,low,102,v3 (LOCO-refit sd),unified,0.09875,0.01558,0.17655,0.8557,keep primary,
+statewide share CRPS (pts),C1,medium,97,v3 (LOCO-refit sd),unified,0.33343,0.11295,0.55788,0.1696,keep primary,
+statewide share CRPS (pts),C2,1-5 polls,91,v3 (LOCO-refit sd),v2,0.0088,-0.01712,0.03638,1.0,keep primary,
+statewide share CRPS (pts),C2,6+ polls,128,v3 (LOCO-refit sd),unified,0.12945,0.02574,0.23738,0.6716,keep primary,
+statewide share CRPS (pts),C2,unpolled,45,v3 (LOCO-refit sd),unified,0.70013,-0.44845,1.68607,1.0,keep primary,
+statewide share CRPS (pts),C3,3-6 pts,45,v3 (LOCO-refit sd),unified,0.24632,0.05979,0.44902,0.4464,keep primary,
+statewide share CRPS (pts),C3,<3 pts,97,v3 (LOCO-refit sd),unified,0.04099,-0.08303,0.15827,1.0,keep primary,
+statewide share CRPS (pts),C3,>=6 pts,77,v3 (LOCO-refit sd),v2,0.00812,-0.0373,0.05439,1.0,keep primary,
+statewide share CRPS (pts),C3,unpolled,45,v3 (LOCO-refit sd),unified,0.70013,-0.46702,1.69244,1.0,keep primary,
+statewide share CRPS (pts),C4,2-4 pts,110,v3 (LOCO-refit sd),unified,0.28414,-0.19792,0.70765,1.0,keep primary,
+statewide share CRPS (pts),C4,<2 pts,144,v3 (LOCO-refit sd),unified,0.11458,-0.01288,0.24041,1.0,keep primary,
+statewide share CRPS (pts),C4,>=4 pts or none,10,v3 (LOCO-refit sd),n<30: not tested,,,,,keep primary,
+county share wMAE (pts),pooled,all races,260,v3,unified,0.48719,0.19303,0.75742,0.121,keep primary,
+county share wMAE (pts),C1,high,64,v3,unified,0.3555,-0.67709,1.26825,1.0,keep primary,
+county share wMAE (pts),C1,low,101,v3,unified,0.26901,0.14102,0.39971,0.0053,switch to unified,0.26901
+county share wMAE (pts),C1,medium,95,v3,unified,0.80787,0.4813,1.14812,0.0053,switch to unified,0.80787
+county share wMAE (pts),C2,1-5 polls,90,v3,unified,0.32317,-0.00399,0.62902,1.0,keep primary,
+county share wMAE (pts),C2,6+ polls,126,v3,unified,0.36292,0.22635,0.50169,0.0053,switch to unified,0.36292
+county share wMAE (pts),C2,unpolled,44,v3,unified,1.17857,-0.29632,2.46332,1.0,keep primary,
+county share wMAE (pts),C3,3-6 pts,45,v3,unified,0.49501,0.23565,0.74644,0.0236,switch to unified,0.49501
+county share wMAE (pts),C3,<3 pts,96,v3,unified,0.20298,0.03039,0.37047,0.902,keep primary,
+county share wMAE (pts),C3,>=6 pts,75,v3,unified,0.44068,0.05386,0.80051,1.0,keep primary,
+county share wMAE (pts),C3,unpolled,44,v3,unified,1.17857,-0.29681,2.4812,1.0,keep primary,
+county share wMAE (pts),C4,2-4 pts,108,v3,unified,0.71993,0.09751,1.27236,0.956,keep primary,
+county share wMAE (pts),C4,<2 pts,142,v3,unified,0.36797,0.18965,0.55148,0.0053,switch to unified,0.36797
+county share wMAE (pts),C4,>=4 pts or none,10,v3,n<30: not tested,,,,,keep primary,
+county expected-vote wMAPE (%),pooled,all races,132,v3,v3 (primary best),-1.91892,-3.09577,-0.79328,0.0183,keep primary,
+county expected-vote wMAPE (%),C1,high,35,v3,v3 (primary best),-2.0831,-4.83883,0.54833,1.0,keep primary,
+county expected-vote wMAPE (%),C1,low,48,v3,v3 (primary best),-1.52198,-3.17862,-0.05516,1.0,keep primary,
+county expected-vote wMAPE (%),C1,medium,49,v3,v3 (primary best),-2.19048,-4.06213,-0.45405,0.4747,keep primary,
+county expected-vote wMAPE (%),C2,1-5 polls,43,v3,v3 (primary best),-2.93602,-5.26071,-0.82016,0.2652,keep primary,
+county expected-vote wMAPE (%),C2,6+ polls,66,v3,v3 (primary best),-1.65796,-2.98894,-0.45931,0.28,keep primary,
+county expected-vote wMAPE (%),C2,unpolled,23,v3,n<30: not tested,,,,,keep primary,
+county expected-vote wMAPE (%),C3,3-6 pts,19,v3,n<30: not tested,,,,,keep primary,
+county expected-vote wMAPE (%),C3,<3 pts,47,v3,v3 (primary best),-3.02355,-5.12357,-1.09615,0.0513,keep primary,
+county expected-vote wMAPE (%),C3,>=6 pts,43,v3,v3 (primary best),-2.30452,-4.20009,-0.63909,0.1976,keep primary,
+county expected-vote wMAPE (%),C3,unpolled,23,v3,n<30: not tested,,,,,keep primary,
+county expected-vote wMAPE (%),C4,2-4 pts,61,v3,v3 (primary best),-3.59801,-5.60642,-1.68571,0.0183,keep primary,
+county expected-vote wMAPE (%),C4,<2 pts,66,v3,v3 (primary best),-0.70888,-2.12497,0.4851,1.0,keep primary,
+county expected-vote wMAPE (%),C4,>=4 pts or none,5,v3,n<30: not tested,,,,,keep primary,
+county turnout-share TV (%),pooled,all races,132,v3,unified,0.2235,0.1236,0.31698,0.0053,switch to unified,0.2235
+county turnout-share TV (%),C1,high,35,v3,unified,0.26717,0.09743,0.45109,0.0896,keep primary,
+county turnout-share TV (%),C1,low,48,v3,unified,0.1445,-0.07151,0.31995,1.0,keep primary,
+county turnout-share TV (%),C1,medium,49,v3,unified,0.26969,0.16221,0.37676,0.0053,switch to unified,0.26969
+county turnout-share TV (%),C2,1-5 polls,43,v3,unified,0.23926,0.10916,0.38445,0.0236,switch to unified,0.23926
+county turnout-share TV (%),C2,6+ polls,35,v3,v4,0.36496,0.21239,0.51489,0.0053,switch to v4,0.36496
+county turnout-share TV (%),C2,unpolled,23,v3,n<30: not tested,,,,,keep primary,
+county turnout-share TV (%),C3,3-6 pts,19,v3,n<30: not tested,,,,,keep primary,
+county turnout-share TV (%),C3,<3 pts,47,v3,unified,0.13639,-0.07603,0.31256,1.0,keep primary,
+county turnout-share TV (%),C3,>=6 pts,43,v3,unified,0.32788,0.20416,0.46186,0.0053,switch to unified,0.32788
+county turnout-share TV (%),C3,unpolled,23,v3,n<30: not tested,,,,,keep primary,
+county turnout-share TV (%),C4,2-4 pts,61,v3,unified,0.15238,-0.03833,0.3162,1.0,keep primary,
+county turnout-share TV (%),C4,<2 pts,66,v3,unified,0.2854,0.18888,0.38197,0.0053,switch to unified,0.2854
+county turnout-share TV (%),C4,>=4 pts or none,5,v3,n<30: not tested,,,,,keep primary,
+House district share CRPS (pts),pooled,all races,2223,v2 (LOCO-refit sd),unified,0.31702,0.25224,0.38178,0.0053,switch to unified,0.31702
+House district share CRPS (pts),H1,polled,319,v2 (LOCO-refit sd),unified,0.30817,0.05863,0.57239,0.6996,keep primary,
+House district share CRPS (pts),H1,unpolled,1904,v2 (LOCO-refit sd),unified,0.31851,0.25636,0.38095,0.0053,switch to unified,0.31851
+House district share CRPS (pts),H2,close (<0.05),463,v2 (LOCO-refit sd),unified,0.76386,0.61961,0.9061,0.0053,switch to unified,0.76386
+House district share CRPS (pts),H2,lean (0.05-0.15),991,v2 (LOCO-refit sd),unified,0.28521,0.1884,0.38463,0.0053,switch to unified,0.28521
+House district share CRPS (pts),H2,safe (>0.15),769,v2 (LOCO-refit sd),unified,0.089,-0.00944,0.19044,1.0,keep primary,

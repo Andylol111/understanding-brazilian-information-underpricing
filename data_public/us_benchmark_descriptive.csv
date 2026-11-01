@@ -1,0 +1,100 @@
+family,scheme,class,n,primary,candidate,metric,improvement,ci_lo,ci_hi
+statewide,pooled,all races,264,v3,v1,brier,-0.064548,-0.088667,-0.041184
+statewide,pooled,all races,264,v3,v1,logloss,-0.235035,-0.336188,-0.150808
+statewide,pooled,all races,264,v3,v1,abserr,-2.619272,-3.249971,-2.023278
+statewide,pooled,all races,264,v3,v2,brier,-0.002529,-0.005874,0.001112
+statewide,pooled,all races,264,v3,v2,logloss,-0.015655,-0.024559,-0.006104
+statewide,pooled,all races,264,v3,v2,abserr,0.0,0.0,0.0
+statewide,pooled,all races,264,v3,unified,brier,0.004335,-0.005034,0.013549
+statewide,pooled,all races,264,v3,unified,logloss,0.018558,-0.00487,0.040396
+statewide,pooled,all races,264,v3,unified,abserr,0.285993,-0.015766,0.571452
+statewide,C1,high,65,v3,v1,brier,-0.040882,-0.083657,-0.00715
+statewide,C1,high,65,v3,v1,logloss,-0.168433,-0.358101,-0.040323
+statewide,C1,high,65,v3,v1,abserr,-3.989414,-5.622453,-2.452447
+statewide,C1,high,65,v3,v2,brier,-0.002222,-0.004676,-0.000325
+statewide,C1,high,65,v3,v2,logloss,-0.008317,-0.016171,-0.001711
+statewide,C1,high,65,v3,v2,abserr,0.0,0.0,0.0
+statewide,C1,high,65,v3,unified,brier,0.00763,-0.009077,0.025992
+statewide,C1,high,65,v3,unified,logloss,0.024405,-0.018979,0.070242
+statewide,C1,high,65,v3,unified,abserr,0.044552,-1.003717,0.994691
+statewide,C1,low,102,v3,v1,brier,-0.057976,-0.084488,-0.030297
+statewide,C1,low,102,v3,v1,logloss,-0.183005,-0.243574,-0.119347
+statewide,C1,low,102,v3,v1,abserr,-0.924706,-1.312129,-0.548718
+statewide,C1,low,102,v3,v2,brier,-0.002428,-0.009712,0.005638
+statewide,C1,low,102,v3,v2,logloss,-0.023947,-0.043076,-0.002013
+statewide,C1,low,102,v3,v2,abserr,0.0,0.0,0.0
+statewide,C1,low,102,v3,unified,brier,0.002022,-0.011413,0.013141
+statewide,C1,low,102,v3,unified,logloss,0.014201,-0.021459,0.043226
+statewide,C1,low,102,v3,unified,abserr,0.169285,0.035315,0.306369
+statewide,C1,medium,97,v3,v1,brier,-0.087317,-0.137089,-0.03978
+statewide,C1,medium,97,v3,v1,logloss,-0.334376,-0.570296,-0.148659
+statewide,C1,medium,97,v3,v1,abserr,-3.483051,-4.610503,-2.441164
+statewide,C1,medium,97,v3,v2,brier,-0.002841,-0.006866,0.001278
+statewide,C1,medium,97,v3,v2,logloss,-0.011852,-0.022441,-0.000866
+statewide,C1,medium,97,v3,v2,abserr,0.0,0.0,0.0
+statewide,C1,medium,97,v3,unified,brier,0.00456,-0.014052,0.022226
+statewide,C1,medium,97,v3,unified,logloss,0.019223,-0.023341,0.05963
+statewide,C1,medium,97,v3,unified,abserr,0.570506,0.185358,0.955304
+statewide,C2,1-5 polls,91,v3,v1,brier,-0.059043,-0.090878,-0.02984
+statewide,C2,1-5 polls,91,v3,v1,logloss,-0.208878,-0.315062,-0.122731
+statewide,C2,1-5 polls,91,v3,v1,abserr,-3.516404,-4.885884,-2.268385
+statewide,C2,1-5 polls,91,v3,v2,brier,-0.000763,-0.001739,0.000202
+statewide,C2,1-5 polls,91,v3,v2,logloss,-0.004908,-0.00887,-0.001126
+statewide,C2,1-5 polls,91,v3,v2,abserr,0.0,0.0,0.0
+statewide,C2,1-5 polls,91,v3,unified,brier,0.004125,-0.007186,0.016403
+statewide,C2,1-5 polls,91,v3,unified,logloss,0.015237,-0.010683,0.043358
+statewide,C2,1-5 polls,91,v3,unified,abserr,0.034149,-0.31747,0.373736
+statewide,C2,6+ polls,128,v3,v1,brier,-0.091154,-0.133357,-0.049889
+statewide,C2,6+ polls,128,v3,v1,logloss,-0.33626,-0.523316,-0.180726
+statewide,C2,6+ polls,128,v3,v1,abserr,-2.902305,-3.702407,-2.141375
+statewide,C2,6+ polls,128,v3,v2,brier,-0.004674,-0.011444,0.0027
+statewide,C2,6+ polls,128,v3,v2,logloss,-0.028799,-0.046364,-0.010144
+statewide,C2,6+ polls,128,v3,v2,abserr,0.0,0.0,0.0
+statewide,C2,6+ polls,128,v3,unified,brier,0.001958,-0.013095,0.015912
+statewide,C2,6+ polls,128,v3,unified,logloss,0.012208,-0.025374,0.046448
+statewide,C2,6+ polls,128,v3,unified,abserr,0.151918,0.000532,0.308693
+statewide,C2,unpolled,45,v3,v1,brier,0.0,0.0,0.0
+statewide,C2,unpolled,45,v3,v1,logloss,0.0,0.0,0.0
+statewide,C2,unpolled,45,v3,v1,abserr,0.0,0.0,0.0
+statewide,C2,unpolled,45,v3,v2,brier,0.0,0.0,0.0
+statewide,C2,unpolled,45,v3,v2,logloss,0.0,0.0,0.0
+statewide,C2,unpolled,45,v3,v2,abserr,0.0,0.0,0.0
+statewide,C2,unpolled,45,v3,unified,brier,0.011523,-0.012178,0.034323
+statewide,C2,unpolled,45,v3,unified,logloss,0.043337,-0.014772,0.100646
+statewide,C2,unpolled,45,v3,unified,abserr,1.176645,-0.36221,2.546851
+house,pooled,all races,2223,v2,v1,brier,-0.007447,-0.010286,-0.004619
+house,pooled,all races,2223,v2,v1,logloss,-0.016516,-0.025215,-0.007681
+house,pooled,all races,2223,v2,v1,abserr,-0.45249,-0.539782,-0.363981
+house,pooled,all races,2223,v2,unified,brier,0.012439,0.0081,0.016821
+house,pooled,all races,2223,v2,unified,logloss,0.046637,0.032934,0.060289
+house,pooled,all races,2223,v2,unified,abserr,0.33375,0.234126,0.434683
+house,H1,polled,319,v2,v1,brier,-0.004355,-0.01823,0.009331
+house,H1,polled,319,v2,v1,logloss,0.006422,-0.03059,0.045392
+house,H1,polled,319,v2,v1,abserr,-0.609809,-0.864594,-0.348947
+house,H1,polled,319,v2,unified,brier,-0.003352,-0.027076,0.020288
+house,H1,polled,319,v2,unified,logloss,0.006831,-0.065669,0.077761
+house,H1,polled,319,v2,unified,abserr,0.238439,-0.108812,0.59687
+house,H1,unpolled,1904,v2,v1,brier,-0.007966,-0.010371,-0.005572
+house,H1,unpolled,1904,v2,v1,logloss,-0.020359,-0.028076,-0.012331
+house,H1,unpolled,1904,v2,v1,abserr,-0.426132,-0.518216,-0.333452
+house,H1,unpolled,1904,v2,unified,brier,0.015085,0.011905,0.018335
+house,H1,unpolled,1904,v2,unified,logloss,0.053306,0.042906,0.063877
+house,H1,unpolled,1904,v2,unified,abserr,0.349719,0.251118,0.450213
+house,H2,close (<0.05),463,v2,v1,brier,-0.039727,-0.051699,-0.027375
+house,H2,close (<0.05),463,v2,v1,logloss,-0.094109,-0.12342,-0.063368
+house,H2,close (<0.05),463,v2,v1,abserr,-0.867164,-1.053379,-0.675088
+house,H2,close (<0.05),463,v2,unified,brier,0.049484,0.032183,0.066451
+house,H2,close (<0.05),463,v2,unified,logloss,0.147749,0.105239,0.189902
+house,H2,close (<0.05),463,v2,unified,abserr,0.948764,0.727632,1.1672
+house,H2,lean (0.05-0.15),991,v2,v1,brier,0.001856,-0.000474,0.00404
+house,H2,lean (0.05-0.15),991,v2,v1,logloss,0.005335,-0.006328,0.017889
+house,H2,lean (0.05-0.15),991,v2,v1,abserr,-0.581646,-0.710133,-0.452647
+house,H2,lean (0.05-0.15),991,v2,unified,brier,0.004779,-0.000534,0.01014
+house,H2,lean (0.05-0.15),991,v2,unified,logloss,0.03087,0.008798,0.052292
+house,H2,lean (0.05-0.15),991,v2,unified,abserr,0.314621,0.168724,0.465817
+house,H2,safe (>0.15),769,v2,v1,brier,-1e-06,-1.7e-05,1.2e-05
+house,H2,safe (>0.15),769,v2,v1,logloss,0.002043,-0.004684,0.010779
+house,H2,safe (>0.15),769,v2,v1,abserr,-0.036381,-0.183733,0.111132
+house,H2,safe (>0.15),769,v2,unified,brier,8e-06,-6.8e-05,9.2e-05
+house,H2,safe (>0.15),769,v2,unified,logloss,0.006079,-0.000196,0.016413
+house,H2,safe (>0.15),769,v2,unified,abserr,-0.011886,-0.163455,0.143061
