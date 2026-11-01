@@ -209,6 +209,12 @@ only states limits known before the count.
 - **Feeds:** Ohio's official feed has refused our server since 2026-10-30 and South Carolina's returns a bot
   check, so up to four registered statewide races (OH and SC, Senate and governor) may have no scored count.
   Any bot check on the night ends that series; none is bypassed.
+- **Real count nights (added 2026-11-01, before any 2026 result):** the count settings were tuned on simulated
+  Georgia nights. Replays of real past nights (`docs/us_real_nights.md`) show the simulation was optimistic. On
+  2024 nights the 90% bands held about as stated; on 2020 nights, when mail ballots were counted late in several
+  states, they held far less often than 90%, so probabilities were overconfident while a late-counted vote type
+  was still out. Most of those replays use archived media feeds whose terms allow internal checks only, so their
+  figures are not published; the one official-source night (Michigan 2022 governor) is. Nothing registered changes.
 
 ## Recording log (forward_v1)
 
