@@ -240,6 +240,15 @@ rule was written, so the rule is built to favour the status quo.
   races where it could be rebuilt (v3: 10%); its share estimates equal v3's. The map's "turnout vs expected" layer
   places votes across counties well (median county error 6.4%) but its statewide level was off by 7% on average in
   2022 and 2024, so early "turnout above or below expected" readings are approximate.
+- **House districts in redrawn states (FL, NC, OH, TX; 50 of the 75 districts):** the registered House priors split
+  each county across the 2026 district lines by block population and give every piece the county's share. Checked
+  against 2024 block results, that misplaces 6.3% of votes; splitting by where L2 registrants actually live
+  misplaces 1.6–1.8% and halves the district-level presidential-share error (2.13 → 1.03 points; 7 of 7 states,
+  leave-one-state-out; `docs/us_l2turnout.md`, analysis conducted using data from the Redistricting Data Hub). The
+  pass criteria were written after the population-vs-L2 gap had been seen. The registered House v1/v2 keep the
+  population split; the unified challenger's House priors use the L2 split (`data_public/us2026_unified_house_priors_l2.csv`)
+  and are frozen with it. An L2 county turnout model for statewide races was tested and rejected (11% worse out of
+  sample than the challenger's expected votes in 2022 and 2024).
 
 ## Recording log (forward_v1)
 
