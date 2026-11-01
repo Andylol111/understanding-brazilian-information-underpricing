@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>US midterms 2026: who is voting, who is registered, what voters say</title>
+<meta name="description" content="How the US electorate has shifted since 2022: early-vote and registration mix by age, race, gender, party and kind of county, party registration over time by state, the issues voters name, and poll results by group. Counts and published polls, not a forecast.">
+<!-- BUILD: the one version constant of this page; it versions midterms.js and midterms.css. Data under data/us2026_context/ is rebuilt by analysis/us_context.py. -->
+<link id="page-css" rel="stylesheet">
+<link id="mt-css" rel="stylesheet">
+<script>
+window.__BUILD = "20261101a";
+window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
+document.getElementById("page-css").href = "style.css?v=" + window.__V;
+document.getElementById("mt-css").href = "midterms.css?v=" + window.__V;
+</script>
+</head>
+<body class="mt">
+<main>
+<nav class="col sitenav"><a href="./">Election nights</a> / <a href="earlyvote.html">US early vote</a> / Electorate shifts</nav>
+<header class="col">
+  <p class="kicker">The electorate, 2022 to 2026</p>
+  <h1>How the electorate has shifted</h1>
+  <p class="dek">Every group side by side: who is casting early ballots and who is on the rolls now, compared with the same point in 2022, plus what voters name as the top issues and how polls split by group. Counts and published polls only.</p>
+  <p class="byline" id="mt-asof">Loading…</p>
+</header>
+
+<section class="mt-wrap" aria-labelledby="big-h">
+  <h2 id="big-h">The biggest shifts</h2>
+  <p class="chart-sub" id="big-sub"></p>
+  <ol class="mt-big" id="big-list"></ol>
+</section>
+
+<section class="mt-wrap" aria-labelledby="ev-h">
+  <h2 id="ev-h">Early vote by group, now and on the same day in 2022</h2>
+  <p class="chart-sub" id="ev-sub"></p>
+  <div id="ev-tables"></div>
+  <p class="note">Groups come from the voter file's recorded attributes; counties are grouped by population density, so the last block describes places, not voters. Hispanic is any race. These are ballot counts, not how anyone voted.</p>
+</section>
+
+<section class="mt-wrap" aria-labelledby="rg-h">
+  <h2 id="rg-h">Who is registered, now vs November 2022</h2>
+  <p class="chart-sub" id="rg-sub"></p>
+  <div id="rg-tables"></div>
+  <h3 id="rs-h">Party registration by state</h3>
+  <p class="chart-sub" id="rs-sub"></p>
+  <div class="table-scroll"><table class="mt-tab" id="rs-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
+  <p class="note" id="rs-blocked"></p>
+</section>
+
+<section class="mt-wrap" aria-labelledby="is-h">
+  <h2 id="is-h">What voters say matters</h2>
+  <h3>Gallup: most important problem</h3>
+  <div class="table-scroll"><table class="mt-tab" id="gal-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
+  <h3>Issue questions in recent polls</h3>
+  <div class="table-scroll"><table class="mt-tab" id="iss-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
+  <p class="note">Network exit polls and AP VoteCast are not used here; AP VoteCast is published at <a href="https://www.ap.org/the-definitive-source/behind-the-numbers/ap-votecast/">ap.org</a>.</p>
+</section>
+
+<section class="mt-wrap" aria-labelledby="px-h">
+  <h2 id="px-h">Poll results by group</h2>
+  <div class="ev-pick"><label class="select">Race <select id="px-race"></select></label> <label class="select">Poll <select id="px-poll"></select></label></div>
+  <p class="chart-sub" id="px-sub"></p>
+  <div class="table-scroll"><table class="mt-tab" id="px-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
+  <p class="note">Small samples: group results rest on far fewer interviews than the whole poll; margins shown are rough 95% ranges for a simple random sample and understate real error.</p>
+</section>
+</main>
+<script type="module" src="midterms.js" id="mt-js"></script>
+<script>document.getElementById("mt-js").src = "midterms.js?v=" + window.__V;</script>
+</body>
+</html>

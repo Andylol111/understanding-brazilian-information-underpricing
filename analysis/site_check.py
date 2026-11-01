@@ -81,7 +81,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def cases() -> list[Case]:
-    out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article"), Case("earlyvote", "earlyvote.html", "earlyvote"), Case("scorecard", "scorecard.html", "scorecard")]
+    out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article"), Case("earlyvote", "earlyvote.html", "earlyvote"), Case("scorecard", "scorecard.html", "scorecard"), Case("midterms", "midterms.html", "midterms")]
     out.extend(Case(eid, f"election.html?{urlencode({'id': eid})}", "election") for eid in ELECTIONS)
     # Exercise the US county map as well as its default national state map.
     out.append(Case("us2026-ca-gov", f"election.html?{urlencode({'id': 'us2026', 'race': 'ca-gov'})}", "election"))
@@ -131,6 +131,7 @@ async def state(page: Page, kind: str) -> dict[str, Any]:
             painted: window.__dashPerf?.firstRenderMs != null,
             evReady: !!window.__evReady,
             scReady: !!window.__scReady,
+            mtReady: !!window.__mtReady,
             kind,
           };
         }""",
@@ -149,6 +150,8 @@ def ready(s: dict[str, Any], mapless: bool = False) -> bool:
         return s["evReady"]
     if s["kind"] == "scorecard":
         return s["scReady"]
+    if s["kind"] == "midterms":
+        return s["mtReady"]
     return bool(s["title"] and s["raceOptions"] and s["readout"] and (mapless or s["visiblePaths"] or (s["visibleCanvas"] and s["painted"])))
 
 
@@ -488,6 +491,22 @@ async def check_home_mix(page: Page) -> list[str]:
     return fails
 
 
+async def check_midterms(page: Page) -> list[str]:
+    """Midterms context page: every group table has rows, registration and poll tables are filled, no placeholder text."""
+    q = await page.evaluate("""() => ({ big: document.querySelectorAll('#big-list li').length,
+        ev: document.querySelectorAll('#ev-tables tbody tr:not(.dim)').length, rg: document.querySelectorAll('#rg-tables tbody tr:not(.dim)').length,
+        rs: document.querySelectorAll('#rs-table tbody tr').length, px: document.querySelectorAll('#px-table tbody tr').length,
+        loading: [...document.querySelectorAll('main p, main td')].some((e) => /^Loading…$/.test(e.textContent.trim())) })""")
+    out = []
+    if q["big"] < 4 or q["ev"] < 15 or q["rg"] < 15:
+        out.append(f"midterms group tables are short: {q}")
+    if not q["rs"] or not q["px"]:
+        out.append(f"midterms registration or poll table is empty: {q}")
+    if q["loading"]:
+        out.append("midterms page still shows Loading")
+    return out
+
+
 async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
     """US early-vote page: coverage of all 51, map, charts for the default state and for others, county map, wording."""
     out: list[str] = []
@@ -618,6 +637,8 @@ async def check_page(
                 result.failures.extend(await check_earlyvote(page, viewport_name))
             elif case.kind == "scorecard":
                 result.failures.extend(await check_scorecard(page, viewport_name))
+            elif case.kind == "midterms":
+                result.failures.extend(await check_midterms(page))
             elif case.kind == "election":
                 if not current["title"] or current["title"].startswith("Loading"):
                     result.failures.append("election title was not set")
@@ -751,6 +772,9 @@ async def check_page(
                         result.failures.append(f"US page shows retired model labels: {bad[:3]}")
             if case.name in SENS_CASE_KEYS:
                 result.failures.extend(await check_sens(page, case, SENS_CASE_KEYS[case.name]))
+            if screenshots and case.name == "midterms":
+                screenshots.mkdir(parents=True, exist_ok=True)
+                await page.screenshot(path=screenshots / f"47_context_{engine}_{viewport_name}.png", full_page=True)
             if screenshots and case.name == "earlyvote":
                 screenshots.mkdir(parents=True, exist_ok=True)
                 await page.screenshot(path=screenshots / f"{engine}-earlyvote-{viewport_name}.png", full_page=True)

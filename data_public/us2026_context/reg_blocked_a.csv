@@ -1,0 +1,2 @@
+st,reason,url
+NV,"nvsos.gov behind Imperva/Incapsula bot challenge: page and robots.txt return the challenge page to curl (HTTP 200 challenge, ~1KB) and the headless browser got Akamai 'Access Denied'; robots.txt could not be read, so no data fetched",https://www.nvsos.gov/elections/voters/voter-registration-statistics/2026-statistics

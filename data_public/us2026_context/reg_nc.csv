@@ -1,0 +1,15 @@
+st,date,D,R,O,total,basis,source_url,U
+NC,2022-11-08,2504085,2226339,2691972,7422396,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2022_11_08/voter_stats_20221108.zip,2641353
+NC,2022-12-06,2507282,2235813,2705404,7448499,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2022_12_06/voter_stats_20221206.zip,2654311
+NC,2023-03-07,2414267,2188663,2629694,7232624,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2023_03_07/voter_stats_20230307.zip,2580301
+NC,2023-09-12,2417493,2209002,2712416,7338911,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2023_09_12/voter_stats_20230912.zip,2660657
+NC,2023-10-10,2417895,2212272,2727122,7357289,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2023_10_10/voter_stats_20231010.zip,2673810
+NC,2023-11-07,2416453,2212545,2733814,7362812,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2023_11_07/voter_stats_20231107.zip,2679631
+NC,2024-03-05,2414932,2241165,2811846,7467943,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2024_03_05/voter_stats_20240305.zip,2751703
+NC,2024-05-14,2407341,2235643,2806382,7449366,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2024_05_14/voter_stats_20240514.zip,2746330
+NC,2024-11-05,2457532,2350382,3046550,7854464,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2024_11_05/voter_stats_20241105.zip,2965094
+NC,2025-09-09,2312763,2299058,2968981,7580802,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2025_09_09/voter_stats_20250909.zip,2918634
+NC,2025-10-07,2311178,2302566,2980956,7594700,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2025_10_07/voter_stats_20251007.zip,2930520
+NC,2025-11-04,2309136,2302984,2989226,7601346,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2025_11_04/voter_stats_20251104.zip,2938703
+NC,2026-03-03,2313649,2322244,3072374,7708267,all,https://s3.amazonaws.com/dl.ncsbe.gov/ENRS/2026_03_03/voter_stats_20260303.zip,3021215
+NC,2026-10-25,2336966,2330371,3221912,7889249,all,https://s3.amazonaws.com/dl.ncsbe.gov/data/ncvoter_Statewide.zip,3170178

@@ -1,0 +1,5 @@
+st,reason,url
+PA,"robots: pa.gov robots.txt disallows /content/dam/.../voting-and-election-statistics/ (registration-by-party reports); data.pa.gov has no voter-registration-by-party dataset found",https://www.pa.gov/robots.txt
+IA,"http 403 (Cloudflare bot challenge on sos.iowa.gov voter statistics pages/PDFs)",https://sos.iowa.gov/elections/voterinformation/voterstatistics.html
+NH,"http 403 (Akamai Access Denied on www.sos.nh.gov incl. robots.txt)",https://www.sos.nh.gov/elections/voter-registration-statistics
+ME,"http 403 (CloudFront block on www.maine.gov incl. robots.txt)",https://www.maine.gov/sos/cec/elec/data/index.html

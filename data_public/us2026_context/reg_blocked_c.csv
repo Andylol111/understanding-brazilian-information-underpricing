@@ -1,0 +1,4 @@
+st,reason,url
+NY,http 403 Cloudflare challenge on official enrollment page and report endpoint,https://elections.ny.gov/enrollment-county
+RI,http 403 Cloudflare challenge on official registered-voter dashboard,https://vote.sos.ri.gov/DataInformation/RegisteredVoters
+MA,http 302 self-redirect anti-bot response (122-byte Loading page) on official statistics page and PDFs,https://www.sec.state.ma.us/divisions/elections/research-and-statistics/registration-statistics.htm
