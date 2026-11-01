@@ -495,11 +495,14 @@ async def check_midterms(page: Page) -> list[str]:
     """Midterms context page: every group table has rows, registration and poll tables are filled, no placeholder text."""
     q = await page.evaluate("""() => ({ big: document.querySelectorAll('#big-list li').length,
         ev: document.querySelectorAll('#ev-tables tbody tr:not(.dim)').length, rg: document.querySelectorAll('#rg-tables tbody tr:not(.dim)').length,
+        eg: document.querySelectorAll('#eg-table tbody tr:not(.dim):not(.mt-meta)').length, egc: document.querySelectorAll('#eg-table thead th').length,
         rs: document.querySelectorAll('#rs-table tbody tr').length, px: document.querySelectorAll('#px-table tbody tr').length,
         loading: [...document.querySelectorAll('main p, main td')].some((e) => /^Loading…$/.test(e.textContent.trim())) })""")
     out = []
     if q["big"] < 4 or q["ev"] < 15 or q["rg"] < 15:
         out.append(f"midterms group tables are short: {q}")
+    if q["eg"] < 12 or q["egc"] < 6:
+        out.append(f"midterms cross-state group table is short: {q}")
     if not q["rs"] or not q["px"]:
         out.append(f"midterms registration or poll table is empty: {q}")
     if q["loading"]:

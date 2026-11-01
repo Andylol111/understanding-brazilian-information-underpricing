@@ -43,3 +43,19 @@ def test_registration_change_and_moe():
     r = c._reg_summary("XX", s, "u")
     assert r["change"]["D"]["n"] == 10 and r["change"]["R"]["pct"] == 33.33 and r["d_minus_r_change"] == -20
     assert c.moe(100) == 9.8 and c.moe(None) is None and c.moe(0) is None
+
+
+def test_group_share_and_cell():
+    s = c._share({"a": 1, "b": 3})
+    assert s == {"a": 25.0, "b": 75.0} and c._share({}) == {}
+    cell = c._cell({"a": 25.0}, {"a": 20.0}, {"a": 30.0}, "a", {"a": 5})
+    assert cell == {"share": 25.0, "n": 5, "share_2022": 20.0, "change_pp": 5.0, "reg_share": 30.0}
+    assert c._cell({"a": 25.0}, None, None, "b") is None
+    assert "share_2022" not in c._cell({"a": 25.0}, None, None, "a")
+
+
+def test_uf_groups_labels():
+    u = {"total": 100, "race": {"White": 50, "Black": 30, "Hispanic": 5, "Asian": 5, "Native American": 2, "Other": 3},
+         "age": {"18-25": 10, "26-40": 20, "41-65": 40, "66+": 30}, "gender": {}}
+    race, age, gender, cov = c._uf_groups(u)
+    assert race["Other / unknown"] == 5 and sum(race.values()) == 95 and cov == {"race": 95.0, "age": 100.0} and gender == {}

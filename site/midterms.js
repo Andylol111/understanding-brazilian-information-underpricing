@@ -24,6 +24,38 @@ function shiftTable(rows, { unit, nowLabel, pastLabel, counts }) {
   return h + "</tbody></table></div>";
 }
 
+function groupGrid(g) {
+  const st = g.states;
+  const src = (s) => (s.url ? link(s.url, s.name) : esc(s.name));
+  $("eg-table").tHead.innerHTML = `<tr><th>Group (share of ballots)</th>${st.map((s) => `<th class="n">${src(s)}</th>`).join("")}</tr>`;
+  const cell = (s, k) => {
+    const c = s.groups[k];
+    if (!c) return `<td class="n mt-na">–</td>`;
+    const ch = c.change_pp == null ? "" : `<small class="${c.change_pp >= 0 ? "up" : "dn"}${s.baseline_2022 === "same day" ? "" : " mt-soft"}">${sg(c.change_pp)} pts</small>`;
+    const rg = c.reg_share == null ? "" : `<small class="mt-reg">${f1(c.reg_share)}% of voters on the rolls</small>`;
+    return `<td class="n"><b>${f1(c.share)}%</b>${ch}${rg}</td>`;
+  };
+  let h = "", dim = null;
+  for (const r of g.rows) {
+    if (!st.some((s) => s.groups[r.key])) continue;
+    if (r.dim !== dim) { dim = r.dim; h += `<tr class="dim"><td colspan="${st.length + 1}">${esc(r.dim_label)}</td></tr>`; }
+    h += `<tr><td>${esc(r.group)}</td>${st.map((s) => cell(s, r.key)).join("")}</tr>`;
+  }
+  const row = (label, f) => `<tr class="mt-meta"><td>${esc(label)}</td>${st.map((s) => `<td class="n">${f(s)}</td>`).join("")}</tr>`;
+  h += `<tr class="dim"><td colspan="${st.length + 1}">About each state's numbers</td></tr>`;
+  h += row("Ballots counted", (s) => int(s.total));
+  h += row("Counted through", (s) => esc(s.as_of));
+  for (const [k, lab] of [["race", "Race recorded for"], ["age", "Age recorded for"], ["gender", "Gender recorded for"]]) {
+    h += row(lab, (s) => (s.coverage[k] == null ? "–" : `<span class="${s.coverage[k] < 90 ? "mt-small" : ""}">${f1(s.coverage[k])}%</span>`));
+  }
+  h += row("Change measured against", (s) => (s.baseline_label ? esc(s.baseline_label) : "no 2022 figure"));
+  h += row("Source", (s) => (s.source.startsWith("UF") ? "UF Election Lab, used with permission" : esc(s.source)));
+  $("eg-table").tBodies[0].innerHTML = h;
+  const n = st.filter((s) => s.baseline_2022).length;
+  $("eg-sub").textContent = `${st.length} states with a published breakdown by race, age or gender; ${n} have a 2022 comparison. Each cell is the group's share of the ballots counted so far; the small line is the change in points against 2022; where shown, "on the rolls" is the group's share of registered voters.`;
+  $("eg-note").innerHTML = `Share = the group's share of the ballots that have that attribute recorded; the "recorded for" rows give how many of all ballots that is (red under 90%: the state publishes that attribute for only part of its ballots). Changes in grey compare with a 2022 final count, not the same day. States other than North Carolina, Colorado, South Carolina and Louisiana: ${link(g.states.find((s) => s.source.startsWith("UF"))?.url, "UF Election Lab (compiled from official state sources), used with permission")} of Dr. Michael McDonald. Colorado's four-band ages come from the same compilation; its own bands carry the 2022 comparison. Counts of ballots by recorded attribute, not how anyone voted.`;
+}
+
 function biggest(ev, mix) {
   const items = [];
   for (const r of ev?.rows ?? []) items.push({ v: r.share_change_pp, t: `${r.group}: share of the early vote`, s: `${f1(r.share_2022)}% → ${f1(r.share_now)}% (same day 2022 vs now)`, k: "ev" });
@@ -107,7 +139,7 @@ function crosstabs(ct) {
 }
 
 async function main() {
-  const [ev, mix, reg, is, ct] = await Promise.all(["ev_nc.json", "reg_nc_mix.json", "registration.json", "issues.json", "crosstabs.json"].map(get));
+  const [ev, mix, reg, is, ct, eg] = await Promise.all(["ev_nc.json", "reg_nc_mix.json", "registration.json", "issues.json", "crosstabs.json", "ev_groups.json"].map(get));
   if (ev) {
     $("mt-asof").textContent = `Early vote through ${ev.through_2026} (${ev.days_before_election_day} days before Election Day), compared with ${ev.through_2022} in 2022.`;
     $("ev-sub").textContent = `North Carolina: ${int(ev.total_now)} accepted ballots now vs ${int(ev.total_2022)} on the same day in 2022. Each group's share of all ballots cast so far.`;
@@ -117,6 +149,7 @@ async function main() {
     $("rg-sub").textContent = `North Carolina: each group's share of registered voters, ${mix.asof_2022} vs ${mix.asof_now}.`;
     $("rg-tables").innerHTML = shiftTable(mix.rows, { nowLabel: "Now", pastLabel: "Nov 2022" });
   }
+  if (eg) groupGrid(eg); else $("eg-table").tBodies[0].innerHTML = "<tr><td>Group table not available.</td></tr>";
   biggest(ev, mix);
   regStates(reg);
   issues(is);

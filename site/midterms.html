@@ -9,7 +9,7 @@
 <link id="page-css" rel="stylesheet">
 <link id="mt-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261101a";
+window.__BUILD = "20261101b";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("mt-css").href = "midterms.css?v=" + window.__V;
@@ -36,6 +36,13 @@ document.getElementById("mt-css").href = "midterms.css?v=" + window.__V;
   <p class="chart-sub" id="ev-sub"></p>
   <div id="ev-tables"></div>
   <p class="note">Groups come from the voter file's recorded attributes; counties are grouped by population density, so the last block describes places, not voters. Hispanic is any race. These are ballot counts, not how anyone voted.</p>
+</section>
+
+<section class="mt-wrap" aria-labelledby="eg-h">
+  <h2 id="eg-h">Early vote by group, every state that publishes it</h2>
+  <p class="chart-sub" id="eg-sub"></p>
+  <div class="table-scroll"><table class="mt-tab mt-grid" id="eg-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
+  <p class="note" id="eg-note"></p>
 </section>
 
 <section class="mt-wrap" aria-labelledby="rg-h">
