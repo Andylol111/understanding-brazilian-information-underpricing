@@ -279,6 +279,7 @@ committed on **2026-11-01 at 23:11:40 UTC** (commit `13051a5`), not on 2026-11-0
 The git commit times are the authority for every entry here: `13051a5` (benchmark headline, 23:11 UTC),
 `5040556` (House piece split, 23:15 UTC), `0a70972` and `a5a5c66` (challenger build and registration, 23:35 UTC and
 later), all on 2026-11-01, before any 2026 result.
+Exact commit times (UTC, 2026-11-01): `13051a5` 23:11:40, `5040556` 23:15:07, `0a70972` 23:33:51, `a5a5c66` 23:35:30.
 
 ## Recording log (forward_v1)
 
