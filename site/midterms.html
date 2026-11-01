@@ -3,76 +3,92 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>US midterms 2026: who is voting, who is registered, what voters say</title>
-<meta name="description" content="How the US electorate has shifted since 2022: early-vote and registration mix by age, race, gender, party and kind of county, party registration over time by state, the issues voters name, and poll results by group. Counts and published polls, not a forecast.">
-<!-- BUILD: the one version constant of this page; it versions midterms.js and midterms.css. Data under data/us2026_context/ is rebuilt by analysis/us_context.py. -->
+<title>US midterms 2026: the electorate, state by state</title>
+<meta name="description" content="How the US electorate has shifted: early vote and registration by age, race, gender and party in every state that publishes it, against 2018, 2020, 2022 and 2024, plus poll results by group and the issues voters name. Counts and published polls, not a forecast.">
+<!-- BUILD: the one version constant of this page; it versions midterms.js, midterms.css and common.js. Data under data/us2026_context/ is rebuilt by analysis/us_context.py. -->
 <link id="page-css" rel="stylesheet">
 <link id="mt-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261101b";
+window.__BUILD = "20261101c";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("mt-css").href = "midterms.css?v=" + window.__V;
+(() => {
+  const imports = {};
+  for (const f of ["common.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  const m = document.createElement("script");
+  m.type = "importmap";
+  m.textContent = JSON.stringify({ imports });
+  document.head.append(m);
+})();
 </script>
 </head>
 <body class="mt">
 <main>
-<nav class="col sitenav"><a href="./">Election nights</a> / <a href="earlyvote.html">US early vote</a> / Electorate shifts</nav>
+<nav class="col sitenav" aria-label="Site"><a href="./">Election nights</a> / <a href="earlyvote.html">US early vote</a> / <span aria-current="page">Electorate by state</span> / <a href="scorecard.html">Track record</a></nav>
+
 <header class="col">
-  <p class="kicker">The electorate, 2022 to 2026</p>
-  <h1>How the electorate has shifted</h1>
-  <p class="dek">Every group side by side: who is casting early ballots and who is on the rolls now, compared with the same point in 2022, plus what voters name as the top issues and how polls split by group. Counts and published polls only.</p>
+  <p class="kicker">Who votes, state by state</p>
+  <h1>The electorate by state</h1>
+  <p class="dek">Who is casting early ballots and who is on the rolls, compared with past elections, plus how polls split by group and what voters name as the top issues. Counts and published polls only.</p>
   <p class="byline" id="mt-asof">Loading…</p>
 </header>
 
-<section class="mt-wrap" aria-labelledby="big-h">
-  <h2 id="big-h">The biggest shifts</h2>
-  <p class="chart-sub" id="big-sub"></p>
-  <ol class="mt-big" id="big-list"></ol>
+<section class="mt-wrap" aria-labelledby="ov-h">
+  <h2 id="ov-h">National overview</h2>
+  <div class="mt-base">
+    <span class="mt-base-l">Compare with</span>
+    <div class="toggle" id="base-tog" role="group" aria-label="Past elections to compare with"></div>
+  </div>
+  <div class="mt-pair">
+    <figure class="mt-fig">
+      <p class="chart-title">Biggest shifts in the early vote</p>
+      <p class="chart-sub" id="ov-ev-sub"></p>
+      <div id="ov-ev"></div>
+    </figure>
+    <figure class="mt-fig">
+      <p class="chart-title">Registration: Democratic minus Republican share of the rolls</p>
+      <p class="chart-sub" id="ov-reg-sub"></p>
+      <div id="ov-reg"></div>
+    </figure>
+  </div>
 </section>
 
-<section class="mt-wrap" aria-labelledby="ev-h">
-  <h2 id="ev-h">Early vote by group, now and on the same day in 2022</h2>
-  <p class="chart-sub" id="ev-sub"></p>
-  <div id="ev-tables"></div>
-  <p class="note">Groups come from the voter file's recorded attributes; counties are grouped by population density, so the last block describes places, not voters. Hispanic is any race. These are ballot counts, not how anyone voted.</p>
+<section class="mt-wrap" aria-labelledby="pk-h">
+  <h2 id="pk-h">Pick a state</h2>
+  <div class="mt-pickgrid">
+    <figure class="mt-mapfig">
+      <div id="mt-map" class="mt-map" role="group" aria-label="Map of the states"></div>
+      <div class="mt-legend" id="mt-legend"></div>
+    </figure>
+    <div id="mt-list" class="mt-list"></div>
+  </div>
 </section>
 
-<section class="mt-wrap" aria-labelledby="eg-h">
-  <h2 id="eg-h">Early vote by group, every state that publishes it</h2>
-  <p class="chart-sub" id="eg-sub"></p>
-  <div class="table-scroll"><table class="mt-tab mt-grid" id="eg-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
-  <p class="note" id="eg-note"></p>
+<section class="mt-wrap" id="state-sec" aria-labelledby="stn" aria-live="polite">
+  <div id="state-panel"></div>
 </section>
 
-<section class="mt-wrap" aria-labelledby="rg-h">
-  <h2 id="rg-h">Who is registered, now vs November 2022</h2>
-  <p class="chart-sub" id="rg-sub"></p>
-  <div id="rg-tables"></div>
-  <h3 id="rs-h">Party registration by state</h3>
-  <p class="chart-sub" id="rs-sub"></p>
-  <div class="table-scroll"><table class="mt-tab" id="rs-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
-  <p class="note" id="rs-blocked"></p>
+<section class="mt-wrap" aria-labelledby="cmp-h">
+  <h2 id="cmp-h">Compare states</h2>
+  <div class="ev-pick"><label class="select">Group <select id="cmp-group"></select></label></div>
+  <p class="chart-sub" id="cmp-sub"></p>
+  <div id="cmp-grid" class="mt-cmp"></div>
 </section>
 
-<section class="mt-wrap" aria-labelledby="is-h">
-  <h2 id="is-h">What voters say matters</h2>
-  <h3>Gallup: most important problem</h3>
-  <div class="table-scroll"><table class="mt-tab" id="gal-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
-  <h3>Issue questions in recent polls</h3>
-  <div class="table-scroll"><table class="mt-tab" id="iss-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
-  <p class="note">Network exit polls and AP VoteCast are not used here; AP VoteCast is published at <a href="https://www.ap.org/the-definitive-source/behind-the-numbers/ap-votecast/">ap.org</a>.</p>
+<section class="mt-wrap" aria-labelledby="map-h">
+  <details class="mt-map-det">
+    <summary id="map-h">How groups are matched across sources</summary>
+    <p class="chart-sub" id="tx-sub"></p>
+    <div class="table-scroll"><table class="mt-tab" id="tx-table"><thead></thead><tbody></tbody></table></div>
+  </details>
 </section>
 
-<section class="mt-wrap" aria-labelledby="px-h">
-  <h2 id="px-h">Poll results by group</h2>
-  <div class="ev-pick"><label class="select">Race <select id="px-race"></select></label> <label class="select">Poll <select id="px-poll"></select></label></div>
-  <p class="chart-sub" id="px-sub"></p>
-  <div class="table-scroll"><table class="mt-tab" id="px-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
-  <p class="note">Small samples: group results rest on far fewer interviews than the whole poll; margins shown are rough 95% ranges for a simple random sample and understate real error.</p>
-</section>
+<footer class="col mt-foot">
+  <p class="note" id="mt-foot"></p>
+</footer>
 </main>
-<script type="module" src="midterms.js" id="mt-js"></script>
-<script>document.getElementById("mt-js").src = "midterms.js?v=" + window.__V;</script>
+<script src="load-error.js"></script>
+<script type="module">import("./midterms.js?v=" + window.__V).catch(window.__showLoadError);</script>
 </body>
 </html>

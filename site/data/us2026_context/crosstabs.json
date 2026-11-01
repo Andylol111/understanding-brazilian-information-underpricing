@@ -21,7 +21,8 @@
    "group_n_used": 91,
    "moe_group": 10.3,
    "moe_poll": 3.7,
-   "margin": 21.0
+   "margin": 21.0,
+   "tax": null
   },
   {
    "race": "ak-sen",
@@ -44,7 +45,8 @@
    "group_n_used": 504,
    "moe_group": 4.4,
    "moe_poll": 3.7,
-   "margin": 2.0
+   "margin": 2.0,
+   "tax": "race:White"
   },
   {
    "race": "ak-sen",
@@ -67,7 +69,8 @@
    "group_n_used": 453,
    "moe_group": 4.6,
    "moe_poll": 3.7,
-   "margin": -3.0
+   "margin": -3.0,
+   "tax": null
   },
   {
    "race": "ak-sen",
@@ -90,7 +93,8 @@
    "group_n_used": 241,
    "moe_group": 6.3,
    "moe_poll": 3.7,
-   "margin": 16.0
+   "margin": 16.0,
+   "tax": null
   },
   {
    "race": "ak-sen",
@@ -113,7 +117,8 @@
    "group_n_used": 264,
    "moe_group": 6.0,
    "moe_poll": 3.7,
-   "margin": 14.0
+   "margin": 14.0,
+   "tax": null
   },
   {
    "race": "ak-sen",
@@ -136,7 +141,8 @@
    "group_n_used": 430,
    "moe_group": 4.7,
    "moe_poll": 3.7,
-   "margin": -4.0
+   "margin": -4.0,
+   "tax": null
   },
   {
    "race": "fl-gov",
@@ -159,7 +165,8 @@
    "group_n_used": 192,
    "moe_group": 7.1,
    "moe_poll": 2.6,
-   "margin": 70.0
+   "margin": 70.0,
+   "tax": "race:Black"
   },
   {
    "race": "fl-gov",
@@ -182,7 +189,8 @@
    "group_n_used": 246,
    "moe_group": 6.2,
    "moe_poll": 2.6,
-   "margin": -1.0
+   "margin": -1.0,
+   "tax": "race:Hispanic"
   },
   {
    "race": "fl-gov",
@@ -205,7 +213,8 @@
    "group_n_used": 868,
    "moe_group": 3.3,
    "moe_poll": 2.6,
-   "margin": -13.0
+   "margin": -13.0,
+   "tax": "race:White"
   },
   {
    "race": "fl-gov",
@@ -228,7 +237,8 @@
    "group_n_used": 155,
    "moe_group": 7.9,
    "moe_poll": 2.6,
-   "margin": 43.0
+   "margin": 43.0,
+   "tax": null
   },
   {
    "race": "fl-gov",
@@ -251,7 +261,8 @@
    "group_n_used": 197,
    "moe_group": 7.0,
    "moe_poll": 2.6,
-   "margin": 25.0
+   "margin": 25.0,
+   "tax": null
   },
   {
    "race": "fl-gov",
@@ -274,7 +285,8 @@
    "group_n_used": 171,
    "moe_group": 7.5,
    "moe_poll": 2.6,
-   "margin": -8.0
+   "margin": -8.0,
+   "tax": null
   },
   {
    "race": "fl-gov",
@@ -297,7 +309,8 @@
    "group_n_used": 184,
    "moe_group": 7.2,
    "moe_poll": 2.6,
-   "margin": 8.0
+   "margin": 8.0,
+   "tax": null
   },
   {
    "race": "fl-gov",
@@ -320,7 +333,8 @@
    "group_n_used": 204,
    "moe_group": 6.9,
    "moe_poll": 2.6,
-   "margin": -17.0
+   "margin": -17.0,
+   "tax": null
   },
   {
    "race": "fl-gov",
@@ -343,7 +357,8 @@
    "group_n_used": 467,
    "moe_group": 4.5,
    "moe_poll": 2.6,
-   "margin": -6.0
+   "margin": -6.0,
+   "tax": "age:65+"
   },
   {
    "race": "fl-gov",
@@ -366,7 +381,8 @@
    "group_n_used": 774,
    "moe_group": 3.5,
    "moe_poll": 2.6,
-   "margin": 5.0
+   "margin": 5.0,
+   "tax": null
   },
   {
    "race": "fl-gov",
@@ -389,7 +405,8 @@
    "group_n_used": 604,
    "moe_group": 4.0,
    "moe_poll": 2.6,
-   "margin": -6.0
+   "margin": -6.0,
+   "tax": null
   },
   {
    "race": "fl-sen",
@@ -412,7 +429,8 @@
    "group_n_used": 203,
    "moe_group": 6.9,
    "moe_poll": 2.6,
-   "margin": 77.0
+   "margin": 77.0,
+   "tax": "race:Black"
   },
   {
    "race": "fl-sen",
@@ -435,7 +453,8 @@
    "group_n_used": 250,
    "moe_group": 6.2,
    "moe_poll": 2.6,
-   "margin": -2.0
+   "margin": -2.0,
+   "tax": "race:Hispanic"
   },
   {
    "race": "fl-sen",
@@ -458,7 +477,8 @@
    "group_n_used": 884,
    "moe_group": 3.3,
    "moe_poll": 2.6,
-   "margin": -21.0
+   "margin": -21.0,
+   "tax": "race:White"
   },
   {
    "race": "fl-sen",
@@ -481,7 +501,8 @@
    "group_n_used": 163,
    "moe_group": 7.7,
    "moe_poll": 2.6,
-   "margin": 43.0
+   "margin": 43.0,
+   "tax": null
   },
   {
    "race": "fl-sen",
@@ -504,7 +525,8 @@
    "group_n_used": 197,
    "moe_group": 7.0,
    "moe_poll": 2.6,
-   "margin": 27.0
+   "margin": 27.0,
+   "tax": null
   },
   {
    "race": "fl-sen",
@@ -527,7 +549,8 @@
    "group_n_used": 175,
    "moe_group": 7.4,
    "moe_poll": 2.6,
-   "margin": -2.0
+   "margin": -2.0,
+   "tax": null
   },
   {
    "race": "fl-sen",
@@ -550,7 +573,8 @@
    "group_n_used": 191,
    "moe_group": 7.1,
    "moe_poll": 2.6,
-   "margin": 7.0
+   "margin": 7.0,
+   "tax": null
   },
   {
    "race": "fl-sen",
@@ -573,7 +597,8 @@
    "group_n_used": 215,
    "moe_group": 6.7,
    "moe_poll": 2.6,
-   "margin": -21.0
+   "margin": -21.0,
+   "tax": null
   },
   {
    "race": "fl-sen",
@@ -596,7 +621,8 @@
    "group_n_used": 473,
    "moe_group": 4.5,
    "moe_poll": 2.6,
-   "margin": -12.0
+   "margin": -12.0,
+   "tax": "age:65+"
   },
   {
    "race": "fl-sen",
@@ -619,7 +645,8 @@
    "group_n_used": 791,
    "moe_group": 3.5,
    "moe_poll": 2.6,
-   "margin": 7.0
+   "margin": 7.0,
+   "tax": null
   },
   {
    "race": "fl-sen",
@@ -642,7 +669,8 @@
    "group_n_used": 623,
    "moe_group": 3.9,
    "moe_poll": 2.6,
-   "margin": -12.0
+   "margin": -12.0,
+   "tax": null
   },
   {
    "race": "ga-gov",
@@ -665,7 +693,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 83.3
+   "margin": 83.3,
+   "tax": "race:Black"
   },
   {
    "race": "ga-gov",
@@ -688,7 +717,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 0.0
+   "margin": 0.0,
+   "tax": null
   },
   {
    "race": "ga-gov",
@@ -711,7 +741,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": -40.0
+   "margin": -40.0,
+   "tax": "race:White"
   },
   {
    "race": "ga-gov",
@@ -734,7 +765,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 43.8
+   "margin": 43.8,
+   "tax": "age:18-29"
   },
   {
    "race": "ga-gov",
@@ -757,7 +789,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 10.0
+   "margin": 10.0,
+   "tax": "age:30-44"
   },
   {
    "race": "ga-gov",
@@ -780,7 +813,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 1.9
+   "margin": 1.9,
+   "tax": "age:45-64"
   },
   {
    "race": "ga-gov",
@@ -803,7 +837,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": -22.5
+   "margin": -22.5,
+   "tax": "age:65+"
   },
   {
    "race": "ga-gov",
@@ -826,7 +861,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 11.4
+   "margin": 11.4,
+   "tax": null
   },
   {
    "race": "ga-gov",
@@ -849,7 +885,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": -18.1
+   "margin": -18.1,
+   "tax": null
   },
   {
    "race": "ga-gov",
@@ -872,7 +909,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": -0.7
+   "margin": -0.7,
+   "tax": null
   },
   {
    "race": "ga-sen",
@@ -895,7 +933,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 85.1
+   "margin": 85.1,
+   "tax": "race:Black"
   },
   {
    "race": "ga-sen",
@@ -918,7 +957,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 2.7
+   "margin": 2.7,
+   "tax": null
   },
   {
    "race": "ga-sen",
@@ -941,7 +981,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": -27.4
+   "margin": -27.4,
+   "tax": "race:White"
   },
   {
    "race": "ga-sen",
@@ -964,7 +1005,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 36.7
+   "margin": 36.7,
+   "tax": "age:18-29"
   },
   {
    "race": "ga-sen",
@@ -987,7 +1029,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 20.9
+   "margin": 20.9,
+   "tax": "age:30-44"
   },
   {
    "race": "ga-sen",
@@ -1010,7 +1053,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 12.9
+   "margin": 12.9,
+   "tax": "age:45-64"
   },
   {
    "race": "ga-sen",
@@ -1033,7 +1077,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": -15.5
+   "margin": -15.5,
+   "tax": "age:65+"
   },
   {
    "race": "ga-sen",
@@ -1056,7 +1101,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 20.5
+   "margin": 20.5,
+   "tax": null
   },
   {
    "race": "ga-sen",
@@ -1079,7 +1125,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": -6.2
+   "margin": -6.2,
+   "tax": null
   },
   {
    "race": "ga-sen",
@@ -1102,7 +1149,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.1,
-   "margin": 4.8
+   "margin": 4.8,
+   "tax": null
   },
   {
    "race": "generic",
@@ -1125,7 +1173,8 @@
    "group_n_used": 45,
    "moe_group": 14.6,
    "moe_poll": 2.7,
-   "margin": 60.0
+   "margin": 60.0,
+   "tax": "race:Asian"
   },
   {
    "race": "generic",
@@ -1148,7 +1197,8 @@
    "group_n_used": 191,
    "moe_group": 7.1,
    "moe_poll": 2.7,
-   "margin": 68.0
+   "margin": 68.0,
+   "tax": "race:Black"
   },
   {
    "race": "generic",
@@ -1171,7 +1221,8 @@
    "group_n_used": 187,
    "moe_group": 7.2,
    "moe_poll": 2.7,
-   "margin": 25.0
+   "margin": 25.0,
+   "tax": "race:Hispanic"
   },
   {
    "race": "generic",
@@ -1194,7 +1245,8 @@
    "group_n_used": 49,
    "moe_group": 14.0,
    "moe_poll": 2.7,
-   "margin": 16.0
+   "margin": 16.0,
+   "tax": null
   },
   {
    "race": "generic",
@@ -1217,7 +1269,8 @@
    "group_n_used": 818,
    "moe_group": 3.4,
    "moe_poll": 2.7,
-   "margin": -3.0
+   "margin": -3.0,
+   "tax": "race:White"
   },
   {
    "race": "generic",
@@ -1240,7 +1293,8 @@
    "group_n_used": 346,
    "moe_group": 5.3,
    "moe_poll": 2.7,
-   "margin": 6.0
+   "margin": 6.0,
+   "tax": null
   },
   {
    "race": "generic",
@@ -1263,7 +1317,8 @@
    "group_n_used": 431,
    "moe_group": 4.7,
    "moe_poll": 2.7,
-   "margin": 10.0
+   "margin": 10.0,
+   "tax": null
   },
   {
    "race": "generic",
@@ -1286,7 +1341,8 @@
    "group_n_used": 144,
    "moe_group": 8.2,
    "moe_poll": 2.7,
-   "margin": 15.0
+   "margin": 15.0,
+   "tax": null
   },
   {
    "race": "generic",
@@ -1309,7 +1365,8 @@
    "group_n_used": 341,
    "moe_group": 5.3,
    "moe_poll": 2.7,
-   "margin": 20.0
+   "margin": 20.0,
+   "tax": null
   },
   {
    "race": "generic",
@@ -1332,7 +1389,8 @@
    "group_n_used": 28,
    "moe_group": 18.5,
    "moe_poll": 2.7,
-   "margin": -3.0
+   "margin": -3.0,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1355,7 +1413,8 @@
    "group_n_used": 9,
    "moe_group": 32.7,
    "moe_poll": 3.8,
-   "margin": -66.0
+   "margin": -66.0,
+   "tax": "race:Asian"
   },
   {
    "race": "ia-gov",
@@ -1378,7 +1437,8 @@
    "group_n_used": 23,
    "moe_group": 20.4,
    "moe_poll": 3.8,
-   "margin": 54.2
+   "margin": 54.2,
+   "tax": "race:Black"
   },
   {
    "race": "ia-gov",
@@ -1401,7 +1461,8 @@
    "group_n_used": 6,
    "moe_group": 40.0,
    "moe_poll": 3.8,
-   "margin": 58.7
+   "margin": 58.7,
+   "tax": "race:Hispanic"
   },
   {
    "race": "ia-gov",
@@ -1424,7 +1485,8 @@
    "group_n_used": 21,
    "moe_group": 21.4,
    "moe_poll": 3.8,
-   "margin": 22.4
+   "margin": 22.4,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1447,7 +1509,8 @@
    "group_n_used": 592,
    "moe_group": 4.0,
    "moe_poll": 3.8,
-   "margin": 1.5
+   "margin": 1.5,
+   "tax": "race:White"
   },
   {
    "race": "ia-gov",
@@ -1470,7 +1533,8 @@
    "group_n_used": 96,
    "moe_group": 10.0,
    "moe_poll": 3.8,
-   "margin": 26.2
+   "margin": 26.2,
+   "tax": "age:18-29"
   },
   {
    "race": "ia-gov",
@@ -1493,7 +1557,8 @@
    "group_n_used": 80,
    "moe_group": 11.0,
    "moe_poll": 3.8,
-   "margin": 23.9
+   "margin": 23.9,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1516,7 +1581,8 @@
    "group_n_used": 97,
    "moe_group": 10.0,
    "moe_poll": 3.8,
-   "margin": -1.7
+   "margin": -1.7,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1539,7 +1605,8 @@
    "group_n_used": 123,
    "moe_group": 8.8,
    "moe_poll": 3.8,
-   "margin": -4.5
+   "margin": -4.5,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1562,7 +1629,8 @@
    "group_n_used": 130,
    "moe_group": 8.6,
    "moe_poll": 3.8,
-   "margin": -6.9
+   "margin": -6.9,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1585,7 +1653,8 @@
    "group_n_used": 123,
    "moe_group": 8.8,
    "moe_poll": 3.8,
-   "margin": -3.3
+   "margin": -3.3,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1608,7 +1677,8 @@
    "group_n_used": 231,
    "moe_group": 6.4,
    "moe_poll": 3.8,
-   "margin": 3.1
+   "margin": 3.1,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1631,7 +1701,8 @@
    "group_n_used": 178,
    "moe_group": 7.3,
    "moe_poll": 3.8,
-   "margin": 11.1
+   "margin": 11.1,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1654,7 +1725,8 @@
    "group_n_used": 104,
    "moe_group": 9.6,
    "moe_poll": 3.8,
-   "margin": -12.8
+   "margin": -12.8,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1677,7 +1749,8 @@
    "group_n_used": 92,
    "moe_group": 10.2,
    "moe_poll": 3.8,
-   "margin": 12.9
+   "margin": 12.9,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1700,7 +1773,8 @@
    "group_n_used": 45,
    "moe_group": 14.6,
    "moe_poll": 3.8,
-   "margin": -2.6
+   "margin": -2.6,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1723,7 +1797,8 @@
    "group_n_used": 232,
    "moe_group": 6.4,
    "moe_poll": 2.1,
-   "margin": 19.0
+   "margin": 19.0,
+   "tax": "age:18-29"
   },
   {
    "race": "ia-gov",
@@ -1746,7 +1821,8 @@
    "group_n_used": 447,
    "moe_group": 4.6,
    "moe_poll": 2.1,
-   "margin": 17.0
+   "margin": 17.0,
+   "tax": "age:30-44"
   },
   {
    "race": "ia-gov",
@@ -1769,7 +1845,8 @@
    "group_n_used": 760,
    "moe_group": 3.6,
    "moe_poll": 2.1,
-   "margin": 3.0
+   "margin": 3.0,
+   "tax": "age:45-64"
   },
   {
    "race": "ia-gov",
@@ -1792,7 +1869,8 @@
    "group_n_used": 806,
    "moe_group": 3.5,
    "moe_poll": 2.1,
-   "margin": -4.0
+   "margin": -4.0,
+   "tax": "age:65+"
   },
   {
    "race": "ia-gov",
@@ -1815,7 +1893,8 @@
    "group_n_used": 1059,
    "moe_group": 3.0,
    "moe_poll": 2.1,
-   "margin": 29.0
+   "margin": 29.0,
+   "tax": null
   },
   {
    "race": "ia-gov",
@@ -1838,7 +1917,8 @@
    "group_n_used": 995,
    "moe_group": 3.1,
    "moe_poll": 2.1,
-   "margin": -5.0
+   "margin": -5.0,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -1861,7 +1941,8 @@
    "group_n_used": 9,
    "moe_group": 32.7,
    "moe_poll": 3.8,
-   "margin": -66.0
+   "margin": -66.0,
+   "tax": "race:Asian"
   },
   {
    "race": "ia-sen",
@@ -1884,7 +1965,8 @@
    "group_n_used": 23,
    "moe_group": 20.4,
    "moe_poll": 3.8,
-   "margin": 55.9
+   "margin": 55.9,
+   "tax": "race:Black"
   },
   {
    "race": "ia-sen",
@@ -1907,7 +1989,8 @@
    "group_n_used": 6,
    "moe_group": 40.0,
    "moe_poll": 3.8,
-   "margin": 69.1
+   "margin": 69.1,
+   "tax": "race:Hispanic"
   },
   {
    "race": "ia-sen",
@@ -1930,7 +2013,8 @@
    "group_n_used": 21,
    "moe_group": 21.4,
    "moe_poll": 3.8,
-   "margin": 0.2
+   "margin": 0.2,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -1953,7 +2037,8 @@
    "group_n_used": 592,
    "moe_group": 4.0,
    "moe_poll": 3.8,
-   "margin": -3.7
+   "margin": -3.7,
+   "tax": "race:White"
   },
   {
    "race": "ia-sen",
@@ -1976,7 +2061,8 @@
    "group_n_used": 96,
    "moe_group": 10.0,
    "moe_poll": 3.8,
-   "margin": 15.2
+   "margin": 15.2,
+   "tax": "age:18-29"
   },
   {
    "race": "ia-sen",
@@ -1999,7 +2085,8 @@
    "group_n_used": 80,
    "moe_group": 11.0,
    "moe_poll": 3.8,
-   "margin": 21.0
+   "margin": 21.0,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2022,7 +2109,8 @@
    "group_n_used": 97,
    "moe_group": 10.0,
    "moe_poll": 3.8,
-   "margin": 7.6
+   "margin": 7.6,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2045,7 +2133,8 @@
    "group_n_used": 123,
    "moe_group": 8.8,
    "moe_poll": 3.8,
-   "margin": -12.2
+   "margin": -12.2,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2068,7 +2157,8 @@
    "group_n_used": 130,
    "moe_group": 8.6,
    "moe_poll": 3.8,
-   "margin": -17.8
+   "margin": -17.8,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2091,7 +2181,8 @@
    "group_n_used": 123,
    "moe_group": 8.8,
    "moe_poll": 3.8,
-   "margin": -8.9
+   "margin": -8.9,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2114,7 +2205,8 @@
    "group_n_used": 231,
    "moe_group": 6.4,
    "moe_poll": 3.8,
-   "margin": 1.5
+   "margin": 1.5,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2137,7 +2229,8 @@
    "group_n_used": 178,
    "moe_group": 7.3,
    "moe_poll": 3.8,
-   "margin": 4.0
+   "margin": 4.0,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2160,7 +2253,8 @@
    "group_n_used": 104,
    "moe_group": 9.6,
    "moe_poll": 3.8,
-   "margin": -12.5
+   "margin": -12.5,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2183,7 +2277,8 @@
    "group_n_used": 92,
    "moe_group": 10.2,
    "moe_poll": 3.8,
-   "margin": 1.4
+   "margin": 1.4,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2206,7 +2301,8 @@
    "group_n_used": 45,
    "moe_group": 14.6,
    "moe_poll": 3.8,
-   "margin": -20.2
+   "margin": -20.2,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2229,7 +2325,8 @@
    "group_n_used": 232,
    "moe_group": 6.4,
    "moe_poll": 2.1,
-   "margin": 21.0
+   "margin": 21.0,
+   "tax": "age:18-29"
   },
   {
    "race": "ia-sen",
@@ -2252,7 +2349,8 @@
    "group_n_used": 447,
    "moe_group": 4.6,
    "moe_poll": 2.1,
-   "margin": 16.0
+   "margin": 16.0,
+   "tax": "age:30-44"
   },
   {
    "race": "ia-sen",
@@ -2275,7 +2373,8 @@
    "group_n_used": 760,
    "moe_group": 3.6,
    "moe_poll": 2.1,
-   "margin": -4.0
+   "margin": -4.0,
+   "tax": "age:45-64"
   },
   {
    "race": "ia-sen",
@@ -2298,7 +2397,8 @@
    "group_n_used": 806,
    "moe_group": 3.5,
    "moe_poll": 2.1,
-   "margin": -11.0
+   "margin": -11.0,
+   "tax": "age:65+"
   },
   {
    "race": "ia-sen",
@@ -2321,7 +2421,8 @@
    "group_n_used": 1059,
    "moe_group": 3.0,
    "moe_poll": 2.1,
-   "margin": 25.0
+   "margin": 25.0,
+   "tax": null
   },
   {
    "race": "ia-sen",
@@ -2344,7 +2445,8 @@
    "group_n_used": 995,
    "moe_group": 3.1,
    "moe_poll": 2.1,
-   "margin": -11.0
+   "margin": -11.0,
+   "tax": null
   },
   {
    "race": "nc-sen",
@@ -2367,7 +2469,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 4.1,
-   "margin": 56.0
+   "margin": 56.0,
+   "tax": "race:Black"
   },
   {
    "race": "nc-sen",
@@ -2390,7 +2493,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 4.1,
-   "margin": 37.0
+   "margin": 37.0,
+   "tax": "race:Hispanic"
   },
   {
    "race": "nc-sen",
@@ -2413,7 +2517,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 4.1,
-   "margin": -6.0
+   "margin": -6.0,
+   "tax": "race:White"
   },
   {
    "race": "nv-gov",
@@ -2437,7 +2542,8 @@
    "group_n_used": 168,
    "moe_group": 7.6,
    "moe_poll": 3.5,
-   "margin": 18.0
+   "margin": 18.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2461,7 +2567,8 @@
    "group_n_used": 85,
    "moe_group": 10.6,
    "moe_poll": 3.7,
-   "margin": 18.0
+   "margin": 18.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2485,7 +2592,8 @@
    "group_n_used": 136,
    "moe_group": 8.4,
    "moe_poll": 3.5,
-   "margin": 10.0
+   "margin": 10.0,
+   "tax": "race:Hispanic"
   },
   {
    "race": "nv-gov",
@@ -2509,7 +2617,8 @@
    "group_n_used": 127,
    "moe_group": 8.7,
    "moe_poll": 3.7,
-   "margin": 15.0
+   "margin": 15.0,
+   "tax": "race:Hispanic"
   },
   {
    "race": "nv-gov",
@@ -2533,7 +2642,8 @@
    "group_n_used": 496,
    "moe_group": 4.4,
    "moe_poll": 3.5,
-   "margin": -11.0
+   "margin": -11.0,
+   "tax": "race:White"
   },
   {
    "race": "nv-gov",
@@ -2557,7 +2667,8 @@
    "group_n_used": 496,
    "moe_group": 4.4,
    "moe_poll": 3.7,
-   "margin": -10.0
+   "margin": -10.0,
+   "tax": "race:White"
   },
   {
    "race": "nv-gov",
@@ -2581,7 +2692,8 @@
    "group_n_used": 104,
    "moe_group": 9.6,
    "moe_poll": 3.5,
-   "margin": 21.0
+   "margin": 21.0,
+   "tax": "age:18-29"
   },
   {
    "race": "nv-gov",
@@ -2604,7 +2716,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.5,
-   "margin": 13.0
+   "margin": 13.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2627,7 +2740,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.7,
-   "margin": 14.0
+   "margin": 14.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2651,7 +2765,8 @@
    "group_n_used": 200,
    "moe_group": 6.9,
    "moe_poll": 3.5,
-   "margin": 9.0
+   "margin": 9.0,
+   "tax": "age:30-44"
   },
   {
    "race": "nv-gov",
@@ -2674,7 +2789,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.5,
-   "margin": -10.0
+   "margin": -10.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2697,7 +2813,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.7,
-   "margin": -14.0
+   "margin": -14.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2721,7 +2838,8 @@
    "group_n_used": 272,
    "moe_group": 5.9,
    "moe_poll": 3.5,
-   "margin": -2.0
+   "margin": -2.0,
+   "tax": "age:45-64"
   },
   {
    "race": "nv-gov",
@@ -2745,7 +2863,8 @@
    "group_n_used": 224,
    "moe_group": 6.5,
    "moe_poll": 3.5,
-   "margin": -20.0
+   "margin": -20.0,
+   "tax": "age:65+"
   },
   {
    "race": "nv-gov",
@@ -2769,7 +2888,8 @@
    "group_n_used": 176,
    "moe_group": 7.4,
    "moe_poll": 3.5,
-   "margin": -8.0
+   "margin": -8.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2793,7 +2913,8 @@
    "group_n_used": 163,
    "moe_group": 7.7,
    "moe_poll": 3.7,
-   "margin": -6.0
+   "margin": -6.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2816,7 +2937,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.5,
-   "margin": -8.0
+   "margin": -8.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2839,7 +2961,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.7,
-   "margin": -11.0
+   "margin": -11.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2862,7 +2985,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.5,
-   "margin": 6.0
+   "margin": 6.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2885,7 +3009,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.7,
-   "margin": 14.0
+   "margin": 14.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2908,7 +3033,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.5,
-   "margin": 2.0
+   "margin": 2.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2931,7 +3057,8 @@
    "group_n_used": null,
    "moe_group": null,
    "moe_poll": 3.7,
-   "margin": 2.0
+   "margin": 2.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2955,7 +3082,8 @@
    "group_n_used": 112,
    "moe_group": 9.3,
    "moe_poll": 3.5,
-   "margin": -9.0
+   "margin": -9.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -2979,7 +3107,8 @@
    "group_n_used": 92,
    "moe_group": 10.2,
    "moe_poll": 3.7,
-   "margin": -19.0
+   "margin": -19.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -3003,7 +3132,8 @@
    "group_n_used": 320,
    "moe_group": 5.5,
    "moe_poll": 3.5,
-   "margin": 1.0
+   "margin": 1.0,
+   "tax": null
   },
   {
    "race": "nv-gov",
@@ -3027,7 +3157,8 @@
    "group_n_used": 276,
    "moe_group": 5.9,
    "moe_poll": 3.7,
-   "margin": -6.0
+   "margin": -6.0,
+   "tax": null
   },
   {
    "race": "oh-gov",
@@ -3050,7 +3181,8 @@
    "group_n_used": 5,
    "moe_group": 43.8,
    "moe_poll": 3.9,
-   "margin": 100.0
+   "margin": 100.0,
+   "tax": "race:Asian"
   },
   {
    "race": "oh-gov",
@@ -3073,7 +3205,8 @@
    "group_n_used": 70,
    "moe_group": 11.7,
    "moe_poll": 3.9,
-   "margin": 57.5
+   "margin": 57.5,
+   "tax": "race:Black"
   },
   {
    "race": "oh-gov",
@@ -3096,7 +3229,8 @@
    "group_n_used": 15,
    "moe_group": 25.3,
    "moe_poll": 3.9,
-   "margin": 20.3
+   "margin": 20.3,
+   "tax": "race:Hispanic"
   },
   {
    "race": "oh-gov",
@@ -3119,7 +3253,8 @@
    "group_n_used": 21,
    "moe_group": 21.4,
    "moe_poll": 3.9,
-   "margin": -7.4
+   "margin": -7.4,
+   "tax": null
   },
   {
    "race": "oh-gov",
@@ -3142,7 +3277,8 @@
    "group_n_used": 503,
    "moe_group": 4.4,
    "moe_poll": 3.9,
-   "margin": -7.2
+   "margin": -7.2,
+   "tax": "race:White"
   },
   {
    "race": "oh-gov",
@@ -3165,7 +3301,8 @@
    "group_n_used": 44,
    "moe_group": 14.8,
    "moe_poll": 3.9,
-   "margin": 32.0
+   "margin": 32.0,
+   "tax": "age:18-29"
   },
   {
    "race": "oh-gov",
@@ -3188,7 +3325,8 @@
    "group_n_used": 131,
    "moe_group": 8.6,
    "moe_poll": 3.9,
-   "margin": 31.6
+   "margin": 31.6,
+   "tax": "age:30-44"
   },
   {
    "race": "oh-gov",
@@ -3211,7 +3349,8 @@
    "group_n_used": 256,
    "moe_group": 6.1,
    "moe_poll": 3.9,
-   "margin": -5.3
+   "margin": -5.3,
+   "tax": "age:45-64"
   },
   {
    "race": "oh-gov",
@@ -3234,7 +3373,8 @@
    "group_n_used": 170,
    "moe_group": 7.5,
    "moe_poll": 3.9,
-   "margin": -17.0
+   "margin": -17.0,
+   "tax": "age:65+"
   },
   {
    "race": "oh-gov",
@@ -3257,7 +3397,8 @@
    "group_n_used": 79,
    "moe_group": 11.0,
    "moe_poll": 3.9,
-   "margin": -31.1
+   "margin": -31.1,
+   "tax": null
   },
   {
    "race": "oh-gov",
@@ -3280,7 +3421,8 @@
    "group_n_used": 149,
    "moe_group": 8.0,
    "moe_poll": 3.9,
-   "margin": 7.1
+   "margin": 7.1,
+   "tax": null
   },
   {
    "race": "oh-gov",
@@ -3303,7 +3445,8 @@
    "group_n_used": 96,
    "moe_group": 10.0,
    "moe_poll": 3.9,
-   "margin": 25.5
+   "margin": 25.5,
+   "tax": null
   },
   {
    "race": "oh-gov",
@@ -3326,7 +3469,8 @@
    "group_n_used": 150,
    "moe_group": 8.0,
    "moe_poll": 3.9,
-   "margin": -12.4
+   "margin": -12.4,
+   "tax": null
   },
   {
    "race": "oh-gov",
@@ -3349,7 +3493,8 @@
    "group_n_used": 128,
    "moe_group": 8.7,
    "moe_poll": 3.9,
-   "margin": 13.9
+   "margin": 13.9,
+   "tax": null
   },
   {
    "race": "oh-gov",
@@ -3372,7 +3517,8 @@
    "group_n_used": 11,
    "moe_group": 29.5,
    "moe_poll": 3.9,
-   "margin": -3.5
+   "margin": -3.5,
+   "tax": null
   },
   {
    "race": "oh-sen",
@@ -3395,7 +3541,8 @@
    "group_n_used": 5,
    "moe_group": 43.8,
    "moe_poll": 3.9,
-   "margin": 100.0
+   "margin": 100.0,
+   "tax": "race:Asian"
   },
   {
    "race": "oh-sen",
@@ -3418,7 +3565,8 @@
    "group_n_used": 70,
    "moe_group": 11.7,
    "moe_poll": 3.9,
-   "margin": 66.4
+   "margin": 66.4,
+   "tax": "race:Black"
   },
   {
    "race": "oh-sen",
@@ -3441,7 +3589,8 @@
    "group_n_used": 15,
    "moe_group": 25.3,
    "moe_poll": 3.9,
-   "margin": 45.0
+   "margin": 45.0,
+   "tax": "race:Hispanic"
   },
   {
    "race": "oh-sen",
@@ -3464,7 +3613,8 @@
    "group_n_used": 21,
    "moe_group": 21.4,
    "moe_poll": 3.9,
-   "margin": -12.4
+   "margin": -12.4,
+   "tax": null
   },
   {
    "race": "oh-sen",
@@ -3487,7 +3637,8 @@
    "group_n_used": 503,
    "moe_group": 4.4,
    "moe_poll": 3.9,
-   "margin": -5.1
+   "margin": -5.1,
+   "tax": "race:White"
   },
   {
    "race": "oh-sen",
@@ -3510,7 +3661,8 @@
    "group_n_used": 44,
    "moe_group": 14.8,
    "moe_poll": 3.9,
-   "margin": 46.5
+   "margin": 46.5,
+   "tax": "age:18-29"
   },
   {
    "race": "oh-sen",
@@ -3533,7 +3685,8 @@
    "group_n_used": 131,
    "moe_group": 8.6,
    "moe_poll": 3.9,
-   "margin": 34.3
+   "margin": 34.3,
+   "tax": "age:30-44"
   },
   {
    "race": "oh-sen",
@@ -3556,7 +3709,8 @@
    "group_n_used": 256,
    "moe_group": 6.1,
    "moe_poll": 3.9,
-   "margin": -4.0
+   "margin": -4.0,
+   "tax": "age:45-64"
   },
   {
    "race": "oh-sen",
@@ -3579,7 +3733,8 @@
    "group_n_used": 170,
    "moe_group": 7.5,
    "moe_poll": 3.9,
-   "margin": -13.5
+   "margin": -13.5,
+   "tax": "age:65+"
   },
   {
    "race": "oh-sen",
@@ -3602,7 +3757,8 @@
    "group_n_used": 79,
    "moe_group": 11.0,
    "moe_poll": 3.9,
-   "margin": -24.1
+   "margin": -24.1,
+   "tax": null
   },
   {
    "race": "oh-sen",
@@ -3625,7 +3781,8 @@
    "group_n_used": 149,
    "moe_group": 8.0,
    "moe_poll": 3.9,
-   "margin": 15.9
+   "margin": 15.9,
+   "tax": null
   },
   {
    "race": "oh-sen",
@@ -3648,7 +3805,8 @@
    "group_n_used": 96,
    "moe_group": 10.0,
    "moe_poll": 3.9,
-   "margin": 22.9
+   "margin": 22.9,
+   "tax": null
   },
   {
    "race": "oh-sen",
@@ -3671,7 +3829,8 @@
    "group_n_used": 150,
    "moe_group": 8.0,
    "moe_poll": 3.9,
-   "margin": -14.9
+   "margin": -14.9,
+   "tax": null
   },
   {
    "race": "oh-sen",
@@ -3694,7 +3853,8 @@
    "group_n_used": 128,
    "moe_group": 8.7,
    "moe_poll": 3.9,
-   "margin": 16.7
+   "margin": 16.7,
+   "tax": null
   },
   {
    "race": "oh-sen",
@@ -3717,7 +3877,8 @@
    "group_n_used": 11,
    "moe_group": 29.5,
    "moe_poll": 3.9,
-   "margin": 9.2
+   "margin": 9.2,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -3740,7 +3901,8 @@
    "group_n_used": 23,
    "moe_group": 20.4,
    "moe_poll": 3.1,
-   "margin": 9.4
+   "margin": 9.4,
+   "tax": "race:Asian"
   },
   {
    "race": "tx-gov",
@@ -3763,7 +3925,8 @@
    "group_n_used": 121,
    "moe_group": 8.9,
    "moe_poll": 3.1,
-   "margin": 66.2
+   "margin": 66.2,
+   "tax": "race:Black"
   },
   {
    "race": "tx-gov",
@@ -3786,7 +3949,8 @@
    "group_n_used": 224,
    "moe_group": 6.5,
    "moe_poll": 3.1,
-   "margin": 21.9
+   "margin": 21.9,
+   "tax": "race:Hispanic"
   },
   {
    "race": "tx-gov",
@@ -3809,7 +3973,8 @@
    "group_n_used": 28,
    "moe_group": 18.5,
    "moe_poll": 3.1,
-   "margin": -8.6
+   "margin": -8.6,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -3832,7 +3997,8 @@
    "group_n_used": 604,
    "moe_group": 4.0,
    "moe_poll": 3.1,
-   "margin": -28.1
+   "margin": -28.1,
+   "tax": "race:White"
   },
   {
    "race": "tx-gov",
@@ -3855,7 +4021,8 @@
    "group_n_used": 139,
    "moe_group": 8.3,
    "moe_poll": 3.1,
-   "margin": 30.9
+   "margin": 30.9,
+   "tax": "age:18-29"
   },
   {
    "race": "tx-gov",
@@ -3878,7 +4045,8 @@
    "group_n_used": 150,
    "moe_group": 8.0,
    "moe_poll": 3.1,
-   "margin": 12.6
+   "margin": 12.6,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -3901,7 +4069,8 @@
    "group_n_used": 147,
    "moe_group": 8.1,
    "moe_poll": 3.1,
-   "margin": -15.5
+   "margin": -15.5,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -3924,7 +4093,8 @@
    "group_n_used": 176,
    "moe_group": 7.4,
    "moe_poll": 3.1,
-   "margin": 3.5
+   "margin": 3.5,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -3947,7 +4117,8 @@
    "group_n_used": 186,
    "moe_group": 7.2,
    "moe_poll": 3.1,
-   "margin": -17.3
+   "margin": -17.3,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -3970,7 +4141,8 @@
    "group_n_used": 201,
    "moe_group": 6.9,
    "moe_poll": 3.1,
-   "margin": -26.9
+   "margin": -26.9,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -3993,7 +4165,8 @@
    "group_n_used": 393,
    "moe_group": 4.9,
    "moe_poll": 3.1,
-   "margin": -9.1
+   "margin": -9.1,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4016,7 +4189,8 @@
    "group_n_used": 254,
    "moe_group": 6.1,
    "moe_poll": 3.1,
-   "margin": 3.0
+   "margin": 3.0,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4039,7 +4213,8 @@
    "group_n_used": 146,
    "moe_group": 8.1,
    "moe_poll": 3.1,
-   "margin": -21.6
+   "margin": -21.6,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4062,7 +4237,8 @@
    "group_n_used": 153,
    "moe_group": 7.9,
    "moe_poll": 3.1,
-   "margin": 12.6
+   "margin": 12.6,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4085,7 +4261,8 @@
    "group_n_used": 55,
    "moe_group": 13.2,
    "moe_poll": 3.1,
-   "margin": -1.2
+   "margin": -1.2,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4108,7 +4285,8 @@
    "group_n_used": 415,
    "moe_group": 4.8,
    "moe_poll": 3.1,
-   "margin": 23.0
+   "margin": 23.0,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4131,7 +4309,8 @@
    "group_n_used": 585,
    "moe_group": 4.1,
    "moe_poll": 3.1,
-   "margin": -19.0
+   "margin": -19.0,
+   "tax": "race:White"
   },
   {
    "race": "tx-gov",
@@ -4154,7 +4333,8 @@
    "group_n_used": 264,
    "moe_group": 6.0,
    "moe_poll": 3.1,
-   "margin": 21.0
+   "margin": 21.0,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4177,7 +4357,8 @@
    "group_n_used": 251,
    "moe_group": 6.2,
    "moe_poll": 3.1,
-   "margin": 2.0
+   "margin": 2.0,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4200,7 +4381,8 @@
    "group_n_used": 262,
    "moe_group": 6.1,
    "moe_poll": 3.1,
-   "margin": -8.0
+   "margin": -8.0,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4223,7 +4405,8 @@
    "group_n_used": 223,
    "moe_group": 6.6,
    "moe_poll": 3.1,
-   "margin": -28.0
+   "margin": -28.0,
+   "tax": "age:65+"
   },
   {
    "race": "tx-gov",
@@ -4246,7 +4429,8 @@
    "group_n_used": 395,
    "moe_group": 4.9,
    "moe_poll": 3.1,
-   "margin": 4.0
+   "margin": 4.0,
+   "tax": null
   },
   {
    "race": "tx-gov",
@@ -4269,7 +4453,8 @@
    "group_n_used": 605,
    "moe_group": 4.0,
    "moe_poll": 3.1,
-   "margin": -6.0
+   "margin": -6.0,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4292,7 +4477,8 @@
    "group_n_used": 23,
    "moe_group": 20.4,
    "moe_poll": 3.1,
-   "margin": 19.0
+   "margin": 19.0,
+   "tax": "race:Asian"
   },
   {
    "race": "tx-sen",
@@ -4315,7 +4501,8 @@
    "group_n_used": 121,
    "moe_group": 8.9,
    "moe_poll": 3.1,
-   "margin": 66.8
+   "margin": 66.8,
+   "tax": "race:Black"
   },
   {
    "race": "tx-sen",
@@ -4338,7 +4525,8 @@
    "group_n_used": 224,
    "moe_group": 6.5,
    "moe_poll": 3.1,
-   "margin": 25.0
+   "margin": 25.0,
+   "tax": "race:Hispanic"
   },
   {
    "race": "tx-sen",
@@ -4361,7 +4549,8 @@
    "group_n_used": 28,
    "moe_group": 18.5,
    "moe_poll": 3.1,
-   "margin": -16.8
+   "margin": -16.8,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4384,7 +4573,8 @@
    "group_n_used": 604,
    "moe_group": 4.0,
    "moe_poll": 3.1,
-   "margin": -19.5
+   "margin": -19.5,
+   "tax": "race:White"
   },
   {
    "race": "tx-sen",
@@ -4407,7 +4597,8 @@
    "group_n_used": 139,
    "moe_group": 8.3,
    "moe_poll": 3.1,
-   "margin": 52.9
+   "margin": 52.9,
+   "tax": "age:18-29"
   },
   {
    "race": "tx-sen",
@@ -4430,7 +4621,8 @@
    "group_n_used": 150,
    "moe_group": 8.0,
    "moe_poll": 3.1,
-   "margin": 14.7
+   "margin": 14.7,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4453,7 +4645,8 @@
    "group_n_used": 147,
    "moe_group": 8.1,
    "moe_poll": 3.1,
-   "margin": -15.9
+   "margin": -15.9,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4476,7 +4669,8 @@
    "group_n_used": 176,
    "moe_group": 7.4,
    "moe_poll": 3.1,
-   "margin": 5.4
+   "margin": 5.4,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4499,7 +4693,8 @@
    "group_n_used": 186,
    "moe_group": 7.2,
    "moe_poll": 3.1,
-   "margin": -12.3
+   "margin": -12.3,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4522,7 +4717,8 @@
    "group_n_used": 201,
    "moe_group": 6.9,
    "moe_poll": 3.1,
-   "margin": -20.3
+   "margin": -20.3,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4545,7 +4741,8 @@
    "group_n_used": 393,
    "moe_group": 4.9,
    "moe_poll": 3.1,
-   "margin": -5.2
+   "margin": -5.2,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4568,7 +4765,8 @@
    "group_n_used": 254,
    "moe_group": 6.1,
    "moe_poll": 3.1,
-   "margin": 6.7
+   "margin": 6.7,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4591,7 +4789,8 @@
    "group_n_used": 146,
    "moe_group": 8.1,
    "moe_poll": 3.1,
-   "margin": -1.2
+   "margin": -1.2,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4614,7 +4813,8 @@
    "group_n_used": 153,
    "moe_group": 7.9,
    "moe_poll": 3.1,
-   "margin": 12.2
+   "margin": 12.2,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4637,7 +4837,8 @@
    "group_n_used": 55,
    "moe_group": 13.2,
    "moe_poll": 3.1,
-   "margin": 8.8
+   "margin": 8.8,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4660,7 +4861,8 @@
    "group_n_used": 415,
    "moe_group": 4.8,
    "moe_poll": 3.1,
-   "margin": 28.0
+   "margin": 28.0,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4683,7 +4885,8 @@
    "group_n_used": 585,
    "moe_group": 4.1,
    "moe_poll": 3.1,
-   "margin": -11.0
+   "margin": -11.0,
+   "tax": "race:White"
   },
   {
    "race": "tx-sen",
@@ -4706,7 +4909,8 @@
    "group_n_used": 264,
    "moe_group": 6.0,
    "moe_poll": 3.1,
-   "margin": 28.0
+   "margin": 28.0,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4729,7 +4933,8 @@
    "group_n_used": 251,
    "moe_group": 6.2,
    "moe_poll": 3.1,
-   "margin": 6.0
+   "margin": 6.0,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4752,7 +4957,8 @@
    "group_n_used": 262,
    "moe_group": 6.1,
    "moe_poll": 3.1,
-   "margin": 4.0
+   "margin": 4.0,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4775,7 +4981,8 @@
    "group_n_used": 223,
    "moe_group": 6.6,
    "moe_poll": 3.1,
-   "margin": -24.0
+   "margin": -24.0,
+   "tax": "age:65+"
   },
   {
    "race": "tx-sen",
@@ -4798,7 +5005,8 @@
    "group_n_used": 395,
    "moe_group": 4.9,
    "moe_poll": 3.1,
-   "margin": 10.0
+   "margin": 10.0,
+   "tax": null
   },
   {
    "race": "tx-sen",
@@ -4821,7 +5029,8 @@
    "group_n_used": 605,
    "moe_group": 4.0,
    "moe_poll": 3.1,
-   "margin": 1.0
+   "margin": 1.0,
+   "tax": null
   }
  ]
 }

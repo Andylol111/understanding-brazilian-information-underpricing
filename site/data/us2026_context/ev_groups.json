@@ -1,432 +1,1672 @@
 {
  "built": "2026-11-01",
- "rows": [
+ "taxonomy": [
   {
    "dim": "race",
-   "dim_label": "Race / ethnicity",
+   "label": "Race / ethnicity",
+   "groups": [
+    "White",
+    "Black",
+    "Hispanic",
+    "Asian",
+    "Other / unknown"
+   ]
+  },
+  {
+   "dim": "age",
+   "label": "Age",
+   "groups": [
+    "18-29",
+    "30-44",
+    "45-64",
+    "65+"
+   ]
+  },
+  {
+   "dim": "gender",
+   "label": "Gender",
+   "groups": [
+    "Female",
+    "Male",
+    "Undisclosed"
+   ]
+  },
+  {
+   "dim": "party",
+   "label": "Party registration",
+   "groups": [
+    "Democratic",
+    "Republican",
+    "Unaffiliated",
+    "Other party"
+   ]
+  },
+  {
+   "dim": "density",
+   "label": "Kind of county",
+   "groups": [
+    "Dense counties (500+ people/sq mi)",
+    "Middle counties (100-500)",
+    "Sparse counties (under 100)"
+   ]
+  }
+ ],
+ "own_dims": [
+  {
+   "dim": "age_co",
+   "label": "Age, Colorado's bands",
+   "groups": [
+    "18-24",
+    "25-34",
+    "35-44",
+    "45-54",
+    "55-64",
+    "65-74",
+    "75+"
+   ]
+  },
+  {
+   "dim": "age_uf",
+   "label": "Age, UF Election Lab bands",
+   "groups": [
+    "18-25",
+    "26-40",
+    "41-65",
+    "66+"
+   ]
+  },
+  {
+   "dim": "age_ncreg",
+   "label": "Age, NC registration bands",
+   "groups": [
+    "18-25",
+    "26-40",
+    "41-65",
+    "66+"
+   ]
+  },
+  {
+   "dim": "race_la",
+   "label": "Race, Louisiana's categories",
+   "groups": [
+    "White",
+    "Black",
+    "Other"
+   ]
+  }
+ ],
+ "years": [
+  {
+   "year": 2018,
+   "type": "midterm"
+  },
+  {
+   "year": 2022,
+   "type": "midterm"
+  },
+  {
+   "year": 2020,
+   "type": "presidential"
+  },
+  {
+   "year": 2024,
+   "type": "presidential"
+  }
+ ],
+ "mapping": [
+  {
+   "source": "NC per-voter file",
+   "dim": "race",
    "group": "White",
-   "key": "race:White"
+   "from": "race = WHITE and ethnicity not HISPANIC or LATINO (NOT HISPANIC, UNDESIGNATED or blank)",
+   "status": "mapped"
   },
   {
+   "source": "NC per-voter file",
    "dim": "race",
-   "dim_label": "Race / ethnicity",
    "group": "Black",
-   "key": "race:Black"
+   "from": "race = BLACK or AFRICAN AMERICAN and ethnicity not HISPANIC or LATINO",
+   "status": "mapped"
   },
   {
+   "source": "NC per-voter file",
    "dim": "race",
-   "dim_label": "Race / ethnicity",
    "group": "Hispanic",
-   "key": "race:Hispanic"
+   "from": "ethnicity = HISPANIC or LATINO (any race)",
+   "status": "mapped"
   },
   {
+   "source": "NC per-voter file",
    "dim": "race",
-   "dim_label": "Race / ethnicity",
    "group": "Asian",
-   "key": "race:Asian"
+   "from": "race = ASIAN and ethnicity not HISPANIC or LATINO",
+   "status": "mapped"
   },
   {
+   "source": "NC per-voter file",
    "dim": "race",
-   "dim_label": "Race / ethnicity",
    "group": "Other / unknown",
-   "key": "race:Other / unknown"
+   "from": "race = AMERICAN INDIAN, PACIFIC ISLANDER, TWO or MORE, OTHER or UNDESIGNATED, not Hispanic",
+   "status": "mapped"
   },
   {
-   "dim": "age",
-   "dim_label": "Age",
-   "group": "18-25",
-   "key": "age:18-25"
-  },
-  {
-   "dim": "age",
-   "dim_label": "Age",
-   "group": "26-40",
-   "key": "age:26-40"
-  },
-  {
-   "dim": "age",
-   "dim_label": "Age",
-   "group": "41-65",
-   "key": "age:41-65"
-  },
-  {
-   "dim": "age",
-   "dim_label": "Age",
-   "group": "66+",
-   "key": "age:66+"
-  },
-  {
+   "source": "NC per-voter file",
    "dim": "gender",
-   "dim_label": "Gender",
    "group": "Female",
-   "key": "gender:Female"
+   "from": "sex = F",
+   "status": "mapped"
   },
   {
+   "source": "NC per-voter file",
    "dim": "gender",
-   "dim_label": "Gender",
    "group": "Male",
-   "key": "gender:Male"
+   "from": "sex = M",
+   "status": "mapped"
   },
   {
+   "source": "NC per-voter file",
    "dim": "gender",
-   "dim_label": "Gender",
    "group": "Undisclosed",
-   "key": "gender:Undisclosed"
+   "from": "sex = U, blank or any other code",
+   "status": "mapped"
   },
   {
-   "dim": "age_co",
-   "dim_label": "Age, Colorado's own bands",
-   "group": "18-24",
-   "key": "age_co:18-24"
+   "source": "NC per-voter file",
+   "dim": "party",
+   "group": "Democratic",
+   "from": "party = DEM",
+   "status": "mapped"
   },
   {
-   "dim": "age_co",
-   "dim_label": "Age, Colorado's own bands",
-   "group": "25-34",
-   "key": "age_co:25-34"
+   "source": "NC per-voter file",
+   "dim": "party",
+   "group": "Republican",
+   "from": "party = REP",
+   "status": "mapped"
   },
   {
-   "dim": "age_co",
-   "dim_label": "Age, Colorado's own bands",
-   "group": "35-44",
-   "key": "age_co:35-44"
+   "source": "NC per-voter file",
+   "dim": "party",
+   "group": "Unaffiliated",
+   "from": "party = UNA",
+   "status": "mapped"
   },
   {
-   "dim": "age_co",
-   "dim_label": "Age, Colorado's own bands",
-   "group": "45-54",
-   "key": "age_co:45-54"
+   "source": "NC per-voter file",
+   "dim": "party",
+   "group": "Other party",
+   "from": "party = LIB, GRE, CST, JFA, NLB or any other code",
+   "status": "mapped"
   },
   {
-   "dim": "age_co",
-   "dim_label": "Age, Colorado's own bands",
-   "group": "55-64",
-   "key": "age_co:55-64"
+   "source": "NC per-voter file",
+   "dim": "density",
+   "group": "Dense counties (500+ people/sq mi)",
+   "from": "county population density 500 or more people per sq mi (ACS county file)",
+   "status": "mapped"
   },
   {
-   "dim": "age_co",
-   "dim_label": "Age, Colorado's own bands",
-   "group": "65-74",
-   "key": "age_co:65-74"
+   "source": "NC per-voter file",
+   "dim": "density",
+   "group": "Middle counties (100-500)",
+   "from": "county population density 100 to 500 people per sq mi (ACS county file)",
+   "status": "mapped"
   },
   {
-   "dim": "age_co",
-   "dim_label": "Age, Colorado's own bands",
-   "group": "75+",
-   "key": "age_co:75+"
+   "source": "NC per-voter file",
+   "dim": "density",
+   "group": "Sparse counties (under 100)",
+   "from": "county population density under 100 people per sq mi (ACS county file)",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "race",
+   "group": "White",
+   "from": "race = WHITE and ethnicity not HISPANIC or LATINO (NOT HISPANIC, UNDESIGNATED or blank)",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "race",
+   "group": "Black",
+   "from": "race = BLACK or AFRICAN AMERICAN and ethnicity not HISPANIC or LATINO",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "race",
+   "group": "Hispanic",
+   "from": "ethnicity = HISPANIC or LATINO (any race)",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "race",
+   "group": "Asian",
+   "from": "race = ASIAN and ethnicity not HISPANIC or LATINO",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "race",
+   "group": "Other / unknown",
+   "from": "race = AMERICAN INDIAN, PACIFIC ISLANDER, TWO or MORE, OTHER or UNDESIGNATED, not Hispanic",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "gender",
+   "group": "Female",
+   "from": "sex = F",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "gender",
+   "group": "Male",
+   "from": "sex = M",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "gender",
+   "group": "Undisclosed",
+   "from": "sex = U, blank or any other code",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "party",
+   "group": "Democratic",
+   "from": "party = DEM",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "party",
+   "group": "Republican",
+   "from": "party = REP",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "party",
+   "group": "Unaffiliated",
+   "from": "party = UNA",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "party",
+   "group": "Other party",
+   "from": "party = LIB, GRE, CST, JFA, NLB or any other code",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "density",
+   "group": "Dense counties (500+ people/sq mi)",
+   "from": "county population density 500 or more people per sq mi (ACS county file)",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "density",
+   "group": "Middle counties (100-500)",
+   "from": "county population density 100 to 500 people per sq mi (ACS county file)",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "density",
+   "group": "Sparse counties (under 100)",
+   "from": "county population density under 100 people per sq mi (ACS county file)",
+   "status": "mapped"
+  },
+  {
+   "source": "NC per-voter file",
+   "dim": "age",
+   "group": "18-29",
+   "from": "exact age 18 to 29, re-binned",
+   "status": "mapped"
+  },
+  {
+   "source": "NC per-voter file",
+   "dim": "age",
+   "group": "30-44",
+   "from": "exact age 30 to 44, re-binned",
+   "status": "mapped"
+  },
+  {
+   "source": "NC per-voter file",
+   "dim": "age",
+   "group": "45-64",
+   "from": "exact age 45 to 64, re-binned",
+   "status": "mapped"
+  },
+  {
+   "source": "NC per-voter file",
+   "dim": "age",
+   "group": "65+",
+   "from": "exact age 65 or more, re-binned",
+   "status": "mapped"
+  },
+  {
+   "source": "NC voter_stats file",
+   "dim": "age",
+   "group": null,
+   "from": "age bands 18-25, 26-40, 41-65, 66+",
+   "status": "not mapped: cut points differ; shown as own bands (age_ncreg)"
+  },
+  {
+   "source": "CO daily workbook",
+   "dim": "gender",
+   "group": "Female",
+   "from": "Female",
+   "status": "mapped"
+  },
+  {
+   "source": "CO daily workbook",
+   "dim": "gender",
+   "group": "Male",
+   "from": "Male",
+   "status": "mapped"
+  },
+  {
+   "source": "CO daily workbook",
+   "dim": "gender",
+   "group": "Undisclosed",
+   "from": "Not disclosed + Unknown + X",
+   "status": "mapped"
+  },
+  {
+   "source": "CO daily workbook",
+   "dim": "age",
+   "group": "18-29",
+   "from": "bands 18-24 and 25-34",
+   "status": "not mapped: 25-34 straddles 29; shown as own bands (age_co)"
+  },
+  {
+   "source": "CO daily workbook",
+   "dim": "age",
+   "group": "30-44",
+   "from": "bands 25-34 and 35-44",
+   "status": "not mapped: 25-34 straddles 30; shown as own bands (age_co)"
+  },
+  {
+   "source": "CO daily workbook",
+   "dim": "age",
+   "group": "45-64",
+   "from": "bands 45-54 + 55-64",
+   "status": "mapped"
+  },
+  {
+   "source": "CO daily workbook",
+   "dim": "age",
+   "group": "65+",
+   "from": "bands 65-74 + 75 and over",
+   "status": "mapped"
+  },
+  {
+   "source": "CO daily workbook",
+   "dim": "race",
+   "group": null,
+   "from": "no race or ethnicity published",
+   "status": "not mapped: no race breakdown exists"
+  },
+  {
+   "source": "SC absentee statistics",
+   "dim": "race",
+   "group": "White",
+   "from": "race = White",
+   "status": "mapped"
+  },
+  {
+   "source": "SC absentee statistics",
+   "dim": "race",
+   "group": "Black",
+   "from": "race = Black / African American",
+   "status": "mapped"
+  },
+  {
+   "source": "SC absentee statistics",
+   "dim": "race",
+   "group": "Hispanic",
+   "from": "race = Hispanic (a separate race category in SC data)",
+   "status": "mapped"
+  },
+  {
+   "source": "SC absentee statistics",
+   "dim": "race",
+   "group": "Asian",
+   "from": "race = Asian",
+   "status": "mapped"
+  },
+  {
+   "source": "SC absentee statistics",
+   "dim": "race",
+   "group": "Other / unknown",
+   "from": "race = Native American + Multiple + Other + Unknown",
+   "status": "mapped"
+  },
+  {
+   "source": "SC absentee statistics",
+   "dim": "age",
+   "group": null,
+   "from": "no age breakdown published",
+   "status": "not mapped: no age breakdown exists"
+  },
+  {
+   "source": "SC absentee statistics",
+   "dim": "gender",
+   "group": null,
+   "from": "no gender breakdown published",
+   "status": "not mapped: no gender breakdown exists"
+  },
+  {
+   "source": "LA statewide report",
+   "dim": "race",
+   "group": null,
+   "from": "White / Black / Other",
+   "status": "not mapped: report does not say whether Hispanic voters sit in White, Black or Other; shown as own categories (race_la)"
+  },
+  {
+   "source": "LA statewide report",
+   "dim": "gender",
+   "group": "Female",
+   "from": "sex = FEMALE",
+   "status": "mapped"
+  },
+  {
+   "source": "LA statewide report",
+   "dim": "gender",
+   "group": "Male",
+   "from": "sex = MALE",
+   "status": "mapped"
+  },
+  {
+   "source": "LA statewide report",
+   "dim": "gender",
+   "group": "Undisclosed",
+   "from": "votes minus male minus female (no sex on file)",
+   "status": "mapped"
+  },
+  {
+   "source": "UF Election Lab",
+   "dim": "race",
+   "group": "White",
+   "from": "nh_white (non-Hispanic white)",
+   "status": "mapped"
+  },
+  {
+   "source": "UF Election Lab",
+   "dim": "race",
+   "group": "Black",
+   "from": "nh_black",
+   "status": "mapped"
+  },
+  {
+   "source": "UF Election Lab",
+   "dim": "race",
+   "group": "Hispanic",
+   "from": "hispanic",
+   "status": "mapped"
+  },
+  {
+   "source": "UF Election Lab",
+   "dim": "race",
+   "group": "Asian",
+   "from": "nh_asian",
+   "status": "mapped"
+  },
+  {
+   "source": "UF Election Lab",
+   "dim": "race",
+   "group": "Other / unknown",
+   "from": "nh_native_american + nh_other",
+   "status": "mapped"
+  },
+  {
+   "source": "UF Election Lab",
+   "dim": "age",
+   "group": null,
+   "from": "age_1..age_4 = 18-25, 26-40, 41-65, 66+",
+   "status": "not mapped: cut points differ; shown as own bands (age_uf)"
+  },
+  {
+   "source": "UF Election Lab",
+   "dim": "gender",
+   "group": "Female",
+   "from": "female",
+   "status": "mapped"
+  },
+  {
+   "source": "UF Election Lab",
+   "dim": "gender",
+   "group": "Male",
+   "from": "male",
+   "status": "mapped"
+  },
+  {
+   "source": "UF Election Lab",
+   "dim": "gender",
+   "group": "Undisclosed",
+   "from": "gender_unknown",
+   "status": "mapped"
   }
  ],
  "states": [
   {
    "state": "nc",
    "name": "North Carolina",
+   "source": "NC State Board of Elections, per-voter absentee and one-stop files (public record)",
+   "url": "https://www.ncsbe.gov/results-data/absentee-data",
    "total": 2816821,
    "as_of": "2026-10-31",
-   "source": "NC State Board of Elections per-voter absentee and one-stop files (public record)",
-   "url": "https://www.ncsbe.gov/results-data/absentee-data",
-   "groups": {
-    "race:White": {
-     "share": 65.67,
-     "n": 1849717,
-     "share_2022": 71.92,
-     "change_pp": -6.25,
-     "reg_share": 62.96
-    },
-    "race:Black": {
-     "share": 21.08,
-     "n": 593810,
-     "share_2022": 18.67,
-     "change_pp": 2.41,
-     "reg_share": 19.19
-    },
-    "race:Hispanic": {
-     "share": 3.42,
-     "n": 96203,
-     "share_2022": 1.54,
-     "change_pp": 1.87,
-     "reg_share": 4.47
-    },
-    "race:Asian": {
-     "share": 1.68,
-     "n": 47458,
-     "share_2022": 1.18,
-     "change_pp": 0.51,
-     "reg_share": 1.82
-    },
-    "race:Other / unknown": {
-     "share": 8.15,
-     "n": 229633,
-     "share_2022": 6.7,
-     "change_pp": 1.46,
-     "reg_share": 11.56
-    },
-    "age:18-25": {
-     "share": 7.14,
-     "n": 201148,
-     "share_2022": 5.15,
-     "change_pp": 1.99,
-     "reg_share": 13.0
-    },
-    "age:26-40": {
-     "share": 14.83,
-     "n": 417762,
-     "share_2022": 12.66,
-     "change_pp": 2.17,
-     "reg_share": 24.72
-    },
-    "age:41-65": {
-     "share": 40.0,
-     "n": 1126643,
-     "share_2022": 43.35,
-     "change_pp": -3.35,
-     "reg_share": 38.36
-    },
-    "age:66+": {
-     "share": 38.03,
-     "n": 1071268,
-     "share_2022": 38.84,
-     "change_pp": -0.8,
-     "reg_share": 23.91
-    },
-    "gender:Female": {
-     "share": 53.09,
-     "n": 1495375,
-     "share_2022": 52.22,
-     "change_pp": 0.87,
-     "reg_share": 49.23
-    },
-    "gender:Male": {
-     "share": 41.13,
-     "n": 1158591,
-     "share_2022": 43.14,
-     "change_pp": -2.01,
-     "reg_share": 41.95
-    },
-    "gender:Undisclosed": {
-     "share": 5.78,
-     "n": 162855,
-     "share_2022": 4.65,
-     "change_pp": 1.13,
-     "reg_share": 8.82
-    }
-   },
    "coverage": {
     "race": 100.0,
     "age": 100.0,
     "gender": 100.0
    },
-   "baseline_2022": "same day",
-   "baseline_label": "2022-11-05 (same number of days before Election Day)",
-   "notes": "Registered share: NC voter_stats file 2026-03-03",
-   "check_uf": {
-    "white_share_uf": 65.67,
-    "white_share_official": 65.67,
-    "uf_total": 2816821,
-    "official_total": 2816821
-   }
+   "groups": {
+    "race:White": {
+     "share": 65.67,
+     "n": 1849717,
+     "reg_share": 62.95,
+     "past": {
+      "2024": {
+       "share": 68.45,
+       "n": 3065124
+      },
+      "2022": {
+       "share": 71.92,
+       "n": 1547896
+      },
+      "2020": {
+       "share": 65.59,
+       "n": 2993695
+      },
+      "2018": {
+       "share": 70.68,
+       "n": 1443408
+      }
+     }
+    },
+    "race:Black": {
+     "share": 21.08,
+     "n": 593810,
+     "reg_share": 19.18,
+     "past": {
+      "2024": {
+       "share": 17.77,
+       "n": 795675
+      },
+      "2022": {
+       "share": 18.67,
+       "n": 401809
+      },
+      "2020": {
+       "share": 19.47,
+       "n": 888475
+      },
+      "2018": {
+       "share": 21.69,
+       "n": 442976
+      }
+     }
+    },
+    "race:Hispanic": {
+     "share": 3.42,
+     "n": 96203,
+     "reg_share": 4.5,
+     "past": {
+      "2024": {
+       "share": 2.86,
+       "n": 128238
+      },
+      "2022": {
+       "share": 1.54,
+       "n": 33210
+      },
+      "2020": {
+       "share": 2.3,
+       "n": 105153
+      },
+      "2018": {
+       "share": 1.58,
+       "n": 32293
+      }
+     }
+    },
+    "race:Asian": {
+     "share": 1.68,
+     "n": 47458,
+     "reg_share": 1.82,
+     "past": {
+      "2024": {
+       "share": 1.62,
+       "n": 72525
+      },
+      "2022": {
+       "share": 1.18,
+       "n": 25326
+      },
+      "2020": {
+       "share": 1.42,
+       "n": 65036
+      },
+      "2018": {
+       "share": 1.11,
+       "n": 22668
+      }
+     }
+    },
+    "race:Other / unknown": {
+     "share": 8.15,
+     "n": 229633,
+     "reg_share": 11.56,
+     "past": {
+      "2024": {
+       "share": 9.29,
+       "n": 416116
+      },
+      "2022": {
+       "share": 6.7,
+       "n": 144137
+      },
+      "2020": {
+       "share": 11.21,
+       "n": 511605
+      },
+      "2018": {
+       "share": 4.93,
+       "n": 100733
+      }
+     }
+    },
+    "age:18-29": {
+     "share": 10.74,
+     "n": 302454,
+     "past": {
+      "2024": {
+       "share": 14.4,
+       "n": 644888
+      },
+      "2022": {
+       "share": 7.85,
+       "n": 168985
+      },
+      "2020": {
+       "share": 14.78,
+       "n": 674503
+      },
+      "2018": {
+       "share": 9.19,
+       "n": 187582
+      }
+     }
+    },
+    "age:30-44": {
+     "share": 15.8,
+     "n": 445025,
+     "past": {
+      "2024": {
+       "share": 19.64,
+       "n": 879417
+      },
+      "2022": {
+       "share": 14.3,
+       "n": 307869
+      },
+      "2020": {
+       "share": 20.9,
+       "n": 953684
+      },
+      "2018": {
+       "share": 16.06,
+       "n": 328030
+      }
+     }
+    },
+    "age:45-64": {
+     "share": 33.11,
+     "n": 932781,
+     "past": {
+      "2024": {
+       "share": 34.51,
+       "n": 1545345
+      },
+      "2022": {
+       "share": 36.47,
+       "n": 784964
+      },
+      "2020": {
+       "share": 36.51,
+       "n": 1666141
+      },
+      "2018": {
+       "share": 39.76,
+       "n": 811900
+      }
+     }
+    },
+    "age:65+": {
+     "share": 40.35,
+     "n": 1136561,
+     "past": {
+      "2024": {
+       "share": 31.45,
+       "n": 1408028
+      },
+      "2022": {
+       "share": 41.38,
+       "n": 890560
+      },
+      "2020": {
+       "share": 27.82,
+       "n": 1269636
+      },
+      "2018": {
+       "share": 34.99,
+       "n": 714566
+      }
+     }
+    },
+    "gender:Female": {
+     "share": 53.09,
+     "n": 1495375,
+     "reg_share": 49.22,
+     "past": {
+      "2024": {
+       "share": 51.71,
+       "n": 2315586
+      },
+      "2022": {
+       "share": 52.22,
+       "n": 1123895
+      },
+      "2020": {
+       "share": 51.23,
+       "n": 2337941
+      },
+      "2018": {
+       "share": 54.09,
+       "n": 1104505
+      }
+     }
+    },
+    "gender:Male": {
+     "share": 41.13,
+     "n": 1158591,
+     "reg_share": 41.97,
+     "past": {
+      "2024": {
+       "share": 41.18,
+       "n": 1843719
+      },
+      "2022": {
+       "share": 43.14,
+       "n": 928456
+      },
+      "2020": {
+       "share": 40.77,
+       "n": 1860713
+      },
+      "2018": {
+       "share": 43.71,
+       "n": 892581
+      }
+     }
+    },
+    "gender:Undisclosed": {
+     "share": 5.78,
+     "n": 162855,
+     "reg_share": 8.81,
+     "past": {
+      "2024": {
+       "share": 7.11,
+       "n": 318373
+      },
+      "2022": {
+       "share": 4.65,
+       "n": 100027
+      },
+      "2020": {
+       "share": 8.0,
+       "n": 365310
+      },
+      "2018": {
+       "share": 2.2,
+       "n": 44992
+      }
+     }
+    },
+    "party:Democratic": {
+     "share": 38.36,
+     "n": 1080440,
+     "reg_share": 30.02,
+     "past": {
+      "2024": {
+       "share": 32.37,
+       "n": 1449639
+      },
+      "2022": {
+       "share": 38.16,
+       "n": 821367
+      },
+      "2020": {
+       "share": 37.37,
+       "n": 1705702
+      },
+      "2018": {
+       "share": 42.48,
+       "n": 867464
+      }
+     }
+    },
+    "party:Republican": {
+     "share": 26.16,
+     "n": 736891,
+     "reg_share": 30.13,
+     "past": {
+      "2024": {
+       "share": 33.26,
+       "n": 1489288
+      },
+      "2022": {
+       "share": 31.32,
+       "n": 674116
+      },
+      "2020": {
+       "share": 31.76,
+       "n": 1449312
+      },
+      "2018": {
+       "share": 30.29,
+       "n": 618535
+      }
+     }
+    },
+    "party:Unaffiliated": {
+     "share": 35.17,
+     "n": 990783,
+     "reg_share": 39.19,
+     "past": {
+      "2024": {
+       "share": 33.63,
+       "n": 1506045
+      },
+      "2022": {
+       "share": 30.25,
+       "n": 650991
+      },
+      "2020": {
+       "share": 30.33,
+       "n": 1384164
+      },
+      "2018": {
+       "share": 26.94,
+       "n": 550111
+      }
+     }
+    },
+    "party:Other party": {
+     "share": 0.31,
+     "n": 8707,
+     "reg_share": 0.66,
+     "past": {
+      "2024": {
+       "share": 0.73,
+       "n": 32706
+      },
+      "2022": {
+       "share": 0.27,
+       "n": 5904
+      },
+      "2020": {
+       "share": 0.54,
+       "n": 24786
+      },
+      "2018": {
+       "share": 0.29,
+       "n": 5968
+      }
+     }
+    },
+    "density:Dense counties (500+ people/sq mi)": {
+     "share": 44.65,
+     "n": 1257696,
+     "reg_share": 42.92,
+     "past": {
+      "2024": {
+       "share": 42.69,
+       "n": 1911742
+      },
+      "2022": {
+       "share": 42.08,
+       "n": 905823
+      },
+      "2020": {
+       "share": 44.35,
+       "n": 2023988
+      },
+      "2018": {
+       "share": 42.41,
+       "n": 865972
+      }
+     }
+    },
+    "density:Middle counties (100-500)": {
+     "share": 45.6,
+     "n": 1284403,
+     "reg_share": 46.35,
+     "past": {
+      "2024": {
+       "share": 47.07,
+       "n": 2107685
+      },
+      "2022": {
+       "share": 47.46,
+       "n": 1021595
+      },
+      "2020": {
+       "share": 45.39,
+       "n": 2071593
+      },
+      "2018": {
+       "share": 46.92,
+       "n": 958229
+      }
+     }
+    },
+    "density:Sparse counties (under 100)": {
+     "share": 9.75,
+     "n": 274722,
+     "reg_share": 10.74,
+     "past": {
+      "2024": {
+       "share": 10.23,
+       "n": 458251
+      },
+      "2022": {
+       "share": 10.45,
+       "n": 224960
+      },
+      "2020": {
+       "share": 10.26,
+       "n": 468383
+      },
+      "2018": {
+       "share": 10.67,
+       "n": 217877
+      }
+     }
+    }
+   },
+   "own": {
+    "age_ncreg:18-25": {
+     "share": 7.14,
+     "n": 201148,
+     "reg_share": 13.0,
+     "past": {
+      "2024": {
+       "share": 9.66,
+       "n": 432337
+      },
+      "2022": {
+       "share": 5.15,
+       "n": 110904
+      },
+      "2020": {
+       "share": 9.81,
+       "n": 447761
+      },
+      "2018": {
+       "share": 5.9,
+       "n": 120442
+      }
+     }
+    },
+    "age_ncreg:26-40": {
+     "share": 14.83,
+     "n": 417762,
+     "reg_share": 24.72,
+     "past": {
+      "2024": {
+       "share": 18.98,
+       "n": 849735
+      },
+      "2022": {
+       "share": 12.66,
+       "n": 272539
+      },
+      "2020": {
+       "share": 20.04,
+       "n": 914473
+      },
+      "2018": {
+       "share": 14.45,
+       "n": 295053
+      }
+     }
+    },
+    "age_ncreg:41-65": {
+     "share": 40.0,
+     "n": 1126643,
+     "reg_share": 38.36,
+     "past": {
+      "2024": {
+       "share": 41.89,
+       "n": 1875893
+      },
+      "2022": {
+       "share": 43.35,
+       "n": 933059
+      },
+      "2020": {
+       "share": 44.23,
+       "n": 2018663
+      },
+      "2018": {
+       "share": 47.1,
+       "n": 961757
+      }
+     }
+    },
+    "age_ncreg:66+": {
+     "share": 38.03,
+     "n": 1071268,
+     "reg_share": 23.91,
+     "past": {
+      "2024": {
+       "share": 29.47,
+       "n": 1319713
+      },
+      "2022": {
+       "share": 38.84,
+       "n": 835876
+      },
+      "2020": {
+       "share": 25.92,
+       "n": 1183067
+      },
+      "2018": {
+       "share": 32.56,
+       "n": 664826
+      }
+     }
+    }
+   },
+   "baselines": {
+    "2024": {
+     "basis": "same day",
+     "label": "2024-11-02, same number of days before Election Day",
+     "total": 4477678
+    },
+    "2022": {
+     "basis": "same day",
+     "label": "2022-11-05, same number of days before Election Day",
+     "total": 2152378
+    },
+    "2020": {
+     "basis": "same day",
+     "label": "2020-10-31, same number of days before Election Day",
+     "total": 4563964
+    },
+    "2018": {
+     "basis": "same day",
+     "label": "2018-11-03, same number of days before Election Day",
+     "total": 2042078,
+     "note": "the 2018 file has no ethnicity column; ethnicity joined from the 2018-11-06 voter snapshot by voter id (100.00% of ballots matched; the rest count by race alone)"
+    }
+   },
+   "notes": "Accepted ballots by return day. Registered share: NC voter_stats file of 2026-03-03."
   },
   {
    "state": "co",
    "name": "Colorado",
+   "source": "Colorado Secretary of State daily ballot-return workbook",
+   "url": "https://www.coloradosos.gov/pubs/newsRoom/pressReleases/index.html",
    "total": 1335298,
    "as_of": "2026-10-29",
-   "source": "Colorado Secretary of State daily ballot-return workbook (all returned ballots, mail and in person); 4-band age: UF Election Lab (compiled from official state sources), used with permission",
-   "url": "https://www.coloradosos.gov/pubs/newsRoom/pressReleases/index.html",
+   "coverage": {
+    "gender": 100.0,
+    "age_co": 100.0,
+    "age": 100.0,
+    "age_uf": 99.8
+   },
    "groups": {
     "gender:Female": {
      "share": 52.14,
      "n": 696284,
-     "share_2022": 51.19,
-     "change_pp": 0.95
+     "past": {
+      "2024": {
+       "share": 51.56,
+       "n": 892646
+      },
+      "2022": {
+       "share": 51.19,
+       "n": 563019
+      },
+      "2020": {
+       "share": 51.55,
+       "n": 1174905
+      },
+      "2018": {
+       "share": 51.21,
+       "n": 563685
+      }
+     }
     },
     "gender:Male": {
      "share": 47.36,
      "n": 632350,
-     "share_2022": 48.32,
-     "change_pp": -0.96
+     "past": {
+      "2024": {
+       "share": 47.82,
+       "n": 827862
+      },
+      "2022": {
+       "share": 48.32,
+       "n": 531404
+      },
+      "2020": {
+       "share": 47.12,
+       "n": 1073876
+      },
+      "2018": {
+       "share": 48.03,
+       "n": 528652
+      }
+     }
     },
     "gender:Undisclosed": {
      "share": 0.5,
      "n": 6664,
-     "share_2022": 0.49,
-     "change_pp": 0.01
+     "past": {
+      "2024": {
+       "share": 0.62,
+       "n": 10663
+      },
+      "2022": {
+       "share": 0.49,
+       "n": 5424
+      },
+      "2020": {
+       "share": 1.33,
+       "n": 30278
+      },
+      "2018": {
+       "share": 0.76,
+       "n": 8353
+      }
+     }
     },
+    "age:45-64": {
+     "share": 30.86,
+     "n": 411984,
+     "past": {
+      "2024": {
+       "share": 32.44,
+       "n": 561584
+      },
+      "2022": {
+       "share": 33.93,
+       "n": 373157
+      },
+      "2020": {
+       "share": 34.8,
+       "n": 792898
+      }
+     }
+    },
+    "age:65+": {
+     "share": 44.0,
+     "n": 587474,
+     "past": {
+      "2024": {
+       "share": 37.18,
+       "n": 643530
+      },
+      "2022": {
+       "share": 43.39,
+       "n": 477210
+      },
+      "2020": {
+       "share": 28.44,
+       "n": 647962
+      }
+     }
+    }
+   },
+   "own": {
     "age_co:18-24": {
      "share": 4.63,
      "n": 61786,
-     "share_2022": 3.62,
-     "change_pp": 1.01
+     "past": {
+      "2024": {
+       "share": 5.88,
+       "n": 101721
+      },
+      "2022": {
+       "share": 3.62,
+       "n": 39805
+      },
+      "2020": {
+       "share": 7.21,
+       "n": 164228
+      }
+     }
     },
     "age_co:25-34": {
      "share": 8.34,
      "n": 111327,
-     "share_2022": 8.0,
-     "change_pp": 0.34
+     "past": {
+      "2024": {
+       "share": 10.96,
+       "n": 189673
+      },
+      "2022": {
+       "share": 8.0,
+       "n": 87997
+      },
+      "2020": {
+       "share": 14.16,
+       "n": 322591
+      }
+     }
     },
     "age_co:35-44": {
      "share": 12.18,
      "n": 162569,
-     "share_2022": 11.06,
-     "change_pp": 1.12
+     "past": {
+      "2024": {
+       "share": 13.54,
+       "n": 234405
+      },
+      "2022": {
+       "share": 11.06,
+       "n": 121578
+      },
+      "2020": {
+       "share": 15.39,
+       "n": 350723
+      }
+     }
     },
     "age_co:45-54": {
      "share": 13.23,
      "n": 176645,
-     "share_2022": 13.45,
-     "change_pp": -0.22
+     "past": {
+      "2024": {
+       "share": 14.22,
+       "n": 246124
+      },
+      "2022": {
+       "share": 13.45,
+       "n": 147946
+      },
+      "2020": {
+       "share": 15.64,
+       "n": 356325
+      }
+     }
     },
     "age_co:55-64": {
      "share": 17.63,
      "n": 235339,
-     "share_2022": 20.48,
-     "change_pp": -2.85
+     "past": {
+      "2024": {
+       "share": 18.23,
+       "n": 315460
+      },
+      "2022": {
+       "share": 20.48,
+       "n": 225211
+      },
+      "2020": {
+       "share": 19.16,
+       "n": 436573
+      }
+     }
     },
     "age_co:65-74": {
      "share": 23.93,
      "n": 319515,
-     "share_2022": 25.34,
-     "change_pp": -1.41
+     "past": {
+      "2024": {
+       "share": 21.3,
+       "n": 368701
+      },
+      "2022": {
+       "share": 25.34,
+       "n": 278699
+      },
+      "2020": {
+       "share": 17.8,
+       "n": 405494
+      }
+     }
     },
     "age_co:75+": {
      "share": 20.07,
      "n": 267959,
-     "share_2022": 18.05,
-     "change_pp": 2.02
+     "past": {
+      "2024": {
+       "share": 15.88,
+       "n": 274829
+      },
+      "2022": {
+       "share": 18.05,
+       "n": 198511
+      },
+      "2020": {
+       "share": 10.64,
+       "n": 242468
+      }
+     }
     },
-    "age:18-25": {
+    "age_uf:18-25": {
      "share": 5.56,
      "n": 84614
     },
-    "age:26-40": {
+    "age_uf:26-40": {
      "share": 15.67,
      "n": 238716
     },
-    "age:41-65": {
+    "age_uf:41-65": {
      "share": 38.42,
      "n": 585132
     },
-    "age:66+": {
+    "age_uf:66+": {
      "share": 40.36,
      "n": 614689
     }
    },
-   "coverage": {
-    "gender": 100.0,
-    "age": 100.0
+   "baselines": {
+    "2024": {
+     "basis": "same day",
+     "label": "2024-10-31, same number of days before Election Day",
+     "total": 1731171
+    },
+    "2022": {
+     "basis": "same day",
+     "label": "2022-11-03, same number of days before Election Day",
+     "total": 1099847
+    },
+    "2020": {
+     "basis": "same day",
+     "label": "2020-10-29, same number of days before Election Day",
+     "total": 2279059
+    },
+    "2018": {
+     "basis": "same day",
+     "label": "2018-11-01, same number of days before Election Day",
+     "total": 1100690,
+     "note": "gender only: that year's report has other age bands (18-25, 26-40, 41-60, 61-70, 71+), and its counts include rejected ballots"
+    }
    },
-   "baseline_2022": "same day",
-   "baseline_label": "2022-11-03 (same number of days before Election Day)",
-   "notes": "Under-18 pre-registrants are left out of age shares. Race: not published."
+   "notes": "All returned ballots, mail and in person. Pre-registered voters under 18 are left out of age shares. Race is not published. Own bands age_uf: UF Election Lab (compiled from official state sources), used with permission, counted through 2026-10-31."
   },
   {
    "state": "sc",
    "name": "South Carolina",
+   "source": "South Carolina Election Commission, absentee statistics by race",
+   "url": "https://scvotes.gov/elections-statistics/voter-participation/",
    "total": 986460,
    "as_of": "2026-10-30",
-   "source": "South Carolina Election Commission absentee statistics by race (mail ballots returned, incl. military/overseas)",
-   "url": "https://scvotes.gov/elections-statistics/voter-participation/",
+   "coverage": {
+    "race": 3.8
+   },
    "groups": {
     "race:White": {
      "share": 70.21,
      "n": 26589,
-     "share_2022": 73.99,
-     "change_pp": -3.78
+     "past": {
+      "2022": {
+       "share": 73.99,
+       "n": 43347
+      }
+     }
     },
     "race:Black": {
      "share": 27.05,
      "n": 10242,
-     "share_2022": 24.18,
-     "change_pp": 2.87
+     "past": {
+      "2022": {
+       "share": 24.18,
+       "n": 14166
+      }
+     }
     },
     "race:Hispanic": {
      "share": 0.71,
      "n": 269,
-     "share_2022": 0.48,
-     "change_pp": 0.23
+     "past": {
+      "2022": {
+       "share": 0.48,
+       "n": 280
+      }
+     }
     },
     "race:Asian": {
      "share": 0.77,
      "n": 291,
-     "share_2022": 0.66,
-     "change_pp": 0.11
+     "past": {
+      "2022": {
+       "share": 0.66,
+       "n": 386
+      }
+     }
     },
     "race:Other / unknown": {
      "share": 1.26,
      "n": 477,
-     "share_2022": 0.69,
-     "change_pp": 0.57
+     "past": {
+      "2022": {
+       "share": 0.69,
+       "n": 404
+      }
+     }
     }
    },
-   "coverage": {
-    "race": 3.8
+   "own": {},
+   "baselines": {
+    "2022": {
+     "basis": "final",
+     "label": "2022 final count of returned absentee ballots (58,583); no same-day file is published",
+     "total": 58583
+    }
    },
-   "baseline_2022": "final",
-   "baseline_label": "2022 final count of returned absentee ballots (58,583); no same-day file is published",
-   "notes": "Race is published for mail absentee ballots only; the in-person early-vote file has no race."
+   "notes": "Race is published for mail absentee ballots only (incl. military / overseas); the in-person early-vote file has no race. No other past year's file is available."
   },
   {
    "state": "la",
    "name": "Louisiana",
+   "source": "Louisiana Secretary of State, statewide early-voting reports",
+   "url": "https://electionstatistics.sos.la.gov/default.aspx?Stats=Early_Voting_Statistics&Type=Statewide",
    "total": 527104,
    "as_of": "2026-10-29",
-   "source": "Louisiana Secretary of State statewide early-voting statistical reports (PDF); registered share: Louisiana registration statistics, 2026-10-01",
-   "url": "https://electionstatistics.sos.la.gov/default.aspx?Stats=Early_Voting_Statistics&Type=Statewide",
+   "coverage": {
+    "race_la": 100.0,
+    "gender": 100.0
+   },
    "groups": {
-    "race:White": {
-     "share": 61.31,
-     "n": 323156,
-     "share_2022": 70.95,
-     "change_pp": -9.64,
-     "reg_share": 62.28
-    },
-    "race:Black": {
-     "share": 34.35,
-     "n": 181076,
-     "share_2022": 25.97,
-     "change_pp": 8.39,
-     "reg_share": 31.33
-    },
-    "race:Other / unknown": {
-     "share": 4.34,
-     "n": 22872,
-     "share_2022": 3.09,
-     "change_pp": 1.25,
-     "reg_share": 6.39
-    },
     "gender:Female": {
      "share": 57.99,
      "n": 305688,
-     "share_2022": 55.92,
-     "change_pp": 2.08
+     "past": {
+      "2024": {
+       "share": 57.38,
+       "n": 559470
+      },
+      "2022": {
+       "share": 55.92,
+       "n": 211044
+      },
+      "2020": {
+       "share": 57.74,
+       "n": 569580
+      },
+      "2018": {
+       "share": 56.27,
+       "n": 177697
+      }
+     }
     },
     "gender:Male": {
      "share": 41.96,
      "n": 221149,
-     "share_2022": 44.06,
-     "change_pp": -2.1
+     "past": {
+      "2024": {
+       "share": 42.56,
+       "n": 414980
+      },
+      "2022": {
+       "share": 44.06,
+       "n": 166289
+      },
+      "2020": {
+       "share": 42.22,
+       "n": 416421
+      },
+      "2018": {
+       "share": 43.71,
+       "n": 138026
+      }
+     }
     },
     "gender:Undisclosed": {
      "share": 0.05,
      "n": 267,
-     "share_2022": 0.03,
-     "change_pp": 0.03
+     "past": {
+      "2024": {
+       "share": 0.06,
+       "n": 569
+      },
+      "2022": {
+       "share": 0.03,
+       "n": 95
+      },
+      "2020": {
+       "share": 0.04,
+       "n": 427
+      },
+      "2018": {
+       "share": 0.02,
+       "n": 50
+      }
+     }
     }
    },
-   "coverage": {
-    "race": 100.0,
-    "gender": 100.0
+   "own": {
+    "race_la:White": {
+     "share": 61.31,
+     "n": 323156,
+     "reg_share": 62.28,
+     "past": {
+      "2024": {
+       "share": 70.0,
+       "n": 682487
+      },
+      "2022": {
+       "share": 70.95,
+       "n": 267776
+      },
+      "2020": {
+       "share": 65.51,
+       "n": 646212
+      },
+      "2018": {
+       "share": 68.54,
+       "n": 216418
+      }
+     }
+    },
+    "race_la:Black": {
+     "share": 34.35,
+     "n": 181076,
+     "reg_share": 31.33,
+     "past": {
+      "2024": {
+       "share": 25.51,
+       "n": 248757
+      },
+      "2022": {
+       "share": 25.97,
+       "n": 98008
+      },
+      "2020": {
+       "share": 29.73,
+       "n": 293240
+      },
+      "2018": {
+       "share": 28.22,
+       "n": 89100
+      }
+     }
+    },
+    "race_la:Other": {
+     "share": 4.34,
+     "n": 22872,
+     "reg_share": 6.39,
+     "past": {
+      "2024": {
+       "share": 4.49,
+       "n": 43775
+      },
+      "2022": {
+       "share": 3.09,
+       "n": 11644
+      },
+      "2020": {
+       "share": 4.76,
+       "n": 46976
+      },
+      "2018": {
+       "share": 3.25,
+       "n": 10255
+      }
+     }
+    }
    },
-   "baseline_2022": "complete early vote",
-   "baseline_label": "2022 complete early-voting report (377,428 ballots, through 2022-11-15)",
-   "notes": "Louisiana's early voting is over in both years, so the two totals compare whole early-voting periods. The state reports White, Black and Other only."
+   "baselines": {
+    "2024": {
+     "basis": "complete",
+     "label": "2024 complete early-voting report, election of 2024-11-05 (through 2024-11-11)",
+     "total": 975019
+    },
+    "2022": {
+     "basis": "complete",
+     "label": "2022 complete early-voting report, election of 2022-11-08 (through 2022-11-15)",
+     "total": 377428
+    },
+    "2020": {
+     "basis": "complete",
+     "label": "2020 complete early-voting report, election of 2020-11-03 (through 2020-11-09)",
+     "total": 986428
+    },
+    "2018": {
+     "basis": "complete",
+     "label": "2018 complete early-voting report, election of 2018-11-06 (through 2018-11-12)",
+     "total": 315773
+    }
+   },
+   "notes": "Early voting is over in every year listed, so the totals compare whole early-voting periods. The state reports White, Black and Other only. Registered share: Louisiana registration statistics, 2026-10-01."
   },
   {
    "state": "ga",
    "name": "Georgia",
-   "total": 2826146,
-   "as_of": "2026-11-01",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
+   "total": 2826146,
+   "as_of": "2026-11-01",
+   "coverage": {
+    "race": 100.0,
+    "age_uf": 99.8,
+    "gender": 100.0
+   },
    "groups": {
     "race:White": {
      "share": 52.36,
@@ -448,22 +1688,6 @@
      "share": 8.63,
      "n": 243802
     },
-    "age:18-25": {
-     "share": 7.26,
-     "n": 204621
-    },
-    "age:26-40": {
-     "share": 15.6,
-     "n": 439906
-    },
-    "age:41-65": {
-     "share": 43.08,
-     "n": 1214752
-    },
-    "age:66+": {
-     "share": 34.06,
-     "n": 960240
-    },
     "gender:Female": {
      "share": 56.49,
      "n": 1596390
@@ -477,39 +1701,39 @@
      "n": 12382
     }
    },
-   "coverage": {
-    "race": 100.0,
-    "age": 99.8,
-    "gender": 100.0
+   "own": {
+    "age_uf:18-25": {
+     "share": 7.26,
+     "n": 204621
+    },
+    "age_uf:26-40": {
+     "share": 15.6,
+     "n": 439906
+    },
+    "age_uf:41-65": {
+     "share": 43.08,
+     "n": 1214752
+    },
+    "age_uf:66+": {
+     "share": 34.06,
+     "n": 960240
+    }
    },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "mi",
    "name": "Michigan",
-   "total": 1858731,
-   "as_of": "2026-10-30",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
+   "total": 1858731,
+   "as_of": "2026-10-30",
+   "coverage": {
+    "age_uf": 100.0,
+    "gender": 100.0
+   },
    "groups": {
-    "age:18-25": {
-     "share": 4.92,
-     "n": 91368
-    },
-    "age:26-40": {
-     "share": 9.84,
-     "n": 182827
-    },
-    "age:41-65": {
-     "share": 32.43,
-     "n": 602706
-    },
-    "age:66+": {
-     "share": 52.82,
-     "n": 981830
-    },
     "gender:Female": {
      "share": 55.42,
      "n": 1030169
@@ -523,21 +1747,37 @@
      "n": 5564
     }
    },
-   "coverage": {
-    "age": 100.0,
-    "gender": 100.0
+   "own": {
+    "age_uf:18-25": {
+     "share": 4.92,
+     "n": 91368
+    },
+    "age_uf:26-40": {
+     "share": 9.84,
+     "n": 182827
+    },
+    "age_uf:41-65": {
+     "share": 32.43,
+     "n": 602706
+    },
+    "age_uf:66+": {
+     "share": 52.82,
+     "n": 981830
+    }
    },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "wa",
    "name": "Washington",
-   "total": 1658115,
-   "as_of": "2026-10-30",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
+   "total": 1658115,
+   "as_of": "2026-10-30",
+   "coverage": {
+    "gender": 100.0
+   },
    "groups": {
     "gender:Female": {
      "share": 51.25,
@@ -552,165 +1792,150 @@
      "n": 33283
     }
    },
-   "coverage": {
-    "gender": 100.0
-   },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "own": {},
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "pa",
    "name": "Pennsylvania",
-   "total": 1042976,
-   "as_of": "2026-10-31",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
-   "groups": {
-    "age:18-25": {
+   "total": 1042976,
+   "as_of": "2026-10-31",
+   "coverage": {
+    "age_uf": 100.0
+   },
+   "groups": {},
+   "own": {
+    "age_uf:18-25": {
      "share": 4.56,
      "n": 47601
     },
-    "age:26-40": {
+    "age_uf:26-40": {
      "share": 10.01,
      "n": 104444
     },
-    "age:41-65": {
+    "age_uf:41-65": {
      "share": 28.55,
      "n": 297785
     },
-    "age:66+": {
+    "age_uf:66+": {
      "share": 56.87,
      "n": 593146
     }
    },
-   "coverage": {
-    "age": 100.0
-   },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "nv",
    "name": "Nevada",
-   "total": 718903,
-   "as_of": "2026-10-31",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
-   "groups": {
-    "age:18-25": {
+   "total": 718903,
+   "as_of": "2026-10-31",
+   "coverage": {
+    "age_uf": 96.1
+   },
+   "groups": {},
+   "own": {
+    "age_uf:18-25": {
      "share": 6.05,
      "n": 41817
     },
-    "age:26-40": {
+    "age_uf:26-40": {
      "share": 13.32,
      "n": 92020
     },
-    "age:41-65": {
+    "age_uf:41-65": {
      "share": 39.32,
      "n": 271590
     },
-    "age:66+": {
+    "age_uf:66+": {
      "share": 41.3,
      "n": 285244
     }
    },
-   "coverage": {
-    "age": 96.1
-   },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "ia",
    "name": "Iowa",
-   "total": 440389,
-   "as_of": "2026-10-31",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
-   "groups": {
-    "age:18-25": {
+   "total": 440389,
+   "as_of": "2026-10-31",
+   "coverage": {
+    "age_uf": 100.0
+   },
+   "groups": {},
+   "own": {
+    "age_uf:18-25": {
      "share": 5.01,
      "n": 22071
     },
-    "age:26-40": {
+    "age_uf:26-40": {
      "share": 9.57,
      "n": 42136
     },
-    "age:41-65": {
+    "age_uf:41-65": {
      "share": 32.96,
      "n": 145164
     },
-    "age:66+": {
+    "age_uf:66+": {
      "share": 52.46,
      "n": 231004
     }
    },
-   "coverage": {
-    "age": 100.0
-   },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "ct",
    "name": "Connecticut",
-   "total": 438386,
-   "as_of": "2026-10-31",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
-   "groups": {
-    "age:18-25": {
+   "total": 438386,
+   "as_of": "2026-10-31",
+   "coverage": {
+    "age_uf": 11.4
+   },
+   "groups": {},
+   "own": {
+    "age_uf:18-25": {
      "share": 6.48,
      "n": 3243
     },
-    "age:26-40": {
+    "age_uf:26-40": {
      "share": 5.99,
      "n": 3000
     },
-    "age:41-65": {
+    "age_uf:41-65": {
      "share": 18.95,
      "n": 9484
     },
-    "age:66+": {
+    "age_uf:66+": {
      "share": 68.57,
      "n": 34317
     }
    },
-   "coverage": {
-    "age": 11.4
-   },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "ks",
    "name": "Kansas",
-   "total": 422143,
-   "as_of": "2026-10-31",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
+   "total": 422143,
+   "as_of": "2026-10-31",
+   "coverage": {
+    "age_uf": 100.0,
+    "gender": 99.9
+   },
    "groups": {
-    "age:18-25": {
-     "share": 5.18,
-     "n": 21876
-    },
-    "age:26-40": {
-     "share": 11.37,
-     "n": 48007
-    },
-    "age:41-65": {
-     "share": 36.38,
-     "n": 153576
-    },
-    "age:66+": {
-     "share": 47.07,
-     "n": 198684
-    },
     "gender:Female": {
      "share": 55.05,
      "n": 232174
@@ -724,38 +1949,39 @@
      "n": 1251
     }
    },
-   "coverage": {
-    "age": 100.0,
-    "gender": 99.9
+   "own": {
+    "age_uf:18-25": {
+     "share": 5.18,
+     "n": 21876
+    },
+    "age_uf:26-40": {
+     "share": 11.37,
+     "n": 48007
+    },
+    "age_uf:41-65": {
+     "share": 36.38,
+     "n": 153576
+    },
+    "age_uf:66+": {
+     "share": 47.07,
+     "n": 198684
+    }
    },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "id",
    "name": "Idaho",
-   "total": 241364,
-   "as_of": "2026-10-31",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
+   "total": 241364,
+   "as_of": "2026-10-31",
+   "coverage": {
+    "age_uf": 49.3,
+    "gender": 49.3
+   },
    "groups": {
-    "age:18-25": {
-     "share": 3.2,
-     "n": 3811
-    },
-    "age:26-40": {
-     "share": 9.23,
-     "n": 10983
-    },
-    "age:41-65": {
-     "share": 32.75,
-     "n": 38964
-    },
-    "age:66+": {
-     "share": 54.82,
-     "n": 65234
-    },
     "gender:Female": {
      "share": 54.53,
      "n": 64878
@@ -769,143 +1995,156 @@
      "n": 4666
     }
    },
-   "coverage": {
-    "age": 49.3,
-    "gender": 49.3
+   "own": {
+    "age_uf:18-25": {
+     "share": 3.2,
+     "n": 3811
+    },
+    "age_uf:26-40": {
+     "share": 9.23,
+     "n": 10983
+    },
+    "age_uf:41-65": {
+     "share": 32.75,
+     "n": 38964
+    },
+    "age_uf:66+": {
+     "share": 54.82,
+     "n": 65234
+    }
    },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "ok",
    "name": "Oklahoma",
-   "total": 229151,
-   "as_of": "2026-11-01",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
-   "groups": {
-    "age:18-25": {
+   "total": 229151,
+   "as_of": "2026-11-01",
+   "coverage": {
+    "age_uf": 18.6
+   },
+   "groups": {},
+   "own": {
+    "age_uf:18-25": {
      "share": 4.83,
      "n": 2057
     },
-    "age:26-40": {
+    "age_uf:26-40": {
      "share": 9.05,
      "n": 3860
     },
-    "age:41-65": {
+    "age_uf:41-65": {
      "share": 28.27,
      "n": 12051
     },
-    "age:66+": {
+    "age_uf:66+": {
      "share": 57.85,
      "n": 24661
     }
    },
-   "coverage": {
-    "age": 18.6
-   },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "vt",
    "name": "Vermont",
-   "total": 146298,
-   "as_of": "2026-10-31",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
-   "groups": {
-    "age:18-25": {
+   "total": 146298,
+   "as_of": "2026-10-31",
+   "coverage": {
+    "age_uf": 99.4
+   },
+   "groups": {},
+   "own": {
+    "age_uf:18-25": {
      "share": 3.98,
      "n": 5790
     },
-    "age:26-40": {
+    "age_uf:26-40": {
      "share": 10.04,
      "n": 14597
     },
-    "age:41-65": {
+    "age_uf:41-65": {
      "share": 34.16,
      "n": 49675
     },
-    "age:66+": {
+    "age_uf:66+": {
      "share": 51.82,
      "n": 75345
     }
    },
-   "coverage": {
-    "age": 99.4
-   },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "de",
    "name": "Delaware",
-   "total": 137931,
-   "as_of": "2026-10-31",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
-   "groups": {
-    "age:18-25": {
+   "total": 137931,
+   "as_of": "2026-10-31",
+   "coverage": {
+    "age_uf": 100.0
+   },
+   "groups": {},
+   "own": {
+    "age_uf:18-25": {
      "share": 2.8,
      "n": 3868
     },
-    "age:26-40": {
+    "age_uf:26-40": {
      "share": 6.32,
      "n": 8715
     },
-    "age:41-65": {
+    "age_uf:41-65": {
      "share": 31.95,
      "n": 44074
     },
-    "age:66+": {
+    "age_uf:66+": {
      "share": 58.92,
      "n": 81274
     }
    },
-   "coverage": {
-    "age": 100.0
-   },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   },
   {
    "state": "ri",
    "name": "Rhode Island",
-   "total": 116845,
-   "as_of": "2026-10-30",
    "source": "UF Election Lab (compiled from official state sources), used with permission",
    "url": "https://election.lab.ufl.edu/early-vote/2026-early-voting",
-   "groups": {
-    "age:18-25": {
+   "total": 116845,
+   "as_of": "2026-10-30",
+   "coverage": {
+    "age_uf": 100.0
+   },
+   "groups": {},
+   "own": {
+    "age_uf:18-25": {
      "share": 2.46,
      "n": 2874
     },
-    "age:26-40": {
+    "age_uf:26-40": {
      "share": 7.81,
      "n": 9126
     },
-    "age:41-65": {
+    "age_uf:41-65": {
      "share": 30.43,
      "n": 35553
     },
-    "age:66+": {
+    "age_uf:66+": {
      "share": 59.3,
      "n": 69292
     }
    },
-   "coverage": {
-    "age": 100.0
-   },
-   "baseline_2022": null,
-   "baseline_label": null,
-   "notes": "No same-day 2022 breakdown is published for this state."
+   "baselines": {},
+   "notes": "No same-day past-year breakdown exists for this state."
   }
  ],
  "uf_file": "uf_2026-11-01.csv",
- "note": "Share = the group's share of the ballots that have the attribute recorded; coverage = those ballots as a share of all ballots counted. Change = percentage points vs the 2022 baseline named per state."
+ "note": "Share = the group's share of the ballots that have the attribute recorded; coverage = those ballots as a share of all ballots counted. Past years are the baselines named per state."
 }

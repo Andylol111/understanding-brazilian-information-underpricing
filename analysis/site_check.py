@@ -491,22 +491,54 @@ async def check_home_mix(page: Page) -> list[str]:
     return fails
 
 
-async def check_midterms(page: Page) -> list[str]:
-    """Midterms context page: every group table has rows, registration and poll tables are filled, no placeholder text."""
-    q = await page.evaluate("""() => ({ big: document.querySelectorAll('#big-list li').length,
-        ev: document.querySelectorAll('#ev-tables tbody tr:not(.dim)').length, rg: document.querySelectorAll('#rg-tables tbody tr:not(.dim)').length,
-        eg: document.querySelectorAll('#eg-table tbody tr:not(.dim):not(.mt-meta)').length, egc: document.querySelectorAll('#eg-table thead th').length,
-        rs: document.querySelectorAll('#rs-table tbody tr').length, px: document.querySelectorAll('#px-table tbody tr').length,
+NAV_EXPECT = ["Election nights", "US early vote", "Electorate by state", "Track record"]
+
+
+async def check_site_nav(page: Page) -> list[str]:
+    """The three US context pages share one top navigation: same labels in the same order, the current page not a link."""
+    labels = await page.evaluate("() => [...document.querySelectorAll('nav.sitenav a, nav.sitenav span[aria-current]')].map((e) => e.textContent.trim())")
+    cur = await page.evaluate("() => document.querySelectorAll('nav.sitenav [aria-current=page]').length")
+    out = []
+    if sorted(labels) != sorted(NAV_EXPECT) or cur != 1:
+        out.append(f"site nav differs from {NAV_EXPECT}: {labels}, current={cur}")
+    return out
+
+
+async def check_midterms(page: Page, viewport_name: str = "desktop") -> list[str]:
+    """Midterms page: overview charts, state picker and map, one state panel whose every sub-section has content, compare view, no horizontal scroll."""
+    q = await page.evaluate("""() => ({ evrows: document.querySelectorAll('#ov-ev .dp-row').length, regrows: document.querySelectorAll('#ov-reg .rb-row').length,
+        paths: document.querySelectorAll('#mt-map path[data-st]').length, chips: document.querySelectorAll('#mt-list button[data-st]').length,
+        tiles: document.querySelectorAll('#cmp-grid .cmp-tile').length, tx: document.querySelectorAll('#tx-table tbody tr').length,
+        hasPanel: !!document.querySelector('#state-panel h2'), base: document.querySelectorAll('#base-tog button').length,
         loading: [...document.querySelectorAll('main p, main td')].some((e) => /^Loading…$/.test(e.textContent.trim())) })""")
     out = []
-    if q["big"] < 4 or q["ev"] < 15 or q["rg"] < 15:
-        out.append(f"midterms group tables are short: {q}")
-    if q["eg"] < 12 or q["egc"] < 6:
-        out.append(f"midterms cross-state group table is short: {q}")
-    if not q["rs"] or not q["px"]:
-        out.append(f"midterms registration or poll table is empty: {q}")
+    if q["evrows"] < 3 or q["regrows"] < 3:
+        out.append(f"midterms overview charts are short: {q}")
+    if q["paths"] < 50 or q["chips"] < 40 or not q["hasPanel"]:
+        out.append(f"midterms state picker is short: {q}")
+    if q["tiles"] < 3 or q["tx"] < 10 or q["base"] < 4:
+        out.append(f"midterms compare view, mapping table or baseline toggle is short: {q}")
     if q["loading"]:
         out.append("midterms page still shows Loading")
+    # every state: the panel has sub-sections and none of them is an empty box
+    for st in ("nc", "co", "ga", "tx", "wy", "us"):
+        await page.evaluate("(s) => { location.hash = '#st=' + s; }", st)
+        await page.wait_for_function("(s) => document.querySelector('#state-panel h2') && document.querySelector('#state-panel').dataset.st === s", arg=st, timeout=10000)
+        r = await page.evaluate("""() => { const figs = [...document.querySelectorAll('#state-panel .mt-fig')];
+            return { n: figs.length, empty: figs.filter((f) => !f.querySelector('.dp-row, .ib-row, svg, .rb-row')).length, heads: figs.map((f) => f.querySelector('h3')?.textContent) }; }""")
+        if r["empty"]:
+            out.append(f"midterms {st}: empty sub-section(s) {r}")
+        if st in ("nc", "us") and r["n"] < 2:
+            out.append(f"midterms {st}: expected at least two sub-sections, got {r}")
+    nc = await page.evaluate("() => { location.hash = '#st=nc'; return 0; }")
+    await page.wait_for_function("() => document.querySelector('#state-panel').dataset.st === 'nc'", timeout=10000)
+    heads = await page.evaluate("() => [...document.querySelectorAll('#state-panel .mt-fig h3')].map((h) => h.textContent)")
+    if heads[:1] != ["Early vote by group"]:
+        out.append(f"midterms nc: sub-sections out of order: {heads}")
+    over = await page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    if over > 1:
+        out.append(f"midterms page scrolls sideways by {over}px on {viewport_name}")
+    del nc
     return out
 
 
@@ -638,10 +670,13 @@ async def check_page(
                 result.failures.append("article charts were not drawn")
             elif case.kind == "earlyvote":
                 result.failures.extend(await check_earlyvote(page, viewport_name))
+                result.failures.extend(await check_site_nav(page))
             elif case.kind == "scorecard":
                 result.failures.extend(await check_scorecard(page, viewport_name))
+                result.failures.extend(await check_site_nav(page))
             elif case.kind == "midterms":
-                result.failures.extend(await check_midterms(page))
+                result.failures.extend(await check_midterms(page, viewport_name))
+                result.failures.extend(await check_site_nav(page))
             elif case.kind == "election":
                 if not current["title"] or current["title"].startswith("Loading"):
                     result.failures.append("election title was not set")

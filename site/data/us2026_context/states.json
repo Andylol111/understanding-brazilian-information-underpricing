@@ -1,0 +1,957 @@
+{
+ "as_of": "2026-10-30T22:00:00Z",
+ "tiers": [
+  {
+   "id": "tossup",
+   "label": "Toss-up",
+   "lo": 0.4,
+   "hi": 0.6
+  },
+  {
+   "id": "lean_d",
+   "label": "Leans Democratic",
+   "lo": 0.6,
+   "hi": 0.75
+  },
+  {
+   "id": "lean_r",
+   "label": "Leans Republican",
+   "lo": 0.25,
+   "hi": 0.4
+  },
+  {
+   "id": "far",
+   "label": "Not close",
+   "lo": 0.0,
+   "hi": 1.0
+  },
+  {
+   "id": "none",
+   "label": "No statewide race",
+   "lo": null,
+   "hi": null
+  }
+ ],
+ "states": [
+  {
+   "st": "al",
+   "name": "Alabama",
+   "tier": "far",
+   "races": [
+    {
+     "key": "al-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.068,
+     "side": "Doug Jones",
+     "party": "D"
+    },
+    {
+     "key": "al-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.016,
+     "side": "Everett Wess",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ak",
+   "name": "Alaska",
+   "tier": "lean_d",
+   "races": [
+    {
+     "key": "ak-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.693,
+     "side": "Mary Peltola",
+     "party": "D"
+    },
+    {
+     "key": "ak-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.877,
+     "side": "Jonathan Kreiss-Tomkins",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "az",
+   "name": "Arizona",
+   "tier": "far",
+   "races": [
+    {
+     "key": "az-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.925,
+     "side": "Katie Hobbs",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ar",
+   "name": "Arkansas",
+   "tier": "far",
+   "races": [
+    {
+     "key": "ar-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.048,
+     "side": "Hallie Shoffner",
+     "party": "D"
+    },
+    {
+     "key": "ar-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.024,
+     "side": "Fred Love",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ca",
+   "name": "California",
+   "tier": "far",
+   "races": [
+    {
+     "key": "ca-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.973,
+     "side": "Xavier Becerra",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "co",
+   "name": "Colorado",
+   "tier": "far",
+   "races": [
+    {
+     "key": "co-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.968,
+     "side": "Phil Weiser",
+     "party": "D"
+    },
+    {
+     "key": "co-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.985,
+     "side": "John Hickenlooper",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ct",
+   "name": "Connecticut",
+   "tier": "far",
+   "races": [
+    {
+     "key": "ct-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.976,
+     "side": "Ned Lamont",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "de",
+   "name": "Delaware",
+   "tier": "far",
+   "races": [
+    {
+     "key": "de-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.981,
+     "side": "Chris Coons",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "dc",
+   "name": "District of Columbia",
+   "tier": "none",
+   "races": []
+  },
+  {
+   "st": "fl",
+   "name": "Florida",
+   "tier": "lean_r",
+   "races": [
+    {
+     "key": "fl-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.318,
+     "side": "David Jolly",
+     "party": "D"
+    },
+    {
+     "key": "fl-sen",
+     "office": "senate",
+     "special": true,
+     "p": 0.1,
+     "side": "Angie Nixon",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ga",
+   "name": "Georgia",
+   "tier": "lean_d",
+   "races": [
+    {
+     "key": "ga-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.655,
+     "side": "Keisha Lance Bottoms",
+     "party": "D"
+    },
+    {
+     "key": "ga-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.968,
+     "side": "Jon Ossoff",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "hi",
+   "name": "Hawaii",
+   "tier": "far",
+   "races": [
+    {
+     "key": "hi-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.983,
+     "side": "Josh Green",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "id",
+   "name": "Idaho",
+   "tier": "far",
+   "races": [
+    {
+     "key": "id-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.022,
+     "side": "Terri Pickens",
+     "party": "D"
+    },
+    {
+     "key": "id-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.001,
+     "side": "David Roth",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "il",
+   "name": "Illinois",
+   "tier": "far",
+   "races": [
+    {
+     "key": "il-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.982,
+     "side": "JB Pritzker",
+     "party": "D"
+    },
+    {
+     "key": "il-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.987,
+     "side": "Juliana Stratton",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "in",
+   "name": "Indiana",
+   "tier": "none",
+   "races": []
+  },
+  {
+   "st": "ia",
+   "name": "Iowa",
+   "tier": "tossup",
+   "races": [
+    {
+     "key": "ia-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.445,
+     "side": "Josh Turek",
+     "party": "D"
+    },
+    {
+     "key": "ia-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.863,
+     "side": "Rob Sand",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ks",
+   "name": "Kansas",
+   "tier": "tossup",
+   "races": [
+    {
+     "key": "ks-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.525,
+     "side": "Adam Hamilton",
+     "party": "D"
+    },
+    {
+     "key": "ks-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.275,
+     "side": "Cindy Holscher",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ky",
+   "name": "Kentucky",
+   "tier": "far",
+   "races": [
+    {
+     "key": "ky-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.028,
+     "side": "Charles Booker",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "la",
+   "name": "Louisiana",
+   "tier": "far",
+   "races": [
+    {
+     "key": "la-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.1,
+     "side": null,
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "me",
+   "name": "Maine",
+   "tier": "lean_d",
+   "races": [
+    {
+     "key": "me-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.68,
+     "side": "Troy Jackson",
+     "party": "D"
+    },
+    {
+     "key": "me-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.959,
+     "side": "Hannah Pingree",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "md",
+   "name": "Maryland",
+   "tier": "far",
+   "races": [
+    {
+     "key": "md-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.985,
+     "side": "Wes Moore",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ma",
+   "name": "Massachusetts",
+   "tier": "far",
+   "races": [
+    {
+     "key": "ma-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.975,
+     "side": "Maura Healey",
+     "party": "D"
+    },
+    {
+     "key": "ma-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.99,
+     "side": "Ed Markey",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "mi",
+   "name": "Michigan",
+   "tier": "far",
+   "races": [
+    {
+     "key": "mi-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.76,
+     "side": "Abdul El-Sayed",
+     "party": "D"
+    },
+    {
+     "key": "mi-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.942,
+     "side": "Jocelyn Benson",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "mn",
+   "name": "Minnesota",
+   "tier": "far",
+   "races": [
+    {
+     "key": "mn-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.91,
+     "side": "Peggy Flanagan",
+     "party": "D"
+    },
+    {
+     "key": "mn-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.972,
+     "side": "Amy Klobuchar",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ms",
+   "name": "Mississippi",
+   "tier": "far",
+   "races": [
+    {
+     "key": "ms-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.12,
+     "side": "Scott Colom",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "mo",
+   "name": "Missouri",
+   "tier": "none",
+   "races": []
+  },
+  {
+   "st": "mt",
+   "name": "Montana",
+   "tier": "far",
+   "races": [
+    {
+     "key": "mt-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.112,
+     "side": "Seth Bodnar",
+     "party": "I"
+    }
+   ]
+  },
+  {
+   "st": "ne",
+   "name": "Nebraska",
+   "tier": "lean_r",
+   "races": [
+    {
+     "key": "ne-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.323,
+     "side": "Dan Osborn",
+     "party": "I"
+    },
+    {
+     "key": "ne-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.15,
+     "side": "Lynne Walz",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "nv",
+   "name": "Nevada",
+   "tier": "far",
+   "races": [
+    {
+     "key": "nv-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.765,
+     "side": "Aaron Ford",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "nh",
+   "name": "New Hampshire",
+   "tier": "far",
+   "races": [
+    {
+     "key": "nh-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.922,
+     "side": "Chris Pappas",
+     "party": "D"
+    },
+    {
+     "key": "nh-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.069,
+     "side": "Cinde Warmington",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "nj",
+   "name": "New Jersey",
+   "tier": "far",
+   "races": [
+    {
+     "key": "nj-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.982,
+     "side": "Cory Booker",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "nm",
+   "name": "New Mexico",
+   "tier": "far",
+   "races": [
+    {
+     "key": "nm-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.949,
+     "side": "Deb Haaland",
+     "party": "D"
+    },
+    {
+     "key": "nm-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.986,
+     "side": "Ben Ray Luj\u00e1n",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ny",
+   "name": "New York",
+   "tier": "far",
+   "races": [
+    {
+     "key": "ny-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.966,
+     "side": "Kathy Hochul",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "nc",
+   "name": "North Carolina",
+   "tier": "far",
+   "races": [
+    {
+     "key": "nc-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.973,
+     "side": "Roy Cooper",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "nd",
+   "name": "North Dakota",
+   "tier": "none",
+   "races": []
+  },
+  {
+   "st": "oh",
+   "name": "Ohio",
+   "tier": "lean_d",
+   "races": [
+    {
+     "key": "oh-sen",
+     "office": "senate",
+     "special": true,
+     "p": 0.705,
+     "side": "Sherrod Brown",
+     "party": "D"
+    },
+    {
+     "key": "oh-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.808,
+     "side": "Amy Acton",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ok",
+   "name": "Oklahoma",
+   "tier": "far",
+   "races": [
+    {
+     "key": "ok-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.093,
+     "side": "Cyndi Munson",
+     "party": "D"
+    },
+    {
+     "key": "ok-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.02,
+     "side": "N\u2019Kiyla Thomas",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "or",
+   "name": "Oregon",
+   "tier": "far",
+   "races": [
+    {
+     "key": "or-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.81,
+     "side": "Tina Kotek",
+     "party": "D"
+    },
+    {
+     "key": "or-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.985,
+     "side": "Jeff Merkley",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "pa",
+   "name": "Pennsylvania",
+   "tier": "far",
+   "races": [
+    {
+     "key": "pa-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.981,
+     "side": "Josh Shapiro",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ri",
+   "name": "Rhode Island",
+   "tier": "far",
+   "races": [
+    {
+     "key": "ri-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.961,
+     "side": "Helena Foulkes",
+     "party": "D"
+    },
+    {
+     "key": "ri-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.99,
+     "side": "Jack Reed",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "sc",
+   "name": "South Carolina",
+   "tier": "lean_r",
+   "races": [
+    {
+     "key": "sc-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.275,
+     "side": "Annie Andrews",
+     "party": "D"
+    },
+    {
+     "key": "sc-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.073,
+     "side": "Jermaine Johnson",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "sd",
+   "name": "South Dakota",
+   "tier": "far",
+   "races": [
+    {
+     "key": "sd-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.029,
+     "side": "Dan Ahlers",
+     "party": "D"
+    },
+    {
+     "key": "sd-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.003,
+     "side": "Julian Beaudion",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "tn",
+   "name": "Tennessee",
+   "tier": "far",
+   "races": [
+    {
+     "key": "tn-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.055,
+     "side": "Jerri Green",
+     "party": "D"
+    },
+    {
+     "key": "tn-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.031,
+     "side": "Marquita Bradshaw",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "tx",
+   "name": "Texas",
+   "tier": "lean_r",
+   "races": [
+    {
+     "key": "tx-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.375,
+     "side": "Gina Hinojosa",
+     "party": "D"
+    },
+    {
+     "key": "tx-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.715,
+     "side": "James Talarico",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "ut",
+   "name": "Utah",
+   "tier": "none",
+   "races": []
+  },
+  {
+   "st": "vt",
+   "name": "Vermont",
+   "tier": "far",
+   "races": [
+    {
+     "key": "vt-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.245,
+     "side": "Amanda Janoo",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "va",
+   "name": "Virginia",
+   "tier": "far",
+   "races": [
+    {
+     "key": "va-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.987,
+     "side": "Mark Warner",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "wa",
+   "name": "Washington",
+   "tier": "none",
+   "races": []
+  },
+  {
+   "st": "wv",
+   "name": "West Virginia",
+   "tier": "far",
+   "races": [
+    {
+     "key": "wv-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.018,
+     "side": "Rachel Fetty Anderson",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "wi",
+   "name": "Wisconsin",
+   "tier": "far",
+   "races": [
+    {
+     "key": "wi-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.83,
+     "side": "David Crowley",
+     "party": "D"
+    }
+   ]
+  },
+  {
+   "st": "wy",
+   "name": "Wyoming",
+   "tier": "far",
+   "races": [
+    {
+     "key": "wy-sen",
+     "office": "senate",
+     "special": false,
+     "p": 0.015,
+     "side": "James Byrd",
+     "party": "D"
+    },
+    {
+     "key": "wy-gov",
+     "office": "governor",
+     "special": false,
+     "p": 0.014,
+     "side": "Kenneth Casner",
+     "party": "D"
+    }
+   ]
+  }
+ ],
+ "source": "Polymarket and Kalshi prices (mean), from the election page's data"
+}
