@@ -105,7 +105,7 @@ official rows. Result of the survey (2026-11-01): the Archive captured the RPubs
 static files behind them are almost never archived; only Georgia (as of Oct 9), Pennsylvania (Oct 7) and South Dakota (Oct 7)
 have a page before Election Day, 29-32 days before it, and Florida's only copy is the final one (Nov 8, captured Nov 14). So no
 state's pace uses an archived UF 2022 page for 2026's days 3-8; the page says so, and only states with an official 2022
-day-by-day series (CO, LA, MD, NC, OK, PA) get a pace. The code picks up any archived page that falls within the allowed gap.
+day-by-day series (CO, MD, NC, OK, PA) get a pace. The code picks up any archived page that falls within the allowed gap.
 The national page's 2022 daily totals (aggregate over the reporting states, not by state) are not used: the state sets differ.
 Access: web.archive.org only (CDX + `id_` captures), at most one request a second, user agent `brunder/0.1 (research; recorder)`.
 
