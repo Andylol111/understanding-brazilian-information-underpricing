@@ -4,8 +4,8 @@
 # results, population growth and demographics (docs/us_unified.md). Parameters fitted leave-one-cycle-out on 2016-2024.
 # Same [election], [count] and [markets] as us2026_civic_ia_gov_v1.toml except turnout_ratio = 1.0 (the prior's V is already the expected
 # vote). The prior is us2026_unified_priors.csv (NOT read by brunder.us.load_priors: run it with
-# analysis/us_unified_replay.py). Statewide forecast 0.5214 ± 0.0226 (P(D wins) 0.829),
-# 12 polls in the window, poll average 0.5340; frozen 2026-11-02.
+# analysis/us_unified_replay.py). Statewide forecast 0.5217 ± 0.0226 (P(D wins) 0.832),
+# 13 polls in the window, poll average 0.5339; frozen 2026-11-02.
 # Frozen before polls close; nothing here was chosen on 2026 count data.
 id = "us2026_unified_civic_ia_gov_v1"
 
@@ -25,10 +25,10 @@ b = { party = "REP", name = "Zach Lahn", color = "#c8102e" }
 [prior]                    # data_public/us2026_unified_priors.csv
 share = "uni_ia_gov_2026"
 votes = "uni_ia_gov_2026"
-statewide_mean = 0.5214
+statewide_mean = 0.5217
 statewide_sd = 0.0226
-p_win = 0.8286
-poll_n = 12
+p_win = 0.8320
+poll_n = 13
 
 [model]                    # brunder.nowcast.Params: count-order settings as the registered v1 of this feed
 tau = 0.06

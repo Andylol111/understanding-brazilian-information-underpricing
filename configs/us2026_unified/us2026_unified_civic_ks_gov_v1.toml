@@ -4,8 +4,8 @@
 # results, population growth and demographics (docs/us_unified.md). Parameters fitted leave-one-cycle-out on 2016-2024.
 # Same [election], [count] and [markets] as us2026_civic_ks_gov_v1.toml except turnout_ratio = 1.0 (the prior's V is already the expected
 # vote). The prior is us2026_unified_priors.csv (NOT read by brunder.us.load_priors: run it with
-# analysis/us_unified_replay.py). Statewide forecast 0.4898 ± 0.0303 (P(D wins) 0.369),
-# 3 polls in the window, poll average 0.4756; frozen 2026-11-02.
+# analysis/us_unified_replay.py). Statewide forecast 0.4999 ± 0.0280 (P(D wins) 0.499),
+# 6 polls in the window, poll average 0.4917; frozen 2026-11-02.
 # Frozen before polls close; nothing here was chosen on 2026 count data.
 id = "us2026_unified_civic_ks_gov_v1"
 
@@ -25,17 +25,17 @@ b = { party = "REP", name = "Ty Masterson", color = "#c8102e" }
 [prior]                    # data_public/us2026_unified_priors.csv
 share = "uni_ks_gov_2026"
 votes = "uni_ks_gov_2026"
-statewide_mean = 0.4898
-statewide_sd = 0.0303
-p_win = 0.3687
-poll_n = 3
+statewide_mean = 0.4999
+statewide_sd = 0.0280
+p_win = 0.4987
+poll_n = 6
 
 [model]                    # brunder.nowcast.Params: count-order settings as the registered v1 of this feed
 tau = 0.06
 rho = 0.3
 sigma_mun0 = 0.08
 swing_prior_mean = 0.0       # the unified prior already contains the poll / national information
-swing_prior_sd = 0.0303      # predictive sd of the statewide share (leave-one-cycle-out residuals by number of polls)
+swing_prior_sd = 0.0280      # predictive sd of the statewide share (leave-one-cycle-out residuals by number of polls)
 count_scaled_terms = true
 
 [count]                    # brunder.us.CountRules

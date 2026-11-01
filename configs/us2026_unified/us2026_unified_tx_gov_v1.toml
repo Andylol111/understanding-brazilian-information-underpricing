@@ -4,8 +4,8 @@
 # results, population growth and demographics (docs/us_unified.md). Parameters fitted leave-one-cycle-out on 2016-2024.
 # Same [election], [count] and [markets] as us2026_tx_gov_v1.toml except turnout_ratio = 1.0 (the prior's V is already the expected
 # vote). The prior is us2026_unified_priors.csv (NOT read by brunder.us.load_priors: run it with
-# analysis/us_unified_replay.py). Statewide forecast 0.4814 ± 0.0226 (P(D wins) 0.205),
-# 18 polls in the window, poll average 0.4860; frozen 2026-11-02.
+# analysis/us_unified_replay.py). Statewide forecast 0.4812 ± 0.0226 (P(D wins) 0.203),
+# 21 polls in the window, poll average 0.4856; frozen 2026-11-02.
 # Frozen before polls close; nothing here was chosen on 2026 count data.
 id = "us2026_unified_tx_gov_v1"
 
@@ -23,10 +23,10 @@ b = { party = "REP", name = "Greg Abbott", color = "#c8102e" }
 [prior]                    # data_public/us2026_unified_priors.csv
 share = "uni_tx_gov_2026"
 votes = "uni_tx_gov_2026"
-statewide_mean = 0.4814
+statewide_mean = 0.4812
 statewide_sd = 0.0226
-p_win = 0.2046
-poll_n = 18
+p_win = 0.2028
+poll_n = 21
 
 [model]                    # brunder.nowcast.Params: count-order settings as the registered v1 of this feed
 tau = 0.04
