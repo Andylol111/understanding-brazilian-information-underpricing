@@ -11,6 +11,8 @@ painted (window.__world.info() on the homepage, window.__dashAudit on the electi
   e. legend: present, no "undefined"/"NaN", and a key for the hatch wherever it is drawn;
   f. back: into a region and back to the country (Esc with a unit pinned, the breadcrumb, a click
      outside) returns to the initial whole-country fit, with region= gone from the URL.
+  g. controls: on a fresh load, the keys (? help, + and 0 zoom and reset), the Layers menu's hatching key, shift-click
+     selection with its panel, and the address hash reproducing the selection in a new page (dash-ux.js).
 
 Used by analysis/site_check.py (every run) and on its own:
     uv run --no-project --with playwright --with pillow python analysis/map_audit.py --base http://127.0.0.1:8813/ [--engines chromium,firefox] [--shots /tmp/map_audit]
@@ -243,7 +245,108 @@ async def audit_election(page: Page, base: str, e: dict[str, Any], shots: Path |
     if eid == "us2026":
         rows += await audit_house(page, shots, tag)
         rows += await audit_pins(page)
+    rows += await audit_ux(page, base, eid)
     return rows
+
+
+async def audit_ux(page: Page, base: str, eid: str) -> list[Row]:
+    """The map's own controls (dash-ux.js) on a fresh load: ? opens the key list and Esc closes it; + zooms by 1.5 and 0
+    returns to the fit, the address hash carrying the zoom only while zoomed; the Layers menu's hatching shows in the legend;
+    shift-click selects two units, the Selection panel shows, the hash lists them, Esc clears; a link with that hash opens
+    with the same selection."""
+    A = "window.__dashAudit"
+    bad: list[str] = []
+    ev = page.evaluate
+    await page.goto(f"{base}election.html?id={eid}", wait_until="load")
+    try:
+        await page.wait_for_function(f"{A} && window.__dashPerf && window.__dashPerf.firstRenderMs != null", timeout=45000)
+    except Exception:
+        return [Row(eid, "g controls", False, "map never painted")]
+    await settle(page, 900)
+    await page.keyboard.press("?")
+    if not await ev("!document.querySelector('.help-overlay')?.hidden"):
+        bad.append("? did not open the key list")
+    await page.keyboard.press("Escape")
+    if not await ev("document.querySelector('.help-overlay')?.hidden"):
+        bad.append("Esc did not close the key list")
+    v0 = await ev(f"{A}.view()")
+    await page.keyboard.press("+")
+    await settle(page, 700)
+    v1 = await ev(f"{A}.view()")
+    if not 1.45 < v1["k"] / v0["k"] < 1.55:
+        bad.append(f"+ zoomed by {v1['k'] / v0['k']:.2f}")
+    await settle(page, 400)
+    if "z=" not in await ev("location.hash"):
+        bad.append("the zoom is not in the hash")
+    await page.keyboard.press("0")
+    await settle(page, 1300)
+    v2 = await ev(f"{A}.view()")
+    if abs(v2["k"] - v0["k"]) > 0.01 * v0["k"]:
+        bad.append(f"0 left the zoom at {v2['k'] / v0['k']:.2f}")
+    await settle(page, 400)
+    if "z=" in await ev("location.hash"):
+        bad.append("the hash keeps z= after the reset")
+    await page.keyboard.press("l")
+    if not await ev("!document.getElementById('layers-menu')?.hidden"):
+        bad.append("L did not open the Layers menu")
+    elif await ev("!!document.querySelector('#layers-menu input[value=hatch]:not([disabled])')"):
+        await page.click("#layers-menu input[value=hatch]")
+        await settle(page, 400)
+        if "Hatching" not in await ev("document.getElementById('legend').textContent"):
+            bad.append("the hatching layer has no key in the legend")
+        await page.click("#layers-menu input[value=none]")
+    await page.keyboard.press("Escape")
+    # two units under the pointer with data, at the unit level
+    levels = await ev(f"{A}.levels()")
+    if levels:
+        await ev(f"{A}.setLevel('units')")
+        await settle(page, 1800)
+    found: list[tuple[int, list[float]]] = []
+    ids = await ev(f"{A}.units().ids")
+    step = max(1, len(ids) // 250)
+    for i in range(0, len(ids), step):
+        p = await ev(f"{A}.unitPoint({i})")
+        if p:
+            p = [round(p[0]), round(p[1])]  # a click lands on whole pixels
+        if not p or await ev(f"{A}.unitAt({p[0]},{p[1]})") != i or not await ev(f"document.elementFromPoint({p[0]},{p[1]})?.classList.contains('map-overlay')"):
+            continue
+        card = await ev(f"{A}.card({i})")
+        if card and not re.search(r"No data|Not part of", card):
+            found.append((i, p))
+        if len(found) == 2:
+            break
+    if len(found) < 2:
+        return [Row(eid, "g controls", not bad, "; ".join(bad) or "keys, zoom, layers and hash ok (no two units to select)")]
+    await page.keyboard.down("Shift")
+    for _, p in found:
+        if not await ev(f"document.elementFromPoint({p[0]},{p[1]})?.classList.contains('map-overlay')"):
+            await page.click("#sel-panel .sp-fold")  # the panel covers the next unit: fold it
+        await page.mouse.click(p[0], p[1])
+        await settle(page, 200)
+    await page.keyboard.up("Shift")
+    await settle(page, 700)
+    sel = (await ev(f"{A}.ux()"))["selected"]
+    if len(sel) != 2:
+        bad.append(f"shift-click selected {len(sel)}")
+    if "Selection" not in await ev("document.getElementById('sel-panel')?.hidden ? '' : document.getElementById('sel-panel').innerText"):
+        bad.append("no Selection panel")
+    url = await ev("location.href")
+    if "s=" not in url:
+        bad.append("the selection is not in the hash")
+    await page.keyboard.press("Escape")
+    if (await ev(f"{A}.ux()"))["selected"] or not await ev("document.getElementById('sel-panel')?.hidden"):
+        bad.append("Esc did not clear the selection")
+    await page.goto("about:blank")
+    await page.goto(url, wait_until="load")
+    try:
+        await page.wait_for_function(f"{A} && window.__dashPerf && window.__dashPerf.firstRenderMs != null", timeout=45000)
+        await settle(page, 1200)
+        again = (await ev(f"{A}.ux()"))["selected"]
+        if sorted(again) != sorted(sel):
+            bad.append(f"a link with the hash restored {again}, not {sel}")
+    except Exception:
+        bad.append("the link with the hash never painted")
+    return [Row(eid, "g controls", not bad, "; ".join(bad) or "keys, zoom, layers, shift-click selection and the hash link work")]
 
 
 async def audit_pins(page: Page) -> list[Row]:

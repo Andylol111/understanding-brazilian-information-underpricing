@@ -829,6 +829,11 @@ th.open .help-pop, th:has(.help:hover) .help-pop, th:has(.help:focus-visible) .h
 .map-search li small { color: var(--muted); }
 .sel-panel { right: 10px; top: 52px; width: 276px; max-height: calc(100% - 150px); overflow-y: auto; background: var(--paper); border: 1px solid var(--ink); padding: 8px 11px 7px; font: 13px/1.4 var(--sans); z-index: 3; }
 .sel-panel td.n { white-space: nowrap; }
+.sel-panel.folded { width: auto; max-width: 276px; }
+.sel-panel.folded > :not(.sp-head) { display: none; }
+.sel-panel.folded .sp-head { margin-bottom: 0; }
+.sp-fold { border: 0; background: none; font: 13px/1 var(--sans); cursor: pointer; padding: 0 2px 0 0; color: var(--muted); }
+.sp-fold:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .sp-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
 .sp-head span { color: var(--muted); }
 .sp-clear { margin-left: auto; font: 12px var(--sans); padding: 2px 8px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); border-radius: 3px; cursor: pointer; }

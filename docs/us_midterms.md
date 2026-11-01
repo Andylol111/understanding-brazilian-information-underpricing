@@ -983,7 +983,8 @@ Everything below changes only what is drawn; no number the model uses depends on
   **Shift-drag** draws a lasso round the units to add. The Selection panel gives the vote-weighted share counted, the
   model's estimate, the difference between the two, the share counted, the votes left (the model's estimate where the file has
   one, otherwise the expected vote not yet counted), the swing from the comparison election and the selection's own sparkline.
-  Units are weighted by their expected vote (`V0`), as the state totals are. Selection works at the unit level only.
+  Units are weighted by their expected vote (`V0`), as the state totals are. Selection works at the unit level only; the panel folds to
+  its header (▾) so it never hides the units under it.
 - **Layers menu**: a second encoding over the fill (hatching for the share still to count, dots for the votes left, an outline for
   the turnout against the expectation where the units carry it), each layer with its own opacity, and "Margin × counted":
   the margin map's four strengths per side, washed toward grey while under 30% (then 80%) of the unit is counted
@@ -991,6 +992,8 @@ Everything below changes only what is drawn; no number the model uses depends on
 - **The address hash** carries the view, so a link shares it: `#z=<zoom>,<x>,<y>&s=<unit ids>&enc=<layer>&eo=<opacity>&fo=<fill opacity>&m=<colouring>&t=<UTC time>`
   (`z` relative to the fitted view; `s` only up to 400 units; `t` only when the viewer is not following the newest frame).
   The race, region and level stay in the query string; the Show chips' `show=` is unchanged.
+
+The pinned card's "Expected two-party votes" had read ten times too high (the turnout file stores votes rounded to tens, not divided by ten); fixed in the same change.
 
 Measured before and after (Chromium, headless, 4× CPU slowdown, `/tmp` profile scripts of the build 20261101m1): interaction was
 already cheap (scrub 1.5–4 ms per step, hover 0.1–0.6 ms, zoom frames at the display rate). What cost time was the load: the

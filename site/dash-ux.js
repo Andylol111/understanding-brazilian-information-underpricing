@@ -109,8 +109,8 @@ export function createUx(host) {
     const e = U.V0[j];
     if (!(e > 0) || k < 0) return [];
     const f = U.F[k * U.n + j] / 1000;
-    const left = U.rem ? U.rem.votes[k * U.n + j] : e * (1 - f);
-    return [["Expected votes", `≈ ${votesShort(e)}`], ["Counted so far", `≈ ${votesShort(e * f)}`], ...(Number.isFinite(left) ? [["Votes left", `≈ ${votesShort(left)}`]] : [])];
+    // the card already has the turnout model's expected votes and the model's votes left where the file carries them
+    return [...(U.turnout ? [] : [["Expected votes", `≈ ${votesShort(e)}`]]), ["Counted so far", `≈ ${votesShort(e * f)}`], ...(U.rem ? [] : [["Votes left", `≈ ${votesShort(e * (1 - f))}`]])];
   }
 
   /* ------------------------------------------------------------ selection */
@@ -122,7 +122,11 @@ export function createUx(host) {
   panel.hidden = true;
   panel.setAttribute("aria-label", "Selection");
   box.append(panel);
-  panel.addEventListener("click", (e) => { if (e.target.closest(".sp-clear")) clear(); });
+  let folded = false; // the panel can be folded to its header so it never hides the units under it
+  panel.addEventListener("click", (e) => {
+    if (e.target.closest(".sp-clear")) clear();
+    else if (e.target.closest(".sp-fold")) { folded = !folded; panelKey = ""; renderPanel(); }
+  });
 
   let shown = false; // what the map is told to outline
   function syncMap() {
@@ -191,7 +195,8 @@ export function createUx(host) {
       : [[`${a}, result`, pct(g.raw)], [`${a}, comparison election`, pct(g.prior)], ["Swing", signedPt(swing)]];
     const names = js.slice(0, 4).map((j) => U.names[j] ?? U.unit_ids[j]);
     const noun = host.unitNoun();
-    panel.innerHTML = `<div class="sp-head"><b>Selection</b> <span>${js.length.toLocaleString("en-US")} ${plural(noun, js.length)}</span><button type="button" class="sp-clear">Clear</button></div>
+    panel.classList.toggle("folded", folded);
+    panel.innerHTML = `<div class="sp-head"><button type="button" class="sp-fold" aria-expanded="${!folded}" aria-label="${folded ? "Show" : "Fold"} the selection details" title="${folded ? "Show" : "Fold"} the details">${folded ? "▸" : "▾"}</button><b>Selection</b> <span>${js.length.toLocaleString("en-US")} ${plural(noun, js.length)}</span><button type="button" class="sp-clear">Clear</button></div>
       <table class="kv"><tbody>${rows.map(([x, v]) => `<tr><td>${x}</td><td class="n">${v}</td></tr>`).join("")}</tbody></table>
       ${sparkHTML(U, js, k, side.race, side.a)}
       <p class="pc-hint">${esc(names.join(", "))}${js.length > names.length ? ` and ${js.length - names.length} more` : ""}. Shares weigh each ${esc(noun)} by its expected vote. Shift-click adds or removes one; Esc clears.</p>`;
@@ -426,7 +431,7 @@ export function createUx(host) {
     const k = e.key;
     if (!help.hidden) {
       if (k === "Escape" || k === "?") { closeHelp(); e.preventDefault(); return true; }
-      return false;
+      return k !== "Tab"; // the open list takes the keys (no Space playing the night behind it)
     }
     if (k === "?") { e.preventDefault(); openHelp(); return true; }
     if (k === "Escape") {

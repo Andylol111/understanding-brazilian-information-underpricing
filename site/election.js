@@ -1037,7 +1037,7 @@ function turnoutRows(U, k, j) {
   const r = T.ratio[k * U.n + j], e = T.exp[j], lp = T.lowprop[j];
   return [
     ...(r >= 0 ? [[`Turnout vs expected${U.F[k * U.n + j] < 950 ? " (projected)" : ""}`, `${r >= 1000 ? "+" : "−"}${Math.abs(r / 10 - 100).toFixed(1)}%`]] : []),
-    ...(e > 0 ? [["Expected two-party votes", votesShort(10 * e)]] : []), // turnout_exp is in tens
+    ...(e > 0 ? [["Expected two-party votes", votesShort(e)]] : []), // turnout_exp: votes, rounded to tens
     ...(Number.isFinite(lp) ? [["Low-propensity index", lp.toFixed(2)]] : []),
   ];
 }
