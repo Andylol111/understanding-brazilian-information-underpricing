@@ -1,0 +1,4 @@
+state,state_abbv,last_update,request_all,request_dem,request_rep,request_none,accept_all,accept_dem,accept_rep,accept_none,inperson_all,inperson_dem,inperson_rep,inperson_none,voted_all,voted_dem,voted_rep,voted_none
+Arizona,AZ,10/31/2026,3318151,1060479,1177846,1079826,1563442,581774,595716,385952,0,0,0,0,1563442,581774,595716,385952
+Georgia,GA,10/31/2026,156145,0,0,0,118638,0,0,0,2704627,0,0,0,2823265,0,0,0
+Nevada,NV,10/31/2026,2091353,585886,564220,941247,410884,173201,119102,118581,308019,112957,121631,73431,718903,286158,240733,192012

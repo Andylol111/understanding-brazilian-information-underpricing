@@ -3,9 +3,9 @@
 **Status: data collection infrastructure, not a model input.** Official, openly licensed state publications of ballots already
 cast (mail and in-person early voting), kept as immutable dated snapshots plus an aggregate SQLite database, refreshed every
 3 hours until 2026-11-04T06:00Z. Code: `analysis/us_ev_db.py` (core, CLI, NC/FL/TX collectors), `analysis/us_ev_legacy.py`
-(ingest of the files that pre-date the database), `analysis/us_ev_src_{a,b,c,d}.py` (the other states: A = AK AL AR AZ CA CO CT DC
+(ingest of the files that pre-date the database), `analysis/us_ev_src_{a,b,c,d,e}.py` (the other states: A = AK AL AR AZ CA CO CT DC
 DE GA HI ID, B = IA IL IN KS KY LA MA MD ME MI MN MO MS, C = MT NE NH NJ NM NV NY ND OH OK OR PA, D = RI SC SD TN UT VA VT WA WI WV
-WY). Tests: `tests/test_us_ev_db.py`, `tests/test_us_ev_src_*.py` (parsers on trimmed real excerpts, aggregate rows only).
+WY, E = county offices and the secondary UF tracker, see below). Tests: `tests/test_us_ev_db.py`, `tests/test_us_ev_src_*.py` (parsers on trimmed real excerpts, aggregate rows only).
 
 ## Layout (all on the SSD, `BRUNDER_DATA=~/brunder-data-local`; `BRUNDER_EV_ROOT` overrides the `us_ev` directory for scratch runs)
 
@@ -79,6 +79,33 @@ concurrent run exits at once if the loop holds the lock).
 county stats files are parsed into the live sources' series. The TX/FL/NC pipeline outputs (`site/data/us2026/earlyvote.json`) are not
 touched. Historical (2016-2024) daily county series do not exist in any open source (NC and FL publish final files only; state panels
 above are reconstructions by return date, with the look-ahead caveats of [us_ev_gap.md](us_ev_gap.md)).
+
+## Gap fillers (batch E, `us_ev_src_e.py`)
+
+County offices that publish what a blocked or silent state does not. **County rows only, never state totals** (each source covers one
+county or city, so a "state" figure would be wrong); all `party` ALL except Alameda.
+
+| source_id | covers | measure | note |
+|---|---|---|---|
+| `ny_nyc_checkins` | NYC's five boroughs = counties 36061/36005/36047/36081/36085 | `inperson_early` | vote.nyc "Early Voting Check-Ins", cumulative at close of polls each day; each day's boroughs must add up to the printed citywide figure |
+| `nv_clark_ev` | Clark County NV (32003) | `inperson_early` | Election Department turnout page, day totals accumulated; the sum must equal its "Accumulated Total"; unreported (zero) days are skipped |
+| `tn_davidson_ev` | Davidson County TN (47037) | `inperson_early` | nashville.gov Early Voting Statistics, cumulative per day |
+| `ca_alameda_vbm` | Alameda County CA (06001) | `mail_requested` (= ballots issued), `mail_returned`, by party | gives the party split the statewide `ca_ev_county` lacks; page has no timestamp, so as_of = fetch date (Pacific) |
+
+**Secondary source `uf_election_lab`** (`kind = secondary`, `state = us`): the University of Florida Election Lab's early-vote tracker CSV
+(`election.lab.ufl.edu/data-downloads/earlyvote/2026/US.csv`, all states, robots.txt allows it). Licence on its tracker page: Creative
+Commons Attribution-NonCommercial-NoDerivatives 4.0, attribution required, non-commercial use only; figures are stored exactly as
+published and shown with "Source: UF Election Lab (CC BY-NC-ND 4.0)". It is a compilation, not an official count: the Lab
+fills some states by estimate or from AP and county contacts (its per-state notes say so, e.g. Michigan in-person is estimated, Arizona
+"requests" are ballots issued). Rows go to `ev_state` under their own `source_id` and are never merged into official rows: use them only
+for states with no official row, and `status` ignores them when it reports coverage. Mapping: request -> `mail_requested`, accept ->
+`mail_accepted`, inperson -> `inperson_early`, voted -> `total`; dem/rep/none -> D/R/U; 0 means "not reported" and is not stored.
+
+Looked at and **not collected** (`not_collected` entries in the same file, reasons in `sources`): Maricopa (Cloudflare 403), LA /
+San Diego / Orange / San Bernardino / Sacramento (no daily data file), Santa Clara and Riverside (403), Franklin OH (voter-level files only),
+Cuyahoga / Hamilton (nothing published), Summit OH (403), Detroit (403), Fulton / Cobb / DeKalb / Gwinnett GA (no statistics),
+Westchester (403), Erie (nothing), Shelby TN (403), Clark's per-voter mail-ballot file (voter-level), Milwaukee / Madison / Minneapolis / Hennepin
+(nothing published as data). Requests for access to the blocked state files are drafted (not sent) in the handoff notes.
 
 ## Sources (registry, as of 2026-10-31)
 

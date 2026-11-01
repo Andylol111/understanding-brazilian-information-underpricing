@@ -568,9 +568,10 @@ def status_table(st: Store) -> pd.DataFrame:
     load_extensions()
     st.sync_sources()
     q = lambda sql: pd.read_sql(sql, st.db)       # noqa: E731
-    ev = q("SELECT state, as_of_date, measure, party, 'county' lvl FROM ev_county_latest "
-           "UNION ALL SELECT state, as_of_date, measure, party, 'state' FROM ev_state_latest")
+    ev = q("SELECT state, as_of_date, measure, party, 'county' lvl, source_id FROM ev_county_latest "
+           "UNION ALL SELECT state, as_of_date, measure, party, 'state', source_id FROM ev_state_latest")
     srcs = q("SELECT state, source_id, access, kind FROM sources")
+    ev = ev[~ev["source_id"].isin(srcs.loc[srcs["kind"] == "secondary", "source_id"])]     # secondary compilations are never official coverage
     last = q("SELECT l.state, l.source_id, l.ts, l.outcome, l.message FROM fetch_log l JOIN "
              "(SELECT source_id, MAX(rowid) r FROM fetch_log WHERE outcome LIKE 'collector%' "
              "GROUP BY source_id) m ON l.rowid=m.r")
