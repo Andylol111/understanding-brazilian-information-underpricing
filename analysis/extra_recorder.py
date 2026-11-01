@@ -1,7 +1,7 @@
-"""Passive recorder for three extra election-night sources, one request at a time, every 60 s.
+"""Passive recorder for three extra election-night sources, one request at a time, every 120 s.
 
   va  Virginia Enhanced Voting (enr.elections.virginia.gov): the election document (absentee-by-method statistics,
-      registration by locality) and the ballot items of the U.S. Senate race and the 11 U.S. House races
+      registration by locality) and the ballot items of the U.S. Senate race and the VA-02 and VA-07 House races
       (county x candidate x vote method).
   ia  Iowa Clarity (electionresults.iowa.gov, 2026 General EID 127077): current_ver.txt every cycle; when the
       version changes, json/en/summary.json and reports/detailxml.zip.
@@ -15,7 +15,7 @@ line per request: ts, source, url, status, bytes, sha256, version, file, note (+
 again. Honest user agent, robots.txt per host, no retry loop, no bypass: 401/403/429, an empty 202, a challenge
 header or an HTML page where data was expected stops that source. Exits by itself at --until.
 
-    uv run python analysis/extra_recorder.py --out /srv/brunder/extrarec --until 2026-11-04T12:00:00Z
+    uv run python analysis/extra_recorder.py --out /srv/brunder/extrarec --until 2026-11-04T10:00:00Z
 """
 from __future__ import annotations
 
@@ -36,14 +36,15 @@ from urllib.parse import urlsplit
 import httpx
 
 UA = "brunder/0.1 (research; recorder)"
-INTERVAL = 60.0          # seconds between two requests to the same URL
+INTERVAL = 120.0         # seconds between two requests to the same URL
 GAP = 1.5                # seconds between any two requests
 VA_BASE = "https://enr.elections.virginia.gov/results/public/api/elections/virginia/2026-November-General/data"
 IA_BASE = "https://electionresults.iowa.gov/IA/127077"
 SC_BASE = "https://www.enr-scvotes.org/SC"
 SC_RETRY = 600.0
+VA_ITEMS = re.compile(r"United States Senate|House of Representatives \((2nd|7th) District\)")
 DEFAULT_OUT = "/srv/brunder/extrarec"
-DEFAULT_UNTIL = "2026-11-04T12:00:00Z"
+DEFAULT_UNTIL = "2026-11-04T10:00:00Z"
 _CHALLENGE_BODY = re.compile(rb"captcha|challenge-platform|_incapsula_|cf-chl|access denied|just a moment", re.I)
 
 
@@ -225,7 +226,7 @@ class Recorder:
             ids = []
             for b in items:
                 name = next((n["text"] for n in b.get("name", []) if n.get("languageId") == "en"), "")
-                if re.search(r"United States Senate|House of Representatives", name):
+                if VA_ITEMS.search(name):
                     ids.append(b["id"])
             if ids:
                 st["items"] = ids

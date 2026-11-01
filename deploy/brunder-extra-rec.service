@@ -1,6 +1,6 @@
-# Passive recorder for Virginia (Enhanced Voting), Iowa and South Carolina (Clarity): one request at a time every 60 s,
+# Passive recorder for Virginia (Enhanced Voting: election document, Senate, VA-02, VA-07), Iowa and South Carolina (Clarity; blocked from this server): one request at a time every 120 s,
 # dated gzip snapshots under /srv/brunder/extrarec. Separate checkout (/srv/brunder/evdb), not the election repo.
-# Exits by itself at --until (2026-11-04 12:00 UTC), so Restart=on-failure does not bring it back after that.
+# Exits by itself at --until (2026-11-04 10:00 UTC), so Restart=on-failure does not bring it back after that.
 [Unit]
 Description=brunder extra-source recorder (VA Enhanced Voting, IA + SC Clarity)
 Wants=network-online.target
@@ -13,7 +13,7 @@ Group=brunder
 WorkingDirectory=/srv/brunder/evdb
 Environment=HOME=/srv/brunder
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/srv/brunder/.local/bin/uv run --frozen python analysis/extra_recorder.py --out /srv/brunder/extrarec --until 2026-11-04T12:00:00Z
+ExecStart=/srv/brunder/.local/bin/uv run --frozen python analysis/extra_recorder.py --out /srv/brunder/extrarec --until 2026-11-04T10:00:00Z
 Restart=on-failure
 RestartSec=30
 Nice=15

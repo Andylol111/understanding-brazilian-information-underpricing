@@ -1,8 +1,8 @@
 [Unit]
-Description=Start the extra-source recorder (VA, IA, SC) at 2026-11-03 22:00 UTC
+Description=Start the extra-source recorder (VA, IA, SC) at 2026-11-03 23:30 UTC
 
 [Timer]
-OnCalendar=2026-11-03 22:00:00 UTC
+OnCalendar=2026-11-03 23:30:00 UTC
 Persistent=true
 Unit=brunder-extra-rec.service
 

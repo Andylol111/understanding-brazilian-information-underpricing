@@ -125,3 +125,24 @@ def test_not_modified_and_unchanged_not_stored(tmp_path):
     assert r.fetch("va", rec.VA_BASE, "main.json", expect="json")[1] is not None
     assert r.fetch("va", rec.VA_BASE, "main.json", expect="json") == (304, None)
     assert len(list((tmp_path / "va").glob("*.gz"))) == 1
+
+
+def test_va_polls_main_senate_va02_va07_only(tmp_path):
+    names = ["Member, United States Senate"] + [f"Member, House of Representatives ({o} District)" for o in
+             ("1st", "2nd", "3rd", "7th", "11th")] + ["Mayor - Farmville (Town of Farmville)"]
+    main = {"ballotItems": [{"id": f"id-{i:012d}", "name": [{"languageId": "en", "text": n}]} for i, n in enumerate(names)]}
+    seen = []
+
+    def h(req):
+        seen.append(req.url.path)
+        if req.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(200, json=main if req.url.path.endswith("/data") else {"i": req.url.path},
+                              headers={"content-type": "application/json"})
+
+    r = _recorder(tmp_path, h)
+    st = {}
+    r.cycle_va(st)
+    items = [p.rsplit("/", 1)[1] for p in seen if "ballot-item" in p]
+    assert items == ["id-000000000000", "id-000000000002", "id-000000000004"]
+    assert rec.INTERVAL == 120.0
