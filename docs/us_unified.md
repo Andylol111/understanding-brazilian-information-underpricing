@@ -391,3 +391,11 @@ and carry the v1-style "past results + national swing" estimate.
   For 2026 the pre-count unified probabilities sit beside the market prices in the usual pre-count dashboard once the configs are registered.
 - **County turnout** is scored as the total-variation distance between the predicted and actual county shares of a race's votes (% of the state's votes that
   would have to move) and the statewide log error of expected votes, not as a per-county absolute error of vote counts.
+
+## 10. Related tests (not part of the frozen challenger)
+
+- **Cross-race sharing** (`docs/us_crossrace.md`): letting the governor count inform the Senate count in the same state
+  (and House districts) did not clear the bar of an out-of-sample gain in every held-out cycle; with both races counted
+  together it is no better than separate models. Kept as a sensitivity in `src/brunder/us_unified_xrace.py`.
+- **County benchmarks** (`docs/us_benchmarks.md`, `data_public/us2026_benchmarks*.csv`): a pre-election what-to-expect sheet
+  per county; reading early "tell" counties was worse than the count model at the same share counted.

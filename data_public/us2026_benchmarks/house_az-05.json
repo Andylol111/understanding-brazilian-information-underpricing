@@ -1,0 +1,152 @@
+{
+ "race_id": "house:AZ-05",
+ "name": "AZ-05 U.S. House",
+ "state": "az",
+ "kind": "house",
+ "config": "us2026_unified_house_az-05_v1",
+ "config_path": "configs/us2026_unified/house/us2026_unified_house_az-05_v1.toml",
+ "prior_source": "unified",
+ "prior": "uni_house_az-05_2026",
+ "frozen": "2026-11-02",
+ "statewide": {
+  "mean": 0.427,
+  "sd": 0.0429,
+  "p_win": 0.0442,
+  "poll_n": 0,
+  "p_win_nowcast_precount": 0.141696,
+  "margin_sd_pts_nowcast_precount": 13.611463,
+  "benchmark_margin_pts": -14.601447,
+  "benchmark_margin_votes": -50724.31,
+  "expected_votes": 347392.35,
+  "units": 2,
+  "side_a": "Elizabeth Lee",
+  "side_b": "Mark Lamb"
+ },
+ "params": {
+  "tau": 0.01,
+  "rho": 0.6,
+  "sigma_mun0": 0.08,
+  "swing_prior_sd": 0.0429,
+  "count_scaled_terms": true,
+  "f_complete": 0.98,
+  "f_max": 0.95,
+  "vote_type": true,
+  "early_share": 0.75,
+  "use_outstanding": false,
+  "learn_turnout": true,
+  "complete_fraction_used": 0.98
+ },
+ "order": {
+  "source": "2020+2024+size",
+  "early_cutoff_cum_share": 0.4,
+  "mc_orders": 80,
+  "order_noise_sd": 0.57,
+  "note": "expected order: 2/3 mean percentile of 2020/2024 presidential county completion times + 1/3 size percentile"
+ },
+ "benchmark_path": [
+  {
+   "q": 0.05,
+   "final_margin_pts": -14.601447,
+   "counties_in_order": 1,
+   "counted_frac_order": 0.185479,
+   "raw_margin_pts_order": -26.120089,
+   "gap_pts_order": -11.518641,
+   "nowcast_p_win_order": 0.112681,
+   "nowcast_margin_sd_pts_order": 12.043473,
+   "minutes_after_close": 61.0,
+   "raw_margin_pts": -14.601447,
+   "gap_pts": -0.0,
+   "nowcast_p_win": 0.157976,
+   "nowcast_margin_sd_pts": 14.560504
+  },
+  {
+   "q": 0.1,
+   "final_margin_pts": -14.601447,
+   "counties_in_order": 1,
+   "counted_frac_order": 0.185479,
+   "raw_margin_pts_order": -26.120089,
+   "gap_pts_order": -11.518641,
+   "nowcast_p_win_order": 0.112681,
+   "nowcast_margin_sd_pts_order": 12.043473,
+   "minutes_after_close": 62.0,
+   "raw_margin_pts": -14.601447,
+   "gap_pts": -0.0,
+   "nowcast_p_win": 0.144908,
+   "nowcast_margin_sd_pts": 13.794162
+  },
+  {
+   "q": 0.25,
+   "final_margin_pts": -14.601447,
+   "counties_in_order": 2,
+   "counted_frac_order": 1.0,
+   "raw_margin_pts_order": -22.470362,
+   "gap_pts_order": -7.868915,
+   "nowcast_p_win_order": 0.0,
+   "nowcast_margin_sd_pts_order": 0.186072,
+   "minutes_after_close": 65.0,
+   "raw_margin_pts": -14.601447,
+   "gap_pts": 0.0,
+   "nowcast_p_win": 0.102002,
+   "nowcast_margin_sd_pts": 11.495135
+  },
+  {
+   "q": 0.5,
+   "final_margin_pts": -14.601447,
+   "counties_in_order": 2,
+   "counted_frac_order": 1.0,
+   "raw_margin_pts_order": -17.224419,
+   "gap_pts_order": -2.622972,
+   "nowcast_p_win_order": 0.0,
+   "nowcast_margin_sd_pts_order": 0.186072,
+   "minutes_after_close": 69.982053,
+   "raw_margin_pts": -14.604013,
+   "gap_pts": -0.002566,
+   "nowcast_p_win": 0.028382,
+   "nowcast_margin_sd_pts": 7.664302
+  },
+  {
+   "q": 0.75,
+   "final_margin_pts": -14.601447,
+   "counties_in_order": 2,
+   "counted_frac_order": 1.0,
+   "raw_margin_pts_order": -15.475771,
+   "gap_pts_order": -0.874324,
+   "nowcast_p_win_order": 0.0,
+   "nowcast_margin_sd_pts_order": 0.186072,
+   "minutes_after_close": 1812.594723,
+   "raw_margin_pts": -14.775316,
+   "gap_pts": -0.173869,
+   "nowcast_p_win": 6.9e-05,
+   "nowcast_margin_sd_pts": 3.832238
+  },
+  {
+   "q": 0.9,
+   "final_margin_pts": -14.601447,
+   "counties_in_order": 2,
+   "counted_frac_order": 1.0,
+   "raw_margin_pts_order": -14.892888,
+   "gap_pts_order": -0.291441,
+   "nowcast_p_win_order": 0.0,
+   "nowcast_margin_sd_pts_order": 0.186072
+  }
+ ],
+ "top_tells": [
+  {
+   "unit_id": "us-az-04021",
+   "name": "Pinal",
+   "exp_rank": 1,
+   "p_early": 0.75,
+   "s0": 0.3694,
+   "V": 64434.0,
+   "dP_dshare": 1.365,
+   "dMargin_dshare": 2983.7,
+   "tell_early": 8525.0,
+   "tell_margin": 9746.0,
+   "tell_P": 3.904
+  }
+ ],
+ "checks": {
+  "max_rel_sd_change_under_perturbation": 0.0,
+  "max_nonlinearity": 0.0
+ }
+}
