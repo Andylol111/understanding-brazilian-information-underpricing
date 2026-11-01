@@ -499,8 +499,16 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
         out.append(f"coverage map has {p['mapPaths']} states")
     if not p["c1"] or not p["c2"] or not p["chips"]:
         out.append(f"default state is missing charts or key figures: {p}")
-    # a state with party detail, daily files and history; one with county data only; a blocked one
-    for st, want in (("nc", {"party": True, "county": True, "compare": True}), ("tx", {"party": False, "county": True, "compare": False}), ("wi", {"blocked": True})):
+    # a state with party detail, daily files and history; one with county data only; a compiled one and a blocked one if there are any
+    index = await page.evaluate("fetch('data/ev2026/index.json').then((r) => r.json())")
+    by = {c["status"]: c for c in reversed(index["states"]) if c.get("has_state") or c["status"] in ("blocked", "not_published")}
+    plan = [("nc", {"party": True, "county": True, "compare": True}), ("tx", {"party": False, "county": True, "compare": False})]
+    if "compiled" in by:
+        plan.append((by["compiled"]["st"], {"compiled": True}))
+    for k in ("blocked", "not_published"):
+        if k in by:
+            plan.append((by[k]["st"], {"blocked": True}))
+    for st, want in plan:
         await page.select_option("#st-pick", st)
         await page.wait_for_function("(s) => new URLSearchParams(location.search).get('st') === s", arg=st)
         await page.wait_for_timeout(700)
@@ -508,10 +516,14 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
             c1: document.querySelectorAll('#c1 svg path').length, partyShown: !document.querySelector('#party-fig').hidden && document.querySelectorAll('#c3 svg path').length > 0,
             ctyShown: !document.querySelector('#cty-fig').hidden && document.querySelectorAll('#cty-map svg path').length > 3,
             cmpRows: document.querySelectorAll('#cmp-table tbody tr').length, cmpCharts: document.querySelectorAll('#c4 svg path').length,
-            basis: document.querySelector('#st-basis').textContent.length })""")
+            uf: document.querySelector('#st-uf').textContent, basis: document.querySelector('#st-basis').textContent.length })""")
         if want.get("blocked"):
             if q["c1"] or not q["basis"]:
-                out.append(f"{st}: a blocked state should show its reason and no charts: {q}")
+                out.append(f"{st}: a state with no data should show its reason and no charts: {q}")
+            continue
+        if want.get("compiled"):
+            if not q["c1"] or "UF Election Lab" not in q["uf"] or "permission" not in q["uf"]:
+                out.append(f"{st}: a compiled state must show charts and the UF label with the permission line: {q}")
             continue
         if not q["c1"] or q["partyShown"] != want["party"] or q["ctyShown"] != want["county"] or bool(q["cmpCharts"]) != want["compare"]:
             out.append(f"{st}: unexpected panels {q}")

@@ -173,3 +173,11 @@ Notes. `none` = looked at, nothing collectable: *blocked* (a bot wall answered t
 to non-browser clients today (some answered a reviewer earlier: the block may be intermittent; they are not retried by the loop).
 SD's page cell for 10/30 walk-in repeats the Republican figure, so the party sum is used. PA's xlsx is dated the day before its
 stamp ("as of 10/31 08:00" -> 10/30). ND has no timestamp (as_of = fetch date). NM's portal is election-night only.
+
+## UF Election Lab tracker (`uf_election_lab`, kind `secondary`)
+
+A compilation of the state figures for all states (US.csv), kept under its own source_id and never merged into official rows.
+Licence: CC BY-NC-ND 4.0; displayed with the permission of Dr. Michael McDonald, granted to the project (recorded 2026-11-01).
+Label wherever shown: "UF Election Lab (compiled from official state sources), used with permission", linking to
+https://election.lab.ufl.edu/early-vote/2026-early-voting. `analysis/us_ev_site.py` publishes it only for states with no official
+count (status "compiled") and as a cross-check next to official figures; see [us_ev_site.md](us_ev_site.md).

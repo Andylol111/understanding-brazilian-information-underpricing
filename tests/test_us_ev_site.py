@@ -132,8 +132,7 @@ def tiny_db(path: Path, sources=True):
     rows_ = [("pa", "2026-10-30", "mail_returned", "ALL", 1045149, "pa_mail_socrata"), ("pa", "2026-10-30", "mail_returned", "D", 675923, "pa_mail_socrata"),
              ("pa", "2026-10-30", "mail_returned", "R", 264586, "pa_mail_socrata"), ("pa", "2026-10-30", "mail_returned", "other", 104640, "pa_mail_socrata"),
              ("pa", "2026-10-29", "mail_returned", "ALL", 1010823, "pa_mail_socrata"),
-             ("pa", "2026-10-30", "mail_returned", "ALL", 1041756, "pa_mail_daily_xlsx"),
-             ("nc", "2026-10-30", "total", "ALL", 999999999, "uf_election_lab")]
+             ("pa", "2026-10-30", "mail_returned", "ALL", 1041756, "pa_mail_daily_xlsx")]
     for r in rows_:
         con.execute("INSERT INTO ev_state(state, as_of_date, measure, party, age_band, count, source_id, snapshot_id) VALUES (?,?,?,?, 'ALL', ?,?,1)", r)
     for fips, n in (("42001", 600000), ("42003", 445149)):
@@ -142,22 +141,33 @@ def tiny_db(path: Path, sources=True):
     con.close()
 
 
-def test_built_site_files_count_pa_once_and_leave_out_secondary_rows(tmp_path, monkeypatch):
+def test_built_site_files_count_pa_once_and_label_uf_rows(tmp_path, monkeypatch):
     monkeypatch.setenv("BRUNDER_DATA", str(tmp_path))          # no past-cycle panels, no return-date files here
     p = tmp_path / "ev.sqlite"
     tiny_db(p)
+    con = sqlite3.connect(p)                                   # the Lab's rows: a state with no official count, and PA as a cross-check
+    con.execute("INSERT INTO fetch_log(ts, state, source_id, outcome) VALUES ('2026-10-31T12:00:00Z','us','uf_election_lab','new')")
+    for st, d, m, party, n in (("nc", "2026-10-30", "total", "ALL", 2500000), ("nc", "2026-10-30", "total", "D", 1000000), ("nc", "2026-10-30", "total", "R", 700000),
+                               ("pa", "2026-10-30", "total", "ALL", 1046000)):
+        con.execute("INSERT INTO ev_state(state, as_of_date, measure, party, age_band, count, source_id, snapshot_id) VALUES (?,?,?,?, 'ALL', ?, 'uf_election_lab', 1)", (st, d, m, party, n))
+    con.commit()
+    con.close()
     res = site.build(p, tmp_path / "out", use_daily=False, log=lambda *_: None)
-    idx = json.loads((tmp_path / "out" / "index.json").read_text())
+    out = tmp_path / "out"
+    idx = json.loads((out / "index.json").read_text())
     assert len(idx["states"]) == 51
-    pa = json.loads((tmp_path / "out" / "state_pa.json").read_text())
-    assert pa["latest"]["total"] == 1045149                    # one source, not 1,045,149 + 1,041,756
+    pa = json.loads((out / "state_pa.json").read_text())
+    assert pa["latest"]["total"] == 1045149                    # one source, not 1,045,149 + 1,041,756 (and not the Lab's 1,046,000)
     assert pa["series"]["total"] == [1010823, 1045149] and pa["series"]["added_total"][-1] == 1045149 - 1010823
     assert pa["latest"]["lead"] == pytest.approx(100 * (675923 - 264586) / (675923 + 264586 + 104640), abs=0.001)
-    assert [c["total"] for c in json.loads((tmp_path / "out" / "counties_pa.json").read_text())["counties"]] == [600000, 445149]
-    assert not (tmp_path / "out" / "state_nc.json").exists()   # the secondary tracker's rows never reach the site
-    nc = next(c for c in idx["states"] if c["st"] == "nc")
-    assert nc["status"] != "collected" and nc["total"] is None
-    assert idx["tracker"]["url"] == "https://example.org/uf_election_lab" and "999999999" not in json.dumps(idx)
+    assert pa["uf_check"]["diff"] == 1046000 - 1045149 and pa["uf_check"]["official_total"] == 1045149
+    assert [c["total"] for c in json.loads((out / "counties_pa.json").read_text())["counties"]] == [600000, 445149]
+    nc = next(c for c in idx["states"] if c["st"] == "nc")      # no official row: compiled, labelled, never called collected
+    assert nc["status"] == "compiled" and nc["total"] == 2500000 and nc["detail"] == site.UF_LABEL and nc["official"]["status"] == "not_published"
+    assert nc["party"] is True and nc["lead"] == pytest.approx(100 * (1000000 - 700000) / 1700000, abs=0.001)
+    assert json.loads((out / "state_nc.json").read_text())["compiled"] is True
+    assert next(c for c in idx["states"] if c["st"] == "pa")["status"] == "collected"
+    assert idx["tracker"]["licence"] == site.UF_LICENCE and idx["counts"]["compiled"] == 1
     assert res["audit"]["county_not_equal_state"] == []
 
 

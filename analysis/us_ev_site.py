@@ -42,6 +42,12 @@ MIDTERMS = (2018, 2022)
 FIRST_2026, LAST_2026 = "2026-06-01", "2026-11-10"
 STALE_DAYS = 3                       # latest as-of older than this many days before the newest in the database: flagged
 PARTIES = ("D", "R", "U", "other")
+UF_ID = "uf_election_lab"
+UF_PAGE = "https://election.lab.ufl.edu/early-vote/2026-early-voting"
+UF_LABEL = "UF Election Lab (compiled from official state sources), used with permission"
+UF_LICENCE = "CC BY-NC-ND 4.0; displayed with the permission of Dr. Michael McDonald, granted to the project (recorded 2026-11-01)"
+UF_BASIS = ("Compiled by the UF Election Lab from official state sources, as the Lab publishes it (figures are not adjusted here). "
+            "The Lab fills some states by estimate or from county contacts, so this is not an official count.")
 NAMES = {
     "al": "Alabama", "ak": "Alaska", "az": "Arizona", "ar": "Arkansas", "ca": "California", "co": "Colorado", "ct": "Connecticut",
     "de": "Delaware", "dc": "District of Columbia", "fl": "Florida", "ga": "Georgia", "hi": "Hawaii", "id": "Idaho", "il": "Illinois",
@@ -86,21 +92,21 @@ def read_db(path: Path) -> dict:
     return out
 
 
-def drop_secondary(frames: dict) -> tuple[dict, dict | None]:
-    """Secondary compilations (sources of kind 'secondary': the UF Election Lab tracker, CC BY-NC-ND, no derivatives) never
-    reach the site: their rows are removed before anything is computed. -> (frames, {'label','url'} of the one link we may give)."""
+def split_uf(frames: dict) -> tuple[dict, pd.DataFrame, str | None]:
+    """The UF Election Lab tracker (kind 'secondary', CC BY-NC-ND, shown with the project's permission) is kept apart from the
+    official rows: it never enters an official series, only (a) fills states with no official count, labelled as compiled,
+    and (b) is shown next to the official figure of the other states as a cross-check.
+    -> (frames without UF rows, UF state rows, time of the last UF fetch)."""
     src = frames["sources"]
-    sec = src[src["kind"] == "secondary"]
-    if sec.empty:
-        return frames, None
-    ids = set(sec["source_id"])
+    ids = set(src.loc[src["kind"] == "secondary", "source_id"])
+    uf = frames["state"][frames["state"]["source_id"] == UF_ID]
+    last = frames["fetch_log"].loc[frames["fetch_log"]["source_id"] == UF_ID, "ts"].max()
     for k in ("state", "county"):
         frames[k] = frames[k][~frames[k]["source_id"].isin(ids)]
     frames["snapshots"] = frames["snapshots"][~frames["snapshots"]["source_id"].isin(ids)]
     frames["fetch_log"] = frames["fetch_log"][~frames["fetch_log"]["source_id"].isin(ids)]
-    url = next((u for u in sec["url"] if str(u).startswith("http")), None)
     frames["sources"] = src[src["kind"] != "secondary"]
-    return frames, ({"label": "Independent national tracker: University of Florida Election Lab", "url": url} if url else None)
+    return frames, uf, (None if pd.isna(last) else last)
 
 
 def add_daily_sources(frames: dict, log=print) -> dict:
@@ -191,7 +197,7 @@ def source_labels(sources: pd.DataFrame, st: str) -> dict[str, dict]:
     return out
 
 
-def build_state(st: str, rows: pd.DataFrame, srcs: dict, hist: dict | None, cur_days: int) -> dict | None:
+def build_state(st: str, rows: pd.DataFrame, srcs: dict, hist: dict | None, compiled: bool = False, uf_hist: dict | None = None) -> dict | None:
     mail_m = "mail_returned" if (rows["measure"] == "mail_returned").any() else "mail_accepted"
     has_ip = (rows["measure"] == "inperson_early").any()
     w = wide(rows, ["state"], mail_m, has_ip).droplevel("state")
@@ -225,7 +231,8 @@ def build_state(st: str, rows: pd.DataFrame, srcs: dict, hist: dict | None, cur_
         "st": st, "name": NAMES[st], "as_of": t.index[-1], "election_day": ELECTION_DAY.isoformat(),
         "methods": {"mail": mail_m if t["mail"].notna().any() else None, "inperson": "inperson_early" if t["inperson"].notna().any() else None},
         "mail_label": MAIL_TEXT[mail_m], "has_party": has_party,
-        "basis": BASIS.get(st) or ("; ".join(x for x in (MAIL_TEXT[mail_m] if t["mail"].notna().any() else "", "in-person early votes" if t["inperson"].notna().any() else "") if x) or "Ballots returned") + ".",
+        "compiled": compiled,
+        "basis": UF_BASIS if compiled else BASIS.get(st) or ("; ".join(x for x in (MAIL_TEXT[mail_m] if t["mail"].notna().any() else "", "in-person early votes" if t["inperson"].notna().any() else "") if x) or "Ballots returned") + ".",
         "daily_file": any(s.startswith("daily_") for s in used),
         "series": series, "sources": [srcs.get(s, {"id": s, "url": None, "what": "Earlier file compiled from official publications before the database started", "cadence": ""}) for s in used],
         "latest": {"date": t.index[-1], "db": int(db_days[-1]), "total": clean(last["total"]), "mail": clean(last["mail"]), "inperson": clean(last["inperson"]),
@@ -235,12 +242,12 @@ def build_state(st: str, rows: pd.DataFrame, srcs: dict, hist: dict | None, cur_
                    "party": {p: clean(last[p]) for p in PARTIES} if has_party else None},
         "requested": {"date": req.index[-1], "value": clean(req.iloc[-1])} if len(req) else None,
     }
-    out["compare"] = compare(st, t, lead, hist) if hist is not None else {"cycles": [], "why": "past-cycle panels not available in this build"}
+    out["compare"] = compare(st, t, lead, hist, uf_hist if compiled else None) if hist is not None else {"cycles": [], "why": "past-cycle panels not available in this build"}
     return out
 
 
 # --------------------------------------------------------------------------------------------------------- compare
-def compare(st: str, t: pd.DataFrame, lead: pd.Series, hist: dict) -> dict:
+def compare(st: str, t: pd.DataFrame, lead: pd.Series, hist: dict, uf_hist: dict | None = None) -> dict:
     """Same day before Election Day in 2018-2024: ballots then, as a share of that cycle's final total votes, party lead then."""
     d0 = (ELECTION_DAY - date.fromisoformat(t.index[-1])).days
     kind = "total"
@@ -252,6 +259,8 @@ def compare(st: str, t: pd.DataFrame, lead: pd.Series, hist: dict) -> dict:
     cycles = []
     for y in YEARS:
         base = {"year": y, "midterm": y in MIDTERMS}
+        if uf_hist is not None and hs.empty:                # a state with no official past series: the Lab's own past file, if it fits
+            cycles.append(uf_cycle(st, y, base, d0, now_total, now_lead, uf_hist, hist)); continue
         h = hs[(hs["year"] == y) & (hs["kind"] == kind) & (~hs["is_final"])]
         fin = hist["final"].loc[(st, y)] if (st, y) in hist["final"].index else None
         votes = float(fin["votes"]) if fin is not None and fin["missing"] == 0 and fin["counties"] > 0 else None
@@ -282,14 +291,36 @@ def compare(st: str, t: pd.DataFrame, lead: pd.Series, hist: dict) -> dict:
             "votes_basis": "Final total votes cast in that election: the largest office total in each county of the official county panel, summed."}
 
 
+def uf_cycle(st: str, y: int, base: dict, d0: int, now_total, now_lead, uf_hist: dict, hist: dict) -> dict:
+    """The Lab's past tracker file holds ONE snapshot per state (dated 0-5 days before Election Day), only for 2024; the 2020 and 2022
+    files do not exist. It is a same-day comparison only when that snapshot falls within a day of this year's day."""
+    r = uf_hist.get(st) if y == 2024 else None
+    if r is None:
+        return {**base, "ok": False, "why": "the UF Election Lab publishes no past file for this cycle" if y != 2024 else "the Lab's 2024 file has no count for this state"}
+    if abs(r["days_before"] - d0) > 1:
+        return {**base, "ok": False, "why": f"the Lab's 2024 file is one snapshot taken {r['days_before']} days before Election Day, not {d0}"}
+    fin = hist["final"].loc[(st, y)] if (st, y) in hist["final"].index else None
+    votes = float(fin["votes"]) if fin is not None and fin["missing"] == 0 and fin["counties"] > 0 else None
+    den = r["D"] + r["R"] + r["U"] if r["D"] and r["R"] else None
+    lead = 100 * (r["D"] - r["R"]) / den if den else None
+    return {**base, "ok": True, "days_used": r["days_before"], "date": r["date"], "ballots": clean(r["total"]), "final_votes": clean(votes),
+            "pct_final": clean(100 * r["total"] / votes) if votes else None, "lead": clean(lead),
+            "now_pct_final": clean(100 * now_total / votes) if votes else None, "now_vs_then": clean(now_total / r["total"]),
+            "partial": False, "uf": True, "curve": {"db": [r["days_before"]], "cum": [clean(r["total"])], "lead": None}}
+
+
 # --------------------------------------------------------------------------------------------------------- counties
 def build_counties(st: str, rows: pd.DataFrame, names: dict, hist: dict | None) -> dict | None:
     mail_m = "mail_returned" if (rows["measure"] == "mail_returned").any() else "mail_accepted"
     has_ip = (rows["measure"] == "inperson_early").any()
     w = wide(rows, ["state", "county_fips"], mail_m, has_ip).droplevel("state")
+    measure = "total"
+    if not w["total"].notna().any():          # county offices that publish one method only (e.g. Clark NV in-person): say so, no total
+        measure = next((m for m in ("inperson", "mail") if w[m].notna().any()), None)
+        if measure is None:
+            return None
+        w = w.assign(total=w[measure])
     t = w[w["total"].notna()]
-    if t.empty:
-        return None
     latest = t.index.get_level_values("as_of_date").max()
     cur = t.xs(latest, level="as_of_date")
     dates = sorted(t.index.get_level_values("as_of_date").unique())
@@ -304,9 +335,9 @@ def build_counties(st: str, rows: pd.DataFrame, names: dict, hist: dict | None) 
                      "added": clean(r["total"] - prev.get(fips)) if fips in prev.index else None,
                      **({p: clean(r[p]) for p in PARTIES} | {"lead": clean(lead.get(fips))} if has_party else {}),
                      "votes22": clean(base) if base is not None and np.isfinite(base) else None,
-                     "pct22": clean(100 * r["total"] / base) if base is not None and np.isfinite(base) and base > 0 else None})
+                     "pct22": clean(100 * r["total"] / base) if measure == "total" and base is not None and np.isfinite(base) and base > 0 else None})
     recs.sort(key=lambda x: -(x["total"] or 0))
-    return {"st": st, "name": NAMES[st], "as_of": latest, "prev_as_of": dates[-2] if len(dates) > 1 else None, "has_party": has_party,
+    return {"st": st, "name": NAMES[st], "measure": measure, "as_of": latest, "prev_as_of": dates[-2] if len(dates) > 1 else None, "has_party": has_party,
             "n": len(recs), "counties": recs}
 
 
@@ -324,7 +355,7 @@ def registry_status(reg: pd.DataFrame) -> tuple[str, str]:
 
 
 def build_coverage(frames: dict, canon_state: pd.DataFrame, canon_county: pd.DataFrame, states: dict, counties: dict,
-                   hist: dict | None) -> list[dict]:
+                   hist: dict | None, uf_fetch: str | None = None) -> list[dict]:
     reg, snaps, flog = frames["sources"], frames["snapshots"], frames["fetch_log"]
     sec: set = set()
     newest = max((s["latest"]["date"] for s in states.values()), default=None)
@@ -350,14 +381,22 @@ def build_coverage(frames: dict, canon_state: pd.DataFrame, canon_county: pd.Dat
             stale = newest is not None and (date.fromisoformat(newest) - date.fromisoformat(lat["date"])).days > STALE_DAYS
             fin = hist["final"].loc[(st, 2022)] if hist is not None and (st, 2022) in hist["final"].index else None
             v22 = float(fin["votes"]) if fin is not None and fin["missing"] == 0 else None
-            entry.update({"status": "collected", "detail": "", "level": level, "party": s["has_party"], "as_of": lat["date"], "stale": bool(stale),
+            compiled = s.get("compiled", False)
+            reg_status, reg_detail = registry_status(r) if len(r) and compiled else ("", "")
+            entry.update({"status": "compiled" if compiled else "collected", "detail": "", "level": "state" if compiled else level, "party": s["has_party"], "as_of": lat["date"], "stale": bool(stale),
                           "total": lat["total"], "mail": lat["mail"], "inperson": lat["inperson"], "added": lat["added"], "lead": lat["lead"],
                           "pct22": clean(100 * lat["total"] / v22) if v22 and lat["total"] else None,
                           "days": len(s["series"]["date"]), "hist": [c["year"] for c in s["compare"]["cycles"] if c.get("ok")],
                           })
-            if all(x["id"].startswith("legacy_") for x in s["sources"]):
+            if compiled:
+                county_only = st in counties
+                entry.update({"detail": UF_LABEL, "partial": False, "county_only_official": county_only, "last_fetch": uf_fetch, "last_new": uf_fetch,
+                              "official": {"status": "county_only" if county_only else (reg_status or "not_published"),
+                                           "detail": "only some county offices publish: the county table shows them" if county_only else (reg_detail or "no official count collected")},
+                              "links": [{"label": "UF Election Lab", "url": UF_PAGE}] + entry["links"][:3]})
+            elif all(x["id"].startswith("legacy_") for x in s["sources"]):
                 entry["detail"] = "one earlier file; the collector does not refresh it"
-        elif has_county_rows:
+        elif has_county_rows:                  # county offices only (EVGaps' batch E): never shown as a state total
             cs = counties.get(st)
             entry.update({"status": "collected", "detail": "county only: some counties, not a state total", "level": "county", "partial": True, "party": bool(cs and cs["has_party"]),
                           "as_of": cs["as_of"] if cs else None, "stale": False, "total": None, "mail": None, "inperson": None, "added": None, "lead": None,
@@ -379,9 +418,42 @@ def write_json(path: Path, obj) -> bool:
     return True
 
 
+def cross_check(official: dict, uf: dict) -> dict | None:
+    """The Lab's latest count next to the official count on the same day (or the latest official day not after it)."""
+    u = uf["latest"]
+    od = [d for d in official["series"]["date"] if d <= u["date"]]
+    if not od or u["total"] is None:
+        return None
+    i = official["series"]["date"].index(od[-1])
+    o = official["series"]["total"][i]
+    if not o:
+        return None
+    return {"uf_date": u["date"], "uf_total": u["total"], "official_date": od[-1], "official_total": o, "diff": clean(u["total"] - o),
+            "diff_pct": clean(100 * (u["total"] - o) / o), "label": UF_LABEL, "url": UF_PAGE}
+
+
+def load_uf_2024() -> dict | None:
+    """The Lab's 2024 tracker file (one snapshot per state), cached by `us_ev_daily.py refresh-uf2024`."""
+    f = daily.uf_2024_path()
+    if not f.exists():
+        return None
+    d = pd.read_csv(f)
+    out = {}
+    for r in d.itertuples():
+        total = getattr(r, "voted_all", 0)
+        if not total or pd.isna(total):
+            continue
+        day = datetime.strptime(str(r.last_update).strip(), "%m/%d/%Y").date()
+        v = lambda x: int(x) if pd.notna(x) else 0     # noqa: E731
+        out[str(r.state_abbv).lower()] = {"date": day.isoformat(), "days_before": (date(2024, 11, 5) - day).days, "total": int(total),
+                                           "D": v(r.voted_dem), "R": v(r.voted_rep), "U": v(r.voted_none)}
+    return out
+
+
 def build(db_path: Path, out: Path, use_daily: bool = True, log=print) -> dict:
     frames = read_db(db_path)
-    frames, tracker = drop_secondary(frames)
+    frames, uf_rows, uf_fetch = split_uf(frames)
+    tracker = {"label": UF_LABEL, "url": UF_PAGE, "licence": UF_LICENCE} if len(uf_rows) else None
     if use_daily:
         frames = add_daily_sources(frames, log)
     srows, scr, rank = canon.prepare(frames["state"])
@@ -408,13 +480,28 @@ def build(db_path: Path, out: Path, use_daily: bool = True, log=print) -> dict:
                 c = build_counties(st, y, names, hist)
                 if c:
                     counties[st] = c
-    cov = build_coverage(frames, cstate, ccounty, states, counties, hist)
+    uf_hist = load_uf_2024()
+    if len(uf_rows):
+        ufc = canon.canonical(uf_rows)
+        uf_src = {UF_ID: {"id": UF_ID, "url": UF_PAGE, "what": UF_LABEL, "cadence": "daily"}}
+        for st in sorted(NAMES):
+            x = ufc[ufc["state"] == st]
+            if not len(x):
+                continue
+            res = build_state(st, x, uf_src, hist, compiled=True, uf_hist=uf_hist)
+            if not res:
+                continue
+            if st in states:                                   # official wins; the Lab's figure is a cross-check
+                states[st]["uf_check"] = cross_check(states[st], res)
+            else:
+                states[st] = res
+    cov = build_coverage(frames, cstate, ccounty, states, counties, hist, uf_fetch)
     snaps = frames["snapshots"]
     index = {"built": snaps["fetched_utc"].max(), "election_day": ELECTION_DAY.isoformat(), "window_days": WINDOW_DAYS, "states": cov,
              "years": list(YEARS), "midterms": list(MIDTERMS), "tracker": tracker,
              "audit": {"county_not_equal_state": len(audit["county_not_equal_state"]), "canonical_has_two_sources": len(audit["canonical_has_two_sources"]),
                        "dropped": dropped},
-             "counts": {"collected": sum(1 for c in cov if c["status"] == "collected"), "blocked": sum(1 for c in cov if c["status"] == "blocked"),
+             "counts": {"collected": sum(1 for c in cov if c["status"] == "collected"), "compiled": sum(1 for c in cov if c["status"] == "compiled"), "blocked": sum(1 for c in cov if c["status"] == "blocked"),
                         "not_published": sum(1 for c in cov if c["status"] == "not_published"), "with_party": sum(1 for c in cov if c.get("party")),
                         "with_county": sum(1 for c in cov if c.get("level") == "county")}}
     out.mkdir(parents=True, exist_ok=True)

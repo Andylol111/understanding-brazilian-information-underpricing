@@ -56,6 +56,26 @@ def daily_dir() -> Path:
     return d
 
 
+def uf_2024_path() -> Path:
+    return daily_dir() / "src" / "uf_2024_US.csv"
+
+
+def refresh_uf_2024(log=print) -> bool:
+    """The UF Election Lab's 2024 early-vote tracker file (one snapshot per state), fetched once and kept: robots.txt of
+    election.lab.ufl.edu allows it, one request, honest user agent. The 2020 and 2022 files answer 404."""
+    import httpx
+    f = uf_2024_path()
+    if f.exists():
+        return False
+    f.parent.mkdir(parents=True, exist_ok=True)
+    r = httpx.get("https://election.lab.ufl.edu/data-downloads/earlyvote/2024/US.csv", headers={"User-Agent": UA}, timeout=60, follow_redirects=True)
+    if r.status_code != 200 or not r.content.startswith(b"state,state_abbv"):
+        raise RuntimeError(f"UF 2024 file HTTP {r.status_code}")
+    f.write_bytes(r.content)
+    log(f"UF 2024 file stored ({len(r.content)} bytes)")
+    return True
+
+
 def pa_snapshot_dir() -> Path:
     return db.ev_root() / "raw" / "pa"
 
@@ -217,6 +237,9 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "refresh-nc":
         refresh_nc()
         cmd = "nc"
+    if cmd == "refresh-uf2024":
+        refresh_uf_2024()
+        return 0
     if cmd == "nc":
         df = nc_aggregate()
         print(f"NC {len(df)} rows, {df['n'].sum()} accepted ballots, {df['date'].min()}..{df['date'].max()}")

@@ -7,8 +7,8 @@ import { getJSON, esc, STATIC } from "./common.js";
 const $ = (s) => document.querySelector(s);
 const COLORS = { total: "#1b1b1b", mail: "#6a7f99", inperson: "#c4501b", D: "#1f5fbf", R: "#c8102e", U: "#8a8578", other: "#b9b5aa", now: "#1b1b1b" };
 const CYCLE_COLORS = { 2018: "#8a6fb0", 2020: "#2f8a6c", 2022: "#c49a1b", 2024: "#6a7f99" };
-const STATUS = { collected: "collected", blocked: "blocked", not_published: "not published" };
-const MAP_COLORS = { county: "#2f8a6c", state: "#86bfa7", partial: "#c9dfd3", blocked: "#d9743a", not_published: "#cfcbc0" };
+const STATUS = { collected: "collected", compiled: "compiled (UF Election Lab)", blocked: "blocked", not_published: "not published" };
+const MAP_COLORS = { county: "#2f8a6c", state: "#86bfa7", partial: "#c9dfd3", compiled: "#9d86c2", blocked: "#d9743a", not_published: "#cfcbc0" };
 
 const int = d3.format(",");
 const si = (v) => (v == null ? "–" : Math.abs(v) >= 1e4 ? d3.format(".3~s")(v).replace("G", "B") : int(v));
@@ -27,7 +27,8 @@ const S = { index: null, st: null, cache: new Map(), sort: { key: "name", dir: 1
 const get = (name, exists = true) => (!exists ? null : S.cache.has(name) ? S.cache.get(name) : (S.cache.set(name, getJSON(`ev2026/${name}.json`, { optional: true })), S.cache.get(name)));
 
 // ------------------------------------------------------------------------------------------------------ coverage
-const level = (c) => (c.level === "none" ? "–" : c.partial ? "county only" : c.level);
+const level = (c) => (c.level === "none" ? "–" : c.partial ? "county only" : c.status === "compiled" ? "state" : c.level);
+const OFFICIAL = { blocked: "blocked to our program", not_published: "not published as data", county_only: "only some county offices publish" };
 const sortVal = {
   name: (c) => c.name, status: (c) => c.status, level: (c) => level(c), party: (c) => (c.party ? 1 : 0), as_of: (c) => c.as_of ?? "", last: (c) => c.last_fetch ?? "",
   total: (c) => c.total ?? -1, lead: (c) => c.lead ?? -1e9, hist: (c) => c.hist.length,
@@ -39,10 +40,11 @@ function drawCoverage() {
   const cs = S.index.states, n = (s) => cs.filter((c) => c.status === s).length;
   const county = cs.filter((c) => c.status === "collected" && c.level === "county" && !c.partial).length;
   const party = cs.filter((c) => c.status === "collected" && c.party).length;
-  $("#cov-sum").textContent = `${n("collected")} of ${cs.length} states and DC have official counts we collect (${county} down to the county, ${party} with party registration); ` +
-    `${n("blocked")} are blocked to our program and ${n("not_published")} publish no usable counts.`;
+  $("#cov-sum").textContent = `${n("collected")} of ${cs.length} states and DC have official counts we collect (${county} down to the county, ${party} with party registration). ` +
+    (n("compiled") ? `${n("compiled")} more have none we can collect and are filled from the UF Election Lab's compilation of state sources, marked compiled (state totals; party registration where the Lab reports it). ` : "") +
+    `${n("blocked")} are blocked to our program and ${n("not_published")} publish nothing usable, with no other source.`;
   const f = $("#cov-filter");
-  f.replaceChildren(...[["all", `All ${cs.length}`], ["collected", `Collected ${n("collected")}`], ["blocked", `Blocked ${n("blocked")}`], ["not_published", `Not published ${n("not_published")}`]].map(([k, t]) => {
+  f.replaceChildren(...[["all", `All ${cs.length}`], ["collected", `Collected ${n("collected")}`], ["compiled", `Compiled ${n("compiled")}`], ["blocked", `Blocked ${n("blocked")}`], ["not_published", `Not published ${n("not_published")}`]].map(([k, t]) => {
     const b = document.createElement("button"); b.type = "button"; b.textContent = t; b.setAttribute("aria-pressed", String(S.filter === k));
     b.onclick = () => { S.filter = k; drawCoverage(); }; return b;
   }));
@@ -54,18 +56,20 @@ function drawCoverage() {
     return (x < y ? -1 : x > y ? 1 : a.name.localeCompare(b.name)) * S.sort.dir;
   });
   $("#cov-table tbody").innerHTML = rows.map((c) => {
-    const why = c.detail.replace(/^(blocked|not published|none published|dashboard-only)\s*[:;]?\s*/i, (m) => (/^(dashboard-only|none published)/i.test(m) ? m : ""));
+    const off = c.status === "compiled" ? `Official count: ${OFFICIAL[c.official?.status] ?? "none collected"}.` : "";
+    const why = c.status === "compiled" ? off : c.detail.replace(/^(blocked|not published|none published|dashboard-only)\s*[:;]?\s*/i, (m) => (/^(dashboard-only|none published)/i.test(m) ? m : ""));
     const detail = why ? `<span class="ev-detail">${esc(why.length > 150 ? `${why.slice(0, 147)}…` : why)}</span>` : "";
     const stale = c.stale ? ` <span class="ev-detail" style="display:inline">(older than the rest)</span>` : "";
     return `<tr data-st="${c.st}" class="${c.st === S.st ? "sel" : ""}"><td><button type="button" class="ev-name" data-st="${c.st}">${esc(c.name)}</button></td>` +
-      `<td><span class="ev-pill s-${c.status}">${STATUS[c.status]}</span>${detail}</td><td>${level(c)}</td><td>${c.status === "collected" ? (c.party ? "yes" : "no") : "–"}</td>` +
+      `<td><span class="ev-pill s-${c.status}">${STATUS[c.status]}</span>${detail}</td><td>${level(c)}</td><td>${c.status === "collected" || c.status === "compiled" ? (c.party ? "yes" : "no") : "–"}</td>` +
       `<td class="n">${dayShort(c.as_of)}${stale}</td><td class="n ev-hide-sm">${stamp(c.last_fetch)}</td><td class="n">${num(c.total)}</td><td class="n">${pt(c.lead)}</td>` +
       `<td class="n ev-hide-sm">${c.hist.length ? c.hist.join(", ") : "–"}</td><td class="ev-links ev-hide-sm">${c.links.slice(0, 2).map((l) => `<a href="${esc(l.url)}" rel="noopener">${esc(l.label)}</a>`).join("")}</td></tr>`;
   }).join("");
   $("#cov-table tbody").querySelectorAll("[data-st]").forEach((el) => el.addEventListener("click", (e) => { if (e.target.closest("a")) return; select(el.dataset.st, true); }));
   const tr = S.index.tracker;
+  const licence = tr?.licence ? ` <b>${esc(tr.label)}</b>: ${esc(tr.licence)}. <a href="${esc(tr.url)}" rel="noopener">UF Election Lab early-vote tracker</a>.` : "";
   $("#cov-note").innerHTML = `"Counted through" is the last day the official file covers; "last checked" is when our program last fetched a state's files. "D minus R" is the Democratic minus Republican share of returned ballots by party registration, not a vote count. ` +
-    `${tr?.url ? `<a href="${esc(tr.url)}" rel="noopener">${esc(tr.label)}</a>.` : ""}`;
+    `${licence}`;
 }
 
 async function drawCoverageMap() {
@@ -76,7 +80,7 @@ async function drawCoverageMap() {
   const by = new Map(S.index.states.map((c) => [c.st, c]));
   const key = (c) => (c.status !== "collected" ? c.status : c.partial ? "partial" : c.level);
   const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`);
-  const txt = (c) => `${c.name}: ${STATUS[c.status]}${c.status === "collected" ? `, ${level(c)} data${c.party ? ", party detail" : ""}, counted through ${dayShort(c.as_of)}` : ""}`;
+  const txt = (c) => `${c.name}: ${STATUS[c.status]}${c.status === "collected" || c.status === "compiled" ? `, ${level(c)} data${c.party ? ", party detail" : ""}, counted through ${dayShort(c.as_of)}` : ""}`;
   svg.append("g").selectAll("path").data(fc.features).join("path").attr("class", (f) => `ev-st${f.id === S.st ? " sel" : ""}`).attr("d", path).attr("data-st", (f) => f.id)
     .attr("fill", (f) => MAP_COLORS[key(by.get(f.id))]).attr("tabindex", 0).attr("role", "button").attr("aria-label", (f) => txt(by.get(f.id)))
     .on("click", (_, f) => select(f.id, true)).on("keydown", (e, f) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(f.id, true); } })
@@ -85,7 +89,7 @@ async function drawCoverageMap() {
   if (dc) { const [x, y] = path.centroid(dc); svg.append("circle").attr("class", "ev-dc").attr("cx", x).attr("cy", y).attr("r", 6).attr("fill", MAP_COLORS[key(by.get("dc"))]).on("click", () => select("dc", true)).append("title").text(txt(by.get("dc"))); }
   host.replaceChildren(svg.node());
   const have = new Set(S.index.states.map(key));
-  $("#cov-legend").innerHTML = [["county", "county data"], ["state", "state totals only"], ["partial", "some counties only"], ["blocked", "blocked"], ["not_published", "not published"]]
+  $("#cov-legend").innerHTML = [["county", "county data"], ["state", "state totals only"], ["compiled", "compiled by UF Election Lab"], ["partial", "some counties only"], ["blocked", "blocked"], ["not_published", "not published"]]
     .filter(([k]) => have.has(k)).map(([k, t]) => `<span><i style="background:${MAP_COLORS[k]}"></i>${t}</span>`).join("");
 }
 
@@ -170,10 +174,10 @@ function chip(label, value, sub) { return `<span class="chip"><small>${esc(label
 async function drawState() {
   const st = S.st, cov = S.index.states.find((c) => c.st === st);
   $("#st-h").textContent = cov.name;
-  $("#st-status").innerHTML = `<span class="ev-pill s-${cov.status}">${STATUS[cov.status]}</span> ${cov.status === "collected" ? `${level(cov)} data${cov.party ? ", with party registration" : ""}` : ""}`;
+  $("#st-status").innerHTML = `<span class="ev-pill s-${cov.status}">${STATUS[cov.status]}</span> ${cov.status === "collected" || cov.status === "compiled" ? `${level(cov)} data${cov.party ? ", with party registration" : ""}` : ""}`;
   const [s, cty] = await Promise.all([get(`state_${st}`, cov.has_state), get(`counties_${st}`, cov.has_counties)]);
   const none = !s;
-  for (const id of ["#st-chips", "#c1", "#c2", "#c3", "#c4", "#c5"]) $(id).replaceChildren();
+  for (const id of ["#st-chips", "#c1", "#c2", "#c3", "#c4", "#c5", "#st-uf"]) $(id).replaceChildren();
   for (const id of ["#c1", "#c2", "#party-fig", "#cmp-fig"]) $(id).closest("figure")?.toggleAttribute("hidden", none);
   $("#party-fig").toggleAttribute("hidden", none || !s.has_party);
   if (none) {
@@ -187,9 +191,12 @@ async function drawState() {
     L.added != null ? chip(L.span > 1 ? `Added in ${L.span} days` : "Added in the last day", num(L.added), `to ${dayShort(L.date)}`) : "",
     L.lead != null ? chip("Democratic minus Republican", pt(L.lead), "share of returned ballots, by registration") : "",
     s.requested ? chip("Mail ballots requested", num(s.requested.value), `as of ${dayShort(s.requested.date)}`) : ""].join("");
-  const kindNote = s.daily_file ? "Day by day from the return date of every ballot in the official file." : "One point per official report; days a state did not publish have no point.";
+  const tr = S.index.tracker, ufNote = (extra) => `<p class="ev-uf"><b>${esc(tr.label)}.</b> ${extra} <a href="${esc(tr.url)}" rel="noopener">UF Election Lab early-vote tracker</a>. ${esc(tr.licence)}.</p>`;
+  $("#st-uf").innerHTML = !tr ? "" : s.compiled ? ufNote(`These figures are the Lab's, not an official count${cov.official ? `; the state's own count is ${OFFICIAL[cov.official.status] ?? "not collected"}` : ""}. Counted through the Lab's own update date for the state.`)
+    : s.uf_check ? ufNote(`Cross-check: the Lab's count is ${num(s.uf_check.uf_total)} (through ${dayShort(s.uf_check.uf_date)}); the official count is ${num(s.uf_check.official_total)} (through ${dayShort(s.uf_check.official_date)}); the Lab is ${s.uf_check.diff === 0 ? "equal" : `${num(Math.abs(s.uf_check.diff))} ${s.uf_check.diff > 0 ? "above" : "below"} (${Math.abs(s.uf_check.diff_pct).toFixed(2)}%)`}. The official count is the one shown on this page.`) : "";
+  const kindNote = s.compiled ? "One point per update the Lab published; days it did not update have no point." : s.daily_file ? "Day by day from the return date of every ballot in the official file." : "One point per official report; days a state did not publish have no point.";
   $("#st-basis").textContent = `${s.basis} ${kindNote}`;
-  $("#st-sources").innerHTML = `<b>Official sources.</b> ${s.sources.map((x) => (x.url ? `<a href="${esc(x.url)}" rel="noopener">${esc(x.what || x.id)}</a>` : esc(x.what || x.id))).join("; ")}.`;
+  $("#st-sources").innerHTML = `<b>${s.compiled ? "Source" : "Official sources"}.</b> ${s.sources.map((x) => (x.url ? `<a href="${esc(x.url)}" rel="noopener">${esc(x.what || x.id)}</a>` : esc(x.what || x.id))).join("; ")}.`;
   drawCharts(s);
   drawCompare(s);
   drawCounties(cty);
@@ -222,6 +229,7 @@ function drawCharts(s) {
     const b = bars.find((q) => d >= q.x && d < q.x + (q.span || 1)); if (!b) { r2.textContent = `${d} days before Election Day: no change reported.`; return; }
     r2.textContent = `${dateLabel(b.x)}: +${num(col(s, "added_total")[b.i])} in ${b.span > 1 ? `${b.span} days` : "the day"}${splitAdd ? ` (${s.mail_label.toLowerCase()} ${num(col(s, "added_mail")[b.i])}, in person ${num(col(s, "added_inperson")[b.i])})` : ""}`;
   };
+  $("#c2").closest("figure").toggleAttribute("hidden", !bars.length);
   barChart($("#c2"), say2, { bars, colors: { mail: COLORS.mail, inperson: COLORS.inperson, total: COLORS.total }, x });
   $("#c2").insertAdjacentHTML("afterbegin", keyHTML(splitAdd ? [[COLORS.mail, s.mail_label, 1], [COLORS.inperson, "In-person early votes", 1]] : [[COLORS.total, "All ballots", 1]])); say2(null);
   // 3 party lead
@@ -242,12 +250,12 @@ function drawCompare(s) {
   const kindWord = c.kind === "inperson" ? "In-person early votes" : "Ballots";
   const now = `<tr class="now"><td>2026</td><td>midterm</td><td>${dayShort(L.date)}</td><td class="n">${num(c.now.ballots)}</td><td class="n">–</td><td class="n">–</td><td class="n">${c.now.lead != null ? pt(c.now.lead) : "–"}</td></tr>`;
   $("#cmp-table").innerHTML = `<thead><tr><th>Election</th><th>Type</th><th>Same day</th><th class="n">${kindWord} then</th><th class="n">Then, as % of that election's final votes</th><th class="n">2026 so far, as % of that election's final votes</th><th class="n">D minus R then</th></tr></thead><tbody>${now}${(c.cycles ?? []).map((y) => y.ok ?
-    `<tr><td>${y.year}</td><td>${y.midterm ? "midterm" : "presidential"}</td><td>${dayShort(y.date)}${y.days_used !== c.db ? ` <small>(${y.days_used} days before)</small>` : ""}</td><td class="n">${num(y.ballots)}</td><td class="n">${pc(y.pct_final)}</td><td class="n">${pc(y.now_pct_final)}</td><td class="n">${y.lead != null ? pt(y.lead) : "–"}</td></tr>` :
+    `<tr><td>${y.year}${y.uf ? " (UF)" : ""}</td><td>${y.midterm ? "midterm" : "presidential"}</td><td>${dayShort(y.date)}${y.days_used !== c.db ? ` <small>(${y.days_used} days before)</small>` : ""}</td><td class="n">${num(y.ballots)}</td><td class="n">${pc(y.pct_final)}</td><td class="n">${pc(y.now_pct_final)}</td><td class="n">${y.lead != null ? pt(y.lead) : "–"}</td></tr>` :
     `<tr><td>${y.year}</td><td>${y.midterm ? "midterm" : "presidential"}</td><td class="why" colspan="5">no comparison: ${esc(y.why)}</td></tr>`).join("")}</tbody>`;
   const withHist = ok.length > 0;
   $("#cmp-table").closest(".table-scroll").nextElementSibling.toggleAttribute("hidden", !withHist);
   $("#c4-read").toggleAttribute("hidden", !withHist);
-  $("#cmp-note").textContent = withHist ? `${c.votes_basis} ${c.kind === "inperson" ? "This state's past files count in-person early votes only, so the comparison uses this year's in-person count too." : ""} Presidential-year turnout runs well above midterm turnout: compare like with like (midterm with midterm).` : "";
+  $("#cmp-note").textContent = withHist ? `${ok.some((y) => y.uf) ? "The past figure is the UF Election Lab's 2024 tracker file (one snapshot per state). " : ""}${c.votes_basis} ${c.kind === "inperson" ? "This state's past files count in-person early votes only, so the comparison uses this year's in-person count too." : ""} Presidential-year turnout runs well above midterm turnout: compare like with like (midterm with midterm).` : "";
   if (!withHist) return;
   const db = col(s, "db"), cur = db.map((d, i) => [d, col(s, c.kind === "inperson" ? "inperson" : "total")[i]]).filter((p) => p[0] <= 45);
   const ser = [{ name: "2026", color: COLORS.now, width: 3, pts: cur }, ...ok.map((y) => ({ name: String(y.year), color: CYCLE_COLORS[y.year], width: 1.8, dash: y.midterm ? null : "5 3", pts: y.curve.db.map((d, i) => [d, y.curve.cum[i]]) }))];
@@ -281,7 +289,7 @@ async function drawCounties(cty) {
   if (!cty) return;
   const metrics = Object.entries(METRICS).filter(([k]) => (k !== "lead" || cty.has_party) && (k !== "pct22" || cty.counties.some((r) => r.pct22 != null)));
   if (!metrics.some(([k]) => k === S.cty.metric)) S.cty.metric = metrics[0][0];
-  $("#cty-sub").textContent = `${cty.name}: ${cty.n} ${cty.n === 1 ? "county" : "counties"} with counts through ${dayShort(cty.as_of)}.${S.index.states.find((c) => c.st === S.st)?.partial ? " This state publishes some counties only; the rest are not shown." : ""}`;
+  $("#cty-sub").textContent = `${cty.name}: ${cty.n} ${cty.n === 1 ? "county" : "counties"} with counts through ${dayShort(cty.as_of)}.${cty.measure !== "total" ? ` Only ${cty.measure === "inperson" ? "in-person early votes" : "mail ballots"} are published.` : ""}${S.index.states.find((c) => c.st === S.st)?.partial || S.index.states.find((c) => c.st === S.st)?.county_only_official ? " Only some county offices publish; the rest are not shown." : ""}`;
   const tg = $("#cty-metric");
   tg.replaceChildren(...metrics.map(([k, m]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = m.label; b.setAttribute("aria-pressed", String(S.cty.metric === k)); b.onclick = () => { S.cty.metric = k; drawCounties(cty); }; return b; }));
   const m = METRICS[S.cty.metric], vals = new Map(cty.counties.map((r) => [r.fips, m.f(r)]));
@@ -302,7 +310,7 @@ async function drawCounties(cty) {
   $("#cty-legend").innerHTML = finite.length ? (m.div ? `Democratic-leaning <span class="grad" style="background:linear-gradient(90deg,${d3.interpolateRdBu(1)},${d3.interpolateRdBu(0.5)},${d3.interpolateRdBu(0)})"></span> Republican-leaning: ${pt(-amax)} to ${pt(amax)}`
     : `0 <span class="grad" style="background:linear-gradient(90deg,${d3.interpolateGreens(0)},${d3.interpolateGreens(1)})"></span> ${m.fmt(mx)}`) : "";
   // table
-  const cols = [["name", "County"], ["total", "Ballots", "n"], ["mail", "Mail", "n"], ["inperson", "In person", "n"], ["added", "Added in last report", "n"], ["pct22", "% of 2022 votes", "n"], ...(cty.has_party ? [["lead", "D minus R", "n"]] : [])];
+  const cols = [["name", "County"], ["total", cty.measure === "total" ? "Ballots" : cty.measure === "inperson" ? "In-person early votes" : "Mail ballots", "n"], ["mail", "Mail", "n"], ["inperson", "In person", "n"], ["added", "Added in last report", "n"], ["pct22", "% of 2022 votes", "n"], ...(cty.has_party ? [["lead", "D minus R", "n"]] : [])];
   const { key, dir } = S.cty.sort, rows = [...cty.counties].sort((a, b) => ((a[key] ?? -1e12) < (b[key] ?? -1e12) ? -1 : (a[key] ?? -1e12) > (b[key] ?? -1e12) ? 1 : 0) * dir);
   const fm = { total: num, mail: num, inperson: num, added: num, pct22: pc, lead: pt };
   $("#cty-table").innerHTML = `<thead><tr>${cols.map(([k, t, c]) => `<th class="${c ?? ""}" ${key === k ? `aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-k="${k}">${t}</button></th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${cols.map(([k, , c]) => `<td class="${c ?? ""}">${k === "name" ? esc(r.name) : fm[k](r[k])}</td>`).join("")}</tr>`).join("")}</tbody>`;

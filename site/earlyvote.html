@@ -37,7 +37,7 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
   <details class="ev-explain">
     <summary>How to read this page</summary>
     <ul>
-      <li><b>Where the numbers come from.</b> Only official state publications (reports, spreadsheets and open-data files). A program fetches them on a schedule and keeps every version. States that publish nothing, or whose sites turn this program away, are listed as such in the table below, and are not estimated.</li>
+      <li><b>Where the numbers come from.</b> Official state publications (reports, spreadsheets and open-data files), fetched on a schedule with every version kept. Where a state publishes nothing we can collect, the table says so and, if the UF Election Lab compiles that state, shows the Lab's figures marked "compiled", used with permission. Official counts always win; where both exist the Lab's figure is shown only as a cross-check. Nothing is estimated here.</li>
       <li><b>What is counted.</b> Ballots a state reports as returned or accepted (mail) and early votes cast in person. States differ on whether a ballot that is later rejected is still counted; each state's panel says which definition it uses.</li>
       <li><b>Party.</b> Where a state publishes it, ballots are split by the voter's party <em>registration</em>. Registration is not a vote: unaffiliated voters are a large share of the early vote in many states, and registered Democrats and Republicans cross over. The "Democratic minus Republican" figure is the difference in those two groups' shares of returned ballots, in percentage points. Nothing here says how any group voted.</li>
       <li><b>The word "firewall".</b> Commentators call a lead built up in early voting a "firewall": votes banked before Election Day that the other side would have to overcome on the day. This page does not use that idea to predict anything. It only reports the counts, and the lead above is a count of registrations on returned ballots.</li>
@@ -65,6 +65,7 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
 <section class="ev-wrap" id="st-sec" aria-labelledby="st-h" hidden>
   <h2 id="st-h">One state</h2>
   <div class="ev-pick"><label class="select">State <select id="st-pick"></select></label> <span id="st-status" class="ev-status"></span></div>
+  <div id="st-uf"></div>
   <div class="chips" id="st-chips"></div>
   <p class="note" id="st-basis"></p>
 

@@ -31,8 +31,16 @@ legacy panel. Fixes:
   measure (2026-10-31: Oregon's legacy panel, 9% below the live PDF). `audit()` checks per source that county rows add up to the state
   row (clean for every source on 2026-10-31) and that no canonical series has two sources. `us_ev_site.py --strict` exits 1 on a
   failure; the publish script uses it.
-* Secondary compilations (kind `secondary`, the UF Election Lab tracker, CC BY-NC-ND) are removed before anything is computed. The
-  page links to the tracker and publishes none of its numbers.
+* The UF Election Lab tracker (`uf_election_lab`, kind `secondary`) is kept apart from the official rows (`split_uf`): it never
+  enters an official series. Used with the permission of Dr. Michael McDonald (CC BY-NC-ND 4.0; displayed with the permission of
+  Dr. Michael McDonald, granted to the project, recorded 2026-11-01), it (a) fills states with no official count, shown with a third
+  status **compiled (UF Election Lab)** and the label "UF Election Lab (compiled from official state sources), used with
+  permission", with the state's official status (blocked / not published / county offices only) beside it; party detail only where
+  the Lab publishes party registration counts (D, R, none = unaffiliated), no modelling; and (b) next to an official figure appears
+  only as a cross-check with the difference (`uf_check`). Past cycles for compiled states: the Lab's 2020 and 2022 files answer 404;
+  its 2024 file (`us_ev_daily.py refresh-uf2024`, one request) is one snapshot per state dated 0-5 days before Election Day, so it is
+  a same-day comparison only when that date falls within a day of this year's. Counties: official county offices only (the
+  county-only sources of `us_ev_src_e.py` are shown as "county only", never as a state total).
 
 ## Day-by-day history of 2026
 
@@ -57,7 +65,7 @@ A reconstruction by return date is "what the file says today about each day", li
 ## What the page shows
 
 1. Coverage of all 51 (map and sortable table): data level (county / state / county only), party detail, latest official as-of date,
-   last fetch time, status (collected / blocked / not published, with the reason from the source registry) and links to the offices.
+   last fetch time, status (collected / compiled (UF Election Lab) / blocked / not published, with the reason from the source registry) and links to the offices.
 2. Per state: cumulative ballots and ballots added per day (mail vs in person) by days before Election Day; party lead by
    registration (`D minus R` = (D - R) / (D + R + unaffiliated + other) of returned ballots, percentage points; the page says that
    registration is not a vote, and that unaffiliated and crossover voting are large); the same day before 2018, 2020, 2022 and 2024
