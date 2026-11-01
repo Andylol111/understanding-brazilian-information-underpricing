@@ -923,7 +923,7 @@ function render() {
       : PRE()
       ? remNote || (S.mode === "counted" ? `Nothing counted yet: counting starts at ${closeText(S.region)}`
         : S.mapRaces?.length === 1 && S.mapRaces[0].estimate ? `Before any votes. ${S.mapRaces[0].estimate.note}` // the data's own wording
-        : S.units?.hasPoll && S.mode === "margin" ? "Before any votes: past certified results shifted toward the recent polls (the race's model with polls)."
+        : S.units?.hasPoll && S.mode === "margin" ? ""
         : `Before any votes: past certified results, not polls.${nb.length ? ` ${nb.join(", ")}: no county model yet; prices shown.` : ""}`)
       : k < 0 ? "Map: comparison election" : !S.countTimeline ? "Map: final results"
         : `${remNote ? `${remNote} ` : ""}${tween ? `Map ${clock(tt, S.tz)}, between the ${clock(S.units.times[k], S.tz)} and ${clock(S.units.times[k + 1], S.tz)} frames` : `Map frame ${clock(S.units.times[k], S.tz)}`}`;
