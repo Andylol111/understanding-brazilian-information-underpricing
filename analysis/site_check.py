@@ -81,7 +81,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def cases() -> list[Case]:
-    out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article"), Case("earlyvote", "earlyvote.html", "earlyvote")]
+    out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article"), Case("earlyvote", "earlyvote.html", "earlyvote"), Case("scorecard", "scorecard.html", "scorecard")]
     out.extend(Case(eid, f"election.html?{urlencode({'id': eid})}", "election") for eid in ELECTIONS)
     # Exercise the US county map as well as its default national state map.
     out.append(Case("us2026-ca-gov", f"election.html?{urlencode({'id': 'us2026', 'race': 'ca-gov'})}", "election"))
@@ -130,6 +130,7 @@ async def state(page: Page, kind: str) -> dict[str, Any]:
             visibleCanvas,
             painted: window.__dashPerf?.firstRenderMs != null,
             evReady: !!window.__evReady,
+            scReady: !!window.__scReady,
             kind,
           };
         }""",
@@ -146,6 +147,8 @@ def ready(s: dict[str, Any], mapless: bool = False) -> bool:
         return s["articlePaths"] > 10
     if s["kind"] == "earlyvote":
         return s["evReady"]
+    if s["kind"] == "scorecard":
+        return s["scReady"]
     return bool(s["title"] and s["raceOptions"] and s["readout"] and (mapless or s["visiblePaths"] or (s["visibleCanvas"] and s["painted"])))
 
 
@@ -543,6 +546,28 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
     return out
 
 
+async def check_scorecard(page: Page, viewport_name: str) -> list[str]:
+    """Track-record page: every section drawn from the generated files, calibration charts and tables present, wording."""
+    out: list[str] = []
+    p = await page.evaluate("""() => ({ charts: document.querySelectorAll('.sc-chart svg').length, pts: document.querySelectorAll('.sc-chart circle').length,
+        elections: document.querySelectorAll('#rep-body table.sc-t tbody tr').length, backtest: document.querySelectorAll('#bt-body table').length,
+        sens: document.querySelectorAll('#sens-body table').length, fwd: document.querySelectorAll('#fwd-body li').length,
+        explain: document.querySelectorAll('#sc-defs li').length })""")
+    if not p["charts"] or not p["pts"]:
+        out.append(f"calibration charts are missing: {p}")
+    if not p["elections"] or not p["sens"] or not p["backtest"] or not p["explain"]:
+        out.append(f"a section is empty: {p}")
+    text = await page.evaluate("document.body.innerText")
+    for bad in ("NaN", "undefined", "null", "[object", "our model"):
+        if bad in text:
+            out.append(f"page text contains {bad!r}")
+    if viewport_name == "mobile":
+        wide = await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 2")
+        if wide:
+            out.append("page scrolls sideways on mobile")
+    return out
+
+
 async def check_page(
     browser: Browser,
     engine: str,
@@ -591,6 +616,8 @@ async def check_page(
                 result.failures.append("article charts were not drawn")
             elif case.kind == "earlyvote":
                 result.failures.extend(await check_earlyvote(page, viewport_name))
+            elif case.kind == "scorecard":
+                result.failures.extend(await check_scorecard(page, viewport_name))
             elif case.kind == "election":
                 if not current["title"] or current["title"].startswith("Loading"):
                     result.failures.append("election title was not set")
