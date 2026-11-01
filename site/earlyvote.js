@@ -31,12 +31,47 @@ const level = (c) => (c.level === "none" ? "–" : c.partial ? "county only" : c
 const OFFICIAL = { blocked: "blocked to our program", not_published: "not published as data", county_only: "only some county offices publish" };
 const sortVal = {
   name: (c) => c.name, status: (c) => c.status, level: (c) => level(c), party: (c) => (c.party ? 1 : 0), as_of: (c) => c.as_of ?? "", last: (c) => c.last_fetch ?? "",
-  total: (c) => c.total ?? -1, lead: (c) => c.lead ?? -1e9, hist: (c) => c.hist.length,
+  total: (c) => c.total ?? -1, pace: (c) => c.pace?.pace ?? -1, pct22: (c) => c.pct22 ?? -1, lead: (c) => c.lead ?? -1e9, hist: (c) => c.hist.length,
 };
 const COLS = [["name", "State"], ["status", "Status"], ["level", "Data level"], ["party", "Party detail"], ["as_of", "Counted through", "n"], ["last", "Last checked (UTC)", "n ev-hide-sm"],
-  ["total", "Ballots so far", "n"], ["lead", "D minus R", "n"], ["hist", "Past elections", "n ev-hide-sm"], ["links", "Official source", "ev-hide-sm"]];
+  ["total", "Ballots so far", "n"], ["pace", "Pace vs 2022 (same day)", "n"], ["pct22", "% of 2022 total votes", "n"], ["lead", "D minus R", "n"], ["hist", "Past elections", "n ev-hide-sm"], ["links", "Official source", "ev-hide-sm"]];
+
+// Pace vs 2022 (analysis/us_ev_pace.py): this year's count over the 2022 count on the same day before Election Day.
+const x2 = (v) => (v == null ? "–" : `${v.toFixed(2)}×`);
+const paceTags = (p) => {
+  const t = [];
+  if (p.gap != null && p.flags.includes("gap")) t.push(`2022 figure ${Math.abs(p.gap)} day${Math.abs(p.gap) === 1 ? "" : "s"} ${p.gap > 0 ? "earlier" : "later"} than this year's day`);
+  if (p.flags.includes("definition")) t.push(`different definition in 2022: ${p.then.measure}`);
+  return t;
+};
+const paceSrc = (p) => `this year: ${p.now.source_label}; 2022: ${p.then.source_label}`;
+function paceCell(c) {
+  const p = c.pace;
+  if (!p) return `<td class="n">–</td>`;
+  if (p.pace == null) return `<td class="n" title="${esc(p.why || "no comparable 2022 figure")}">–</td>`;
+  const tags = paceTags(p);
+  return `<td class="n ev-pace${tags.length ? " ev-flag" : ""}" title="${esc([paceSrc(p), ...tags].join("; "))}">${x2(p.pace)}<span class="ev-detail">${esc(p.now.source_label)} / ${esc(p.then.source_label)}${tags.length ? " *" : ""}</span></td>`;
+}
+function drawPace() {
+  const cs = S.index.states.filter((c) => c.pace?.pace != null).sort((a, b) => b.pace.pace - a.pace.pace);
+  const none = S.index.states.filter((c) => c.pace && c.pace.pace == null);
+  const max = Math.max(1.5, ...cs.map((c) => c.pace.pace));
+  const pi = S.index.pace;
+  $("#pace-sub").textContent = cs.length ? `${cs.length} states have a comparable 2022 figure on the same day before Election Day. 1.00× means as many ballots as at this point in 2022; ${none.length} have none (see the reason on hover in the table).` : "No state has a comparable 2022 figure.";
+  $("#pace-list").innerHTML = cs.map((c) => {
+    const p = c.pace, tags = paceTags(p);
+    return `<li><button type="button" class="ev-name" data-st="${c.st}">${esc(c.name)}</button><span class="ev-bar"><i style="width:${(100 * p.pace / max).toFixed(1)}%"></i><b style="left:${(100 / max).toFixed(1)}%"></b></span>` +
+      `<span class="n">${x2(p.pace)}</span><span class="ev-detail">${esc(paceSrc(p))}; ${num(p.now.value)} on ${dayShort(p.now.date)} vs ${num(p.then.value)} on ${dayShort(p.then.date)} in 2022${tags.length ? `; ${esc(tags.join("; "))}` : ""}</span></li>`;
+  }).join("");
+  $("#pace-list").querySelectorAll("[data-st]").forEach((el) => (el.onclick = () => select(el.dataset.st, true)));
+  $("#pace-note").innerHTML = `Sources: <b>official</b> is a state's own published count; <b>compiled (UF)</b> is the ${esc(S.index.tracker?.label ?? "UF Election Lab compilation")}; <b>archived UF 2022</b> is ${esc(pi.uf2022_label)}` +
+    `${pi.uf2022_used.length ? ` (used for: ${pi.uf2022_used.map((x) => x.toUpperCase()).join(", ")})` : ` (no state uses it: the archive holds ${pi.uf2022_found.length ? `a page for only ${pi.uf2022_found.map((x) => x.toUpperCase()).join(", ")} before Election Day, all weeks earlier than the day compared` : "none of these pages from before Election Day"})`}. ` +
+    `A 2022 figure up to ${pi.flag_gap_days} day from the same day is treated as the same day; up to ${pi.max_gap_days} days is shown and marked *; further apart is not used. ` +
+    `"% of 2022 total votes": ballots so far over the certified 2022 total (${esc(pi.certified_basis.replace(/^Certified 2022 total votes: /, "").replace(/\.$/, ""))}).`;
+}
 
 function drawCoverage() {
+  drawPace();
   const cs = S.index.states, n = (s) => cs.filter((c) => c.status === s).length;
   const county = cs.filter((c) => c.status === "collected" && c.level === "county" && !c.partial).length;
   const party = cs.filter((c) => c.status === "collected" && c.party).length;
@@ -62,7 +97,7 @@ function drawCoverage() {
     const stale = c.stale ? ` <span class="ev-detail" style="display:inline">(older than the rest)</span>` : "";
     return `<tr data-st="${c.st}" class="${c.st === S.st ? "sel" : ""}"><td><button type="button" class="ev-name" data-st="${c.st}">${esc(c.name)}</button></td>` +
       `<td><span class="ev-pill s-${c.status}">${STATUS[c.status]}</span>${detail}</td><td>${level(c)}</td><td>${c.status === "collected" || c.status === "compiled" ? (c.party ? "yes" : "no") : "–"}</td>` +
-      `<td class="n">${dayShort(c.as_of)}${stale}</td><td class="n ev-hide-sm">${stamp(c.last_fetch)}</td><td class="n">${num(c.total)}</td><td class="n">${pt(c.lead)}</td>` +
+      `<td class="n">${dayShort(c.as_of)}${stale}</td><td class="n ev-hide-sm">${stamp(c.last_fetch)}</td><td class="n">${num(c.total)}</td>${paceCell(c)}<td class="n">${pc(c.pct22)}</td><td class="n">${pt(c.lead)}</td>` +
       `<td class="n ev-hide-sm">${c.hist.length ? c.hist.join(", ") : "–"}</td><td class="ev-links ev-hide-sm">${c.links.slice(0, 2).map((l) => `<a href="${esc(l.url)}" rel="noopener">${esc(l.label)}</a>`).join("")}</td></tr>`;
   }).join("");
   $("#cov-table tbody").querySelectorAll("[data-st]").forEach((el) => el.addEventListener("click", (e) => { if (e.target.closest("a")) return; select(el.dataset.st, true); }));

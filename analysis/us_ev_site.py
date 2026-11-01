@@ -33,6 +33,7 @@ if str(HERE) not in sys.path:
 import us_ev_canon as canon  # noqa: E402
 import us_ev_daily as daily  # noqa: E402
 import us_ev_db as db  # noqa: E402
+import us_ev_pace as pace  # noqa: E402
 
 ELECTION_DAY = date(2026, 11, 3)
 WINDOW_DAYS = 60                     # days before Election Day shown for 2026
@@ -63,6 +64,7 @@ HIST_CAVEAT = {
     "tx": "the past file holds only the largest counties, so it cannot be compared with a statewide count",
     "fl": "Florida's past files are one end-of-period compilation per election, not a day-by-day series",
 }
+UF2022_LABEL = "UF Election Lab / US Elections Project 2022 tracker page, archived by the Internet Archive"
 BASIS = {
     "nc": "Accepted ballots by the day they were returned or voted (mail ballots including those accepted after a cure, plus one-stop early voting), rebuilt from the State Board's per-voter file.",
     "pa": "Mail ballots returned by the day they were returned (Pennsylvania has no in-person early voting), rebuilt from the Department of State's open-data extract; ballots later cancelled are still counted.",
@@ -354,8 +356,36 @@ def registry_status(reg: pd.DataFrame) -> tuple[str, str]:
     return "not_published", acc or "nothing found"
 
 
+def state_pace(st: str, s: dict, hist: dict | None, cert: dict, uf22: pd.DataFrame) -> dict:
+    """The 'Pace vs 2022' entry of one state with data (analysis/us_ev_pace.py): this year's count against the same day before
+    Election Day in 2022 (official past series where the state has one, else the archived UF 2022 tracker pages)."""
+    lat = s["latest"]
+    d0 = lat["db"]
+    hs = hist["state"][hist["state"]["st"] == st] if hist is not None else pd.DataFrame(columns=["st", "year", "kind", "is_final"])
+    inperson_only = st == "md" or (hs["kind"].eq("inperson").any() and not hs["kind"].isin(["total", "mail"]).any())
+    kind = "inperson" if inperson_only else "total"
+    value = lat["inperson"] if inperson_only else lat["total"]
+    compiled = s.get("compiled", False)
+    now = {"value": value, "date": lat["date"], "db": d0, "source": "compiled" if compiled else "official",
+           "measure": "in-person early votes" if inperson_only else ("total ballots" + ("" if compiled else ": " + s["basis"].rstrip(".").lower()))}
+    then, why = None, ""
+    if hist is not None and not hs.empty:
+        past = hs[(hs["year"] == 2022) & (~hs["is_final"])]
+        if st in HIST_CAVEAT and not past.empty and (st == "tx" or past["days_before"].nunique() <= 1):
+            why = HIST_CAVEAT[st]
+        else:
+            then, why = pace.official_then(hs, kind, d0)
+    elif hist is not None:
+        why = "this state published no past day-by-day series"
+    if then is None:
+        m = s["methods"]
+        got, why2 = pace.uf_then(uf22[uf22["st"] == st], d0, bool(m["mail"] and m["inperson"]), bool(m["mail"] and not m["inperson"]))
+        then, why = (got, "") if got else (None, (why + "; " if why else "") + why2)
+    return pace.build(now, then, cert.get(st), why)
+
+
 def build_coverage(frames: dict, canon_state: pd.DataFrame, canon_county: pd.DataFrame, states: dict, counties: dict,
-                   hist: dict | None, uf_fetch: str | None = None) -> list[dict]:
+                   hist: dict | None, uf_fetch: str | None = None, pace_map: dict | None = None) -> list[dict]:
     reg, snaps, flog = frames["sources"], frames["snapshots"], frames["fetch_log"]
     sec: set = set()
     newest = max((s["latest"]["date"] for s in states.values()), default=None)
@@ -379,13 +409,12 @@ def build_coverage(frames: dict, canon_state: pd.DataFrame, canon_county: pd.Dat
         if s:
             lat = s["latest"]
             stale = newest is not None and (date.fromisoformat(newest) - date.fromisoformat(lat["date"])).days > STALE_DAYS
-            fin = hist["final"].loc[(st, 2022)] if hist is not None and (st, 2022) in hist["final"].index else None
-            v22 = float(fin["votes"]) if fin is not None and fin["missing"] == 0 else None
+            pc = (pace_map or {}).get(st)
             compiled = s.get("compiled", False)
             reg_status, reg_detail = registry_status(r) if len(r) and compiled else ("", "")
             entry.update({"status": "compiled" if compiled else "collected", "detail": "", "level": "state" if compiled else level, "party": s["has_party"], "as_of": lat["date"], "stale": bool(stale),
                           "total": lat["total"], "mail": lat["mail"], "inperson": lat["inperson"], "added": lat["added"], "lead": lat["lead"],
-                          "pct22": clean(100 * lat["total"] / v22) if v22 and lat["total"] else None,
+                          "pct22": clean(pc["pct22"]) if pc and pc["pct22"] is not None else None, "pace": pc,
                           "days": len(s["series"]["date"]), "hist": [c["year"] for c in s["compare"]["cycles"] if c.get("ok")],
                           })
             if compiled:
@@ -495,10 +524,15 @@ def build(db_path: Path, out: Path, use_daily: bool = True, log=print) -> dict:
                 states[st]["uf_check"] = cross_check(states[st], res)
             else:
                 states[st] = res
-    cov = build_coverage(frames, cstate, ccounty, states, counties, hist, uf_fetch)
+    cert, uf22 = pace.read_certified(db.data_root()), pace.read_uf2022(db.data_root())
+    pace_map = {st: state_pace(st, s, hist, cert, uf22) for st, s in states.items()}
+    cov = build_coverage(frames, cstate, ccounty, states, counties, hist, uf_fetch, pace_map)
     snaps = frames["snapshots"]
     index = {"built": snaps["fetched_utc"].max(), "election_day": ELECTION_DAY.isoformat(), "window_days": WINDOW_DAYS, "states": cov,
              "years": list(YEARS), "midterms": list(MIDTERMS), "tracker": tracker,
+             "pace": {"max_gap_days": pace.MAX_GAP, "flag_gap_days": pace.EXACT_GAP, "uf2022_found": sorted(set(uf22["st"])),
+                      "uf2022_used": sorted(k for k, v in pace_map.items() if v["then"] and v["then"]["source"] == "uf2022"), "uf2022_label": UF2022_LABEL,
+                      "certified_basis": "Certified 2022 total votes: the largest statewide office total (governor, U.S. Senate, or all U.S. House votes)."},
              "audit": {"county_not_equal_state": len(audit["county_not_equal_state"]), "canonical_has_two_sources": len(audit["canonical_has_two_sources"]),
                        "dropped": dropped},
              "counts": {"collected": sum(1 for c in cov if c["status"] == "collected"), "compiled": sum(1 for c in cov if c["status"] == "compiled"), "blocked": sum(1 for c in cov if c["status"] == "blocked"),

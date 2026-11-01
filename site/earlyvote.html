@@ -11,7 +11,7 @@
 <link id="page-css" rel="stylesheet">
 <link id="ev-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261101a";
+window.__BUILD = "20261101b";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
@@ -42,6 +42,7 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
       <li><b>Party.</b> Where a state publishes it, ballots are split by the voter's party <em>registration</em>. Registration is not a vote: unaffiliated voters are a large share of the early vote in many states, and registered Democrats and Republicans cross over. The "Democratic minus Republican" figure is the difference in those two groups' shares of returned ballots, in percentage points. Nothing here says how any group voted.</li>
       <li><b>The word "firewall".</b> Commentators call a lead built up in early voting a "firewall": votes banked before Election Day that the other side would have to overcome on the day. This page does not use that idea to predict anything. It only reports the counts, and the lead above is a count of registrations on returned ballots.</li>
       <li><b>Comparison with past elections.</b> The same number of days before Election Day in earlier general elections (<span id="ev-years"></span>), from the day-by-day files those states published. Turnout in a presidential year is not comparable with a midterm; the table marks each cycle. Many states published no day-by-day history, and the table says so.</li>
+      <li><b>Pace vs 2022.</b> For every state with a count, this year's ballots so far divided by the 2022 ballots on the same number of days before Election Day, next to the share of the certified 2022 total vote already cast. A state shows a dash when no 2022 figure for that day exists: most states published no day-by-day history, and the Internet Archive holds almost none of the 2022 UF tracker pages from the week before Election Day. Each value names its source.</li>
     </ul>
   </details>
 </header>
@@ -60,6 +61,12 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
     </div>
   </div>
   <p class="note" id="cov-note"></p>
+  <figure class="ev-fig" id="pace-fig">
+    <h3 id="pace-h">Pace against 2022, state by state</h3>
+    <p class="chart-sub" id="pace-sub"></p>
+    <ul class="ev-pace-list" id="pace-list"></ul>
+    <p class="note" id="pace-note"></p>
+  </figure>
 </section>
 
 <section class="ev-wrap" id="st-sec" aria-labelledby="st-h" hidden>

@@ -75,7 +75,39 @@ A reconstruction by return date is "what the file says today about each day", li
    marked and are not comparable with each other.
 3. County map and table for states with county data: ballots, mail, in person, added since the previous report, % of 2022 votes,
    party lead.
-4. The word "firewall" appears once, in the "How to read this page" explainer that defines it.
+4. **Pace vs 2022 (same day)** and **% of 2022 total votes** (coverage table, sortable) and a national list of states by pace
+   (`analysis/us_ev_pace.py`, `state_pace` in `us_ev_site.py`; `index.json` `states[].pace`, `index.json` `pace`). See below.
+5. The word "firewall" appears once, in the "How to read this page" explainer that defines it.
+
+## Pace vs 2022
+
+For every state with a count: **now** = this year's ballots so far (official if collected, else the UF Election Lab's compiled
+figure; the in-person count for Maryland, whose past file is in-person only), with its days before Election Day `d0`;
+**then** = the 2022 figure nearest `d0` days before Election Day (2022: Nov 8; 2026: Nov 3): the official past series
+(`ev_hist_state.parquet`, same rules and `HIST_CAVEAT` as the past-cycle table) where the state has a day-by-day one, else an
+archived 2022 UF tracker page; **pace** = now / then; **% of 2022 total votes** = now / the certified 2022 total (largest statewide
+office total in `results_state.csv`: governor, Senate, or all U.S. House votes). A tie in distance takes the earlier day, never a
+later count. A 2022 figure 0-1 day from `d0` is treated as the same day; 2-3 days is used but flagged `gap` (marked * on the page,
+with how many days earlier or later); more than 3 days is not used (no pace, the reason is in `pace.why`). A mismatch between the
+2022 page's measure and this year's (e.g. 2022 mail only, 2026 mail + in person) is flagged `definition`. Every value carries its
+source label: *official*, *compiled (UF)* (2026 side only) or *archived UF 2022*.
+
+**Where 2022 lived, and what the Internet Archive holds.** The 2022 UF tracker was not on election.lab.ufl.edu (its own tracker
+starts in 2024; the 2022 and 2020 data files answer 404) but was a set of RPubs documents by Michael McDonald:
+`rpubs.com/ElectProject/early_vote_2022` (national, aggregate counts only, many captures) and one page per state,
+`rpubs.com/ElectProject/<ST>_early_vote_2022`, each an iframe onto `rstudio-pubs-static.s3.amazonaws.com/<id>_<hash>.html` with a
+"Last update" date, the state's total / in-person / mail counts and a county table (no daily series). `analysis/us_ev_uf2022.py
+survey` finds, through the CDX API, every captured static state page from 2022-09-20 to 2022-11-08 and stores the raw HTML under
+`$BRUNDER_DATA/raw/us/uf_2022_wayback/` (with `survey.json`: the id and query per state, including states with nothing, and
+`state_ids.json`); `parse` writes `$BRUNDER_DATA/processed/us2026/uf_2022_wayback.csv` (state, capture time, the as-of date the
+page states, days before Election Day, total / in-person / mail, and what the total is made of). It is never mixed with
+official rows. Result of the survey (2026-11-01): the Archive captured the RPubs state pages mostly on Nov 7 and Nov 10, but the
+static files behind them are almost never archived; only Georgia (as of Oct 9), Pennsylvania (Oct 7) and South Dakota (Oct 7)
+have a page before Election Day, 29-32 days before it, and Florida's only copy is the final one (Nov 8, captured Nov 14). So no
+state's pace uses an archived UF 2022 page for 2026's days 3-8; the page says so, and only states with an official 2022
+day-by-day series (CO, LA, MD, NC, OK, PA) get a pace. The code picks up any archived page that falls within the allowed gap.
+The national page's 2022 daily totals (aggregate over the reporting states, not by state) are not used: the state sets differ.
+Access: web.archive.org only (CDX + `id_` captures), at most one request a second, user agent `brunder/0.1 (research; recorder)`.
 
 ## Refresh
 

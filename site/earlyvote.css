@@ -83,3 +83,14 @@ table.compact td.n, table.compact th.n { text-align: right; font-variant-numeric
   .table-scroll { overflow-x: auto; }
 }
 table.compact td.n { white-space: nowrap; }
+
+/* pace vs 2022 */
+.ev-cov td.ev-pace .ev-detail { display: block; font-size: 11px; }
+.ev-pace-list { list-style: none; padding: 0; margin: 10px 0 0; font: 13px/1.4 var(--sans); display: grid; gap: 6px; }
+.ev-pace-list li { display: grid; grid-template-columns: 150px minmax(120px, 1fr) 56px; gap: 4px 10px; align-items: center; }
+.ev-pace-list .ev-detail { grid-column: 2 / 4; display: block; color: var(--muted); font-size: 11.5px; }
+.ev-pace-list .ev-bar { position: relative; height: 10px; background: #ece9df; }
+.ev-pace-list .ev-bar i { position: absolute; inset: 0 auto 0 0; background: #6a7f99; }
+.ev-pace-list .ev-bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.ev-pace-list .n { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .ev-pace-list li { grid-template-columns: 110px minmax(80px, 1fr) 52px; } }
