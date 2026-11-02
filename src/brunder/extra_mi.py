@@ -3,6 +3,12 @@
 MI-04/07/08 report on Enhanced Voting, a host we never request). Macomb = 88 % of MI-10's 2024 presidential vote; the
 Oakland part (12 %) has no source and stays uncounted.
 
+Also MI-04's Ottawa County part (26 % of MI-04's 2024 presidential vote; Kalamazoo is on Enhanced Voting, never
+requested; Allegan, Calhoun, Van Buren and Berrien have no machine-readable night source found): Ottawa's Clarity
+county site https://results.enr.clarityelections.com/MI/Ottawa (2026 general EID 127391, 2024 general 123542),
+json/en/summary.json = county totals per contest, "Representative in Congress 4th District", TP/PR = precincts
+total/reporting of the contest. The version is resolved per poll as in brunder.extra_clarity.
+
   https://macombgovdocs.org/clerk/pdfs/elect-2026-11-03-unofficial-summary-results.pdf (posted 2026-10-27 as a
   blank template; 2024: elect-2024-11-05-unofficial-summary-results.pdf). A multi-column one-page-per-section report;
   pypdf's layout extraction keeps the columns, and the U.S. House block is the left column: "REPRESENTATIVE IN
@@ -18,17 +24,24 @@ import re
 import numpy as np
 import pandas as pd
 
+from . import extra_clarity as _clarity
 from . import us
 
 NAME = "mi"
 MACOMB = "https://macombgovdocs.org/clerk/pdfs/elect-2026-11-03-unofficial-summary-results.pdf"
-RECORD = [{"key": "mi_macomb", "url": MACOMB, "interval": 120, "ext": "pdf", "host_class": "server-unverified"}]
-FEEDS = {"mi_house": {"macomb": "mi_macomb"}}
+OTTAWA = "https://results.enr.clarityelections.com/MI/Ottawa"
+RECORD = [{"key": "mi_macomb", "url": MACOMB, "interval": 120, "ext": "pdf", "host_class": "server-unverified"},
+          {"key": "mi_ottawa_summary", "url": OTTAWA + "/elections.json", "interval": 60, "ext": "json",
+           "host_class": "server-blocked",            # Clarity CloudFront WAF: 202 challenge to the VM
+           "resolve": lambda get: _clarity._resolve(OTTAWA, "json/en/summary.json", get)}]
+FEEDS = {"mi_house": {"macomb": "mi_macomb", "ottawa": "mi_ottawa_summary"}}
 STATES = {"mi": "Michigan"}
 POLL_CLOSE = {"mi": "2026-11-04T01:00:00Z"}
 SOURCE_INFO = {"mi": ("Macomb County Clerk, unofficial election results", "https://www.macombgov.org/departments/"
                       "clerk-register-deeds/elections", "public record")}
 UNIT = ("us-mi-26099", "Macomb")
+OTTAWA_UNIT = ("us-mi-26139", "Ottawa")
+_CLARITY_RACE = re.compile(r"^\s*Representative in Congress\s+(\d+)(?:st|nd|rd|th)\s+District\s*$", re.I)
 _PARTIES = "DEM|REP|LIB|UST|GRN|WC|NLP|NPA|IND"
 _CAND = re.compile(rf"^\s{{0,3}}(\S.*?)\s{{2,}}({_PARTIES})\b(?:\s{{1,24}}([\d,]+)(?=\s|$))?")
 _DIST = re.compile(r"^\s{0,30}(\d+)(?:st|nd|rd|th) District\b")
@@ -63,13 +76,36 @@ def parse_text(pages: list[str]) -> list[dict]:
     return rows
 
 
+def parse_ottawa(summary: bytes) -> list[dict]:
+    rows = []
+    for c in _clarity._loads(summary):
+        m = _CLARITY_RACE.match(str(c.get("C") or ""))
+        if not m:
+            continue
+        ch = c.get("CH") or []
+        for name, party, v in zip(ch, c.get("P") or [""] * len(ch), c.get("V") or [0] * len(ch)):
+            rows.append({"level": "county", "unit_id": OTTAWA_UNIT[0], "name": OTTAWA_UNIT[1],
+                         "race": f"house-{int(m.group(1)):02d}", "candidate": name, "party": us.party_code(party),
+                         "votes": float(v), "early": np.nan, "reporting": float(c.get("PR") or 0),
+                         "units": float(c.get("TP") or 0), "ballots": np.nan, "registered": np.nan,
+                         "outstanding": np.nan})
+    return rows
+
+
+def parse_macomb(pdf: bytes) -> list[dict]:
+    from pypdf import PdfReader
+    reader = PdfReader(io.BytesIO(pdf))
+    return parse_text([p.extract_text(extraction_mode="layout") or "" for p in reader.pages])
+
+
 def parse(kind: str, blobs: dict) -> pd.DataFrame:
-    pdf = blobs.get("macomb")
-    if not pdf:
-        return us._frame([])
-    try:
-        from pypdf import PdfReader
-        reader = PdfReader(io.BytesIO(pdf))
-        return us._frame(parse_text([p.extract_text(extraction_mode="layout") or "" for p in reader.pages]))
-    except Exception:
-        return us._frame([])
+    rows = []
+    for role, fn in (("macomb", parse_macomb), ("ottawa", parse_ottawa)):
+        b = blobs.get(role)
+        if not b:
+            continue
+        try:
+            rows += fn(b)
+        except Exception:                                  # half-written / not-yet-posted file
+            continue
+    return us._frame(rows)

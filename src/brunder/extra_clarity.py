@@ -59,9 +59,10 @@ def _loads(b: bytes):
 
 
 def election_id(listing: bytes) -> str | None:
-    """EID of the state-level election dated 2026-11-03 in elections.json (None if not listed yet)."""
+    """EID of the election dated 2026-11-03 in a site's elections.json (a state site lists County "", a county site
+    its own name; None if not listed yet)."""
     for e in _loads(listing):
-        if str(e.get("Date", "")).startswith(ELECTION_DATE + " ") and not e.get("County"):
+        if str(e.get("Date", "")).startswith(ELECTION_DATE + " "):
             return str(e["EID"])
     return None
 

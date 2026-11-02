@@ -34,7 +34,7 @@ from brunder import extra_mt as M  # noqa: E402
 from brunder import extra_wi as WI  # noqa: E402
 
 ROOT = us.ROOT_DIR
-DISTRICTS = {"clarity_mw": {"ia": (1, 2, 3), "co": (3, 4, 5, 8)}, "mt": {"mt": (1,)}, "mo": {"mo": (2,)}, "in": {"in": (5,)}, "wi": {"wi": (1,)}, "mi": {"mi": (10,)}}
+DISTRICTS = {"clarity_mw": {"ia": (1, 2, 3), "co": (3, 4, 5, 8)}, "mt": {"mt": (1,)}, "mo": {"mo": (2,)}, "in": {"in": (5,)}, "wi": {"wi": (1,)}, "mi": {"mi": (4, 10)}}
 MODULES = {"clarity_mw": C, "mt": M, "mo": MO, "in": IN, "wi": WI, "mi": MI}
 OUT_CFG = ROOT / "configs" / "us2026_extra"
 FIX = ROOT / "tests" / "fixtures" / "us"
@@ -43,20 +43,24 @@ SOURCE_URL = {"ia": "https://electionresults.iowa.gov/IA/", "co": "https://resul
               "mo": "https://extcontent.stlouisco.com/BOE/eResults/ ; https://www.livevoterturnout.com/ENR/stcharlesmoenr/",
               "in": "https://enr.indianavoters.in.gov/",
               "wi": "https://apps.kenoshacounty.org/ElectionResults_v2/ ; http://elections.co.rock.wi.us/",
-              "mi": "https://macombgovdocs.org/clerk/pdfs/elect-2026-11-03-unofficial-summary-results.pdf"}
+              "mi": "https://macombgovdocs.org/clerk/pdfs/elect-2026-11-03-unofficial-summary-results.pdf ; "
+                    "https://results.enr.clarityelections.com/MI/Ottawa/"}
 SOURCE_NAME = {"ia": "Iowa Secretary of State, Election Night Reporting (Clarity)",
                "co": "Colorado Secretary of State, Election Night Reporting (Clarity)",
                "mt": "Montana Secretary of State, election results web service",
                "mo": "St. Louis County Board of Elections and St. Charles County Election Authority",
                "in": "Indiana Election Division, Election Night Reporting",
                "wi": "Kenosha County and Rock County clerks",
-               "mi": "Macomb County Clerk"}
-NOTE = {"mo": ("# PARTIAL COVERAGE: St. Louis and St. Charles counties = 84 % of the district's 2024 presidential vote;\n"
+               "mi": "Macomb County Clerk (PDF) and Ottawa County Clerk (Clarity)"}
+NOTE = {"MO-02": ("# PARTIAL COVERAGE: St. Louis and St. Charles counties = 84 % of the district's 2024 presidential vote;\n"
                "# Franklin and Warren counties (16 %) have no night source and are projected from the prior and swing.\n"),
-        "wi": ("# PARTIAL COVERAGE: Kenosha and Rock (WI-01 part) counties = 38 % of the district's 2024 presidential vote;\n"
+        "WI-01": ("# PARTIAL COVERAGE: Kenosha and Rock (WI-01 part) counties = 38 % of the district's 2024 presidential vote;\n"
                "# Racine (27 %, site 403), Milwaukee (21 %, Cloudflare challenge) and Walworth (14 %, no fixed URL) are\n"
                "# projected from the prior and the swing of the covered counties.\n"),
-        "mi": ("# PARTIAL COVERAGE: Macomb County = 88 % of the district's 2024 presidential vote; the Oakland part (12 %)\n"
+        "MI-04": ("# PARTIAL COVERAGE: only Ottawa County's part = 26 % of the district's 2024 presidential vote (Clarity\n"
+                  "# county site); Kalamazoo (Enhanced Voting, never requested), Allegan, Calhoun, Van Buren and Berrien\n"
+                  "# have no night source and are projected from the prior and Ottawa's swing.\n"),
+        "MI-10": ("# PARTIAL COVERAGE: Macomb County = 88 % of the district's 2024 presidential vote; the Oakland part (12 %)\n"
                "# has no night source. The Macomb PDF has no precinct counts: the count fraction comes from turnout alone.\n")}
 
 
@@ -150,7 +154,7 @@ def configs() -> list[Path]:
                     text = text.replace(f'state = "{st}"\n',
                                         f'state = "{st}"\nsource = "{SOURCE_NAME[st]}"\nsource_url = "{SOURCE_URL[st]}"\n')
                     text = _HEAD.format(did=did, sname=SOURCE_NAME[st], kind=f"{st}_house",
-                                        mod=mod.__name__.split(".")[-1]) + NOTE.get(st, "") + text
+                                        mod=mod.__name__.split(".")[-1]) + NOTE.get(did, "") + text
                     f = OUT_CFG / f"{st}-{nn}_{ver}.toml"
                     f.write_text(text)
                     out.append(f)

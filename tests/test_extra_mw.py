@@ -159,3 +159,22 @@ def test_michigan_mi10_macomb_pdf():
     p10 = pre[pre["race"] == "house-10"]
     assert set(p10["party"]) >= {"DEM", "REP"} and pre["votes"].sum() == 0
     assert MI.parse("mi_house", {"macomb": b"<html>404</html>"}).empty and MI.parse("mi_house", {}).empty
+
+
+def test_michigan_mi04_ottawa_clarity_summary():
+    from brunder import extra_mi as MI
+    df = MI.parse("mi_house", {"ottawa": _fx("extra_mi_ottawa_2024_summary.json.gz")})
+    x = df[df["race"] == "house-04"].set_index("candidate")
+    assert (x.loc["Jessica Swartz", "votes"], x.loc["Bill Huizenga", "votes"]) == (37295, 72859)
+    assert (x["units"] == 74).all() and (x["unit_id"] == "us-mi-26139").all()
+    pre = MI.parse("mi_house", {"ottawa": _fx("extra_mi_ottawa_2026pre_summary.json.gz")})
+    p4 = pre[pre["race"] == "house-04"].set_index("party")
+    assert p4.loc["DEM", "candidate"] == "Sean McCann" and p4.loc["REP", "candidate"] == "Bill Huizenga"
+    assert pre["votes"].sum() == 0
+    spec = next(s for s in MI.RECORD if s["key"] == "mi_ottawa_summary")
+    from brunder import extra_clarity as C
+    C._EID.clear()
+    C._VER.clear()
+    listing = json.dumps([{"EID": "127391", "Date": "11/3/2026 12:00:00 AM", "County": "Ottawa"}]).encode()
+    url = spec["resolve"](lambda u: listing if u.endswith("elections.json") else b"382400")
+    assert url == f"{MI.OTTAWA}/127391/382400/json/en/summary.json"

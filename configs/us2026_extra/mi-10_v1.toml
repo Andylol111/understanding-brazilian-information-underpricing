@@ -1,4 +1,4 @@
-# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. MI-10 U.S. House from Macomb County Clerk (mi_house feed,
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. MI-10 U.S. House from Macomb County Clerk (PDF) and Ottawa County Clerk (Clarity) (mi_house feed,
 # brunder.extra_mi; analysis/us_extra_mw.py configs). Kept out of registered scoring.
 # PARTIAL COVERAGE: Macomb County = 88 % of the district's 2024 presidential vote; the Oakland part (12 %)
 # has no night source. The Macomb PDF has no precinct counts: the count fraction comes from turnout alone.
@@ -17,8 +17,8 @@ eid = "us2026"
 race_id = "house:MI-10"
 name = "MI-10 U.S. House"
 state = "mi"
-source = "Macomb County Clerk"
-source_url = "https://macombgovdocs.org/clerk/pdfs/elect-2026-11-03-unofficial-summary-results.pdf"
+source = "Macomb County Clerk (PDF) and Ottawa County Clerk (Clarity)"
+source_url = "https://macombgovdocs.org/clerk/pdfs/elect-2026-11-03-unofficial-summary-results.pdf ; https://results.enr.clarityelections.com/MI/Ottawa/"
 race = "house-10"             # race key in the parsed feed (brunder.us_house_night)
 feed = "mi_house"             # brunder.us.FEEDS: the state's recorded feed, House contests
 poll_close_utc = "2026-11-04T01:00:00Z"
