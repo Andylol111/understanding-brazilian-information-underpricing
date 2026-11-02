@@ -2261,6 +2261,12 @@ function updateNational(yes = natYes) {
     }
   }
   const model = new Map(races().map((r) => [r.race_id, modelP(rowAt(r.race_id, S.t))]).filter(([, p]) => p != null));
+  // civicAPI races (secondary source): their live model colours the state too, keyed by the overview's
+  // race key; a registered race of the same contest keeps precedence
+  for (const c of S.civic?.races ?? []) {
+    const key = c.race_id.replace(/-civic$/, ""), p = modelP(rowAt(c.race_id, S.t));
+    if (p != null && !model.has(key)) model.set(key, p);
+  }
   S.nat.update({ overview: S.overview, live, model });
 }
 
@@ -2281,7 +2287,7 @@ async function initNational() {
     onHighlight: (r) => S.map?.highlightRegion(r),
     layers: [["arrows", "Swing arrows"], ...CENSUS.map(([k, l]) => [k, l])], onLayer: (k) => setLayer(k),
     // a live county model: the race is in the election's own files (meta.races), whatever the overview says
-    modelled: (r) => !!(r.modeled || statewide().some((x) => x.race_id === (r.race_id ?? r.race_key))),
+    modelled: (r) => !!(r.modeled || statewide().some((x) => x.race_id === (r.race_id ?? r.race_key)) || S.civic?.races.some((c) => c.race_id.replace(/-civic$/, "") === (r.race_id ?? r.race_key))),
     feedNote: (s) => feedLine(s),
   });
   // the House office and the census map modes: a layer over the county map, in the same map box
