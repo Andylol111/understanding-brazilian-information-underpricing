@@ -1,0 +1,12 @@
+# US midterms 2026 House district priors, secondary source mo (analysis/us_extra_mw.py priors;
+# added 2026-11-02, unregistered): 2024 president (Harris, Trump, all candidates) in each county's part
+# of each 2026 district (analysis/us_house_night.county_pieces, the allocation of
+# site/data/us2026/house/districts.json; max deviation of district sums 1.8e-06).
+# Sources: MIT Election Data and Science Lab, County Presidential Election Returns 2000-2024
+#   (doi:10.7910/DVN/VOQCHQ) and U.S. President Precinct-Level Returns 2024 (doi:10.7910/DVN/XDJYKC), CC0;
+#   US Census Bureau 119th/120th Congress block equivalency files (public domain).
+source,unit_id,dem,rep,total
+mo-02_pres_2024,us-mo-29071,14694.0,40126.0,55464.0
+mo-02_pres_2024,us-mo-29183,23219.3,36657.6,60682.6
+mo-02_pres_2024,us-mo-29189,155818.0,142757.1,304443.1
+mo-02_pres_2024,us-mo-29219,3330.7,10175.9,13643.0

@@ -27,18 +27,23 @@ import us_house_night as N  # noqa: E402
 
 from brunder import us  # noqa: E402
 from brunder import extra_clarity as C  # noqa: E402
+from brunder import extra_mo as MO  # noqa: E402
 from brunder import extra_mt as M  # noqa: E402
 
 ROOT = us.ROOT_DIR
-DISTRICTS = {"clarity_mw": {"ia": (1, 2, 3), "co": (3, 4, 5, 8)}, "mt": {"mt": (1,)}}
-MODULES = {"clarity_mw": C, "mt": M}
+DISTRICTS = {"clarity_mw": {"ia": (1, 2, 3), "co": (3, 4, 5, 8)}, "mt": {"mt": (1,)}, "mo": {"mo": (2,)}}
+MODULES = {"clarity_mw": C, "mt": M, "mo": MO}
 OUT_CFG = ROOT / "configs" / "us2026_extra"
 FIX = ROOT / "tests" / "fixtures" / "us"
 SOURCE_URL = {"ia": "https://electionresults.iowa.gov/IA/", "co": "https://results.enr.clarityelections.com/CO/",
-              "mt": "https://electionresults.mt.gov/ (data: esersws.mt.gov/ResultsAjax.svc/GetMapData)"}
+              "mt": "https://electionresults.mt.gov/ (data: esersws.mt.gov/ResultsAjax.svc/GetMapData)",
+              "mo": "https://extcontent.stlouisco.com/BOE/eResults/ ; https://www.livevoterturnout.com/ENR/stcharlesmoenr/"}
 SOURCE_NAME = {"ia": "Iowa Secretary of State, Election Night Reporting (Clarity)",
                "co": "Colorado Secretary of State, Election Night Reporting (Clarity)",
-               "mt": "Montana Secretary of State, election results web service"}
+               "mt": "Montana Secretary of State, election results web service",
+               "mo": "St. Louis County Board of Elections and St. Charles County Election Authority"}
+NOTE = {"mo": ("# PARTIAL COVERAGE: St. Louis and St. Charles counties = 84 % of the district's 2024 presidential vote;\n"
+               "# Franklin and Warren counties (16 %) have no night source and are projected from the prior and swing.\n")}
 
 
 def priors() -> list[Path]:
@@ -130,7 +135,8 @@ def configs() -> list[Path]:
                                         f"data_public/us2026_extra_priors_{src}.csv,\n# analysis/us_extra_mw.py priors;")
                     text = text.replace(f'state = "{st}"\n',
                                         f'state = "{st}"\nsource = "{SOURCE_NAME[st]}"\nsource_url = "{SOURCE_URL[st]}"\n')
-                    text = _HEAD.format(did=did, sname=SOURCE_NAME[st], kind=f"{st}_house", mod=mod.__name__.split(".")[-1]) + text
+                    text = _HEAD.format(did=did, sname=SOURCE_NAME[st], kind=f"{st}_house",
+                                        mod=mod.__name__.split(".")[-1]) + NOTE.get(st, "") + text
                     f = OUT_CFG / f"{st}-{nn}_{ver}.toml"
                     f.write_text(text)
                     out.append(f)
@@ -150,6 +156,10 @@ def verify() -> pd.DataFrame:
         "co": C.parse("co_house", {r: _fx(f"extra_clarity_co_2024_{r}.json.gz") for r in C.FILES}),
         "mt": M.parse("mt_house", {"d01": _fx("extra_mt_2024_cd01.json.gz")}),
     }
+    mo = MO.parse("mo_house", {"stlouis": _fx("extra_mo_stlouis_2024_subset.pdf.gz"),
+                               "stcharles": _fx("extra_mo_stcharles_2024_subset.html.gz")})
+    print("MO-02 2024, St. Louis + St. Charles parts (84 % of the district):",
+          mo[mo["race"] == "house-02"].groupby(["unit_id", "party"])["votes"].sum().to_dict())
     out = []
     for st, df in parsed.items():
         g = df[df["party"].isin(["DEM", "REP"])].groupby(["race", "party"])["votes"].sum().unstack()

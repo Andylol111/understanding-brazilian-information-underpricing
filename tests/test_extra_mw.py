@@ -96,3 +96,21 @@ def test_priors_cover_feed_counties():
         for s, p in pri.groupby("source"):
             df = parsed[s[:2]]
             assert set(p["unit_id"]) == set(df[df["race"] == f"house-{s[3:5]}"]["unit_id"]), s
+
+
+def test_missouri_mo02_2024_county_parts():
+    from brunder import extra_mo as MO
+    df = MO.parse("mo_house", {"stlouis": _fx("extra_mo_stlouis_2024_subset.pdf.gz"),
+                               "stcharles": _fx("extra_mo_stcharles_2024_subset.html.gz")})
+    g = df[df["race"] == "house-02"].groupby(["unit_id", "party"])["votes"].sum()
+    # St. Louis County certified "Official Results" (2024-11-19) and St. Charles County's final page
+    assert (g["us-mo-29189", "DEM"], g["us-mo-29189", "REP"]) == (144111, 150461)
+    assert (g["us-mo-29183", "DEM"], g["us-mo-29183", "REP"]) == (20592, 36153)
+    h = DJ["MO-02"]["house24"]                        # the rest is Franklin and Warren (not covered)
+    assert g.xs("DEM", level=1).sum() < h["dv"] and g.xs("REP", level=1).sum() < h["rv"]
+    stl = df[df["unit_id"] == "us-mo-29189"]
+    assert (stl["reporting"] == 231).all() and (stl["units"] == 231).all()
+    pre = MO.parse("mo_house", {"stcharles": _fx("extra_mo_stcharles_2026pre_subset.html.gz"), "stlouis": b"<html>404"})
+    p2 = pre[pre["race"] == "house-02"]
+    assert set(p2["party"]) >= {"DEM", "REP"} and p2["votes"].sum() == 0 and (p2["units"] == 35).all()
+    assert MO.parse("mo_house", {}).empty

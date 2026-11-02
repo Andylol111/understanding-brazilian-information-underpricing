@@ -1,0 +1,53 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. MO-02 U.S. House from St. Louis County Board of Elections and St. Charles County Election Authority (mo_house feed,
+# brunder.extra_mo; analysis/us_extra_mw.py configs). Kept out of registered scoring.
+# PARTIAL COVERAGE: St. Louis and St. Charles counties = 84 % of the district's 2024 presidential vote;
+# Franklin and Warren counties (16 %) have no night source and are projected from the prior and swing.
+# US midterms 2026-11-03, MO-02 U.S. House: model v1. No swing: the count alone moves the 2024 president baseline.
+# Counted units = the district's counties (a split county: only its part in the district, as the feed reports it).
+# Prior = 2024 president in each county's part of the 2026 district (data_public/us2026_extra_priors_mo.csv,
+# analysis/us_extra_mw.py priors; same allocation as site/data/us2026/house/districts.json). Settings from the
+# 2024 replay of the same feed's House contests (analysis/us_house_night.py replay; data_public/us2026_house_calibration.json):
+# Missouri's feed is not in the replay (added 2026-11-02); settings of the replayed group of feeds without a vote-type split (FL, SC, OH), 34 replayed districts; 90 % coverage 0.98/0.95/0.87 at 5/25/50 % counted, mean |error| 0.016/0.015/0.013.
+# Frozen before polls close; NOT registered (secondary source). Nothing here was chosen on 2026 count
+# data. Market selection: P(D) Polymarket 0.365, Kalshi 0.355 in markets.json built 2026-10-29 (rule: Polymarket or Kalshi in [0.05, 0.95]).
+id = "us2026_extra_mo-02_v1"
+
+[election]
+eid = "us2026"
+race_id = "house:MO-02"
+name = "MO-02 U.S. House"
+state = "mo"
+source = "St. Louis County Board of Elections and St. Charles County Election Authority"
+source_url = "https://extcontent.stlouisco.com/BOE/eResults/ ; https://www.livevoterturnout.com/ENR/stcharlesmoenr/"
+race = "house-02"             # race key in the parsed feed (brunder.us_house_night)
+feed = "mo_house"             # brunder.us.FEEDS: the state's recorded feed, House contests
+poll_close_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "Fred Wellman", color = "#1f5fbf" }
+b = { party = "REP", name = "Ann Wagner", color = "#c8102e" }
+
+[prior]
+share = "mo-02_pres_2024"     # 2024 president (Harris v Trump), county parts of the 2026 district
+votes = "mo-02_pres_2024"     # its two-party votes × turnout_ratio = expected 2026 two-party votes
+
+[model]                    # brunder.nowcast.Params
+tau = 0.01
+rho = 0.3
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03                # prior sd of a region's swing (one district = one region; early/late with vote_type)
+
+[count]                    # brunder.us.CountRules
+turnout_ratio = 0.72         # 2026 midterm / 2024 president two-party votes (brunder.us.EST_TURNOUT)
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = false
+
+[markets.polymarket]
+event = "mo-02-house-election-winner"
+market = "will-the-democratic-party-win-the-mo-02-house-seat"
+question = "Will the Democratic Party win the MO-02 House seat?"
+yes_is = "a"
+
+[markets.kalshi]           # timeline line needs a pair in configs/pairs/us2026.toml (race_id "house:MO-02")
+ticker = ""                # Kalshi event KXHOUSERACE-MO02-26, YES = KXHOUSERACE-MO02-26-D
