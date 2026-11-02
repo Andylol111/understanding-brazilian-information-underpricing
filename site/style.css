@@ -550,12 +550,6 @@ table.venues td:first-child a { text-decoration: none; }
 .national .nat-top, .national .nat-legend, .national .nat-panel { pointer-events: auto; }
 .nat-top { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 16px; padding: 10px 10px 0; }
 .nat-top .toggle { margin: 0; }
-.nat-control { flex: 1 1 320px; min-width: 0; font: 12.5px/1.4 var(--sans); }
-.nat-bar { position: relative; display: flex; height: 12px; background: #eceae4; }
-.nat-bar i { display: block; height: 100%; }
-.nat-bar i.gap { background: transparent; }
-.nat-bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
-.nat-bar-text { margin: 4px 0 0; color: var(--muted); }
 .national .nat-legend { position: absolute; left: 10px; bottom: 10px; }
 .legend-note .sw { display: inline-block; width: 10px; height: 10px; vertical-align: -1px; border: 1px solid #d6d3cb; }
 /* the live-county-model marker (●): an ink dot on a white halo, as drawn on the national map */
@@ -582,8 +576,6 @@ table.venues td:first-child a { text-decoration: none; }
 .nat-sum-ctl { font: 14px/1.5 var(--sans); margin: 0 0 6px; }
 .p-summary > p { font: 13.5px/1.5 var(--sans); }
 .nat-ctl-chart svg { display: block; width: 100%; height: auto; }
-table.nat-races td { padding: 4px 8px 4px 0; }
-table.nat-races td small { color: var(--muted); }
 @media (max-width: 1099.98px) {
   .dash.nat-on .p-summary { grid-area: timeline; } /* under the map on narrow screens */
 }
@@ -634,7 +626,6 @@ html { background: var(--paper); }
 .p-tabs .tabs button { flex: none; }
 @media (max-width: 700px) {
   /* the office summary's race table scrolls inside its column */
-  .p-summary table.nat-races { display: block; overflow-x: auto; }
 }
 /* the US page shows its tabs (polls, pollsters, markets, track record) under the office summary */
 .dash.nat-on.us-on .p-tabs { display: flex; }
@@ -865,29 +856,30 @@ kbd { font: 12px var(--sans); padding: 1px 6px; border: 1px solid #b9b5aa; borde
   .sel-panel { top: auto; bottom: 74px; max-height: 45%; }
 }
 
-/* balance of power */
-.bop { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 8px 36px; }
-.bop-card h3 { border-top: 2px solid var(--ink); padding-top: 6px; }
-.bop-row { display: grid; grid-template-columns: 150px minmax(120px, 1fr) 118px 112px; gap: 0 10px; align-items: center; padding: 4px 0; font: 13px/1.3 var(--sans); border-bottom: 1px solid var(--rule); }
-.bop-l { color: var(--muted); }
-.bop-x .bop-l { color: var(--model); }
-.bop-bar { position: relative; display: flex; height: 16px; background: var(--rule); }
-.bop-bar i { display: block; height: 100%; }
-.bop-bar .d0 { background: #174a94; } .bop-bar .d1 { background: #7fa7dc; }
-.bop-bar .r1 { background: #e59a9f; } .bop-bar .r0 { background: #a30d24; }
-.bop-maj { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); }
-.bop-k { position: absolute; top: 12px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--kalshi); }
-.bop-n, .bop-p { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bop-n > span { color: var(--muted); font-size: 12px; }
-.bop-dm { color: #1f5fbf; } .bop-rm { color: #c8102e; }
-.bop-p { text-align: right; }
-@media (max-width: 640px) { .bop { grid-template-columns: 1fr; } .bop-row { grid-template-columns: 110px 1fr; } .bop-n, .bop-p { grid-column: 2; } }
-.bop-p small { display: block; font-size: 10.5px; color: var(--muted); }
-.bop-note { font: 12.5px/1.45 var(--sans); color: var(--muted); margin: 8px 0 0; }
-.nat-control .bop-card h3 { font-size: 14px; margin: 0 0 2px; }
-.nat-control .bop-row { grid-template-columns: 88px minmax(80px, 1fr) 46px 100px; gap: 0 8px; font-size: 12px; }
-.nat-control .bop-n b + span { display: none; }
-.nat-control .bop-bar { height: 12px; }
-.nat-control .bop-card, .nat-control .bop-card h3 { color: #5a5851; }
-.nat-control .bop-maj { background: #6b6a63; }
-.nat-control .bop-card h3 { border-top: 0; padding-top: 0; }
+/* balance of power: the projected seat count as a hemicycle of dots (dash-bop.js) */
+.hemi { margin: 14px 0 0; }
+.hemi .tab-h { margin-top: 0; }
+.hemi p { margin: 0; }
+.hemi-label { font: 600 12px/1.4 var(--sans); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.hemi-head { font: 15px/1.35 var(--sans); margin-top: 2px; }
+.hemi-head b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.hemi-head .hd { color: #1f5fbf; } .hemi-head .hr { color: #c8102e; }
+.hemi-maj-n { margin-left: 10px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.hemi-sub { font: 12.5px/1.45 var(--sans); color: var(--muted); }
+.hemi-svg { display: block; width: 100%; height: auto; margin-top: 4px; }
+.hemi-maj { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; }
+.hemi-maj-t { font: 600 12px var(--sans); fill: var(--ink); }
+.hs { stroke: none; }
+.hs.d3 { fill: #1f5fbf; } .hs.d2 { fill: #6f9bd8; } .hs.d1 { fill: #bcd1ee; }
+.hs.r3 { fill: #c8102e; } .hs.r2 { fill: #e0707f; } .hs.r1 { fill: #f2c0c6; }
+.hs.t1 { fill: #bdb9ae; }
+.hs.nu.d3 { fill: #174a94; stroke: #a9c4ea; } .hs.nu.r3 { fill: #8f0b21; stroke: #efa5ae; }
+.hs.nu { stroke-width: 1.8; }
+circle.hs.go { cursor: pointer; }
+circle.hs:hover { stroke: var(--ink); stroke-width: 1.8; }
+.hemi-hover { min-height: 1.5em; font: 13px/1.5 var(--sans); }
+.hemi-key { font: 12px/1.6 var(--sans); color: var(--muted); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: -1px; }
+.sw.d3 { background: #1f5fbf; } .sw.d2 { background: #6f9bd8; } .sw.d1 { background: #bcd1ee; }
+.sw.r3 { background: #c8102e; } .sw.r2 { background: #e0707f; } .sw.r1 { background: #f2c0c6; }
+.sw.nu.d3 { background: #174a94; box-shadow: inset 0 0 0 1.5px #a9c4ea; } .sw.nu.r3 { background: #8f0b21; box-shadow: inset 0 0 0 1.5px #efa5ae; }

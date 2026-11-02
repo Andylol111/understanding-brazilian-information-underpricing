@@ -473,7 +473,7 @@ async def audit_house(page: Page, shots: Path | None, tag: str) -> list[Row]:
     for how in ("escape", "crumb"):
         await page.evaluate(f"{A}.layerFocus('tx')")
         await settle(page, 900)
-        await page.evaluate("document.querySelector('#nat-summary tbody tr')?.click()")
+        await page.evaluate("document.querySelector('#pane-races tbody tr')?.click()")
         await settle(page, 900)
         if how == "escape":
             await page.keyboard.press("Escape")

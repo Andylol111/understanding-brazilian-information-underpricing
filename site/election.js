@@ -14,8 +14,8 @@ import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
-import { balanceOfPower } from "./guide-rules.js";
-import { createOverlay, houseDistricts, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, ourModelHTML, CENSUS } from "./dash-house.js";
+import { seatProjection, hemicycleShell, renderHemicycle, bindHemicycle } from "./dash-bop.js";
+import { createOverlay, houseDistricts, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, houseModelP, ourModelHTML, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { createUx } from "./dash-ux.js";
 import { regionAgg, regionWinner, regionTally, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
@@ -907,6 +907,7 @@ function render() {
   const t0 = performance.now();
   const tt = S.preview ?? S.t;
   const k = frameIndex(tt);
+  scheduleHemi(); // the seat count follows the time shown
   if (S.map && S.units) {
     // the worker paints: every animation frame while playing (colours tweened between map
     // frames), otherwise only when the frame or the mode changes
@@ -2272,36 +2273,55 @@ function updateNational(yes = natYes) {
     const key = c.race_id.replace(/-civic$/, ""), p = modelP(rowAt(c.race_id, S.t));
     if (p != null && !model.has(key)) model.set(key, p);
   }
-  S.nat.update({ overview: S.overview, live, model, bop: bopFigures() });
+  S.nat.update({ overview: S.overview, live, model });
+  renderHemi();
 }
-// Balance of power for the national view (guide-rules.js balanceOfPower, as the night guide): the registered races' latest
-// model P (side a), the civicAPI races' where a state has no registered race, the 75-odd House count models'
-// latest P; live rows only once a race has votes.
-let natLive = null, natLiveAt = 0, natLiveMiss = 0, natLiveSkip = 0; // experimental national model (national_live/), read at most once a minute
-function bopFigures() {
-  if (!S.overview) return null;
-  const at = (id) => modelP(rowAt(id, S.t));
-  const reg = races().filter((r) => !isHouse(r)), lastP = new Map(), sideA = new Map(), civicP = new Map();
-  for (const r of reg) { const p = at(r.race_id); if (p != null) { lastP.set(r.race_id, p); sideA.set(r.race_id, r.b?.id === "dem" ? "rep" : "dem"); } }
-  for (const c of S.civic?.races ?? []) {
-    const p = at(c.race_id); if (p == null) continue;
-    civicP.set(c.race_id.replace(/-civic$/, ""), c.b?.id === "dem" ? 1 - p : p);
-  }
-  const houseP = new Map();
-  for (const id of S.houseLive?.rows.keys() ?? []) { const p = modelP(rowAt(id, S.t)); if (p != null && id.startsWith("house:")) houseP.set(id, p); }
-  const counting = reg.concat(S.civic?.races ?? []).some((r) => (rowAt(r.race_id, S.t)?.counted ?? 0) >= 0.01);
-  const dist = houseDistricts();
-  if (counting && Date.now() - natLiveAt > 60000) loadNatLive();
-  return balanceOfPower({ overview: S.overview, lastP, sideA, civicP, districts: dist, houseP, national: natLive, counting });
+// Balance of power (dash-bop.js): the projected seat count as a hemicycle of dots, model chances only. Senate: each race up at
+// the chance the Races table's Model column shows at the time shown (the registered race's live model, else the civicAPI race's,
+// else the overview's estimate, else the poll average), the seats not up solid; House: each district at the same chance as the
+// House Races table (the registered House model when it has one, else the district estimate). Before votes this is the
+// projection made before the count; during the count it follows every refresh and the time slider.
+const meanCounted = (list) => {
+  const c = list.filter((x) => x != null);
+  return c.some((x) => x >= 0.01) ? c.reduce((a, b) => a + b, 0) / c.length : null;
+};
+function senateProjection() {
+  const sen = S.overview?.offices?.senate;
+  if (!sen) return null;
+  const t = S.preview ?? S.t, hold = sen.holdovers ?? {}, ups = sen.races ?? [], counted = [];
+  const races = ups.map((o) => {
+    const r = statewide().find((x) => x.race_id === (o.race_id ?? o.race_key)) ?? S.extra?.get(o.race_key);
+    const row = r ? raceRow(r, t) : null;
+    let p = modelP(row);
+    if (p != null && r.b?.id === "dem") p = 1 - p;
+    if (row?.counted != null) counted.push(row.counted);
+    return { key: o.race_key, name: `${o.state_name ?? usStateName(o.state)} Senate${o.special ? " (special)" : ""}`, p: p ?? o.estimate?.P ?? o.polls?.p_win ?? null };
+  });
+  const total = sen.seats_total ?? 100, notUpD = (hold.D ?? 0) + (hold.I ?? 0);
+  return seatProjection({ chamber: "Senate", notUp: { D: notUpD, R: hold.R ?? total - notUpD - ups.length }, races, majority: sen.majority ?? null, counted: meanCounted(counted) });
 }
-async function loadNatLive() {
-  natLiveAt = Date.now();
-  if (natLiveSkip > 0) { natLiveSkip--; return; }
-  const j = await getJSON(`${EID}/national_live/national.json`, { optional: true }).catch(() => null);
-  if (!j) { natLiveMiss = Math.min(natLiveMiss + 1, 4); natLiveSkip = 2 ** natLiveMiss - 1; return; }
-  natLiveMiss = 0;
-  if (j.as_of !== natLive?.as_of) { natLive = j; updateNational(); }
+function houseProjection() {
+  const ids = houseDistrictIds();
+  if (!ids.length) return null;
+  const counted = [];
+  const races = ids.map((id) => {
+    const model = districtModel(id);
+    if (model?.row?.counted != null) counted.push(model.row.counted);
+    return { key: id, name: `${id} (House)`, p: houseModelP(id, model) };
+  });
+  return seatProjection({ chamber: "House", notUp: { D: 0, R: 0 }, races, counted: meanCounted(counted) });
 }
+// fill the hemicycle in the summary beside the map (its .hemi is rewritten with the summary, so the shell is made when missing)
+function renderHemi() {
+  const box = document.querySelector("#nat-summary .hemi");
+  if (!box) return;
+  const proj = box.dataset.chamber === "house" ? houseProjection() : senateProjection();
+  if (!proj) { box.replaceChildren(); return; }
+  if (!box.firstElementChild) box.innerHTML = hemicycleShell(`${proj.chamber} balance of power`);
+  renderHemicycle(box, proj);
+}
+let hemiFrame = 0;
+const scheduleHemi = () => { if (!hemiFrame) hemiFrame = requestAnimationFrame(() => { hemiFrame = 0; renderHemi(); }); };
 
 // The overview's office ("senate" | "governor") as the race-id suffix of the modelled races.
 const OFFICE_ID = { senate: "sen", governor: "gov" };
@@ -2312,12 +2332,13 @@ async function initNational() {
   if (!overview) return;
   S.overview = overview;
   S.feeds = feeds;
+  bindHemicycle($("nat-summary"), (key) => (S.office === "house" ? selectDistrict(key) : S.nat.open(key)));
   S.nat = createNational($("national"), {
     overview, office: "senate", summary: $("nat-summary"),
     onDrill: (id) => { const r = raceById(id); if (r) selectRace(r); },
     onOffice: (o) => setOffice(o),
     onColours: (colours, rings) => { S.natLayer = [colours, rings]; S.map?.setNational(colours, rings); },
-    onHighlight: (r) => S.map?.highlightRegion(r),
+    onSummary: () => renderHemi(),
     layers: [["arrows", "Swing arrows"], ...CENSUS.map(([k, l]) => [k, l])], onLayer: (k) => setLayer(k),
     // a live county model: the race is in the election's own files (meta.races), whatever the overview says
     modelled: (r) => !!(r.modeled || statewide().some((x) => x.race_id === (r.race_id ?? r.race_key)) || S.civic?.races.some((c) => c.race_id.replace(/-civic$/, "") === (r.race_id ?? r.race_key)) || civicFeed(r)),
@@ -2424,7 +2445,7 @@ function setLayer(k) {
 // House: the district list beside the map (the whole country, or the open state)
 function houseSummary() {
   if (S.office !== "house") return;
-  houseList($("nat-summary"), { state: S.ov.state, onPick: (id) => selectDistrict(id), modelOf: (id) => districtModel(id), show: showOf() });
+  houseList($("nat-summary"), { state: S.ov.state, onDone: renderHemi });
 }
 // pick a district from a list or a tab: open its state, then select it
 function selectDistrict(id) {
@@ -2677,6 +2698,8 @@ async function main() {
     // the civicAPI races held (secondary source): id, region, rows, the readout's attribution
     civic: () => (S.civic?.races ?? []).map((c) => [c.race_id, c.region ?? null, S.civic.rows.get(c.race_id)?.length ?? 0, c.source?.url ?? null]),
     url: () => location.search,
+    // the hemicycles' figures (the page's own check): seats, projected counts, the sum of the seats' chances
+    hemi: () => Object.fromEntries([senateProjection(), houseProjection()].filter(Boolean).map(({ seats, ...p }) => [p.chamber.toLowerCase(), { ...p, dots: seats.length, sumP: seats.reduce((a, x) => a + x.p, 0) }])),
     // the map's controls: the selection, the layers, the address hash, the keys, the view
     ux: () => ({ selected: ux?.selected().map((i) => S.map.ids[i]) ?? [], over: ux?.over(), hash: location.hash, view: S.map?.viewState ?? null, canSelect: canSelect() }),
     uxKey: (e) => ux?.key(e),

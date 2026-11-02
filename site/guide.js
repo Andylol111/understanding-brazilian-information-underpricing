@@ -5,10 +5,10 @@
 import * as d3 from "./vendor/d3.js";
 import { LIVE, STATIC, getJSON, esc, param, votesShort } from "./common.js";
 import { prepRace, nationalPick } from "./groups-agg.js";
-import { bopCard } from "./dash-bop.js";
+import { seatProjection, hemicycleShell, renderHemicycle, bindHemicycle } from "./dash-bop.js";
 import {
   GATE, LEVELS, GAP_OPEN, GAP_CLOSE, COUNTED_STEPS, SHIFT_MIN, TURNOUT_MIN, COOL_MIN, normRows, forSide, letter, createEngine, feedRows, feedGroups, feedOf,
-  boardRow, overviewRow, sortBoard, balanceOfPower, disagreements, groupHeadlines, leadOf, clockET, raceLink,
+  boardRow, overviewRow, sortBoard, disagreements, groupHeadlines, leadOf, clockET, raceLink,
 } from "./guide-rules.js";
 
 const EID = "us2026", GDIR = "us2026_groups";
@@ -23,7 +23,8 @@ const S = {
   groups: null, counties: null, index: null, preps: new Map(), stamp: new Map(), fetched: new Map(),
   pre: {},                    // static files of the "before the results" part
   sort: { key: param("sort") ?? "close", dir: 1 }, showAll: false, showMini: false, gstate: param("st"),
-  districts: null, houseP: new Map(), national: null, liveGet: { house: { miss: 0, skip: 0, at: 0 }, national: { miss: 0, skip: 0, at: 0 } },
+  districts: null, houseP: new Map(), houseC: new Map(), civicMeta: null, civicLast: new Map(),
+  liveGet: Object.fromEntries(["house", "civicMeta", "civicTail"].map((k) => [k, { miss: 0, skip: 0, at: 0 }])),
   ticks: 0, lastOk: null, failed: false, lastT: null, rowsFull: false, board: [],
 };
 window.__guide = { ready: false, live: !!LIVE, build: window.__BUILD, ticks: 0, events: 0, races: 0, counting: 0, leads: 0, lastT: null };
@@ -132,9 +133,11 @@ async function loadPre() {
 
 /* ---------------------------------------------------------------- balance of power */
 
-// The House district file (static, once), the House count models' latest P (house_live/) and the experimental national model
-// (national_live/): the last two exist only once the count runs (asked for only then), are read once a minute, and after a missing read back off
-// (2, 4, 8, 10 minutes) so a page before the House unit starts does not ask every tick.
+// The House district file (static, once), the House count models' latest chance and share counted (house_live/) and the civicAPI
+// races' (civic/us2026/: secondary source, the states without a registered race): the last two exist only once the count runs
+// (asked for only then), are read once a minute, and after a missing read back off (2, 4, 8, 10 minutes) so a page before
+// those units start does not ask every tick.
+const CIVIC = "civic/us2026";
 const BOP_MS = 60000;
 async function liveGet(kind, path) {
   const g = S.liveGet[kind];
@@ -159,22 +162,63 @@ async function loadBop() {
     for (const [id, rows] of Object.entries(src)) {
       if (!id.startsWith("house:") || !Array.isArray(rows) || !rows.length) continue;
       const last = normRows(rows, "v2").at(-1);
-      if (last?.p != null && S.houseP.get(id) !== last.p) { S.houseP.set(id, last.p); changed = true; }
+      if (last?.p != null && (S.houseP.get(id) !== last.p || S.houseC.get(id) !== last.c)) { S.houseP.set(id, last.p); S.houseC.set(id, last.c); changed = true; }
     }
   }
-  const nat = await liveGet("national", `${EID}/national_live/national.json`);
-  if (nat && (nat.as_of !== S.national?.as_of || !S.national)) { S.national = nat; changed = true; }
+  if (!S.civicMeta) {
+    const meta = await liveGet("civicMeta", `${CIVIC}/meta.json`);
+    const list = (meta?.races ?? []).filter((c) => c.race_id && !c.race_id.startsWith("house:"));
+    if (list.length) { S.civicMeta = new Map(list.map((c) => [c.race_id.replace(/-civic$/, ""), c])); changed = true; }
+  }
+  if (S.civicMeta) {
+    const tail = await liveGet("civicTail", `${CIVIC}/timeline_tail.json`);
+    for (const [id, rows] of Object.entries(tail?.rows ?? tail ?? {})) {
+      const c = [...S.civicMeta.values()].find((x) => x.race_id === id);
+      if (!c || !Array.isArray(rows) || !rows.length) continue;
+      const last = normRows(rows, c.poll_model ?? "v2").at(-1);
+      if (last && (S.civicLast.get(id)?.p !== last.p || S.civicLast.get(id)?.c !== last.c)) { S.civicLast.set(id, last); changed = true; }
+    }
+  }
   return changed;
 }
 
-function renderBop() {
-  const b = balanceOfPower({
-    overview: S.overview, districts: S.districts, houseP: S.houseP, national: S.national, counting: anyCounting(),
-    lastP: new Map(S.races.map((r) => [r.race_id, S.rows.get(r.race_id)?.at(-1)?.p]).filter(([, p]) => p != null)),
-    sideA: new Map(S.races.map((r) => [r.race_id, r.b?.id === "dem" ? "rep" : "dem"])),
+// The projected seat count (dash-bop.js hemicycles), model chances only, the same figures as the election page's: Senate, each
+// race up at its registered live model's latest chance, else the civicAPI race's, else the overview's estimate, else the poll average; House, each
+// district at its count model's latest chance, else its pre-count chance.
+const meanCounted = (list) => {
+  const c = list.filter((x) => x != null);
+  return c.some((x) => x >= GATE) ? c.reduce((a, b) => a + b, 0) / c.length : null;
+};
+function senateProjection() {
+  const sen = S.overview?.offices?.senate;
+  if (!sen) return null;
+  const hold = sen.holdovers ?? {}, ups = sen.races ?? [], counted = [], total = sen.seats_total ?? 100, notUpD = (hold.D ?? 0) + (hold.I ?? 0);
+  const races = ups.map((o) => {
+    // the registered race's live model, else the civicAPI race's (a state without a registered race)
+    const reg = S.races.find((x) => x.race_id === (o.race_id ?? o.race_key)), civ = reg ? null : S.civicMeta?.get(o.race_key), r = reg ?? civ;
+    const last = reg ? S.rows.get(reg.race_id)?.at(-1) : civ ? S.civicLast.get(civ.race_id) : null;
+    let p = last?.p ?? null;
+    if (p != null && r.b?.id === "dem") p = 1 - p;
+    if (last?.c != null) counted.push(last.c);
+    return { key: o.race_key, name: `${o.state_name ?? S.names.get(o.state) ?? o.state.toUpperCase()} Senate${o.special ? " (special)" : ""}`, p: p ?? o.estimate?.P ?? o.polls?.p_win ?? null };
   });
-  $("gd-bop").innerHTML = bopCard("Senate", b.senate, "senate") + bopCard("House", b.house, "house");
-  window.__guide.bop = { senate: b.senate && { polls: b.senate.polls.dSeats, live: b.senate.live?.dSeats ?? null }, house: b.house && { polls: b.house.polls?.dSeats ?? null, live: b.house.live?.dSeats ?? null, modelled: b.house.nModelled, national: b.house.national?.dSeats ?? null } };
+  return seatProjection({ chamber: "Senate", notUp: { D: notUpD, R: hold.R ?? total - notUpD - ups.length }, races, majority: sen.majority ?? null, counted: meanCounted(counted) });
+}
+function houseProjection() {
+  const keys = Object.keys(S.districts ?? {}).sort();
+  if (!keys.length) return null;
+  const counted = [];
+  const races = keys.map((k) => {
+    if (S.houseC.has(`house:${k}`)) counted.push(S.houseC.get(`house:${k}`));
+    return { key: `house:${k}`, name: `${k} (House)`, p: S.houseP.get(`house:${k}`) ?? S.districts[k]?.baseline?.p_d ?? null };
+  });
+  return seatProjection({ chamber: "House", notUp: { D: 0, R: 0 }, races, counted: meanCounted(counted) });
+}
+function renderBop() {
+  const box = $("gd-bop"), projs = [senateProjection(), houseProjection()].filter(Boolean);
+  if (box.children.length !== projs.length) box.innerHTML = projs.map(() => `<div class="hemi">${hemicycleShell("")}</div>`).join("");
+  projs.forEach((proj, i) => { const el = box.children[i]; el.querySelector(".tab-h").textContent = proj.chamber; renderHemicycle(el, proj); });
+  window.__guide.bop = Object.fromEntries(projs.map((p) => [p.chamber.toLowerCase(), { dots: p.seats.length, d: p.d, r: p.r, expectedD: p.expectedD, dLeads: p.dLeads, rLeads: p.rLeads, counted: p.counted }]));
 }
 
 /* ---------------------------------------------------------------- board */
@@ -482,6 +526,7 @@ function liveLinks() {
 }
 
 function wire() {
+  bindHemicycle($("gd-bop"), (key) => { location.href = `${raceLink(key)}${LIVE ? `&live=${encodeURIComponent(LIVE)}` : ""}`; });
   $("gd-board").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-sort]");
     if (!b) return;

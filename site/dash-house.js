@@ -506,6 +506,8 @@ const gbPolls = () => H.files?.markets?.generic_ballot?.n_polls ?? H.files?.dist
 const oursEst = () => `2024 president on the 2026 lines + generic-ballot swing${gbPolls() != null ? ` (${gbPolls()} polls)` : ""}; no district count model`;
 // the model's chance for a district: the registered House model's where it has one, else the district estimate
 const ours = (d, model) => (modelChance(model) != null ? { p: modelChance(model), src: OURS_REG } : d?.baseline?.p_d != null ? { p: d.baseline.p_d, src: oursEst() } : null);
+// the chance the Races table's Model column shows for district id (model: its count model at the time shown, or null)
+export const houseModelP = (id, model) => ours(houseDistrict(id), model)?.p ?? null;
 // "How the model works": the one place the model's caveats are written (Method & sources tab)
 export function ourModelHTML() {
   const n = gbPolls();
@@ -583,30 +585,19 @@ export function districtChart(el, id, model = null, show = {}) {
     ${pts.length ? pts.map(([label, p, cls]) => `<div class="chance-chart-row"><span class="chance-chart-source">${esc(label)}</span><span class="${cls}">${splitChanceHTML(p, sides.a, sides.b, { source: label })}</span></div>`).join("") : `<p class="note">No estimate is shown.</p>`}</div>`;
 }
 
-// The House races list (the summary beside the map at the country level): every district,
-// competitive first, filterable; and, for a redrawn state, its old and new seats.
-export function houseList(el, { state = null, onPick, modelOf = () => null, show = {} }) {
+// The House summary beside the map: the generic ballot and the markets' favourites at the country level (a redrawn state's seats
+// when a state is open), then the .hemi the page fills with the projected seat count. The districts are listed in the Races tab.
+export function houseList(el, { state = null, onDone } = {}) {
   const D = Object.keys(H.files?.districts?.districts ?? {}).map(houseDistrict).filter((d) => !state || d.st.toLowerCase() === state);
-  const rows = D.map((d) => ({ d, model: modelOf(d.id), p: estimates(d, mkt(d.id), modelOf(d.id), show)[0]?.[1] ?? null })).sort((a, b) => Math.abs((a.p ?? 0) - 0.5) - Math.abs((b.p ?? 0) - 0.5) || a.d.id.localeCompare(b.d.id));
   const gb = H.files?.markets?.generic_ballot ?? H.files?.districts?.national?.generic_ballot;
   const ps = D.map((d) => mk(d)).filter((p) => p != null);
   const F = state ? H.files?.flows?.states?.[state.toUpperCase()] : null;
-  el.innerHTML = `<p class="ro-head"><span class="ro-at"><b>House</b> ${state ? `· ${esc(state.toUpperCase())} districts` : "districts this year"}</span></p>
-    ${state ? "" : `<p class="nat-sum-ctl">Generic ballot: Democrats ${pct(gb?.avg)} of the two-party vote (± ${(100 * (gb?.sd ?? 0)).toFixed(1)}; ${gb?.n_polls ?? 0} qualifying polls). Markets: Democrats favoured in <b>${ps.filter((p) => p > 0.5).length}</b> of ${ps.length} priced seats, about <b>${d3.sum(ps).toFixed(0)}</b> expected; 218 for a majority.</p>`}
+  el.innerHTML = `<p class="nat-prompt">Pick a district on the map or in the Races tab to see its model, polls and markets.</p>
+    <p class="ro-head"><span class="ro-at"><b>House</b> ${state ? `· ${esc(state.toUpperCase())} districts` : "districts this year"}</span></p>
+    ${state ? "" : `<p class="nat-sum-ctl">Generic ballot: Democrats ${pct(gb?.avg)} of the two-party vote (± ${(100 * (gb?.sd ?? 0)).toFixed(1)}; ${gb?.n_polls ?? 0} qualifying polls). Markets: Democrats favoured in <b>${ps.filter((p) => p > 0.5).length}</b> of ${ps.length} priced seats.</p>`}
     ${F ? `<p class="nat-sum-ctl">Redrawn: seats Harris won ${F.old_seats.harris_won} of ${F.old_seats.districts} on the 2024 lines, ${F.new_seats.harris_won} on the new ones (expected Democratic seats at the 2024 vote ${num(F.old_seats.expected_d, 1)} → ${num(F.new_seats.expected_d, 1)}); Democrats won ${F.house24_won_d} in 2024.</p>` : ""}
-    <label class="select"><span>District</span> <input type="search" class="hl-filter" placeholder="TX-07, Fletcher…" aria-label="Filter districts"></label>
-    <div class="hub-scroll hl-box"><table class="races nat-races hl-table"><thead><tr><th>District</th><th>Incumbent</th><th class="n">Leader</th><th class="n">Harris 2024</th></tr></thead><tbody></tbody></table></div>
-    <p class="note">Most competitive first. The split bar uses the first visible estimate in the Show bar.</p>`;
-  const body = el.querySelector("tbody"), filter = el.querySelector(".hl-filter");
-  const fill = () => {
-    const f = filter.value.trim().toLowerCase();
-    body.innerHTML = rows.filter(({ d }) => !f || d.id.toLowerCase().includes(f) || (h24(d)?.incumbent ?? "").toLowerCase().includes(f)).slice(0, 120)
-      .map(({ d, model, p }) => { const sides = houseSides(mkt(d.id), model); return `<tr tabindex="0" data-id="${esc(d.id)}"><td>${esc(d.id)}${d.redrawn ? " <small>new</small>" : ""}</td><td>${esc(h24(d)?.incumbent ?? "–")}</td><td class="n">${splitChanceHTML(p, sides.a, sides.b, { compact: true })}</td><td class="n">${marginText(d.pres24?.margin)}</td></tr>`; }).join("");
-  };
-  filter.addEventListener("input", fill);
-  body.addEventListener("click", (ev) => { const tr = ev.target.closest("tr[data-id]"); if (tr) onPick?.(tr.dataset.id); });
-  body.addEventListener("keydown", (ev) => { const tr = ev.target.closest("tr[data-id]"); if (tr && ev.key === "Enter") onPick?.(tr.dataset.id); });
-  fill();
+    <div class="hemi" data-chamber="house"></div>`;
+  onDone?.();
 }
 
 // The Races tab with the House office on: every district, the open state's first, then the most

@@ -3,11 +3,10 @@
 // layer (dash-map.js setNational): this module works out each state's colour, the market's
 // P(Democratic side) (Polymarket first, Kalshi where Polymarket has none; grey: no race), and a
 // marker (●) on states with a live county model on election night, and owns what sits around the
-// map: the office toggle, the Senate control bar, the legend, the hover card, the race panel with
-// price history and the office summary beside the map. Clicking a state drills into its county view.
+// map: the office toggle, the legend, the hover card, the race panel with
+// price history and the office summary beside the map (the Senate's control chances, and the seat hemicycle the page draws). Clicking a state drills into its county view.
 import * as d3 from "./vendor/d3.js";
-import { bopCard } from "./dash-bop.js";
-import { C, esc, num, fmtDate, marginText, probit, thinPolls, thinLabel, splitChanceHTML } from "./common.js";
+import { C, esc, num, fmtDate } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", NORACE = "#e6e4dd";
 // House: the page draws it (dash-house.js); this module only offers the button and steps aside
@@ -29,18 +28,17 @@ export const colourOf = (p) => (p == null ? NORACE : ramp[Math.round(Math.max(0,
 
 // office: "senate" | "governor" | "house"; summary: the element for the office summary beside the map;
 // onColours(Map region -> colour, marked): the state layer for the map (marked: states with a live
-// county model); onHighlight(region | null): outline a state on the map (summary row hover);
+// county model); onSummary(): the summary was redrawn (the page fills its .hemi);
 // onDrill(race_id): open a state's county view. modelled(race): the race has a live county model on
 // election night (the page knows: its own race files); feedNote(state): one line on why a state has
 // none. layers: [[key, label]] extra map modes (census) offered in a select; onLayer(key | "races").
-export function createNational(root, { overview, office = "senate", summary = null, onDrill, onOffice, onColours, onHighlight, layers = [], onLayer, modelled = (r) => !!r.modeled, feedNote = () => "" }) {
-  const st = { office, overview, live: new Map(), model: new Map(), panel: null, sort: { key: "state", dir: 1 } };
+export function createNational(root, { overview, office = "senate", summary = null, onDrill, onOffice, onColours, onSummary, layers = [], onLayer, modelled = (r) => !!r.modeled, feedNote = () => "" }) {
+  const st = { office, overview, live: new Map(), model: new Map(), panel: null };
 
   root.innerHTML = `
     <div class="nat-top">
       <div class="toggle nat-office" role="group" aria-label="Office">${OFFICES.map(([k, l]) => `<button type="button" data-office="${k}" aria-pressed="${k === office}">${l}</button>`).join("")}</div>
       ${layers.length ? `<label class="select nat-layer"><span>Map</span> <select aria-label="Map colour"><option value="races">Races</option>${layers.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join("")}</select></label>` : ""}
-      <div class="nat-control" hidden></div>
     </div>
     <div class="nat-legend map-legend"></div>
     <div class="place-card nat-card" hidden></div>
@@ -60,17 +58,10 @@ export function createNational(root, { overview, office = "senate", summary = nu
   // P(Democratic side): live Polymarket price, else the file's Polymarket price, else Kalshi's
   const pmP = (r) => (r.pm ? (st.live.has(r.race_key) ? st.live.get(r.race_key) : r.pm.price) : null);
   const priceOf = (r) => pmP(r) ?? r.kalshi?.price ?? null;
-  // market-implied margin: probit(price) × the sd the build used, from the live Polymarket price
-  // where read (Kalshi's where Polymarket has none); the build's figure otherwise
-  const marketMargin = (r) => {
-    const m = r.margins, p = priceOf(r);
-    if (m?.market_sd_used && p != null && p > 0 && p < 1) return probit(p) * m.market_sd_used;
-    return m?.market ?? m?.market_kalshi ?? null;
-  };
   const raceIn = (s) => races().filter((r) => r.state === s);
 
   function draw() {
-    if (st.office === "house") { drawControl(); root.querySelector(".nat-legend").innerHTML = ""; closePanel(); return; }
+    if (st.office === "house") { root.querySelector(".nat-legend").innerHTML = ""; closePanel(); return; }
     const colours = new Map(), rings = [];
     for (const r of races()) {
       // states without a race or a price: left out, the map hatches them (no data)
@@ -79,7 +70,6 @@ export function createNational(root, { overview, office = "senate", summary = nu
       if (modelled(r)) rings.push(r.state);
     }
     onColours?.(colours, rings);
-    drawControl();
     drawLegend();
     drawSummary();
     if (st.panel) openPanel(st.panel);
@@ -156,94 +146,37 @@ export function createNational(root, { overview, office = "senate", summary = nu
     s.append("path").datum(rows).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.5).attr("d", line("pm"));
   }
 
-  // Senate control: Democrats' expected seats and the control markets (live Polymarket price when read)
-  function control() {
+  // Chance the Democrats control the Senate: the control markets (live Polymarket price when read)
+  function controlMarkets() {
     const sen = st.overview?.offices?.senate;
-    if (!sen?.holdovers) return null;
-    const hold = sen.holdovers, rs = sen.races ?? [];
-    const priced = rs.filter((r) => priceOf(r) != null);
-    const eD = d3.sum(priced, priceOf), eR = priced.length - eD;
-    const holdD = (hold.D ?? 0) + (hold.I ?? 0), holdR = hold.R ?? 0;
-    const markets = (sen.control_markets ?? []).map((c) => ({ ...c, now: c.slug && st.live.has(`ctl:${c.slug}`) ? st.live.get(`ctl:${c.slug}`) : c.price }));
-    return { hold, holdD, holdR, eD, eR, unpriced: rs.length - priced.length, total: sen.seats_total ?? 100, maj: sen.majority ?? 51, markets };
+    return (sen?.control_markets ?? []).map((c) => ({ ...c, now: c.slug && st.live.has(`ctl:${c.slug}`) ? st.live.get(`ctl:${c.slug}`) : c.price }));
   }
 
-  // The office summary beside the map: control (Senate) and a sortable list of the office's races.
+  // The office summary beside the map: the Senate's control chances (markets and the model's) and, under them, the projected seat
+  // count as a hemicycle (the page draws it into .hemi: onSummary). The races themselves are listed in the Races tab only.
   function drawSummary() {
     if (!summary) return;
-    const office = st.office === "senate" ? "Senate" : "Governor";
-    const ctl = st.office === "senate" ? control() : null;
+    const senate = st.office === "senate", office = senate ? "Senate" : "Governor";
+    const markets = senate ? controlMarkets() : [];
     // the model's control chance with poll errors correlated across states (overview, when built)
     const sen = st.overview?.offices?.senate ?? {};
-    // margins (D minus R, points of the two-party vote): polls, the model (with polls where it has
-    // them; the county estimate otherwise) and the market-implied margin from Polymarket's price
-    const mg = (r) => r.margins ?? {};
-    const rows = races().map((r) => ({ r, state: r.state_name ?? stateName(r.state), inc: r.incumbent ?? "", pm: pmP(r), k: r.kalshi?.price ?? null,
-      polls: mg(r).polls ?? null, model: mg(r).model_polls ?? mg(r).model_v2 ?? mg(r).model ?? mg(r).estimate ?? null, market: marketMargin(r) }));
-    const { key, dir } = st.sort;
-    rows.sort((a, b) => {
-      const va = a[key], vb = b[key];
-      if (va == null && vb == null) return a.state.localeCompare(b.state);
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * dir;
-    });
-    const cols = [["state", "State"], ["inc", "Incumbent"], ["pm", "Polymarket"], ["k", "Kalshi"], ["polls", "Polls"], ["model", "Model"], ["market", "Market-implied"]];
-    const ctlHTML = ctl ? `<h3 class="tab-h">Control of the Senate</h3>
-      <p class="nat-sum-ctl"><span style="color:${DEM}"><b>Democrats ${(ctl.holdD + ctl.eD).toFixed(1)}</b></span> seats expected (${ctl.holdD} not up${ctl.hold.I ? `, incl. ${ctl.hold.I} independents` : ""}, + ${ctl.eD.toFixed(1)}),
-        <span style="color:${REP}"><b>Republicans ${(ctl.holdR + ctl.eR).toFixed(1)}</b></span> (${ctl.holdR} + ${ctl.eR.toFixed(1)}); ${ctl.maj} seats for control${ctl.unpriced ? `; ${ctl.unpriced} races without a price` : ""}.
-        Expected seats: each race counted at the market's chance.</p>
-      ${ctl.markets.length || sen.control_p_corr != null ? `<p>Chance the Democrats control the Senate: ${ctl.markets.map((c) => `<span class="${c.platform === "kalshi" ? "kx" : "k"}">${num(c.now)}</span> ${c.platform === "kalshi" ? "Kalshi" : `Polymarket${c.slug && st.live.has(`ctl:${c.slug}`) ? " now" : ""}`}`).join(" · ")}${sen.control_p_corr != null ? `${ctl.markets.length ? " · " : ""}<span class="m" title="${esc(sen.control_note ?? "")}">${num(sen.control_p_corr)}</span> model with polls, poll errors correlated across states${sen.control_p_indep != null ? ` (${num(sen.control_p_indep)} if independent)` : ""}` : ""}</p>
-        <div class="nat-ctl-chart"></div><p class="note">The last 14 days: <span class="k">Polymarket</span>, <span class="kx">Kalshi</span>.</p>` : ""}` : "";
-    summary.innerHTML = `<p class="nat-prompt">Pick a race on the map or in the list to see its model, polls and markets.</p><p class="ro-head"><span class="ro-at"><b>${office}</b> races this year</span></p>
+    const ctlHTML = senate && (markets.length || sen.control_p_corr != null) ? `<h3 class="tab-h">Control of the Senate</h3>
+      <p>Chance the Democrats control the Senate: ${markets.map((c) => `<span class="${c.platform === "kalshi" ? "kx" : "k"}">${num(c.now)}</span> ${c.platform === "kalshi" ? "Kalshi" : `Polymarket${c.slug && st.live.has(`ctl:${c.slug}`) ? " now" : ""}`}`).join(" · ")}${sen.control_p_corr != null ? `${markets.length ? " · " : ""}<span class="m" title="${esc(sen.control_note ?? "")}">${num(sen.control_p_corr)}</span> model with polls, poll errors correlated across states${sen.control_p_indep != null ? ` (${num(sen.control_p_indep)} if independent)` : ""}` : ""}</p>
+` : "";
+    const ctlChart = senate && markets.length ? `<div class="nat-ctl-chart"></div><p class="note">Control markets, the last 14 days: <span class="k">Polymarket</span>, <span class="kx">Kalshi</span>.</p>` : "";
+    summary.innerHTML = `<p class="nat-prompt">Pick a race on the map or in the Races tab to see its model, polls and markets.</p><p class="ro-head"><span class="ro-at"><b>${office}</b> races this year</span></p>
       ${ctlHTML}
-      <h3 class="tab-h">${office} races (${rows.length})</h3>
-      <table class="races nat-races"><thead><tr>${cols.map(([k, l]) => `<th class="${k === "state" || k === "inc" ? "" : "n"}" aria-sort="${key === k ? (dir > 0 ? "ascending" : "descending") : "none"}"><button type="button" data-key="${k}">${l}</button></th>`).join("")}</tr></thead>
-      <tbody>${rows.map((x) => { const sides = { a: { id: "dem", name: x.r.dem_side?.name ?? "Democratic side", color: DEM }, b: { id: "rep", name: x.r.incumbent_party === "R" ? x.r.incumbent : "Republican side", color: REP } }; return `<tr tabindex="0" data-key="${esc(x.r.race_key)}" data-state="${esc(x.r.state)}"><td>${esc(x.state)}${x.r.special ? " (special)" : ""}${thinPolls(x.r.polls?.n_polls) != null ? ` <sup class="thin-mark" title="${esc(thinLabel(x.r.polls.n_polls))}">†</sup>` : ""}${modelled(x.r) ? ` <span class="mk-live" title="live county model on election night"></span>` : ""}</td><td>${esc(x.inc)}${x.r.incumbent_party ? ` (${esc(x.r.incumbent_party)})` : ""}${x.r.open ? " <small>not running</small>" : ""}</td>
-        <td class="n">${splitChanceHTML(x.pm, sides.a, sides.b, { compact: true, source: "Polymarket" })}</td><td class="n kx">${splitChanceHTML(x.k, sides.a, sides.b, { compact: true, source: "Kalshi" })}</td><td class="n" title="${esc(pollsTitle(x.r.polls))}">${marginText(x.polls)}</td><td class="n m" title="${modelled(x.r) ? "v3: poll average prior + county count (registered)" : "Estimate: 2024 county results shifted to the poll average"}">${marginText(x.model)}</td><td class="n" title="${x.market != null ? esc(`from the price ${num(mg(x.r).market != null ? pmP(x.r) : x.k)}`) : ""}">${marginText(x.market)}</td></tr>`; }).join("")}</tbody></table>
-      <p class="note">Polymarket and Kalshi split bars name the market leader. Polls, Model and Market-implied are two-party margins. Market-implied is the margin at which the model's uncertainty gives the price. <span class="mk-live" aria-hidden="true"></span> marks a live county model on election night. † 3 or fewer polls in the poll average. Click a race or a state to open its counties.</p>`;
-    if (ctl?.markets.length) {
-      const pm = ctl.markets.find((c) => c.platform !== "kalshi"), ks = ctl.markets.find((c) => c.platform === "kalshi");
+      ${senate ? `<div class="hemi" data-chamber="senate"></div>${ctlChart}` : `<p class="note">The ${races().length} governor races are listed in the Races tab. <span class="mk-live" aria-hidden="true"></span> marks a live county model on election night. Click a state to open its counties.</p>`}`;
+    if (markets.length) {
+      const pm = markets.find((c) => c.platform !== "kalshi"), ks = markets.find((c) => c.platform === "kalshi");
       const byT = new Map();
       for (const [t, p] of pm?.history ?? []) byT.set(t, { t: new Date(t), pm: p, k: null });
       for (const [t, p] of ks?.history ?? []) byT.set(t, { ...(byT.get(t) ?? { t: new Date(t), pm: null }), k: p });
       chart(summary.querySelector(".nat-ctl-chart"), [...byT.values()].sort((a, b) => a.t - b.t));
     }
-    summary.querySelectorAll("th button").forEach((b) => b.addEventListener("click", () => {
-      st.sort = { key: b.dataset.key, dir: st.sort.key === b.dataset.key ? -st.sort.dir : b.dataset.key === "state" || b.dataset.key === "inc" ? 1 : -1 };
-      drawSummary();
-    }));
-    summary.querySelectorAll("tbody tr").forEach((tr) => {
-      const go = () => {
-        const r = races().find((x) => x.race_key === tr.dataset.key);
-        if (r?.units) onDrill?.(r.race_id ?? r.race_key);
-        else if (r) openPanel(r.race_key);
-      };
-      tr.addEventListener("click", go);
-      tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
-      tr.addEventListener("pointerenter", () => onHighlight?.(tr.dataset.state));
-      tr.addEventListener("pointerleave", () => onHighlight?.(null));
-    });
+    onSummary?.();
   }
 
-  // Senate: seats held over plus the seats each side is favoured to win (expected seats = sum of
-  // P(Democratic side) at current prices), against the majority line; the control markets beside it.
-  function drawControl() {
-    const box = root.querySelector(".nat-control");
-    // balance of power (dash-bop.js, figures from the page): polls, live model and markets against the majority line
-    const bc = st.office === "house" ? st.bop?.house : st.office === "senate" ? st.bop?.senate : null;
-    if (bc) { box.hidden = false; box.innerHTML = bopCard(st.office === "house" ? "House" : "Senate", bc, st.office); return; }
-    const c = st.office === "senate" ? control() : null;
-    if (!c) { box.hidden = true; return; }
-    const pct = (v) => `${(100 * v / c.total).toFixed(2)}%`;
-    const ctl = c.markets.map((m) => `${m.platform === "kalshi" ? "Kalshi" : "Polymarket"} ${num(m.now)}`).join(" · ");
-    box.hidden = false;
-    box.innerHTML = `<div class="nat-bar" role="img" aria-label="Senate seats: Democrats ${c.holdD} held over plus ${c.eD.toFixed(1)} expected, Republicans ${c.holdR} held over plus ${c.eR.toFixed(1)} expected">
-        <i style="width:${pct(c.holdD)};background:${DEM}"></i><i style="width:${pct(c.eD)};background:${DEM};opacity:.45"></i><i class="gap" style="width:${pct(c.unpriced)}"></i><i style="width:${pct(c.eR)};background:${REP};opacity:.45"></i><i style="width:${pct(c.holdR)};background:${REP}"></i>
-        <b style="left:${pct(c.maj - 0.5)}"></b></div>
-      <p class="nat-bar-text"><span style="color:${DEM}">Democrats ${(c.holdD + c.eD).toFixed(1)}</span> (${c.holdD} not up${c.hold.I ? `, incl. ${c.hold.I} independents` : ""} + ${c.eD.toFixed(1)} expected) ·
-        <span style="color:${REP}">Republicans ${(c.holdR + c.eR).toFixed(1)}</span> (${c.holdR} + ${c.eR.toFixed(1)}) · ${c.maj} for control${ctl ? ` · Democrats win the Senate: ${ctl}` : ""}</p>`;
-  }
 
   function drawLegend() {
     const box = root.querySelector(".nat-legend");
@@ -271,10 +204,15 @@ export function createNational(root, { overview, office = "senate", summary = nu
     // a modelled state's race for the current office (for prefetching its county file)
     raceFor: (s) => raceIn(s)[0] ?? null,
     get office() { return st.office; },
+    // open a race by its overview key (a seat of the hemicycle): its county view where it has one, else its price panel
+    open(key) {
+      const r = races().find((x) => x.race_key === key);
+      if (r?.units) onDrill?.(r.race_id ?? r.race_key);
+      else if (r) openPanel(r.race_key);
+    },
     // switch office as a click on its button would (the page's ?office= and tab links)
     setOffice(o) { root.querySelector(`.nat-office [data-office="${o}"]`)?.click(); },
-    update({ overview, live, model, bop } = {}) {
-      if (bop !== undefined) st.bop = bop;
+    update({ overview, live, model } = {}) {
       if (overview) st.overview = overview;
       if (live) st.live = live;
       if (model) st.model = model;
