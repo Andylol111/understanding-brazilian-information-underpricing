@@ -127,3 +127,4 @@ details#gd-pre[open] > summary::before { content: "\25BE"; }
 .bop-dm { color: #1f5fbf; } .bop-rm { color: #c8102e; }
 .bop-p { text-align: right; }
 @media (max-width: 640px) { .bop { grid-template-columns: 1fr; } .bop-row { grid-template-columns: 110px 1fr; } .bop-n, .bop-p { grid-column: 2; } }
+.bop-p small { display: block; font-size: 10.5px; color: var(--muted); }

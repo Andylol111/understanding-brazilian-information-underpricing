@@ -132,12 +132,12 @@ async function loadPre() {
 /* ---------------------------------------------------------------- balance of power */
 
 // The House district file (static, once), the House count models' latest P (house_live/) and the experimental national model
-// (national_live/): the last two exist only once the count runs, are read once a minute, and after a missing read back off
+// (national_live/): the last two exist only once the count runs (asked for only then), are read once a minute, and after a missing read back off
 // (2, 4, 8, 10 minutes) so a page before the House unit starts does not ask every tick.
 const BOP_MS = 60000;
 async function liveGet(kind, path) {
   const g = S.liveGet[kind];
-  if (S.meta?.phase === "pre-count" && !LIVE) return null;
+  if (!LIVE || !anyCounting()) return undefined; // asked for only once a race has votes (as groups.js does for civicAPI): no logged 404 before the night
   if (Date.now() - g.at < BOP_MS - 500) return undefined;
   if (g.skip > 0) { g.skip--; g.at = Date.now(); return undefined; }
   g.at = Date.now();
@@ -185,7 +185,7 @@ function marketBar(m) {
 function bopRow(c, label, r, tip, strong) {
   const mg = marginText(r.dSeats, c.majority);
   return `<div class="bop-row${strong ? " bop-x" : ""}"><span class="bop-l" title="${esc(tip)}">${label}</span>${seatBar(c, r)}` +
-    `<span class="bop-n"><b class="${mg?.startsWith("D") ? "bop-dm" : "bop-rm"}">${mg ?? dash}</b> <span>${r.dSeats.toFixed(1)} D</span></span><span class="bop-p">${r.p == null ? dash : `${sidePct(r.p)} D control`}</span></div>`;
+    `<span class="bop-n"><b class="${mg?.startsWith("D") ? "bop-dm" : "bop-rm"}">${mg ?? dash}</b> <span>${r.dSeats.toFixed(1)} D</span></span><span class="bop-p">${r.p == null ? dash : `${sidePct(r.p)} D control${r.indep ? `<small title="Each race decided on its own, no shared polling error: the page's pre-count figure allows one">if races are independent</small>` : ""}`}</span></div>`;
 }
 function bopCard(name, c, chamber) {
   if (!c) return "";
@@ -195,7 +195,7 @@ function bopCard(name, c, chamber) {
   const nat = c.national ? bopRow(c, "Experimental national model", c.national, "The national swing model's mean seat count (experimental, not registered)", true) : "";
   const mk = `<div class="bop-row"><span class="bop-l">Markets</span>${marketBar(m)}<span class="bop-n"><span>${pmT}</span></span><span class="bop-p">${m.kalshi != null || m.polymarket != null ? kT : dash}</span></div>`;
   const parts = [polls, live, nat, mk].join("");
-  const note = chamber === "senate" ? `${c.notUp.D} Democratic-caucus seats not up (solid), ${c.notUp.R} Republican; majority line at ${c.majority}. Races counted as independent.`
+  const note = chamber === "senate" ? `${c.notUp.D} Democratic-caucus seats not up (solid), ${c.notUp.R} Republican; majority line at ${c.majority}. `
     : `All ${c.total} seats up; majority line at ${c.majority}.`;
   return `<div class="bop-card"><h3>${name}</h3>${parts}<p class="gd-note">${note}</p></div>`;
 }
