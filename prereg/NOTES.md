@@ -281,6 +281,18 @@ The git commit times are the authority for every entry here: `13051a5` (benchmar
 later), all on 2026-11-01, before any 2026 result.
 Exact commit times (UTC, 2026-11-01): `13051a5` 23:11:40, `5040556` 23:15:07, `0a70972` 23:33:51, `a5a5c66` 23:35:30.
 
+## US midterms 2026: blends tested, one Georgia House sensitivity registered (before any 2026 result; commit `10ecda4`)
+
+`docs/us_blend.md` tested whether the versions' weaknesses are complementary. Pass bars were committed first
+(`72deed5`); 49 tests in one Holm family, losers included (`data_public/us_blend_tests.csv`); a blend had to beat
+both of its parents on held-out cycles. Results: statewide, county and House blends of the registered versions with
+the unified challenger beat v3/v2 but not the challenger itself, so none ships; a turnout-level correction and a
+count-band multiplier made held-out errors worse. One component passed: the House v2 starting estimate with v1's
+count settings, on Georgia simulated nights only (margin error 4.8 → 4.2 points; the gain is almost all 2022, 2024
+is a near tie). It is registered for the four Georgia districts as `us2026_house_ga-{01,03,07,12}_v2c`, a labelled
+sensitivity, not run live; it is replayed on the recorded feeds after the count and reported apart from the
+headline versions.
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap

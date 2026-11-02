@@ -403,3 +403,7 @@
 {"id": "us2026_unified_house_tx-34_v1", "sha256": "f2484432e5c03b6d9b2bfda15361d35eac2748ebc1b1521bb10951327a4952d4", "commit": "0a709723d4ebb924f36df372992bb582b283e64a", "registered_utc": "2026-11-01T23:35:12.084385+00:00"}
 {"id": "us2026_unified_house_tx-35_v1", "sha256": "7e02080016e84b953eaec16c2ad75effa2bb165726035fd72546f7159f964d94", "commit": "0a709723d4ebb924f36df372992bb582b283e64a", "registered_utc": "2026-11-01T23:35:12.793407+00:00"}
 {"id": "us2026_unified_house_tx-38_v1", "sha256": "fb0375dc1f4605b07866d436ae3c6cd3fba0c1121af8055f7ccb01a5f1e2202c", "commit": "0a709723d4ebb924f36df372992bb582b283e64a", "registered_utc": "2026-11-01T23:35:13.506874+00:00"}
+{"id": "us2026_house_ga-01_v2c", "sha256": "234c4b9353f9e228c9f52b792414f6ab16d922d2746a1a99074a8742f16d7632", "commit": "10ecda4a9449fc5137ededfff9c40f37ad196e45", "registered_utc": "2026-11-02T00:33:06.216472+00:00"}
+{"id": "us2026_house_ga-03_v2c", "sha256": "25bb3b0525353a3ffd41871a2a7a3c754ffa2ff8deb286421a27e92acb2d887f", "commit": "10ecda4a9449fc5137ededfff9c40f37ad196e45", "registered_utc": "2026-11-02T00:33:06.947174+00:00"}
+{"id": "us2026_house_ga-07_v2c", "sha256": "b5303e6bc609327e52a07bad79e269bd91a4db017b7947c71973fbf9e2b1afac", "commit": "10ecda4a9449fc5137ededfff9c40f37ad196e45", "registered_utc": "2026-11-02T00:33:07.738042+00:00"}
+{"id": "us2026_house_ga-12_v2c", "sha256": "a11e5fac60613a6a3d80518beb2ddf273ce14da096c112e5f68a9332c48ff7e3", "commit": "10ecda4a9449fc5137ededfff9c40f37ad196e45", "registered_utc": "2026-11-02T00:33:08.501463+00:00"}
