@@ -6,6 +6,7 @@
 // map: the office toggle, the Senate control bar, the legend, the hover card, the race panel with
 // price history and the office summary beside the map. Clicking a state drills into its county view.
 import * as d3 from "./vendor/d3.js";
+import { bopCard } from "./dash-bop.js";
 import { C, esc, num, fmtDate, marginText, probit, thinPolls, thinLabel, splitChanceHTML } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", NORACE = "#e6e4dd";
@@ -69,7 +70,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
   const raceIn = (s) => races().filter((r) => r.state === s);
 
   function draw() {
-    if (st.office === "house") { root.querySelector(".nat-control").hidden = true; root.querySelector(".nat-legend").innerHTML = ""; closePanel(); return; }
+    if (st.office === "house") { drawControl(); root.querySelector(".nat-legend").innerHTML = ""; closePanel(); return; }
     const colours = new Map(), rings = [];
     for (const r of races()) {
       // states without a race or a price: left out, the map hatches them (no data)
@@ -229,6 +230,9 @@ export function createNational(root, { overview, office = "senate", summary = nu
   // P(Democratic side) at current prices), against the majority line; the control markets beside it.
   function drawControl() {
     const box = root.querySelector(".nat-control");
+    // balance of power (dash-bop.js, figures from the page): polls, live model and markets against the majority line
+    const bc = st.office === "house" ? st.bop?.house : st.office === "senate" ? st.bop?.senate : null;
+    if (bc) { box.hidden = false; box.innerHTML = bopCard(st.office === "house" ? "House" : "Senate", bc, st.office); return; }
     const c = st.office === "senate" ? control() : null;
     if (!c) { box.hidden = true; return; }
     const pct = (v) => `${(100 * v / c.total).toFixed(2)}%`;
@@ -269,7 +273,8 @@ export function createNational(root, { overview, office = "senate", summary = nu
     get office() { return st.office; },
     // switch office as a click on its button would (the page's ?office= and tab links)
     setOffice(o) { root.querySelector(`.nat-office [data-office="${o}"]`)?.click(); },
-    update({ overview, live, model } = {}) {
+    update({ overview, live, model, bop } = {}) {
+      if (bop !== undefined) st.bop = bop;
       if (overview) st.overview = overview;
       if (live) st.live = live;
       if (model) st.model = model;

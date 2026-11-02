@@ -1,4 +1,5 @@
 {
+  "civic": ["co-gov","co-sen","ia-gov","ia-sen","ks-gov","ks-sen","mi-gov","mi-sen","ny-gov","oh-gov","oh-sen","sc-gov","sc-sen","wi-gov"],
   "source": "docs/us_midterms.md, \"States checked\" (official results sites checked from a Mac and the recorder VM on 2026-10-29/30; no bot protection circumvented)",
   "note": "why: completes the sentence \"No live county model on election night for <state>: …\". status: model (a county model reads the state's official feed), added (configured on 2026-10-30, shown once its files are published), blocked, not_pursued, excluded.",
   "states": {

@@ -864,3 +864,30 @@ kbd { font: 12px var(--sans); padding: 1px 6px; border: 1px solid #b9b5aa; borde
   .map-pop, .sel-panel { left: 8px; right: 8px; width: auto; }
   .sel-panel { top: auto; bottom: 74px; max-height: 45%; }
 }
+
+/* balance of power */
+.bop { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 8px 36px; }
+.bop-card h3 { border-top: 2px solid var(--ink); padding-top: 6px; }
+.bop-row { display: grid; grid-template-columns: 150px minmax(120px, 1fr) 118px 112px; gap: 0 10px; align-items: center; padding: 4px 0; font: 13px/1.3 var(--sans); border-bottom: 1px solid var(--rule); }
+.bop-l { color: var(--muted); }
+.bop-x .bop-l { color: var(--model); }
+.bop-bar { position: relative; display: flex; height: 16px; background: var(--rule); }
+.bop-bar i { display: block; height: 100%; }
+.bop-bar .d0 { background: #174a94; } .bop-bar .d1 { background: #7fa7dc; }
+.bop-bar .r1 { background: #e59a9f; } .bop-bar .r0 { background: #a30d24; }
+.bop-maj { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); }
+.bop-k { position: absolute; top: 12px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--kalshi); }
+.bop-n, .bop-p { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bop-n > span { color: var(--muted); font-size: 12px; }
+.bop-dm { color: #1f5fbf; } .bop-rm { color: #c8102e; }
+.bop-p { text-align: right; }
+@media (max-width: 640px) { .bop { grid-template-columns: 1fr; } .bop-row { grid-template-columns: 110px 1fr; } .bop-n, .bop-p { grid-column: 2; } }
+.bop-p small { display: block; font-size: 10.5px; color: var(--muted); }
+.bop-note { font: 12.5px/1.45 var(--sans); color: var(--muted); margin: 8px 0 0; }
+.nat-control .bop-card h3 { font-size: 14px; margin: 0 0 2px; }
+.nat-control .bop-row { grid-template-columns: 88px minmax(80px, 1fr) 46px 100px; gap: 0 8px; font-size: 12px; }
+.nat-control .bop-n b + span { display: none; }
+.nat-control .bop-bar { height: 12px; }
+.nat-control .bop-card, .nat-control .bop-card h3 { color: #5a5851; }
+.nat-control .bop-maj { background: #6b6a63; }
+.nat-control .bop-card h3 { border-top: 0; padding-top: 0; }

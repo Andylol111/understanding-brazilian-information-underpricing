@@ -112,6 +112,7 @@ export function loadHouse() {
   return H.loading;
 }
 export const houseDistrict = (id) => (H.files?.districts?.districts?.[id] ? { id, ...H.files.districts.districts[id] } : null);
+export const houseDistricts = () => H.files?.districts?.districts ?? null;
 export const houseDistrictIds = () => Object.keys(H.files?.districts?.districts ?? {}).sort();
 
 // container: the map box. onSelect(id | null): a district picked; onState(st | null): the view

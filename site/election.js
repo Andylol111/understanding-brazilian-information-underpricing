@@ -14,7 +14,8 @@ import { createScrubber } from "./dash-scrubber.js";
 import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash-panels.js";
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
-import { createOverlay, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, ourModelHTML, CENSUS } from "./dash-house.js";
+import { balanceOfPower } from "./guide-rules.js";
+import { createOverlay, houseDistricts, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, ourModelHTML, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { createUx } from "./dash-ux.js";
 import { regionAgg, regionWinner, regionTally, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
@@ -147,8 +148,10 @@ const officeRaces = (off) => [...statewide(), ...(S.extra?.values() ?? [])].filt
 const raceRow = (r, t) => (r ? rowAt(r.race_id, t) ?? (r.ov ? extraRow(r) : null) : null);
 // a state's line on election-night coverage (site/data/us_night_feeds.json, from
 // docs/us_midterms.md "States checked"): live model, configured, or why there is none
+const civicFeed = (r) => !!S.feeds?.civic?.includes(r?.race_id ?? r?.race_key); // a civicAPI county model is configured for the race: files appear on election night
 function feedLine(st) {
   const f = S.feeds?.states?.[st], name = regionName(st);
+  if (f?.status !== "model" && S.feeds?.civic?.some((id) => id.startsWith(`${st}-`))) return `${name}: live county model on election night from civicAPI (secondary source, civicapi.org); no official-feed model.`;
   const civic = civicIn(st).length ? ` A secondary-source county count (civicAPI, civicapi.org) is also shown for ${name}.` : "";
   if (f?.status === "model") return `${name}: live county model on election night, from the state's official results feed.${civic}`;
   if (f?.status === "added") return `${name}: ${f.why}.${civic}`;
@@ -413,6 +416,7 @@ async function loadHouseLive() {
 // after a House read: the district's readout and chart, the House races and statistics
 function houseLiveShown() {
   if (houseShown()) { $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel), showOf()); drawChart(); }
+  updateNational();
   S.ov?.resize(); // refresh the House map's registered-model colours and hover figures
   if (S.office === "house" && S.rows) {
     if (!$("pane-races").querySelector(".hr-filter")?.value) buildRaceList(); // not under a reader's filter
@@ -1376,7 +1380,7 @@ function pickerRegions() {
     const off = OFFICE_ID[S.office] ?? office(S.race) ?? "sen";
     const by = d3.group(officeRaces(off), (r) => r.region);
     const list = [...by].filter(([id]) => !S.mapRegions || S.mapRegions.has(id))
-      .map(([id, rs]) => ({ id, name: regionName(id), live: rs.some((r) => modelled(r) && !r.civic) ? 2 : rs.some((r) => r.civic) ? 1 : 0 }))
+      .map(([id, rs]) => ({ id, name: regionName(id), live: rs.some((r) => modelled(r) && !r.civic) ? 2 : rs.some((r) => r.civic || civicFeed(r)) ? 1 : 0 }))
       .sort((a, b) => b.live - a.live || a.name.localeCompare(b.name));
     return list.length >= 2 ? list : [];
   }
@@ -2034,6 +2038,7 @@ function geometryCredit() {
 function addOurModel() {
   const pm = $("pane-method");
   if (pm && !pm.querySelector("#our-model")) pm.insertAdjacentHTML("afterbegin", `<div id="our-model">${ourModelHTML()}</div>`);
+  updateNational(); // the House district file is here: the national view's House bar
 }
 function initRaceSelect() {
   const sel = $("race");
@@ -2267,7 +2272,35 @@ function updateNational(yes = natYes) {
     const key = c.race_id.replace(/-civic$/, ""), p = modelP(rowAt(c.race_id, S.t));
     if (p != null && !model.has(key)) model.set(key, p);
   }
-  S.nat.update({ overview: S.overview, live, model });
+  S.nat.update({ overview: S.overview, live, model, bop: bopFigures() });
+}
+// Balance of power for the national view (guide-rules.js balanceOfPower, as the night guide): the registered races' latest
+// model P (side a), the civicAPI races' where a state has no registered race, the 75-odd House count models'
+// latest P; live rows only once a race has votes.
+let natLive = null, natLiveAt = 0, natLiveMiss = 0, natLiveSkip = 0; // experimental national model (national_live/), read at most once a minute
+function bopFigures() {
+  if (!S.overview) return null;
+  const at = (id) => modelP(rowAt(id, S.t));
+  const reg = races().filter((r) => !isHouse(r)), lastP = new Map(), sideA = new Map(), civicP = new Map();
+  for (const r of reg) { const p = at(r.race_id); if (p != null) { lastP.set(r.race_id, p); sideA.set(r.race_id, r.b?.id === "dem" ? "rep" : "dem"); } }
+  for (const c of S.civic?.races ?? []) {
+    const p = at(c.race_id); if (p == null) continue;
+    civicP.set(c.race_id.replace(/-civic$/, ""), c.b?.id === "dem" ? 1 - p : p);
+  }
+  const houseP = new Map();
+  for (const id of S.houseLive?.rows.keys() ?? []) { const p = modelP(rowAt(id, S.t)); if (p != null && id.startsWith("house:")) houseP.set(id, p); }
+  const counting = reg.concat(S.civic?.races ?? []).some((r) => (rowAt(r.race_id, S.t)?.counted ?? 0) >= 0.01);
+  const dist = houseDistricts();
+  if (counting && Date.now() - natLiveAt > 60000) loadNatLive();
+  return balanceOfPower({ overview: S.overview, lastP, sideA, civicP, districts: dist, houseP, national: natLive, counting });
+}
+async function loadNatLive() {
+  natLiveAt = Date.now();
+  if (natLiveSkip > 0) { natLiveSkip--; return; }
+  const j = await getJSON(`${EID}/national_live/national.json`, { optional: true }).catch(() => null);
+  if (!j) { natLiveMiss = Math.min(natLiveMiss + 1, 4); natLiveSkip = 2 ** natLiveMiss - 1; return; }
+  natLiveMiss = 0;
+  if (j.as_of !== natLive?.as_of) { natLive = j; updateNational(); }
 }
 
 // The overview's office ("senate" | "governor") as the race-id suffix of the modelled races.
@@ -2287,7 +2320,7 @@ async function initNational() {
     onHighlight: (r) => S.map?.highlightRegion(r),
     layers: [["arrows", "Swing arrows"], ...CENSUS.map(([k, l]) => [k, l])], onLayer: (k) => setLayer(k),
     // a live county model: the race is in the election's own files (meta.races), whatever the overview says
-    modelled: (r) => !!(r.modeled || statewide().some((x) => x.race_id === (r.race_id ?? r.race_key)) || S.civic?.races.some((c) => c.race_id.replace(/-civic$/, "") === (r.race_id ?? r.race_key))),
+    modelled: (r) => !!(r.modeled || statewide().some((x) => x.race_id === (r.race_id ?? r.race_key)) || S.civic?.races.some((c) => c.race_id.replace(/-civic$/, "") === (r.race_id ?? r.race_key)) || civicFeed(r)),
     feedNote: (s) => feedLine(s),
   });
   // the House office and the census map modes: a layer over the county map, in the same map box

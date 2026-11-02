@@ -417,3 +417,83 @@ export function disagreements(rows) {
 // the clock in New York ("9:42 PM")
 const fmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: TZ });
 export const clockET = (t) => fmt.format(new Date(t));
+
+/* ---------------------------------------------------------------- balance of power */
+
+// Seats = seats not up + the sum of each race's chance for the Democratic side. Chances are clamped to [0, 1].
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+export const seatSum = (notUp, ps) => notUp + ps.reduce((s, p) => s + clamp01(p), 0);
+
+// P(D seats >= need) when the races are independent: the exact Poisson-binomial distribution of the races won.
+export function pControl(notUp, ps, need) {
+  let dist = [1];
+  for (const raw of ps) {
+    const p = clamp01(raw), next = new Array(dist.length + 1).fill(0);
+    for (let k = 0; k < dist.length; k++) { next[k] += dist[k] * (1 - p); next[k + 1] += dist[k] * p; }
+    dist = next;
+  }
+  return dist.reduce((s, q, k) => (notUp + k >= need ? s + q : s), 0);
+}
+
+// Seats above the majority line for whoever holds it: "D +3" (54 of 100 against 51), "R +2" (49 against 51). The
+// Democratic count is rounded first; Republicans hold the chamber when it is under the line.
+export function marginText(dSeats, majority) {
+  if (dSeats == null || !Number.isFinite(dSeats)) return null;
+  const m = Math.round(dSeats) - majority;
+  return m >= 0 ? `D +${m}` : `R +${-m}`;
+}
+
+// Price of the Democratic side of a control market: yes_is "dem" is the party's own price.
+const demPrice = (m) => (m?.price == null ? null : m.yes_is === "rep" ? 1 - m.price : m.price);
+export function controlPrices(markets) {
+  const out = { polymarket: null, kalshi: null };
+  for (const m of markets ?? []) if (m.platform in out && out[m.platform] == null) out[m.platform] = demPrice(m);
+  return out;
+}
+
+// The balance-of-power figures of both chambers from what the page holds.
+//   overview: overview.json; lastP: Map race_id -> the live model's latest P for side a of each Senate/governor race with a
+//   county model; sideA: Map race_id -> "dem" | "rep" (who side a is); districts: house/districts.json `districts`;
+//   civicP: Map race_key -> latest P(Democratic side) of a civicAPI race (used only where no registered model has a P);
+//   houseP: Map "house:ST-NN" -> latest P(D) of a modelled district; national: national_live/national.json; counting: any race has votes.
+// Rows: polls (before votes), live (only while counting), markets; live rows read the live model's P where a race has one and the
+// market price where it has not (Senate), or the pre-count P (House).
+export function balanceOfPower({ overview, lastP, sideA, districts, houseP, national, counting, civicP }) {
+  const out = { senate: null, house: null };
+  const sen = overview?.offices?.senate;
+  if (sen) {
+    const hold = sen.holdovers ?? {}, notUp = (hold.D ?? 0) + (hold.I ?? 0), total = sen.seats_total ?? 100, maj = sen.majority ?? 51;
+    const pm = (o) => o.pm?.price ?? o.kalshi?.price ?? null;
+    const poll = [], live = [];
+    for (const o of sen.races ?? []) {
+      const base = o.polls?.p_win ?? pm(o) ?? 0.5;
+      poll.push(base);
+      let p = base;
+      const m = o.modeled && o.race_id != null ? lastP?.get?.(o.race_id) : null;
+      const cp = m == null ? civicP?.get?.(o.race_key) : null; // a civicAPI county model (secondary source) where there is no registered one
+      if (m != null) p = sideA?.get?.(o.race_id) === "rep" ? 1 - m : m;
+      else if (cp != null) p = cp;
+      else if (pm(o) != null) p = pm(o);
+      live.push(p);
+    }
+    const row = (key, ps) => ({ key, dSeats: seatSum(notUp, ps), p: pControl(notUp, ps, maj) });
+    out.senate = { total, majority: maj, notUp: { D: notUp, R: hold.R ?? total - notUp - poll.length }, nRaces: poll.length,
+      polls: { ...row("polls", poll), p: sen.control_p_corr ?? pControl(notUp, poll, maj) }, live: counting ? { ...row("live", live), indep: true } : null, markets: controlPrices(sen.control_markets) };
+    const n = national?.senate;
+    if (counting && n?.seats?.mean != null) out.senate.national = { dSeats: n.seats.mean, p: n.p_control ?? null };
+  }
+  const hou = overview?.offices?.house;
+  if (hou || districts) {
+    const keys = Object.keys(districts ?? {}), total = keys.length || 435, maj = Math.floor(total / 2) + 1;
+    const pre = keys.map((k) => districts[k]?.baseline?.p_d ?? districts[k]?.market_p_d ?? 0.5);
+    const live = keys.map((k, i) => houseP?.get?.(`house:${k}`) ?? pre[i]);
+    const row = (key, ps) => ({ key, dSeats: seatSum(0, ps), p: null });
+    const h = { total, majority: maj, notUp: { D: 0, R: 0 }, nRaces: keys.length, nModelled: keys.filter((k) => houseP?.has?.(`house:${k}`)).length,
+      polls: keys.length ? row("polls", pre) : null, live: counting && keys.length ? row("live", live) : null, markets: controlPrices(hou?.control_markets) };
+    if (h.polls && national?.house?.p_control_prior != null) h.polls.p = national.house.p_control_prior;
+    const n = national?.house;
+    if (counting && n?.seats?.mean != null) h.national = { dSeats: n.seats.mean, p: n.p_control ?? null };
+    out.house = h;
+  }
+  return out;
+}
