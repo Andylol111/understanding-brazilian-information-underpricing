@@ -102,10 +102,23 @@ export function hemicycleParts(proj) {
   const svg = `<svg class="hemi-svg" viewBox="0 0 ${L.w.toFixed(0)} ${L.h.toFixed(0)}" role="img" aria-label="${esc(`${proj.chamber} projection: Democrats ${proj.d} seats, Republicans ${proj.r}, majority ${proj.majority}`)}">
     <line class="hemi-maj" x1="${L.cx}" x2="${L.cx}" y1="${top}" y2="${(L.cy - L.inner + L.dot + 3).toFixed(1)}"/>
     <text class="hemi-maj-t" x="${L.cx}" y="${top - 3}" text-anchor="middle">${proj.majority} for majority</text>${dots}</svg>`;
-  return { head, svg, key: "" };
+  return { head, svg, key: closestHTML(proj) };
 }
 
-export const hemicycleShell = (title) => `<h3 class="tab-h">${esc(title)}</h3><div class="hemi-top"></div><div class="hemi-chart"></div><p class="hemi-hover"></p><div class="hemi-keys"></div>`;
+// The seats up closest to even (by model chance), beside the chart: where control is being decided; a row opens its race.
+export function closestSeats(proj, n = 8) {
+  return proj.seats.filter((s) => s.up && !s.noModel).sort((a, b) => Math.abs(a.p - 0.5) - Math.abs(b.p - 0.5) || String(a.name).localeCompare(String(b.name))).slice(0, n);
+}
+function closestHTML(proj) {
+  const rows = closestSeats(proj).map((s) => {
+    const t = tier(s.p), c = Math.max(s.p, 1 - s.p);
+    const who = t.party === "T" ? "even" : `${t.party} ${pctText(c)}`;
+    return `<li${s.key ? ` class="go" data-k="${esc(s.key)}" tabindex="0" role="button"` : ""}><span class="hc-n">${esc(String(s.name).replace(/ \(House\)$/, ""))}</span><span class="hc-p ${t.party.toLowerCase()}">${who}</span><i class="hc-bar"><b style="width:${(100 * s.p).toFixed(1)}%"></b></i></li>`;
+  }).join("");
+  return rows ? `<p class="hemi-label">Closest seats</p><ol class="hemi-close">${rows}</ol>` : "";
+}
+
+export const hemicycleShell = (title) => `<h3 class="tab-h">${esc(title)}</h3><div class="hemi-top"></div><div class="hemi-body"><div><div class="hemi-chart"></div><p class="hemi-hover"></p></div><div class="hemi-keys"></div></div>`;
 
 // Fill a shell (hemicycleShell) with a projection; each part is replaced only when its markup changed, so a hovered dot's readout
 // survives a refresh that changes nothing.
@@ -123,5 +136,6 @@ export function bindHemicycle(root, onPick) {
   const hint = "";
   root.addEventListener("pointerover", (e) => { const c = e.target.closest?.("circle.hs"), r = readout(e); if (c && r) r.textContent = c.dataset.t; });
   root.addEventListener("pointerout", (e) => { const c = e.target.closest?.("circle.hs"), r = readout(e); if (c && r) r.textContent = hint; });
-  root.addEventListener("click", (e) => { const c = e.target.closest?.("circle.hs[data-k]"); if (c) onPick?.(c.dataset.k); });
+  root.addEventListener("click", (e) => { const c = e.target.closest?.("circle.hs[data-k], .hemi-close li[data-k]"); if (c) onPick?.(c.dataset.k); });
+  root.addEventListener("keydown", (e) => { const c = e.target.closest?.(".hemi-close li[data-k]"); if (c && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onPick?.(c.dataset.k); } });
 }
