@@ -1,0 +1,44 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. New Hampshire Governor from recorded civicAPI snapshots.
+# The committed 2026 pre-count fixture maps all ten county roll-ups (and also contains 320 town rows, ignored by the
+# existing county parser). Live update cadence is unrehearsed.
+id = "us2026_extra_nh_gov_v1"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "nh-gov"
+name = "New Hampshire Governor"
+state = "nh"
+race = "gov"
+feed = "civic_nh"
+source = "civicAPI (civicapi.org), already-recorded snapshots"
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T00:00:00Z"
+poll_close_last_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "Cinde Warmington", color = "#1f5fbf" }
+b = { party = "REP", name = "Kelly Ayotte", color = "#c8102e" }
+
+[prior]
+share = "nh_pres_2024"
+votes = "nh_pres_2024"
+
+[model]
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "new-hampshire-governor-winner-2026"
+market = "will-the-democrats-win-the-new-hampshire-governor-race-in-2026"
+question = "Will the Democrats win the New Hampshire governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]
+ticker = ""

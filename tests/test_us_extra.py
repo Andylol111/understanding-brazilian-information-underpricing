@@ -1,0 +1,151 @@
+"""Added 2026 U.S. secondary sources: pure parsing and synthetic archive-to-site export."""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import httpx
+import pandas as pd
+
+from brunder import extra_civic_house, extra_ev, us, us_extra_live, us_house_night
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def wa_item(district: int = 3, dem: int = 60, rep: int = 40) -> dict:
+    def option(name, party, votes):
+        return {"name": [{"languageId": "en", "text": name}], "party": {"abbreviation": party},
+                "voteCount": votes}
+    return {"ballotItemWithBreakdown": {
+        "name": [{"languageId": "en", "text": f"Congressional District {district} - U.S. Representative"}],
+        "summaryResults": {"ballotOptions": [option("Marie Gluesenkamp Perez", "DEM", dem),
+                                               option("John Braun", "REP", rep)]},
+        "breakdownResults": [
+            {"precinctReportingStatus": {"reportingUnits": 3, "totalUnits": 7}},
+            {"precinctReportingStatus": {"reportingUnits": 2, "totalUnits": 5}},
+        ],
+    }}
+
+
+def test_vote_wa_item_is_one_district_unit_with_summed_precinct_progress():
+    rows = extra_ev.parse_item(wa_item())
+    assert list(rows.columns) == us.COLS
+    assert set(rows["race"]) == {"house-03"}
+    assert set(rows["unit_id"]) == {"us-wa-cd03"}
+    assert set(rows["candidate"]) == {"Marie Gluesenkamp Perez", "John Braun"}
+    assert set(rows["party"]) == {"DEM", "REP"}
+    assert set(rows["reporting"]) == {5.0} and set(rows["units"]) == {12.0}
+    assert rows["votes"].sum() == 100
+
+
+def test_civic_house_adapter_uses_only_recorded_blob():
+    d = {"region_results": {"nv-02": {"name": "Nevada District 2", "percent_reporting": 37,
+            "candidates": [{"name": "Teresa Benitez-Thompson", "party": "Democratic", "votes": 123},
+                           {"name": "David Flippo", "party": "Republican", "votes": 127}]}}}
+    rows = extra_civic_house.parse("civic_house", {"house": json.dumps(d).encode()})
+    assert set(rows["unit_id"]) == {"us-nv-cd02"}
+    assert set(rows["race"]) == {"house-02"}
+    assert set(rows["reporting"]) == {37.0} and set(rows["units"]) == {100.0}
+    assert rows.groupby("party")["votes"].sum().to_dict() == {"DEM": 123.0, "REP": 127.0}
+
+
+def test_synthetic_snapshot_exports_wa03_end_to_end(tmp_path):
+    """A synthetic VoteWA ballot item crosses Archive -> parser -> projection -> site House files."""
+    us_extra_live.install()
+    arc = tmp_path / "snap"
+    key = arc / "wa_house_03"
+    key.mkdir(parents=True)
+    (key / "20261104T050000.000000Z.json").write_text(json.dumps(wa_item(dem=6000, rep=4000)))
+    cfg = ROOT / "configs" / "us2026_extra" / "wa-03_v1.toml"
+    ex = us_house_night.HouseExporter([cfg], arc)
+    ex.update(pd.Timestamp("2026-11-04T05:01:00Z"))
+    out = tmp_path / "site" / "data" / "extra"
+    d = ex.write(out)
+    assert d == out / "us2026" / "house_live"
+    timeline = json.loads((d / "timeline.json").read_text())
+    assert "house:WA-03" in timeline and timeline["house:WA-03"]
+    assert timeline["house:WA-03"][-1]["counted"] > 0
+    assert (d / "units" / "house:WA-03.json").exists()
+
+
+def test_civic_statewide_config_reads_linked_shared_archive(tmp_path):
+    """ME Senate (civicAPI fallback): a race document in the SHARED archive is linked into the extra archive and
+    modelled from the extra archive, the shared archive is never written."""
+    us_extra_live.install()
+    shared, extra = tmp_path / "shared", tmp_path / "extra"
+    c = us.counties("me")
+    regions = {n.lower(): {"name": n, "type": "County", "fips": u[-5:], "percent_reporting": 50,
+                           "candidates": [{"name": "Troy Jackson", "party": "Democratic", "votes": 1000},
+                                          {"name": "Susan Collins", "party": "Republican", "votes": 900}]}
+               for u, n in zip(c["unit_id"], c["name"])}
+    doc = {"election_type": "US Senate", "province": "ME", "election_date": "2026-11-03T05:00:00.000Z",
+           "test_data": False, "percent_reporting": 50, "region_results": regions,
+           "candidates": [{"name": "Troy Jackson", "party": "Democratic", "votes": 1000 * len(c)},
+                          {"name": "Susan Collins", "party": "Republican", "votes": 900 * len(c)}]}
+    k = shared / "civic_87188"
+    k.mkdir(parents=True)
+    (k / "20261104T020000.000000Z.json").write_text(json.dumps(doc))
+    cfg = ROOT / "configs" / "us2026_extra" / "me_sen_v1.toml"
+    made = us_extra_live.link_shared([cfg], extra, shared)
+    assert extra / "civic_87188" in made and (extra / "civic_87188").is_symlink()
+    ex = us.Exporter([cfg], extra)
+    ex.update(pd.Timestamp("2026-11-04T02:05:00Z"))
+    d = ex.write(tmp_path / "site" / "data" / "extra")
+    tl = json.loads((d / "timeline.json").read_text())
+    assert tl["me-sen"][-1]["counted"] > 0
+    assert sorted(p.name for p in shared.iterdir()) == ["civic_87188"]
+
+
+def test_recorder_stores_changes_and_stops_host_on_403(tmp_path, monkeypatch):
+    from brunder import us_extra_rec as R
+    monkeypatch.setattr(R, "HOST_GAP", 0.0)
+    body = {"n": 0}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        assert req.headers["user-agent"] == R.UA
+        if req.url.path == "/robots.txt":
+            return httpx.Response(404)
+        body["n"] += 1
+        if body["n"] == 3:
+            return httpx.Response(403, text="denied")
+        return httpx.Response(200, json={"v": 1}, headers={"content-type": "application/json"})
+    rec = R.Recorder(tmp_path)
+    rec.web = httpx.Client(transport=httpx.MockTransport(handler), headers={"User-Agent": R.UA})
+
+    class M:
+        NAME = "test"
+    spec = {"key": "wa_house_03", "url": "https://results.votewa.gov/x", "interval": 60, "ext": "json"}
+    for _ in range(4):
+        rec.poll(M, spec, R.now())
+    files = list((tmp_path / "wa_house_03").iterdir())
+    assert len(files) == 1                                  # second 200 is unchanged: not stored again
+    assert "results.votewa.gov" in rec.blocked              # 403 stops the host
+    assert body["n"] == 3                                   # no request after the block
+    idx = [json.loads(x) for x in (tmp_path / "index.jsonl").read_text().splitlines()]
+    assert [x["key"] for x in idx] == ["wa_house_03"]
+
+
+def test_recorder_refuses_forbidden_hosts():
+    from brunder import us_extra_rec as R
+    assert R.forbidden("civicapi.org") and R.forbidden("orresws.azurewebsites.us") and R.forbidden("results.sos.ga.gov")
+    assert not R.forbidden("results.votewa.gov")
+
+
+def test_vote_wa_real_2026_primary_item_cd05():
+    """Real VoteWA ballot item (2026-08-04 top-two primary, WA-05, fetched 2026-11-02; reduced to the item): district
+    totals = summaryResults, precinct progress = sum of the 12 county breakdowns (842/842, complete), and the
+    county breakdowns add up to the district totals."""
+    import gzip
+    raw = gzip.decompress((ROOT / "tests" / "fixtures" / "us" / "extra_ev_wa_20260804_cd05.json.gz").read_bytes())
+    rows = extra_ev.parse_item(raw)
+    assert set(rows["race"]) == {"house-05"} and set(rows["unit_id"]) == {"us-wa-cd05"}
+    by = rows.groupby("candidate")["votes"].sum()
+    assert by["Michael Baumgartner"] == 96791 and by["Carmela Conroy"] == 38487
+    assert set(rows["reporting"]) == {842.0} and set(rows["units"]) == {842.0}
+    b = json.loads(raw)["ballotItemWithBreakdown"]
+    assert len(b["breakdownResults"]) == 12
+    county = {}
+    for br in b["breakdownResults"]:
+        for o in br["ballotOptions"]:
+            county[o["name"][0]["text"]] = county.get(o["name"][0]["text"], 0) + o["voteCount"]
+    assert all(county[k] == v for k, v in by.items())

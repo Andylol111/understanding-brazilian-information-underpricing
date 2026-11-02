@@ -1,0 +1,43 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. Nevada Governor from already-recorded civicAPI snapshots.
+# County totals are an aggregator fallback: the state site returned an Incapsula challenge, Clark's results host is
+# disallowed by robots.txt, and Washoe's results host returned 503 to the honest Mac probe. Live behaviour unrehearsed.
+id = "us2026_extra_nv_gov_v1"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "nv-gov"
+name = "Nevada Governor"
+state = "nv"
+race = "gov"
+feed = "civic_nv"
+source = "civicAPI (civicapi.org), already-recorded snapshots"
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T03:00:00Z"
+a = { party = "DEM", name = "Aaron Ford", color = "#1f5fbf" }
+b = { party = "REP", name = "Joe Lombardo", color = "#c8102e" }
+
+[prior]
+share = "nv_pres_2024"
+votes = "nv_pres_2024"
+
+[model]
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "nevada-governor-winner-2026"
+market = "will-the-democrats-win-the-nevada-governor-race-in-2026"
+question = "Will the Democrats win the Nevada governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]
+ticker = ""

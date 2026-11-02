@@ -1,0 +1,33 @@
+# Secondary/unregistered added-source models. Isolated from registered official-feed and existing civic processes;
+# writes only site/data/extra/us2026/ (statewide files + house_live/). Reads its own archive; the civic_* race
+# documents and market books of the shared archive are symlinked into it at start (read only).
+[Unit]
+Description=brunder added-source live models: US midterms 2026-11-03
+After=brunder-snap-us.service brunder-civic-us.service brunder-us-extra-record.service
+Wants=brunder-us-extra-record.service
+
+[Service]
+Type=simple
+User=brunder
+Group=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=HOME=/srv/brunder
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen python -m brunder.us_extra_live \
+  configs/us2026_extra/me_sen_v1.toml configs/us2026_extra/nv_gov_v1.toml \
+  configs/us2026_extra/nh_sen_v1.toml configs/us2026_extra/nh_gov_v1.toml \
+  configs/us2026_extra/wa-03_v1.toml configs/us2026_extra/wa-04_v1.toml \
+  configs/us2026_extra/wa-05_v1.toml configs/us2026_extra/nv-02_v1.toml \
+  configs/us2026_extra/nv-03_v1.toml configs/us2026_extra/me-02_v1.toml \
+  --snap /srv/brunder/repo/data/raw/snap/us_midterms_2026_extra \
+  --shared /srv/brunder/repo/data/raw/snap/us_midterms_2026 \
+  --out /srv/brunder/repo/site/data/extra --interval 30 --until 2026-11-20T00:00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=15
+CPUQuota=20%
+MemoryMax=768M
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=brunder-election-night.target

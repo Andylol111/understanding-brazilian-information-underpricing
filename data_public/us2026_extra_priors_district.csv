@@ -1,0 +1,11 @@
+# Secondary-source, unregistered district-level priors added 2026-11-02.
+# 2024 presidential district totals from site/data/us2026/house/districts.json, whose sources are MIT Election Data
+# and Science Lab 2024 official precinct results (CC0), U.S. Census 119th/120th district equivalency files and
+# 2020 block population (public domain). One unit per district; used only where the added feed reports district totals.
+source,unit_id,dem,rep,total
+wa-03_pres_2024,us-wa-cd03,198000,211934,424243
+wa-04_pres_2024,us-wa-cd04,119090,183373,312546
+wa-05_pres_2024,us-wa-cd05,173851,217221,405600
+nv-02_pres_2024,us-nv-cd02,176315,235008,421161
+nv-03_pres_2024,us-nv-cd03,188007,190853,385212
+me-02_pres_2024,us-me-cd02,174614,212235,394843

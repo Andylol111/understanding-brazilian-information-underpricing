@@ -1,0 +1,38 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. WA-05 U.S. House from official VoteWA Enhanced Voting JSON.
+# One district unit: exact district votes and precinct progress summed from the county breakdown; no county count-order correction.
+id = "us2026_extra_wa-05_v1"
+role = "secondary"
+[election]
+eid = "us2026"
+race_id = "house:WA-05"
+name = "WA-05 U.S. House"
+state = "wa"
+race = "house-05"
+feed = "wa_house"
+source = "Washington Secretary of State VoteWA election results"
+source_url = "https://results.votewa.gov/results/public/washington"
+poll_close_utc = "2026-11-04T04:00:00Z"
+a = { party = "DEM", name = "Carmela Conroy", color = "#1f5fbf" }
+b = { party = "REP", name = "Michael Baumgartner", color = "#c8102e" }
+[prior]
+share = "wa-05_pres_2024"
+votes = "wa-05_pres_2024"
+[model]
+tau = 0.01
+rho = 0.6
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = false
+vote_type = false
+[markets.polymarket]
+event = "wa-05-house-election-winner"
+market = "will-the-democratic-party-win-the-wa-05-house-seat"
+question = "Will the Democratic Party win the WA-05 House seat?"
+yes_is = "a"
+[markets.kalshi]
+ticker = ""

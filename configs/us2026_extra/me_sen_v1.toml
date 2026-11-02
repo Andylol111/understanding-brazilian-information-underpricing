@@ -1,0 +1,43 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. Maine U.S. Senate from already-recorded civicAPI snapshots.
+# County totals are an aggregator fallback because maine.gov returned a CloudFront 403 to the honest Mac probe.
+# Live behaviour is unrehearsed; Maine ranked-choice transfers can make the initial-round two-candidate projection diverge.
+id = "us2026_extra_me_sen_v1"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "me-sen"
+name = "Maine Senate"
+state = "me"
+race = "sen"
+feed = "civic_me"
+source = "civicAPI (civicapi.org), already-recorded snapshots"
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "Troy Jackson", color = "#1f5fbf" }
+b = { party = "REP", name = "Susan Collins", color = "#c8102e" }
+
+[prior]
+share = "me_pres_2024"
+votes = "me_pres_2024"
+
+[model]
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "maine-senate-election-winner"
+market = "will-the-democrats-win-the-maine-senate-race-in-2026"
+question = "Will the Democrats win the Maine Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]
+ticker = ""

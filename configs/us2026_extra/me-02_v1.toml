@@ -1,0 +1,38 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. ME-02 U.S. House from already-recorded civicAPI House snapshots.
+# One district unit with civicAPI percent reporting; no town count-order correction. Ranked-choice transfers are not modeled.
+id = "us2026_extra_me-02_v1"
+role = "secondary"
+[election]
+eid = "us2026"
+race_id = "house:ME-02"
+name = "ME-02 U.S. House"
+state = "me"
+race = "house-02"
+feed = "civic_house"
+source = "civicAPI (civicapi.org), already-recorded snapshots"
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "Matthew Dunlap", color = "#1f5fbf" }
+b = { party = "REP", name = "Paul LePage", color = "#c8102e" }
+[prior]
+share = "me-02_pres_2024"
+votes = "me-02_pres_2024"
+[model]
+tau = 0.01
+rho = 0.6
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = false
+vote_type = false
+[markets.polymarket]
+event = "me-02-house-election-winner-20260720160226434"
+market = "will-the-democratic-party-win-the-me-02-house-seat"
+question = "Will the Democratic Party win the ME-02 House seat?"
+yes_is = "a"
+[markets.kalshi]
+ticker = ""

@@ -1,0 +1,27 @@
+# Secondary/unregistered sources added 2026-11-02. Writes ONLY its own archive data/raw/snap/us_midterms_2026_extra
+# (the registered recorders' archive, index and poll markers are untouched);
+# one identified request stream, robots.txt enforced, <=1 request/s/host, no challenge bypass.
+[Unit]
+Description=brunder added-source recorder: US midterms 2026-11-03
+Wants=network-online.target
+After=network-online.target
+Before=brunder-us-extra-live.service
+
+[Service]
+Type=simple
+User=brunder
+Group=brunder
+WorkingDirectory=/srv/brunder/repo
+Environment=HOME=/srv/brunder
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/brunder/.local/bin/uv run --frozen python -m brunder.us_extra_rec \
+  --out /srv/brunder/repo/data/raw/snap/us_midterms_2026_extra --until 2026-11-20T00:00:00Z
+Restart=on-failure
+RestartSec=30
+Nice=15
+CPUQuota=10%
+MemoryMax=384M
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=brunder-election-night.target

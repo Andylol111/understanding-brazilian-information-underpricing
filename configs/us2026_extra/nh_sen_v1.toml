@@ -1,0 +1,44 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. New Hampshire U.S. Senate from recorded civicAPI snapshots.
+# civicAPI supplies both 320 town rows and ten county roll-ups; the existing parser uses the county rows. Its pre-count
+# NH governor document maps all ten counties, but live update cadence remains unrehearsed.
+id = "us2026_extra_nh_sen_v1"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "nh-sen"
+name = "New Hampshire Senate"
+state = "nh"
+race = "sen"
+feed = "civic_nh"
+source = "civicAPI (civicapi.org), already-recorded snapshots"
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T00:00:00Z"
+poll_close_last_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "Chris Pappas", color = "#1f5fbf" }
+b = { party = "REP", name = "John E. Sununu", color = "#c8102e" }
+
+[prior]
+share = "nh_pres_2024"
+votes = "nh_pres_2024"
+
+[model]
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "new-hampshire-senate-election-winner"
+market = "will-the-democrats-win-the-new-hampshire-senate-race-in-2026"
+question = "Will the Democrats win the New Hampshire Senate race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]
+ticker = ""

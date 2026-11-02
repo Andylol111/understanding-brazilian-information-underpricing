@@ -1,0 +1,38 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. NV-02 U.S. House from already-recorded civicAPI House snapshots.
+# One district unit with civicAPI percent reporting; no county count-order correction. Direct Nevada sites were blocked.
+id = "us2026_extra_nv-02_v1"
+role = "secondary"
+[election]
+eid = "us2026"
+race_id = "house:NV-02"
+name = "NV-02 U.S. House"
+state = "nv"
+race = "house-02"
+feed = "civic_house"
+source = "civicAPI (civicapi.org), already-recorded snapshots"
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T03:00:00Z"
+a = { party = "DEM", name = "Teresa Benitez-Thompson", color = "#1f5fbf" }
+b = { party = "REP", name = "David Flippo", color = "#c8102e" }
+[prior]
+share = "nv-02_pres_2024"
+votes = "nv-02_pres_2024"
+[model]
+tau = 0.01
+rho = 0.6
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = false
+vote_type = false
+[markets.polymarket]
+event = "nv-02-house-election-winner"
+market = "will-the-democratic-party-win-the-nv-02-house-seat"
+question = "Will the Democratic Party win the NV-02 House seat?"
+yes_is = "a"
+[markets.kalshi]
+ticker = ""

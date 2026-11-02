@@ -1,0 +1,38 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. NV-03 U.S. House from already-recorded civicAPI House snapshots.
+# One district unit with civicAPI percent reporting; no county count-order correction. Direct Nevada sites were blocked.
+id = "us2026_extra_nv-03_v1"
+role = "secondary"
+[election]
+eid = "us2026"
+race_id = "house:NV-03"
+name = "NV-03 U.S. House"
+state = "nv"
+race = "house-03"
+feed = "civic_house"
+source = "civicAPI (civicapi.org), already-recorded snapshots"
+source_url = "https://civicapi.org"
+poll_close_utc = "2026-11-04T03:00:00Z"
+a = { party = "DEM", name = "Susie Lee", color = "#1f5fbf" }
+b = { party = "REP", name = "Martin O'Donnell", color = "#c8102e" }
+[prior]
+share = "nv-03_pres_2024"
+votes = "nv-03_pres_2024"
+[model]
+tau = 0.01
+rho = 0.6
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = false
+vote_type = false
+[markets.polymarket]
+event = "nv-03-house-election-winner"
+market = "will-the-democratic-party-win-the-nv-03-house-seat"
+question = "Will the Democratic Party win the NV-03 House seat?"
+yes_is = "a"
+[markets.kalshi]
+ticker = ""
