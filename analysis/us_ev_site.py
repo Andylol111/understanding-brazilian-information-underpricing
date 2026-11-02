@@ -498,17 +498,28 @@ def build(db_path: Path, out: Path, use_daily: bool = True, log=print) -> dict:
     states, counties = {}, {}
     # UF Election Lab days AFTER a state's last official day extend that state's official statewide series (the
     # official file is the base and keeps its county detail; the Lab, collected automatically, carries the series on
-    # when an official file stops arriving, e.g. one published only behind a bot check and loaded by hand)
+    # when an official file stops arriving, e.g. one published only behind a bot check and loaded by hand). Only when
+    # the two measure the same thing: on the latest day both report, the Lab's total is within 2 % of the official one.
     ufc = canon.canonical(uf_rows) if len(uf_rows) else None
     uf_src = {UF_ID: {"id": UF_ID, "url": UF_PAGE, "what": UF_LABEL, "cadence": "daily"}}
+
+    def _tot(f):
+        t = f[f["measure"] == "total"]
+        if "party" in t:
+            t = t[t["party"] == "ALL"]
+        return t.groupby("as_of_date")["count"].sum()
     for st in sorted(NAMES):
         srcs = source_labels(frames["sources"], st)
         x = cstate[cstate["state"] == st]
         if len(x) and ufc is not None:
-            later = ufc[(ufc["state"] == st) & (ufc["as_of_date"] > x["as_of_date"].max())]
+            u = ufc[ufc["state"] == st]
+            later = u[u["as_of_date"] > x["as_of_date"].max()]
             if len(later):
-                x = pd.concat([x, later], ignore_index=True)
-                srcs = {**srcs, **uf_src}
+                both = _tot(x).align(_tot(u), join="inner")
+                ok = len(both[0]) and both[1].iloc[-1] > 0 and abs(both[0].iloc[-1] / both[1].iloc[-1] - 1) <= 0.02
+                if ok:
+                    x = pd.concat([x, later], ignore_index=True)
+                    srcs = {**srcs, **uf_src}
         if len(x):
             res = build_state(st, x, srcs, hist, cur_days)
             if res:
