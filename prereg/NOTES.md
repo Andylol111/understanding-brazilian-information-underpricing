@@ -293,6 +293,17 @@ is a near tie). It is registered for the four Georgia districts as `us2026_house
 sensitivity, not run live; it is replayed on the recorded feeds after the count and reported apart from the
 headline versions.
 
+## US midterms 2026: unified challenger expected-vote mismatch between Senate and governor (disclosed before any 2026 result)
+
+In the registered challenger priors (`data_public/us2026_unified_priors.csv`, sha256 `d8b9cdd8b804480c`), the
+statewide expected two-party votes of a Senate race exceed those of the governor race on the same ballot in eight
+states: SC 2.57M vs 1.81M (×1.42), NE ×1.13, TX ×1.09, FL 8.75M vs 8.03M (×1.09), OH ×1.08, NM ×1.06, MN ×1.05, MI ×1.04
+(GA, CO, KS, IA agree within 1%). Same-ballot races should differ only by drop-off, a few percent. The Senate base
+appears to draw on presidential-year Senate turnout. An inflated expected total makes the challenger treat less of
+the vote as counted, so in these Senate races it is expected to converge later and to carry wider bands than its
+governor counterpart. The registered files are not changed; the challenger's Senate scores in these eight states
+are reported with this note, and the registered headline versions (v3, Ohio v4) are not affected.
+
 ## Recording log (forward_v1)
 
 Gaps in live recording, from the host's power log (`pmset -g log`) and the record timestamps. A gap
