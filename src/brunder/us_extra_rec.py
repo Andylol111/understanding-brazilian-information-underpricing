@@ -186,6 +186,8 @@ class Recorder:
         if not url:
             s["last_status"] = "unresolved"
             return
+        if s.get("url") != url:                 # a new (versioned) URL: the old validators do not apply
+            s.update(url=url, etag=None, last_modified=None)
         hdr = {}
         if s.get("etag"):
             hdr["If-None-Match"] = s["etag"]

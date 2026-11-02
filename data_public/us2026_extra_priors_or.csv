@@ -1,0 +1,40 @@
+# Secondary-source, unregistered Oregon county prior added 2026-11-02 (brunder.extra_or): 2024 president by county
+# (Harris, Trump, all candidates), copied from data_public/us2026_county_baseline.csv: MIT Election Data and Science Lab,
+# U.S. President Precinct-Level Returns 2024 (doi:10.7910/DVN/XDJYKC; CC0 1.0), summed to Census county FIPS.
+source,unit_id,dem,rep,total
+or_pres_2024,us-or-41001,2343,7060,9694
+or_pres_2024,us-or-41003,33909,14187,50220
+or_pres_2024,us-or-41005,130580,106387,490556
+or_pres_2024,us-or-41007,12533,9913,23290
+or_pres_2024,us-or-41009,12895,17227,31334
+or_pres_2024,us-or-41011,13603,20631,35388
+or_pres_2024,us-or-41013,3836,12012,16297
+or_pres_2024,us-or-41015,5761,8000,14227
+or_pres_2024,us-or-41017,67928,55430,127776
+or_pres_2024,us-or-41019,18386,41561,61807
+or_pres_2024,us-or-41021,291,805,1441
+or_pres_2024,us-or-41023,816,3490,4456
+or_pres_2024,us-or-41025,797,3307,4255
+or_pres_2024,us-or-41027,8364,3854,12707
+or_pres_2024,us-or-41029,54065,61743,119572
+or_pres_2024,us-or-41031,3941,7454,11750
+or_pres_2024,us-or-41033,16928,31129,49628
+or_pres_2024,us-or-41035,9856,24674,35514
+or_pres_2024,us-or-41037,681,3421,4393
+or_pres_2024,us-or-41039,125775,77376,211285
+or_pres_2024,us-or-41041,17112,11645,29804
+or_pres_2024,us-or-41043,25749,43078,71429
+or_pres_2024,us-or-41045,2884,7710,10945
+or_pres_2024,us-or-41047,73970,77089,156691
+or_pres_2024,us-or-41049,1138,3408,4732
+or_pres_2024,us-or-41051,325927,70759,414250
+or_pres_2024,us-or-41053,22034,23768,47593
+or_pres_2024,us-or-41055,233,890,1166
+or_pres_2024,us-or-41057,7747,7971,32504
+or_pres_2024,us-or-41059,9251,20973,31225
+or_pres_2024,us-or-41061,4107,9942,14574
+or_pres_2024,us-or-41063,1573,3366,5108
+or_pres_2024,us-or-41065,6069,6837,13391
+or_pres_2024,us-or-41067,193013,92590,297949
+or_pres_2024,us-or-41069,210,618,868
+or_pres_2024,us-or-41071,26011,29536,57800

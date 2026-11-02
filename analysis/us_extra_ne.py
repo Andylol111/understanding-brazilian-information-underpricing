@@ -1,15 +1,15 @@
-"""Priors and configs of the VA / MD / PA-11 secondary House models (brunder.extra_va, extra_md, extra_pa).
+"""Priors and configs of the VA / MD secondary House models (brunder.extra_va, extra_md). PA-11 was dropped: its
+document is on a do-not-request host and the registered recorder does not fetch it.
 
-    uv run python analysis/us_extra_ne.py priors   # data_public/us2026_extra_priors_{va,md,pa}.csv
+    uv run python analysis/us_extra_ne.py priors   # data_public/us2026_extra_priors_{va,md}.csv
     uv run python analysis/us_extra_ne.py configs  # configs/us2026_extra/<st>-<nn>_v1.toml
 
 Priors are the 2024 president (Harris v Trump) per county piece of each district, the allocation of
 analysis/us_house_night.py county_pieces (the registered House priors' method; VA and MD lines did not change for
-2026). PA-11 rows are copied from data_public/us2026_house_priors.csv. Only units the feed lists are kept (checked
+2026). Only units the feed lists are kept (checked
 against the 2026 Virginia item and the 2024 Maryland county table; the pieces are the same sets).
 Settings of the configs = data_public/us2026_house_calibration.json "chosen" for the feed group: Virginia and Maryland
-(no early/election-day split used) take the group without a vote-type split (FL, SC, OH replay), PA-11 the group with one
-and early_share 0.23 as the registered PA House configs (same feed).
+(no early/election-day split used) take the group without a vote-type split (FL, SC, OH replay).
 """
 from __future__ import annotations
 
@@ -31,8 +31,6 @@ DISTRICTS = {
               "https://enr.elections.virginia.gov/results/public/virginia/elections/2026-November-General"),
     "MD-01": ("md", "md_house", "Maryland State Board of Elections, unofficial 2026 general election results",
               "https://elections.maryland.gov/elections/2026/general_results/gen_results_2026_4_1.html"),
-    "PA-11": ("pa", "pa_house_x", "Pennsylvania Department of State, election returns (county break, U.S. House 11th)",
-              "https://www.electionreturns.pa.gov/"),
 }
 PRIOR_ONLY = ("VA-02", "VA-07")        # recorded by brunder-extra-rec (Senate/VA-02/VA-07); priors only, not competitive
 HEAD = ["# US midterms 2026 House district priors, secondary sources ({mod}; analysis/us_extra_ne.py priors):",
@@ -46,11 +44,8 @@ HEAD = ["# US midterms 2026 House district priors, secondary sources ({mod}; ana
 def priors() -> list[Path]:
     pcs = pd.read_csv(PIECES, dtype={"county": str})
     out = []
-    for mod, sts in (("va", ("VA",)), ("md", ("MD",)), ("pa", ())):
-        if mod == "pa":
-            src = pd.read_csv(ROOT / "data_public" / "us2026_house_priors.csv", comment="#")
-            body = src[src["source"] == "pa-11_pres_2024"]
-        else:
+    for mod, sts in (("va", ("VA",)), ("md", ("MD",))):
+        if True:
             g = pcs[pcs["st"].isin(sts)].groupby(["st", "cd26", "county"])[["d24", "r24", "t24"]].sum().reset_index()
             g = g[g["t24"] > 0.5]
             keep = {d for d, (m, *_r) in DISTRICTS.items() if m == mod} | set(PRIOR_ONLY)
@@ -116,10 +111,9 @@ yes_is = "a"
 ticker = ""                # Kalshi event {k_event}, YES = {k_event}-D
 """
 _CHECK = {"va": "the 2024 general 1st and 5th District items of the same API (certified totals matched exactly)",
-          "md": "the 2024 general District 1 county table (official totals matched exactly)",
-          "pa": "the registered PA 2024 House document of PA-10 (district 11's URL was not requested)"}
-_STATE = {"va": "Virginia", "md": "Maryland", "pa": "Pennsylvania"}
-_CLOSE = {"va": "2026-11-04T00:00:00Z", "md": "2026-11-04T01:00:00Z", "pa": "2026-11-04T01:00:00Z"}
+          "md": "the 2024 general District 1 county table (official totals matched exactly)"}
+_STATE = {"va": "Virginia", "md": "Maryland"}
+_CLOSE = {"va": "2026-11-04T00:00:00Z", "md": "2026-11-04T01:00:00Z"}
 
 
 def configs() -> list[Path]:
@@ -133,7 +127,7 @@ def configs() -> list[Path]:
         st, nn = did[:2].lower(), did[3:]
         v = mk["districts"][did]
         pm, ka = v.get("pm") or {}, v.get("kalshi") or {}
-        grp = "split|v1" if mod == "pa" else "nosplit|v1"
+        grp = "nosplit|v1"
         c = cal[grp]
         bc = c["by_check"]
         cal_txt = (f"90 % coverage {bc['0.05']['cover90']:.2f}/{bc['0.25']['cover90']:.2f}/{bc['0.5']['cover90']:.2f} "

@@ -1,0 +1,44 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. Oregon Governor from the Oregon Secretary of State results web
+# service (results.oregonvotes.gov map data, brunder.extra_or). County prior = 2024 president (MEDSL, CC0). Same model
+# and count rules as the civicAPI statewide configs (no early/late split; county complete when every precinct reported).
+# Oregon votes entirely by mail: counties post large ballot batches; live behaviour of this feed is unrehearsed.
+id = "us2026_extra_or_gov_v1"
+role = "secondary"
+
+[election]
+eid = "us2026"
+race_id = "or-gov"
+name = "Oregon Governor"
+state = "or"
+race = "gov"
+feed = "or_extra"
+source = "Oregon Secretary of State election results"
+source_url = "https://results.oregonvotes.gov/"
+poll_close_utc = "2026-11-04T04:00:00Z"
+a = { party = "DEM", name = "Tina Kotek", color = "#1f5fbf" }
+b = { party = "REP", name = "Christine Drazan", color = "#c8102e" }
+
+[prior]
+share = "or_pres_2024"
+votes = "or_pres_2024"
+
+[model]
+tau = 0.06
+rho = 0.3
+sigma_mun0 = 0.08
+
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+
+[markets.polymarket]
+event = "oregon-governor-winner-2026"
+market = "will-the-democrats-win-the-oregon-governor-race-in-2026"
+question = "Will the Democrats win the Oregon governor race in 2026?"
+yes_is = "a"
+
+[markets.kalshi]
+ticker = ""

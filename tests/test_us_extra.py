@@ -149,3 +149,40 @@ def test_vote_wa_real_2026_primary_item_cd05():
         for o in br["ballotOptions"]:
             county[o["name"][0]["text"]] = county.get(o["name"][0]["text"], 0) + o["voteCount"]
     assert all(county[k] == v for k, v in by.items())
+
+
+def test_oregon_real_2026_precount_and_filled_count():
+    """Real 2026 pre-count GetMapData (fetched 2026-11-02): 36 counties x 3 candidates (write-in dropped), parties from
+    PartyName (PartyCode is NON for all); a filled copy gives exact county and state sums."""
+    import gzip
+    from brunder import extra_or
+    raw = gzip.decompress((ROOT / "tests" / "fixtures" / "us" / "extra_or_2026_gov_precount.json.gz").read_bytes())
+    df = extra_or.parse("or_extra", {"gov": raw})
+    c = df[df["level"] == "county"]
+    assert c["unit_id"].nunique() == 36 and set(c["unit_id"]) == set(us.counties("or")["unit_id"])
+    assert dict(c.groupby("candidate")["party"].first()) == {"Tina Kotek": "DEM", "Christine Drazan": "REP",
+                                                              "Brett Smith": "PAC"} or \
+        c.groupby("candidate")["party"].first()[["Tina Kotek", "Christine Drazan"]].tolist() == ["DEM", "REP"]
+    d = json.loads(raw)
+    for x in d["d"]:
+        x["calcCandidateVotes"] = 10 if x["calcCandidate"] == "Tina Kotek" else 7
+        x["PrecinctsReporting"] = x["TotalPrecincts"]
+    f = extra_or.parse("or_extra", {"gov": json.dumps(d).encode()})
+    s = f[f["level"] == "state"].set_index("party")["votes"]
+    assert s["DEM"] == 360 and s["REP"] == 252
+    assert extra_or.parse("or_extra", {"gov": b"<html>"}).empty and extra_or.parse("or_extra", {"gov": None}).empty
+
+
+def test_link_shared_never_links_keys_the_added_recorder_writes(tmp_path):
+    us_extra_live.install()
+    cfgs = sorted((ROOT / "configs" / "us2026_extra").glob("*_v1.toml"))
+    made = {p.name for p in us_extra_live.link_shared(cfgs, tmp_path / "extra", tmp_path / "shared")}
+    own = {s["key"] for m in us_extra_live.MODULES for s in m.RECORD}
+    assert not made & own
+    assert {"civic_87188", "civic_87260", "civic_87283", "civic_87284", "civic_87524", "polymarket_books"} <= made
+
+
+def test_pdf_and_html_snapshots_pass_the_archive_check():
+    us_extra_live.install()
+    us_extra_live._check_pdf(b"%PDF-1.7\n...\n%%EOF\n")
+    us_extra_live._check_text("<html>é</html>".encode("latin-1"))

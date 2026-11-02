@@ -25,6 +25,16 @@ PRIOR_INFO = ("MIT Election Data and Science Lab, 2024 president returns allocat
               "CC0 1.0")
 
 
+def _check_pdf(body: bytes) -> None:
+    if not body.startswith(b"%PDF") or b"%%EOF" not in body[-2048:]:
+        raise ValueError("incomplete PDF")
+
+
+def _check_text(body: bytes) -> None:
+    if not body.strip():
+        raise ValueError("empty snapshot")
+
+
 def install() -> None:
     """Install extra feed/parse/prior hooks once in this process."""
     global _INSTALLED
@@ -42,6 +52,14 @@ def install() -> None:
             us.SOURCE_INFO.setdefault(st, getattr(module, "SOURCE_INFO", {}).get(st, PRIOR_INFO))
         if hasattr(us, "POLL_CLOSE"):
             us.POLL_CLOSE.update(module.POLL_CLOSE)
+        # brunder.us.Archive validates a snapshot as JSON / XML / UTF-8 text unless its key has its own check: PDFs
+        # and non-UTF-8 HTML pages of the added sources would otherwise be skipped as malformed.
+        for spec in module.RECORD:
+            ext = spec.get("ext", "json")
+            if ext == "pdf":
+                us._extra.CHECKS.setdefault(spec["key"], _check_pdf)
+            elif ext in ("html", "txt", "csv"):
+                us._extra.CHECKS.setdefault(spec["key"], _check_text)
 
     old_parse = us.parse_feed
 
@@ -104,11 +122,13 @@ def link_shared(configs: list[Path], snap_root: Path, shared_root: Path | None) 
     lines or poll marker. Dangling links are fine: a key appears once the shared recorder first saves it."""
     if shared_root is None:
         return []
+    own = {spec["key"] for module in MODULES for spec in module.RECORD}     # written here by brunder.us_extra_rec
     keys = set(SHARED_KEYS)
     for p in configs:
         with p.open("rb") as f:
             kind = tomllib.load(f)["election"]["feed"]
-        keys.update(pat for pat in us.FEEDS[kind].values() if not pat.endswith("*"))
+        keys.update(pat for pat in us.FEEDS[kind].values() if not pat.endswith("*") and pat not in own)
+    keys -= own
     snap_root.mkdir(parents=True, exist_ok=True)
     made = []
     for k in sorted(keys):
