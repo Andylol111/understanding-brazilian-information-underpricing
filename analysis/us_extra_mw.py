@@ -27,21 +27,24 @@ import us_house_night as N  # noqa: E402
 
 from brunder import us  # noqa: E402
 from brunder import extra_clarity as C  # noqa: E402
+from brunder import extra_in as IN  # noqa: E402
 from brunder import extra_mo as MO  # noqa: E402
 from brunder import extra_mt as M  # noqa: E402
 
 ROOT = us.ROOT_DIR
-DISTRICTS = {"clarity_mw": {"ia": (1, 2, 3), "co": (3, 4, 5, 8)}, "mt": {"mt": (1,)}, "mo": {"mo": (2,)}}
-MODULES = {"clarity_mw": C, "mt": M, "mo": MO}
+DISTRICTS = {"clarity_mw": {"ia": (1, 2, 3), "co": (3, 4, 5, 8)}, "mt": {"mt": (1,)}, "mo": {"mo": (2,)}, "in": {"in": (5,)}}
+MODULES = {"clarity_mw": C, "mt": M, "mo": MO, "in": IN}
 OUT_CFG = ROOT / "configs" / "us2026_extra"
 FIX = ROOT / "tests" / "fixtures" / "us"
 SOURCE_URL = {"ia": "https://electionresults.iowa.gov/IA/", "co": "https://results.enr.clarityelections.com/CO/",
               "mt": "https://electionresults.mt.gov/ (data: esersws.mt.gov/ResultsAjax.svc/GetMapData)",
-              "mo": "https://extcontent.stlouisco.com/BOE/eResults/ ; https://www.livevoterturnout.com/ENR/stcharlesmoenr/"}
+              "mo": "https://extcontent.stlouisco.com/BOE/eResults/ ; https://www.livevoterturnout.com/ENR/stcharlesmoenr/",
+              "in": "https://enr.indianavoters.in.gov/"}
 SOURCE_NAME = {"ia": "Iowa Secretary of State, Election Night Reporting (Clarity)",
                "co": "Colorado Secretary of State, Election Night Reporting (Clarity)",
                "mt": "Montana Secretary of State, election results web service",
-               "mo": "St. Louis County Board of Elections and St. Charles County Election Authority"}
+               "mo": "St. Louis County Board of Elections and St. Charles County Election Authority",
+               "in": "Indiana Election Division, Election Night Reporting"}
 NOTE = {"mo": ("# PARTIAL COVERAGE: St. Louis and St. Charles counties = 84 % of the district's 2024 presidential vote;\n"
                "# Franklin and Warren counties (16 %) have no night source and are projected from the prior and swing.\n")}
 
@@ -155,6 +158,7 @@ def verify() -> pd.DataFrame:
         "ia": C.parse("ia_house", {r: _fx(f"extra_clarity_ia_2024_{r}.json.gz") for r in C.FILES}),
         "co": C.parse("co_house", {r: _fx(f"extra_clarity_co_2024_{r}.json.gz") for r in C.FILES}),
         "mt": M.parse("mt_house", {"d01": _fx("extra_mt_2024_cd01.json.gz")}),
+        "in": IN.parse("in_house", {"offcat": _fx("extra_in_2024_offcat1005.json.gz")}),
     }
     mo = MO.parse("mo_house", {"stlouis": _fx("extra_mo_stlouis_2024_subset.pdf.gz"),
                                "stcharles": _fx("extra_mo_stcharles_2024_subset.html.gz")})

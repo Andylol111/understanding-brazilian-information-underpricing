@@ -114,3 +114,19 @@ def test_missouri_mo02_2024_county_parts():
     p2 = pre[pre["race"] == "house-02"]
     assert set(p2["party"]) >= {"DEM", "REP"} and p2["votes"].sum() == 0 and (p2["units"] == 35).all()
     assert MO.parse("mo_house", {}).empty
+
+
+def test_indiana_2024_in05_exact_and_resolver():
+    from brunder import extra_in as IN
+    df = IN.parse("in_house", {"offcat": _fx("extra_in_2024_offcat1005.json.gz")})
+    x = df[(df["race"] == "house-05") & df["party"].isin(["DEM", "REP"])].groupby("party")["votes"].sum()
+    h = DJ["IN-05"]["house24"]
+    assert (x["DEM"], x["REP"]) == (h["dv"], h["rv"]) and df[df["race"] == "house-05"]["unit_id"].nunique() == 6
+    pre = IN.parse("in_house", {"offcat": _fx("extra_in_2026pre_offcat1005.json.gz")})
+    assert pre["race"].nunique() == 9 and pre["votes"].sum() == 0
+    assert IN.parse("in_house", {"offcat": b"<html>"}).empty and IN.parse("in_house", {}).empty
+    IN._VER.clear()
+    spec = IN.RECORD[0]
+    assert spec["resolve"](lambda u: b'{"Root":{"VersionType":"B"}}') == f"{IN.BASE}/OffCatC_1005_B.json"
+    IN._VER.clear()
+    assert spec["resolve"](lambda u: None) is None
