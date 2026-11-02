@@ -75,8 +75,8 @@ def test_market_after_and_before_model_and_reload_idempotent():
     out = feed(rows)
     texts = [i[1] for i in out]
     assert "Polymarket reaches 90% on Texas Senate: 12 min after the model" in texts
-    before = feed([{"m": 0, "p": 0.6, "c": 0.5, "pm": 0.92}, {"m": 5, "p": 0.995, "c": 0.5, "pm": 0.92}, {"m": 10, "p": 0.995, "c": 0.5}])
-    assert any(i[1] == "Polymarket reaches 90% on Texas Senate: 10 min before the model" for i in before)
+    before = feed([{"m": 0, "p": 0.6, "c": 0.5, "pm": 0.5}, {"m": 2, "p": 0.6, "c": 0.5, "pm": 0.92}, {"m": 5, "p": 0.995, "c": 0.5, "pm": 0.92}, {"m": 10, "p": 0.995, "c": 0.5}])
+    assert any(i[1] == "Polymarket reaches 90% on Texas Senate: 8 min before the model" for i in before)
     again = run_js(f"""
 const T = (m) => Date.UTC(2026, 10, 4, 1, m);
 const rows = {json.dumps(rows)}.map((r) => ({{ ...r, t: T(r.m) }}));
@@ -97,10 +97,52 @@ console.log(JSON.stringify([E.controlChance([1, 1, 0], 2), E.controlChance([0.5,
     assert out[3] == ["Projection withdrawn: Democratic control of the Senate back to 90%", "Model projects Democrats control the Senate"]
 
 
-def test_decided_only_from_decided_races():
+def test_decided_chamber_from_decided_races():
     out = run_js("""
-const ev = E.createEvents(); const t = 1;
-ev.feedDecided('senate', { notUp: { D: 34, R: 31 }, decided: { D: 16, R: 0 }, need: E.SENATE_NEED, t });
-ev.feedDecided('senate', { notUp: { D: 34, R: 31 }, decided: { D: 0, R: 19 }, need: E.SENATE_NEED, t });
-console.log(JSON.stringify(ev.items().map((i) => i.text)));""")
-    assert out == ["Senate control decided: Republicans reach 50 seats with the Vice President"]
+const ev = E.createEvents();
+const mk = (n, party, t0) => Array.from({ length: n }, (_, i) => ({ party, t: t0 + i }));
+ev.feedDecided('senate', { notUp: { D: 34, R: 31 }, decided: mk(16, 'D', 1), need: E.SENATE_NEED });
+ev.feedDecided('senate', { notUp: { D: 34, R: 31 }, decided: mk(19, 'R', 1), need: E.SENATE_NEED });
+ev.feedDecided('senate', { notUp: { D: 34, R: 31 }, decided: [...mk(17, 'D', 1)], need: E.SENATE_NEED });
+console.log(JSON.stringify(ev.items().map((i) => [i.text, i.ts])));""")
+    assert out == [["Senate control decided: Republicans reach 50 with the Republican Vice President", 19], ["Senate control decided: Democrats reach 51", 17]]
+
+
+# row: 1,000,000 expected; counted = vp - rem
+def dec(**kw) -> str | None:
+    row = {"c": 0.85, "raw": 0.6, "vp": 1_000_000, "rem": 150_000, "exp": 1_000_000} | kw
+    return run_js(f"console.log(JSON.stringify(E.countDecided({json.dumps(row)})))")
+
+
+def test_count_decided_lead_vs_remaining_upper():
+    # counted 850k, upper = 1.5M - 850k = 650k; lead = 0.2 * 850k = 170k -> not decided
+    assert dec() is None
+    # raw 0.9: lead 0.8 * 850k = 680k > 650k -> decided for side a; raw 0.1 -> side b
+    assert dec(raw=0.9) == "a" and dec(raw=0.1) == "b"
+    # just below / above the line: lead = |2raw-1| * 850k vs 650k  (raw 0.88235 -> 0.7647 * 850k = 650k)
+    assert dec(raw=0.88) is None and dec(raw=0.89) == "a"
+
+
+def test_count_decided_counted_threshold_and_missing_fields():
+    # same lead and upper (counted 790k / 810k, expected 1M): only the counted share differs
+    assert dec(c=0.79, raw=0.95, vp=1_000_000, rem=210_000) is None
+    assert dec(c=0.81, raw=0.95, vp=1_000_000, rem=190_000) == "a"
+    for f in ("c", "raw", "vp", "rem", "exp"):
+        assert dec(**({"raw": 0.95} | {f: None})) is None
+    assert dec(raw=0.5) is None
+
+
+def test_race_decided_item_and_registry():
+    out = feed([{"m": 0, "p": 0.5, "c": 0.5, "raw": 0.6, "vp": 1_000_000, "rem": 500_000, "exp": 1_000_000},
+                {"m": 5, "p": 0.5, "c": 0.85, "raw": 0.92, "vp": 1_000_000, "rem": 150_000, "exp": 1_000_000}],
+               "console.error(JSON.stringify(ev.decidedOf('tx-sen')));")
+    assert out == [["decided", "Decided by the count: A Dem (D) wins Texas Senate — lead larger than any plausible remaining vote", False]]
+
+
+def test_market_already_above_90_before_count_is_no_item():
+    rows = [{"m": 0, "p": 0.5, "c": 0, "pm": 0.95, "k": 0.96}, {"m": 5, "p": 0.6, "c": 0.1, "pm": 0.95, "k": 0.96},
+            {"m": 10, "p": 0.995, "c": 0.5, "pm": 0.95, "k": 0.96}, {"m": 15, "p": 0.995, "c": 0.5, "pm": 0.95, "k": 0.96}]
+    assert [i[0] for i in feed(rows)] == ["call"]
+    # a market that crosses 90% only after the first counted votes still gets its minutes item
+    rows2 = [{"m": 0, "p": 0.5, "c": 0.1, "pm": 0.5}, {"m": 5, "p": 0.995, "c": 0.5, "pm": 0.6}, {"m": 10, "p": 0.995, "c": 0.5, "pm": 0.6}, {"m": 15, "p": 0.995, "c": 0.5, "pm": 0.93}]
+    assert any("5 min after the model" in i[1] for i in feed(rows2))

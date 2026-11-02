@@ -38,7 +38,7 @@ export function normRows(rows, pollModel = "v2") {
   for (const d of rows ?? []) {
     const t = Date.parse(d.t);
     if (!Number.isFinite(t)) continue;
-    out.push({ t, p: d[key] ?? d.P ?? null, pm: d.pm ?? null, k: d.kalshi ?? null, c: d.counted ?? null, raw: d.raw ?? null });
+    out.push({ t, p: d[key] ?? d.P ?? null, pm: d.pm ?? null, k: d.kalshi ?? null, c: d.counted ?? null, raw: d.raw ?? null, vp: d.votes_proj ?? null, rem: d.rem_total ?? null, exp: d.turnout_exp_total ?? null });
   }
   return out.sort((x, y) => x.t - y.t);
 }

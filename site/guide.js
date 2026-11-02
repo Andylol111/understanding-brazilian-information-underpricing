@@ -5,7 +5,7 @@
 import * as d3 from "./vendor/d3.js";
 import { LIVE, STATIC, getJSON, esc, param, votesShort } from "./common.js";
 import { prepRace, nationalPick } from "./groups-agg.js";
-import { createEvents, renderBanner, bindBanner, loadSaved, save, controlChance } from "./dash-events.js";
+import { createEvents, renderBanner, bindBanner, loadSaved, save, controlChance, SENATE_NEED, HOUSE_NEED } from "./dash-events.js";
 import { seatProjection, hemicycleShell, renderHemicycle, bindHemicycle } from "./dash-bop.js";
 import {
   GATE, LEVELS, GAP_OPEN, GAP_CLOSE, COUNTED_STEPS, SHIFT_MIN, TURNOUT_MIN, COOL_MIN, normRows, forSide, letter, createEngine, feedRows, feedGroups, feedOf,
@@ -24,7 +24,7 @@ const S = {
   groups: null, counties: null, index: null, preps: new Map(), stamp: new Map(), fetched: new Map(),
   pre: {},                    // static files of the "before the results" part
   sort: { key: param("sort") ?? "close", dir: 1 }, showAll: false, showMini: false, gstate: param("st"),
-  districts: null, houseP: new Map(), houseC: new Map(), civicMeta: null, civicLast: new Map(), houseT: new Map(),
+  districts: null, houseP: new Map(), houseC: new Map(), civicMeta: null, civicLast: new Map(), houseT: new Map(), houseRow: new Map(),
   liveGet: Object.fromEntries(["house", "civicMeta", "civicTail"].map((k) => [k, { miss: 0, skip: 0, at: 0 }])),
   ticks: 0, lastOk: null, failed: false, lastT: null, rowsFull: false, board: [],
 };
@@ -163,7 +163,7 @@ async function loadBop() {
     for (const [id, rows] of Object.entries(src)) {
       if (!id.startsWith("house:") || !Array.isArray(rows) || !rows.length) continue;
       const last = normRows(rows, "v2").at(-1);
-      if (last?.p != null && (S.houseP.get(id) !== last.p || S.houseC.get(id) !== last.c)) { S.houseP.set(id, last.p); S.houseC.set(id, last.c); S.houseT.set(id, last.t); changed = true; }
+      if (last?.p != null && (S.houseP.get(id) !== last.p || S.houseC.get(id) !== last.c)) { S.houseP.set(id, last.p); S.houseC.set(id, last.c); S.houseT.set(id, last.t); S.houseRow.set(id, last); changed = true; }
     }
   }
   if (!S.civicMeta) {
@@ -226,8 +226,8 @@ function renderBop() {
 
 // The strip at the top: "Model projects ..." items (a race's model at 99% or more on 2 refreshes in a row with 20% counted; a chamber's
 // chance of control at 99% or more, seats independent), each once, kept in sessionStorage. The guide holds the whole timeline of the
-// registered races, only the latest row of the civicAPI races and the House districts, and has no decision rule for "decided", so
-// no "control decided" item appears here (the election page's strip has it where its rule applies).
+// registered races, only the latest row of the civicAPI races and the House districts, and decides "decided" by the count
+// rule only (dash-events.js countDecided).
 const EV_KEY = `ubiu.events.${EID}.guide.${window.__BUILD}`;
 let EV = null;
 function feedEvents() {
@@ -245,13 +245,25 @@ function feedEvents() {
   }
   for (const [id, p] of S.houseP) {
     const k = id.replace(/^house:/, "");
-    EV.feedRace({ id, label: `${k} House`, a: { id: "dem", name: "Democratic candidate" }, b: { id: "rep", name: "Republican candidate" } }, [{ t: S.houseT.get(id), p, c: S.houseC.get(id) ?? null }]);
+    EV.feedRace({ id, label: `${k} House`, a: { id: "dem", name: "Democratic candidate" }, b: { id: "rep", name: "Republican candidate" } }, [{ ...(S.houseRow.get(id) ?? {}), t: S.houseT.get(id), p, c: S.houseC.get(id) ?? null }]);
   }
   for (const [name, proj] of [["senate", senateProjection()], ["house", houseProjection()]]) {
     if (!proj) continue;
     const t = name === "senate" ? S.lastT : Math.max(0, ...S.houseT.values());
     if (t) EV.feedChamber(name, [{ t, p: controlChance(proj.seats.map((x) => x.p), proj.majority), c: proj.counted ?? 0 }]);
   }
+  // Chamber decided: seats not up + races decided by the count rule (civicAPI and House rows included where their fields allow)
+  const sen = S.overview?.offices?.senate;
+  if (sen) {
+    const hold = sen.holdovers ?? {}, total = sen.seats_total ?? 100, notUpD = (hold.D ?? 0) + (hold.I ?? 0), done = [];
+    for (const o of sen.races ?? []) {
+      const d = EV.decidedOf(o.race_id ?? o.race_key) ?? EV.decidedOf(`${o.race_key}-civic`) ?? EV.decidedOf(o.race_key);
+      if (d?.party) done.push(d);
+    }
+    EV.feedDecided("senate", { notUp: { D: notUpD, R: hold.R ?? total - notUpD - (sen.races ?? []).length }, decided: done, need: SENATE_NEED });
+  }
+  const hdone = [...S.houseP.keys()].map((id) => EV.decidedOf(id)).filter((d) => d?.party);
+  if (hdone.length) EV.feedDecided("house", { notUp: { D: 0, R: 0 }, decided: hdone, need: HOUSE_NEED });
   save(EV_KEY, EV);
 }
 function renderEvents() {

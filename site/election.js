@@ -2340,7 +2340,7 @@ const scheduleHemi = () => { if (!hemiFrame) hemiFrame = requestAnimationFrame((
 // items up to the time shown, so playing the slider from the start reveals them in order.
 const EV_KEY = `ubiu.events.${EID}.${window.__BUILD}`;
 let EV = null;
-const evSample = (d) => ({ t: d.tms, p: modelP(d), c: d.counted ?? null, pm: d.pm ?? null, k: d.kalshi ?? null });
+const evSample = (d) => ({ t: d.tms, p: modelP(d), c: d.counted ?? null, pm: d.pm ?? null, k: d.kalshi ?? null, raw: d.raw ?? null, vp: d.votes_proj ?? null, rem: d.rem_total ?? null, exp: d.turnout_exp_total ?? null });
 function feedEvents() {
   if (EID !== "us2026" || PRE() || !S.meta) return;
   EV ??= createEvents(loadSaved(EV_KEY));
@@ -2374,19 +2374,21 @@ function feedEvents() {
     }
     if (samples.length) EV.feedChamber(name, samples);
   }
-  // Senate decided: seats not up + races the page's own decision rule (decisionOf: registered statewide races on a replayed night)
-  // calls decided. House and civicAPI races have no such rule here, so they never count toward "decided".
+  // Chamber decided: seats not up + races decided by the count rule (countDecided, any race type whose rows carry the fields) or, on
+  // a replayed night, by the page's decisionOf (registered statewide races).
   const sen = S.overview?.offices?.senate;
-  if (sen && replay()) {
-    const dec = { D: 0, R: 0 }, hold = sen.holdovers ?? {};
+  if (sen) {
+    const hold = sen.holdovers ?? {}, total = sen.seats_total ?? 100, notUpD = (hold.D ?? 0) + (hold.I ?? 0), done = [];
     for (const o of sen.races ?? []) {
-      const r = statewide().find((x) => x.race_id === (o.race_id ?? o.race_key)), d = r ? decisionOf(r) : null;
-      const pty = d?.decided && d.outcome_a != null ? partyOf(d.outcome_a ? r.a : r.b) : null;
-      if (pty) dec[pty]++;
+      const key = o.race_id ?? o.race_key, r = statewide().find((x) => x.race_id === key);
+      let d = EV.decidedOf(key) ?? EV.decidedOf(`${o.race_key}-civic`) ?? EV.decidedOf(o.race_key);
+      if (!d && r && replay()) { const dd = decisionOf(r); const party = dd?.decided && dd.outcome_a != null ? partyOf(dd.outcome_a ? r.a : r.b) : null; if (party) d = { party, t: S.domain?.[1] ?? Date.now() }; }
+      if (d?.party) done.push(d);
     }
-    const total = sen.seats_total ?? 100, notUpD = (hold.D ?? 0) + (hold.I ?? 0);
-    EV.feedDecided("senate", { notUp: { D: notUpD, R: hold.R ?? total - notUpD - (sen.races ?? []).length }, decided: dec, need: SENATE_NEED, t: S.domain?.[1] ?? Date.now() });
+    EV.feedDecided("senate", { notUp: { D: notUpD, R: hold.R ?? total - notUpD - (sen.races ?? []).length }, decided: done, need: SENATE_NEED });
   }
+  const hdone = houseDistrictIds().map((id) => EV.decidedOf(`house:${id}`)).filter((d) => d?.party);
+  if (hdone.length) EV.feedDecided("house", { notUp: { D: 0, R: 0 }, decided: hdone, need: HOUSE_NEED });
   save(EV_KEY, EV);
 }
 function showEvents() {
