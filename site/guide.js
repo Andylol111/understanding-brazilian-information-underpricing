@@ -7,7 +7,7 @@ import { LIVE, STATIC, getJSON, esc, param, votesShort } from "./common.js";
 import { prepRace, nationalPick } from "./groups-agg.js";
 import {
   GATE, LEVELS, GAP_OPEN, GAP_CLOSE, COUNTED_STEPS, SHIFT_MIN, TURNOUT_MIN, COOL_MIN, normRows, forSide, letter, createEngine, feedRows, feedGroups, feedOf,
-  boardRow, overviewRow, sortBoard, disagreements, groupHeadlines, leadOf, clockET, raceLink,
+  boardRow, overviewRow, sortBoard, balanceOfPower, marginText, disagreements, groupHeadlines, leadOf, clockET, raceLink,
 } from "./guide-rules.js";
 
 const EID = "us2026", GDIR = "us2026_groups";
@@ -22,6 +22,7 @@ const S = {
   groups: null, counties: null, index: null, preps: new Map(), stamp: new Map(), fetched: new Map(),
   pre: {},                    // static files of the "before the results" part
   sort: { key: param("sort") ?? "close", dir: 1 }, showAll: false, showMini: false, gstate: param("st"),
+  districts: null, houseP: new Map(), national: null, liveGet: { house: { miss: 0, skip: 0, at: 0 }, national: { miss: 0, skip: 0, at: 0 } },
   ticks: 0, lastOk: null, failed: false, lastT: null, rowsFull: false, board: [],
 };
 window.__guide = { ready: false, live: !!LIVE, build: window.__BUILD, ticks: 0, events: 0, races: 0, counting: 0, leads: 0, lastT: null };
@@ -125,6 +126,87 @@ async function loadPre() {
   const get = (p) => getJSON(p, { root: STATIC, optional: true }).catch(() => null);
   const [ev, evg, tells, watch] = await Promise.all([get("ev2026/index.json"), get("us2026_context/ev_groups.json"), get(`${EID}/tells.json`), get("us2026_guide/watch.json")]);
   S.pre = { ev, evg, tells, watch };
+}
+
+
+/* ---------------------------------------------------------------- balance of power */
+
+// The House district file (static, once), the House count models' latest P (house_live/) and the experimental national model
+// (national_live/): the last two exist only once the count runs, are read once a minute, and after a missing read back off
+// (2, 4, 8, 10 minutes) so a page before the House unit starts does not ask every tick.
+const BOP_MS = 60000;
+async function liveGet(kind, path) {
+  const g = S.liveGet[kind];
+  if (S.meta?.phase === "pre-count" && !LIVE) return null;
+  if (Date.now() - g.at < BOP_MS - 500) return undefined;
+  if (g.skip > 0) { g.skip--; g.at = Date.now(); return undefined; }
+  g.at = Date.now();
+  const j = await getJSON(path, { optional: true }).catch(() => null);
+  if (!j) { g.miss++; g.skip = Math.min(10, 2 ** g.miss) - 1; return null; }
+  g.miss = 0;
+  return j;
+}
+async function loadBop() {
+  let changed = false;
+  if (!S.districts) {
+    S.districts = (await getJSON(`${EID}/house/districts.json`, { optional: true }).catch(() => null))?.districts ?? {};
+    changed = true;
+  }
+  const tail = await liveGet("house", `${EID}/house_live/timeline_tail.json`);
+  if (tail) {
+    const src = tail.rows ?? tail;
+    for (const [id, rows] of Object.entries(src)) {
+      if (!id.startsWith("house:") || !Array.isArray(rows) || !rows.length) continue;
+      const last = normRows(rows, "v2").at(-1);
+      if (last?.p != null && S.houseP.get(id) !== last.p) { S.houseP.set(id, last.p); changed = true; }
+    }
+  }
+  const nat = await liveGet("national", `${EID}/national_live/national.json`);
+  if (nat && (nat.as_of !== S.national?.as_of || !S.national)) { S.national = nat; changed = true; }
+  return changed;
+}
+
+const sidePct = (p) => (p == null ? dash : `${Math.round(100 * p)}%`);
+function seatBar(c, r) {
+  const t = c.total, w = (x) => `${(100 * Math.max(0, x) / t).toFixed(2)}%`;
+  const dVar = Math.max(0, r.dSeats - c.notUp.D), rVar = Math.max(0, t - c.notUp.D - c.notUp.R - dVar);
+  const seg = (cls, x, label) => (x > 0 ? `<i class="${cls}" style="width:${w(x)}"${label ? ` title="${esc(label)}"` : ""}></i>` : "");
+  return `<span class="bop-bar" role="img" aria-label="${esc(`Democratic ${r.dSeats.toFixed(1)} of ${t} seats, majority ${c.majority}`)}">` +
+    seg("d0", c.notUp.D, `${c.notUp.D} Democratic seats not up`) + seg("d1", dVar) + seg("r1", rVar) + seg("r0", c.notUp.R, `${c.notUp.R} Republican seats not up`) +
+    `<b class="bop-maj" style="left:${w(c.majority - 0.5)}" title="majority: ${c.majority}"></b></span>`;
+}
+function marketBar(m) {
+  const pm = m.polymarket ?? m.kalshi;
+  if (pm == null) return `<span class="bop-bar bop-empty"></span>`;
+  const k = m.kalshi;
+  return `<span class="bop-bar" role="img" aria-label="Democratic control ${sidePct(pm)}"><i class="d1" style="width:${(100 * pm).toFixed(1)}%"></i><i class="r1" style="width:${(100 * (1 - pm)).toFixed(1)}%"></i>` +
+    `<b class="bop-maj" style="left:50%"></b>${k != null ? `<b class="bop-k" style="left:${(100 * k).toFixed(1)}%" title="Kalshi ${sidePct(k)}"></b>` : ""}</span>`;
+}
+function bopRow(c, label, r, tip, strong) {
+  const mg = marginText(r.dSeats, c.majority);
+  return `<div class="bop-row${strong ? " bop-x" : ""}"><span class="bop-l" title="${esc(tip)}">${label}</span>${seatBar(c, r)}` +
+    `<span class="bop-n"><b class="${mg?.startsWith("D") ? "bop-dm" : "bop-rm"}">${mg ?? dash}</b> <span>${r.dSeats.toFixed(1)} D</span></span><span class="bop-p">${r.p == null ? dash : `${sidePct(r.p)} D control`}</span></div>`;
+}
+function bopCard(name, c, chamber) {
+  if (!c) return "";
+  const m = c.markets, pmT = `Polymarket ${sidePct(m.polymarket)}`, kT = `Kalshi ${sidePct(m.kalshi)}`;
+  const polls = c.polls ? bopRow(c, "Polls (before votes)", c.polls, chamber === "senate" ? `${c.notUp.D} Democratic-caucus seats not up + each race's poll chance` : "Each district's pre-count chance: 2024 president on the 2026 lines plus the generic-ballot swing") : "";
+  const live = c.live ? bopRow(c, "Live model", c.live, chamber === "senate" ? "The live model's chance in each race with a county model, the market price in the others" : `${c.nModelled} modelled districts at the live model's chance, the others at their pre-count chance`) : "";
+  const nat = c.national ? bopRow(c, "Experimental national model", c.national, "The national swing model's mean seat count (experimental, not registered)", true) : "";
+  const mk = `<div class="bop-row"><span class="bop-l">Markets</span>${marketBar(m)}<span class="bop-n"><span>${pmT}</span></span><span class="bop-p">${m.kalshi != null || m.polymarket != null ? kT : dash}</span></div>`;
+  const parts = [polls, live, nat, mk].join("");
+  const note = chamber === "senate" ? `${c.notUp.D} Democratic-caucus seats not up (solid), ${c.notUp.R} Republican; majority line at ${c.majority}. Races counted as independent.`
+    : `All ${c.total} seats up; majority line at ${c.majority}.`;
+  return `<div class="bop-card"><h3>${name}</h3>${parts}<p class="gd-note">${note}</p></div>`;
+}
+function renderBop() {
+  const b = balanceOfPower({
+    overview: S.overview, districts: S.districts, houseP: S.houseP, national: S.national, counting: anyCounting(),
+    lastP: new Map(S.races.map((r) => [r.race_id, S.rows.get(r.race_id)?.at(-1)?.p]).filter(([, p]) => p != null)),
+    sideA: new Map(S.races.map((r) => [r.race_id, r.b?.id === "dem" ? "rep" : "dem"])),
+  });
+  $("gd-bop").innerHTML = bopCard("Senate", b.senate, "senate") + bopCard("House", b.house, "house");
+  window.__guide.bop = { senate: b.senate && { polls: b.senate.polls.dSeats, live: b.senate.live?.dSeats ?? null }, house: b.house && { polls: b.house.polls?.dSeats ?? null, live: b.house.live?.dSeats ?? null, modelled: b.house.nModelled, national: b.house.national?.dSeats ?? null } };
 }
 
 /* ---------------------------------------------------------------- board */
@@ -380,6 +462,7 @@ function renderAll() {
   S.board = boardRows();
   S.lastT = Math.max(0, ...[...S.rows.values()].map((r) => r.at(-1)?.t ?? 0)) || null;
   renderStatus();
+  renderBop();
   renderFeed();
   renderBoard();
   renderMM();
@@ -411,6 +494,7 @@ async function tick(first = false) {
     changed = (await loadRows(first)) || changed;
     changed = (await loadOverview()) || changed;
     changed = (await refreshUnits()) || changed;
+    changed = (await loadBop().catch((e) => { console.warn("guide: balance of power read failed", e?.message ?? e); return false; })) || changed;
     S.failed = false;
     S.lastOk = Date.now();
   } catch (e) {

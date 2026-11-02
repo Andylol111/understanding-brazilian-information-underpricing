@@ -7,6 +7,7 @@ live server every 15 s, units every 30 s, overview every 60 s) plus static files
 | Part | Source | Rule |
 |---|---|---|
 | What to watch now | timeline rows, units files | events, below |
+| Balance of power | overview (Senate holdovers, race poll chances, control prices), `house/districts.json` baseline, live: unit timelines, `house_live/timeline_tail.json`, `national_live/national.json` | seats = seats not up + sum of race chances for the Democratic side (`balanceOfPower`); polls row from poll chances (else market) and district baselines, live row from the live model's latest chance (races without a county model at the market, other districts at baseline), shown once a race has votes; experimental national model line from its seat mean; margin `D +n` / `R +n` = seats above the majority line (rounded D count); P(control) of the Senate rows: Poisson-binomial, races independent |
 | Races | meta + timeline (races with a county count), overview (market-only races, House control prices) | model / Polymarket / Kalshi chance of the side the race leans to; share counted; status; lead |
 | Model and market through the night | timeline rows | one panel per race with a count; dashed lines mark each source reaching 90%, the ring the moment both are there |
 | Where the electorate went | units files + `data/us2026_groups` through `site/groups-agg.js` | top 3 shifts against the 2024 president among groups with a headline (the complete-counties rule: at least 3 fully counted counties covering at least 15% of the group's expected vote), nationally and for one state |
