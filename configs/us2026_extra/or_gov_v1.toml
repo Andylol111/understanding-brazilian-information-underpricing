@@ -25,15 +25,13 @@ votes = "or_pres_2024"
 [model]
 tau = 0.06
 rho = 0.3
-sigma_mun0 = 0.0154   # county swing spread (us.county_resid_sd)
-# Poll swing prior (analysis/us_extra_swing.py): polls frozen from site/data/us2026/overview.json, asof 2026-11-01 (VoteHub, CC BY 4.0); pre-count P = Phi((poll avg - 0.5) / poll sd), as the overview estimate.
+sigma_mun0 = 0.08
+# Poll swing prior (analysis/us_extra_swing.py): polls frozen from site/data/us2026/overview.json, asof 2026-11-01 (VoteHub, CC BY 4.0); registered civic v3 settings.
 poll_avg = 0.5111          # two-party Dem share, 1 polls, last 2026-10-01
 poll_sd = 0.045
 swing_prior_mean = -0.0631   # poll avg - prior statewide share 0.5742 (V-weighted)
-swing_prior_sd = 0.045
+swing_prior_sd = 0.0429   # historical RMSE of a poll average with 1 polls (brunder.us.POLL_SD_BINS)
 count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
-
-
 
 [count]
 turnout_ratio = 0.72
