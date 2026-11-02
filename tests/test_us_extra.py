@@ -20,10 +20,13 @@ def _restore_us():
     from brunder import us_feeds_extra
     names = ("parse_feed", "load_priors", "race_prior", "kalshi_markets", "pm_tokens", "meta")
     saved = {n: getattr(us, n) for n in names}
+    writes = {cls: cls.__dict__["write"] for cls in (us.Exporter, us_house_night.HouseExporter)}
     dicts = {id(d): (d, dict(d)) for d in (us.FEEDS, us.STATES, us.POLL_CLOSE, us.SOURCE_INFO, us_feeds_extra.CHECKS)}
     yield
     for n, f in saved.items():
         setattr(us, n, f)
+    for cls, w in writes.items():
+        setattr(cls, "write", w)
     for d, copy in dicts.values():
         d.clear()
         d.update(copy)
@@ -313,3 +316,37 @@ def test_mac_fed_sources_missing_or_broken_files_are_no_data_not_a_crash(tmp_pat
     for rid in ("house:IA-02", "house:CO-08", "house:MI-04", "house:WI-01"):
         assert all(not r.get("counted") for r in tl.get(rid, [])), rid
         assert (d / "units" / f"{rid}.json").exists()
+
+
+def test_stale_flag_on_meta_and_latest_row_and_cleared_by_fresh_poll(tmp_path):
+    """A source whose newest data is > 10 min old during the night window -> meta race and its latest row get
+    stale = true, stale_since = the last fresh time; a recent successful poll in the (Mac-pushed) poll marker clears
+    it; outside the window nothing is flagged."""
+    from brunder import snap
+    us_extra_live.install()
+    arc = tmp_path / "snap"
+    (arc / "wa_house_03").mkdir(parents=True)
+    (arc / "wa_house_03" / "20261104T044000.000000Z.json").write_text(json.dumps(wa_item(dem=600, rep=400)))
+    cfgs = [ROOT / "configs" / "us2026_extra" / "wa-03_v1.toml"]
+    ex = us_house_night.HouseExporter(cfgs, arc)
+    ex.update(pd.Timestamp("2026-11-04T04:41:00Z"))
+    d = ex.write(tmp_path / "out")
+    cl = [us.load_config(p) for p in cfgs]
+
+    def flags():
+        m = {r["race_id"]: r for r in json.loads((d / "meta.json").read_text())["races"]}["house:WA-03"]
+        row = json.loads((d / "timeline.json").read_text())["house:WA-03"][-1]
+        tail = json.loads((d / "timeline_tail.json").read_text())["house:WA-03"][-1]
+        return (m.get("stale"), m.get("stale_since")), (row.get("stale"), row.get("stale_since")), tail.get("stale")
+
+    assert flags() == ((None, None), (None, None), None)          # written outside the night window: no flag
+    us_extra_live.mark_stale(d, cl, arc, now=pd.Timestamp("2026-11-04T04:45:00Z"))
+    assert flags() == ((None, None), (None, None), None)          # 5 min old: fresh
+    us_extra_live.mark_stale(d, cl, arc, now=pd.Timestamp("2026-11-04T05:00:00Z"))
+    assert flags() == ((True, "2026-11-04T04:40:00Z"), (True, "2026-11-04T04:40:00Z"), True)
+    snap.mark(arc, "mac", pd.Timestamp("2026-11-04T05:00:05Z").to_pydatetime(), 30,
+              {"wa_house_03": {"interval": 60, "last_ok": "2026-11-04T04:59:30+00:00", "last_status": 304, "fails": 0}})
+    ex.write(tmp_path / "out")                                    # rewritten from memory: no stale flags left
+    us_extra_live.mark_stale(d, cl, arc, now=pd.Timestamp("2026-11-04T05:00:00Z"))
+    assert flags() == ((None, None), (None, None), None)          # unchanged body but polled 30 s ago: fresh
+    assert us_extra_live.race_staleness(arc, cl[0], pd.Timestamp("2026-11-04T12:00:00Z")) == (False, None)

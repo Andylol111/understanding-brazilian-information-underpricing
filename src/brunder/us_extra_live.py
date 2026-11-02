@@ -154,7 +154,109 @@ def install() -> None:
         return m
 
     us.meta = meta
+
+    for cls in (us.Exporter, us_house_night.HouseExporter):
+        if "write" in cls.__dict__ and not getattr(cls.__dict__["write"], "_stale_marked", False):
+            orig = cls.__dict__["write"]
+
+            def write(self, out, _orig=orig):
+                d = _orig(self, out)
+                try:
+                    mark_stale(d, self.cfgs, self.arc.root)
+                except Exception as e:             # a status flag must never stop the model's output
+                    print(f"stale marking failed, continuing: {type(e).__name__}: {e}", flush=True)
+                return d
+            write._stale_marked = True
+            setattr(cls, "write", write)
     _INSTALLED = True
+
+
+# ------------------------------------------------------------------ stale sources
+NIGHT_START = pd.Timestamp("2026-11-03T23:30:00Z")
+NIGHT_END = pd.Timestamp("2026-11-04T10:00:00Z")
+STALE_AFTER = pd.Timedelta(minutes=10)
+_MARKET_KEYS = {extra_markets.PM_KEY, extra_markets.KALSHI_KEY}
+
+
+def _markers(root: Path) -> list[dict]:
+    return list(us.poll_markers(root).values())
+
+
+def key_fresh(root: Path, key: str) -> pd.Timestamp | None:
+    """When `key` last had fresh data: the latest of (a) its recorder's last successful poll (poll markers'
+    per-feed `last_ok`: the server recorder's .poll/extra.json, the Mac recorder's pushed .poll/mac.json), (b) for a
+    key linked from the shared archive, its recorder's last finished poll cycle (.poll/<recorder>.json `done`), and
+    (c) the newest snapshot of the key (recorders store a body only when it changed, so (a)/(b) keep an unchanged
+    but polled feed fresh)."""
+    cand = []
+    for mk in _markers(root):
+        ok = ((mk.get("feeds") or {}).get(key) or {}).get("last_ok")
+        if ok:
+            cand.append(pd.Timestamp(ok))
+    p = root / key
+    if p.is_symlink():
+        for mk in _markers(p.resolve().parent):
+            if mk.get("done"):
+                cand.append(pd.Timestamp(mk["done"]))
+    if p.is_dir():
+        names = [f.name for f in p.iterdir() if f.name[:1].isdigit()]
+        if names:
+            cand.append(pd.Timestamp(pd.to_datetime(max(names)[:22], format="%Y%m%dT%H%M%S.%f", utc=True)))
+    return max(cand) if cand else None
+
+
+def race_staleness(root: Path, cfg: dict, now: pd.Timestamp) -> tuple[bool, str | None]:
+    """(stale, stale_since) of one race: during the night window, a feed key of the race whose freshest data is older
+    than STALE_AFTER (or that never had data since the window opened) makes it stale; stale_since = the oldest such
+    key's last fresh time (None if it never had data). Outside the window never stale."""
+    if not (NIGHT_START <= now <= NIGHT_END):
+        return False, None
+    pats = us.FEEDS[cfg["election"]["feed"]].values()
+    keys = set()
+    for pat in pats:
+        if pat.endswith("*"):
+            keys.update(x.name for x in root.glob(pat) if x.is_dir())
+        else:
+            keys.add(pat)
+    keys -= _MARKET_KEYS
+    worst, stale = None, False
+    for k in sorted(keys):
+        f = key_fresh(root, k)
+        if f is None or now - f > STALE_AFTER:
+            stale = True
+            if f is not None and (worst is None or f < worst):
+                worst = f
+    return stale, (None if worst is None else us._iso(worst))
+
+
+def mark_stale(d: Path, cfgs: list[dict], root: Path, now: pd.Timestamp | None = None) -> None:
+    """Set `stale` / `stale_since` on each stale race in <d>/meta.json and on its latest row of timeline.json and
+    timeline_tail.json (the files the exporter just rewrote from memory, so fresh races carry no flag: clearing
+    is automatic). The model output itself is unchanged."""
+    import json
+    now = now or pd.Timestamp.now(tz="UTC")
+    st = {c["election"]["race_id"]: race_staleness(Path(root), c, now) for c in cfgs}
+    for name in ("meta.json", "timeline.json", "timeline_tail.json"):
+        f = d / name
+        if not f.exists():
+            continue
+        doc = json.loads(f.read_text())
+        changed = False
+        if name == "meta.json":
+            for r in doc.get("races", []):
+                s, since = st.get(r.get("race_id"), (False, None))
+                old = (r.pop("stale", None), r.pop("stale_since", None))
+                if s:
+                    r["stale"], r["stale_since"] = True, since
+                changed |= old != ((True, since) if s else (None, None))
+        else:
+            for rid, rows in doc.items():
+                s, since = st.get(rid, (False, None))
+                if rows and isinstance(rows, list) and s:
+                    rows[-1]["stale"], rows[-1]["stale_since"] = True, since
+                    changed = True
+        if changed:
+            us._write_json(f, doc)
 
 
 def _is_house(path: Path) -> bool:

@@ -61,7 +61,8 @@ class Blocked(RuntimeError):
 
 
 class Recorder:
-    def __init__(self, out: Path):
+    def __init__(self, out: Path, marker: str = "extra"):
+        self.marker = marker
         self.out = out
         self.out.mkdir(parents=True, exist_ok=True)
         self.index = out / "index.jsonl"
@@ -325,7 +326,7 @@ class Recorder:
                            "last_status": self.state.get(key, {}).get("last_status"),
                            "fails": self.state.get(key, {}).get("fails", 0)}
                      for _, spec in specs for key in [spec["key"]]}
-            snap.mark(self.out, "extra", now() + timedelta(seconds=wait), min([MIN_INTERVAL] +
+            snap.mark(self.out, self.marker, now() + timedelta(seconds=wait), min([MIN_INTERVAL] +
                       [max(MIN_INTERVAL, float(s.get("interval", 60))) for _, s in specs]), feeds)
             time.sleep(wait)
 
@@ -337,9 +338,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--only", action="append", default=[],
                    help="record only RECORD keys with this prefix (repeatable), e.g. a Mac-side run of server-blocked hosts")
     p.add_argument("--skip", action="append", default=[], help="do not record RECORD keys with this prefix (repeatable)")
+    p.add_argument("--marker", default="extra", help="poll-marker name <out>/.poll/<name>.json (the Mac-side run: mac)")
     a = p.parse_args(argv)
     until = datetime.fromisoformat(a.until.replace("Z", "+00:00"))
-    rec = Recorder(a.out)
+    rec = Recorder(a.out, a.marker)
     try:
         rec.run(until, tuple(a.only), tuple(a.skip))
     finally:

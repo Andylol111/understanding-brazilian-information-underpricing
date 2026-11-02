@@ -112,6 +112,15 @@ meta.json of the extra output carries `coverage` (0-1, live share of the race's 
 race and, below 1, `coverage_note` "partial: N% of the district's expected vote has a live source; the rest stays at its
 prior". Test: MI-10 with Macomb fully counted reports counted ≈ coverage (0.88), not 100 %.
 
+## Stale sources
+
+During the night window (2026-11-03T23:30Z-2026-11-04T10:00Z) each output write checks every feed key of each race:
+its last fresh time = latest of the recorder's per-key last successful poll (.poll/extra.json; the Mac run pushes
+.poll/mac.json), the shared recorder's last finished cycle for linked civic keys, and the newest snapshot. A key older
+than 10 min (or with no data) sets `stale: true` and `stale_since` (ISO UTC, the oldest stale key's last fresh time;
+null if it never had data) on the race in meta.json and on its latest row in timeline.json / timeline_tail.json; the
+next write without staleness drops them. Model numbers are unchanged. Test: synthetic 20-min-old snapshot.
+
 ## Integration convention (all slices)
 
 * Source module `src/brunder/extra_<src>.py`: `NAME`, `RECORD` = [{key, url, interval ≥ 30, ext, optional
