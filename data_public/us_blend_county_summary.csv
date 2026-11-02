@@ -1,0 +1,37 @@
+class,model,n,share_wmae_pts
+pooled,v3,260,3.67172
+pooled,unified,260,3.18453
+pooled,eq,260,3.23914
+pooled,loco,260,3.17638
+C1 low,v3,101,2.64651
+C1 low,unified,101,2.3775
+C1 low,eq,101,2.42871
+C1 low,loco,101,2.37909
+C1 medium,v3,95,3.88795
+C1 medium,unified,95,3.08008
+C1 medium,eq,95,3.27531
+C1 medium,loco,95,3.10811
+C1 high,v3,64,4.96868
+C1 high,unified,64,4.61318
+C1 high,eq,64,4.46441
+C1 high,loco,64,4.53596
+cycle 2016,v3,42,3.71042
+cycle 2016,unified,42,3.6999
+cycle 2016,eq,42,3.67471
+cycle 2016,loco,42,3.67558
+cycle 2018,v3,65,3.28286
+cycle 2018,unified,65,2.59296
+cycle 2018,eq,65,2.69148
+cycle 2018,loco,65,2.57871
+cycle 2020,v3,42,4.92942
+cycle 2020,unified,42,3.85204
+cycle 2020,eq,42,4.21176
+cycle 2020,loco,42,4.00883
+cycle 2022,v3,67,3.57066
+cycle 2022,unified,67,3.13092
+cycle 2022,eq,67,3.11817
+cycle 2022,loco,67,3.07307
+cycle 2024,v3,44,3.1626
+cycle 2024,unified,44,3.01096
+cycle 2024,eq,44,2.88819
+cycle 2024,loco,44,2.94552
