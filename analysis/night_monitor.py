@@ -64,14 +64,21 @@ UNITS = {
     "brunder-pm-ws-us": "brunder-pm-ws-us.timer", "brunder-civic-us": "brunder-civic-us.timer",
     "brunder-us-live": NIGHT_TIMER, "brunder-us-house-live": NIGHT_TIMER, "brunder-us-national": NIGHT_TIMER,
     "brunder-us-civic-live": NIGHT_TIMER, "brunder-site": NIGHT_TIMER, "brunder-tunnel": NIGHT_TIMER,
+    # added-source models (secondary, unregistered; docs/us_coverage_2026.md): own checkout /srv/brunder/usextra
+    "brunder-us-extra-record": NIGHT_TIMER, "brunder-us-extra-live": NIGHT_TIMER,
 }
 # live model outputs under /srv/brunder/repo/site/data: name -> (path, is the race timeline, must be fresh)
 OUTPUTS = {
     "us": "us2026/timeline_tail.json", "house": "us2026/house_live/timeline_tail.json",
     "national": "us2026/national_live/status.json", "civic": "civic/us2026/timeline_tail.json",
+    "extra": "extra/us2026/timeline_tail.json",
 }
 MODEL_OF = {"us": "brunder-us-live", "house": "brunder-us-house-live", "national": "brunder-us-national",
-            "civic": "brunder-us-civic-live"}
+            "civic": "brunder-us-civic-live", "extra": "brunder-us-extra-live"}
+# the Mac-side recorder (deploy/mac_extra_rec_push.sh: Iowa/Colorado/Ottawa/Kenosha, whose hosts challenge the VM) pushes
+# .poll/mac.json into the added archive with every push; it must be fresh while it is due to run
+MAC_PUSH_WINDOW = ("2026-11-03T23:35:00Z", "2026-11-04T10:00:00Z")
+MAC_PUSH_ALERT_S = 600
 
 REMOTE = r"""
 R=/srv/brunder/repo; S="sudo -n"; SN=$R/data/raw/snap; D=$R/site/data; T=$SN/__TAG__
@@ -96,6 +103,11 @@ echo "TUNNEL $($S journalctl -u brunder-tunnel --since '3 days ago' -o cat --no-
 for n in snap kalshi civic; do
   f=$T/.poll/$n.json
   [ -f $f ] && echo "PJ $n $($S stat -c %Y $f) $($S cat $f | tr -d '\n')"
+done
+X=$SN/__TAG___extra
+for n in extra mac; do
+  f=$X/.poll/$n.json
+  [ -f $f ] && echo "PJX $n $($S stat -c %Y $f)"
 done
 if [ -d $T ]; then
   $S tail -n 6000 $T/index.jsonl 2>/dev/null | awk '{match($0,/"key": "[^"]*"/); k=substr($0,RSTART+8,RLENGTH-9); match($0,/"t": "[^"]*"/); t=substr($0,RSTART+6,RLENGTH-7); L[k]=t} END{for(k in L)print "F",k,L[k]}'
@@ -153,6 +165,9 @@ def parse_remote(text: str) -> dict:
                 d = json.loads(u[3])
                 d["mtime"] = int(u[2])
                 r["poll"][u[1]] = d
+            elif tag == "PJX":
+                u = ln.split()
+                r.setdefault("poll_extra", {})[u[1]] = int(u[2])
             elif tag == "F":
                 u = ln.split()
                 r["feed_t"][u[1]] = u[2]
@@ -262,6 +277,24 @@ def evaluate(r: dict, prev: dict, th: dict = TH) -> tuple[list[str], list[str], 
             A.append(f"{name} recorder poll marker {int(age)} s old")
         elif age > th["poll_warn"]:
             W.append(f"{name} recorder poll marker {int(age)} s old")
+    # added-source recorder (server) and the Mac push (IA/CO/Ottawa/Kenosha): marker mtimes in the added archive
+    px = r.get("poll_extra") or {}
+    if unit_expectation("brunder-us-extra-record", r, th) == "run":
+        if "extra" not in px:
+            A.append("added-source recorder: no poll marker")
+        else:
+            age = now - px["extra"]
+            info["feeds"]["poll_extra_age_s"] = int(age)
+            if age > th["poll_alert"]:
+                A.append(f"added-source recorder poll marker {int(age)} s old")
+    if iso(MAC_PUSH_WINDOW[0]) <= now <= iso(MAC_PUSH_WINDOW[1]):
+        if "mac" not in px:
+            A.append("Mac push (IA/CO/Ottawa/Kenosha): no marker on the server; is deploy/mac_extra_rec_push.sh running?")
+        else:
+            age = now - px["mac"]
+            info["feeds"]["mac_push_age_s"] = int(age)
+            if age > MAC_PUSH_ALERT_S:
+                A.append(f"Mac push (IA/CO/Ottawa/Kenosha) marker {int(age)} s old: Mac asleep/offline or the push loop stopped")
     pj = r["poll"].get("snap") if snap_state["brunder-snap-us"] == "run" else None
     if pj:
         bad, unpub, ok = [], [], 0

@@ -39,7 +39,20 @@ def healthy(now=NOW):
     for n in nm.OUTPUTS:
         r["out_mtime"][n] = now - 30
         r["out"][n] = {"tx-sen": [row], "tail": True}
+    r["poll_extra"] = {"extra": now - 10, "mac": now - 10}
     return r
+
+
+def test_mac_push_stale_alerts_only_in_its_window():
+    t = int(datetime(2026, 11, 4, 1, 0, tzinfo=timezone.utc).timestamp())
+    r = healthy(t)
+    r["poll_extra"]["mac"] = t - 900                       # 15 min without a push, inside the window
+    A, _ = nm.evaluate(r, {})[:2]
+    assert any("Mac push" in a for a in A)
+    r = healthy(NOW)                                        # 23:30 UTC: the window opens at 23:35
+    del r["poll_extra"]["mac"]
+    A, _ = nm.evaluate(r, {})[:2]
+    assert not any("Mac push" in a for a in A)
 
 
 def test_waiting_before_start_is_silent():
