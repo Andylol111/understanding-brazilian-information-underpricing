@@ -62,7 +62,9 @@ sites loop/403/do-not-request host); NJ-02/07/09 no data (21 county sites, no st
 CoverMW (in progress; packages folded so far): IA-01/02/03 and CO-03/04/05/08 built on Clarity ENR — **server
 blocked** (AWS WAF 202 challenge to the server IP, docs/us_midterms.md), Mac-verified; MT-01 built (esersws.mt.gov,
 server unverified); MO-02 built, partial (St. Louis County PDF + St. Charles Live Voter Turnout page = 84 % of the
-district's vote; Franklin/Warren projected). MI, WI, CA, KS, IN, KY, and the remaining districts: CoverMW reports
+district's vote; Franklin/Warren projected); IN-05 built (enr.indianavoters.in.gov county file via settings.json
+version, no precinct counts, server unverified); KY-06 blocked (vrsws.sos.ky.gov Akamai 403, Clarity KY 403). MI, WI,
+CA, KS and the remaining districts: CoverMW reports
 directly to the integrator after this hand-off (fold steps below).
 
 ## Host table (Mac, 2026-11-02; second column of headers from the 100 s recorder smoke run)
@@ -112,7 +114,7 @@ No 429, Retry-After or challenge was seen on any host used by the recorder. Ever
 ## Test evidence
 
 * `uv run --frozen pytest tests/test_us_extra.py tests/test_extra_ne.py tests/test_extra_mw.py tests/test_civic.py
-  tests/test_us_feeds_extra.py`: 146 passed (Mac). Includes: real VoteWA 2026-08-04 WA-05 item (totals = summaryResults,
+  tests/test_us_feeds_extra.py`: 146 passed (Mac; after folding IN-05 the three added-source files: 35 passed). Includes: real VoteWA 2026-08-04 WA-05 item (totals = summaryResults,
   842/842 precincts, county breakdowns sum to the district); real Oregon 2026 pre-count map data (36 counties, parties
   from PartyName) + filled copy (exact sums); civicAPI House adapter; synthetic WA-03 snapshot → archive → House engine →
   `house_live/timeline.json` with counted > 0; ME-Sen civic document in a shared archive → link → statewide engine →

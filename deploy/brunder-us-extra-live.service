@@ -24,6 +24,7 @@ ExecStart=/srv/brunder/.local/bin/uv run --frozen python -m brunder.us_extra_liv
   configs/us2026_extra/va-01_v1.toml configs/us2026_extra/co-04_v1.toml configs/us2026_extra/md-01_v1.toml \
   configs/us2026_extra/ia-01_v1.toml configs/us2026_extra/ia-03_v1.toml configs/us2026_extra/co-08_v1.toml \
   configs/us2026_extra/wa-03_v1.toml configs/us2026_extra/wa-04_v1.toml configs/us2026_extra/nv-03_v1.toml \
+  configs/us2026_extra/in-05_v1.toml \
   --snap /srv/brunder/repo/data/raw/snap/us_midterms_2026_extra \
   --shared /srv/brunder/repo/data/raw/snap/us_midterms_2026 \
   --out /srv/brunder/repo/site/data/extra --interval 30 --until 2026-11-20T00:00:00Z
