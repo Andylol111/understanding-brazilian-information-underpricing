@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from . import snap
+from . import extra_markets, snap
 from .paths import RAW
 from .us_extra_sources import records
 
@@ -45,9 +45,15 @@ def now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+_FORBIDDEN_DOMAINS = ("azurewebsites.us", "sos.ga.gov", "ohiosos.gov", "sos.mn.gov", "sos.ca.gov", "civicapi.org")
+
+
 def forbidden(host: str) -> bool:
-    return (host in _FORBIDDEN or host.endswith(".azurewebsites.us") or host.endswith(".sos.ga.gov")
-            or host.endswith(".ohiosos.gov") or host.endswith(".sos.mn.gov") or host.endswith(".sos.ca.gov"))
+    """Exact host-name rule (no substring matching): a listed host, or the domain / any subdomain of a listed
+    domain. orresultswebservices.azureedge.us (the Oregon CDN) passes; orresws.azurewebsites.us does not. Redirects
+    are never followed, so a CDN can not lead the recorder to a forbidden origin."""
+    host = host.lower().rstrip(".")
+    return host in _FORBIDDEN or any(host == d or host.endswith("." + d) for d in _FORBIDDEN_DOMAINS)
 
 
 class Blocked(RuntimeError):
@@ -127,7 +133,10 @@ class Recorder:
         self.log(ts=now().isoformat(), event="blocked", source=source, url=url, status=0, note=note)
         print(f"extra recorder: {host} blocked: {note}", flush=True)
 
-    def get(self, source: str, url: str, *, expect: str = "json", headers: dict | None = None) -> httpx.Response | None:
+    def get(self, source: str, url: str, *, expect: str = "json", headers: dict | None = None,
+            params=None, json_body=None, soft_429: bool = False) -> httpx.Response | None:
+        """One paced, robots-checked request (POST when json_body is given). A 401/403 / challenge stops the host
+        for the run (Blocked); a 429 does too unless soft_429 (market data: the caller backs off and retries)."""
         if not self.allowed(url, source):
             self.log(ts=now().isoformat(), source=source, url=url, status=0, note="robots disallow")
             return None
@@ -135,7 +144,10 @@ class Recorder:
         self.pace(host)
         t = now()
         try:
-            r = self.web.get(url, headers=headers)
+            if json_body is not None:
+                r = self.web.post(url, json=json_body, headers=headers, params=params)
+            else:
+                r = self.web.get(url, headers=headers, params=params)
         except httpx.HTTPError as e:
             self.stats["errors"] += 1
             self.log(ts=t.isoformat(), source=source, url=url, status=0, note=type(e).__name__)
@@ -144,6 +156,8 @@ class Recorder:
         self.log(ts=t.isoformat(), source=source, url=url, status=r.status_code, bytes=len(r.content),
                  etag=r.headers.get("etag"), last_modified=r.headers.get("last-modified"),
                  cache_control=r.headers.get("cache-control"), retry_after=r.headers.get("retry-after"), note="fetch")
+        if soft_429 and r.status_code == 429:
+            return r
         if self.challenge(r, expect):
             self.stop_host(host, source, url, f"HTTP {r.status_code} / challenge response")
             raise Blocked(self.blocked[host])
@@ -221,8 +235,66 @@ class Recorder:
                    {k: v for k, v in (("fetched", now().isoformat()), ("etag", r.headers.get("etag")),
                                       ("last_modified", r.headers.get("last-modified"))) if v is not None})
 
+    def _save_json(self, key: str, doc: dict, t: datetime) -> None:
+        s = self.state.setdefault(key, {})
+        body = json.dumps(doc, sort_keys=True).encode()
+        sha = hashlib.sha256(body).hexdigest()
+        s["last_ok"] = now()
+        if s.get("sha") == sha:
+            self.stats["not_modified"] += 1
+            return
+        s["sha"] = sha
+        self.store(key, "json", body, t, {"fetched": now().isoformat()})
+
+    def _market_status(self, key: str, r: httpx.Response | None) -> None:
+        s = self.state.setdefault(key, {})
+        s["last_status"] = "error" if r is None else r.status_code
+        ra = r.headers.get("retry-after", "") if r is not None else ""
+        s["retry_after"] = float(ra) if ra.isdigit() else 0.0
+
+    def poll_pm(self, t: datetime) -> None:
+        """One POST /books for every added race's YES token -> `polymarket_books` {"event/slug": book} (the
+        registered brunder.snap format)."""
+        tokens = extra_markets.pm_tokens()
+        if not tokens:
+            return
+        try:
+            r = self.get("markets", extra_markets.CLOB_BOOKS, json_body=[{"token_id": k} for k in tokens],
+                         soft_429=True)
+        except Blocked:
+            self.state.setdefault(extra_markets.PM_KEY, {})["last_status"] = "blocked"
+            return
+        self._market_status(extra_markets.PM_KEY, r)
+        if r is None or r.status_code != 200:
+            return
+        books = {tokens[b["asset_id"]]: b for b in r.json() if b.get("asset_id") in tokens}
+        if books:
+            self._save_json(extra_markets.PM_KEY, books, t)
+
+    def poll_kalshi(self, t: datetime) -> None:
+        """One GET /markets/orderbooks for every added race's ticker -> `kalshi_books` {ticker: orderbook_fp} (the
+        registered brunder.kalshi format)."""
+        tickers = extra_markets.kalshi_tickers()
+        if not tickers:
+            return
+        try:
+            r = self.get("markets", extra_markets.KALSHI_BOOKS, params=[("tickers", x) for x in tickers],
+                         soft_429=True)
+        except Blocked:
+            self.state.setdefault(extra_markets.KALSHI_KEY, {})["last_status"] = "blocked"
+            return
+        self._market_status(extra_markets.KALSHI_KEY, r)
+        if r is None or r.status_code != 200:
+            return
+        books = {b["ticker"]: b.get("orderbook_fp") or {} for b in r.json().get("orderbooks") or []}
+        if books:
+            self._save_json(extra_markets.KALSHI_KEY, books, t)
+
     def run(self, until: datetime, only: tuple[str, ...] = (), skip: tuple[str, ...] = ()) -> None:
-        specs = [(m, s) for m, s in records() if (not only or s["key"].startswith(only))
+        market_specs = [(None, {"key": extra_markets.PM_KEY, "interval": extra_markets.INTERVAL, "poll": self.poll_pm}),
+                        (None, {"key": extra_markets.KALSHI_KEY, "interval": extra_markets.INTERVAL,
+                                "poll": self.poll_kalshi})]
+        specs = [(m, s) for m, s in records() + market_specs if (not only or s["key"].startswith(only))
                  and not (skip and s["key"].startswith(skip))]
         if not specs:
             raise ValueError(f"no RECORD spec matches {only}")
@@ -233,13 +305,18 @@ class Recorder:
                 key = spec["key"]
                 if m < due[key] or now() >= until:
                     continue
-                self.poll(module, spec, now())
+                if "poll" in spec:
+                    spec["poll"](now())
+                else:
+                    self.poll(module, spec, now())
                 every = max(MIN_INTERVAL, float(spec.get("interval", 60)))
                 s = self.state.setdefault(key, {})
                 st = s.get("last_status")
-                # transport errors / 5xx: back off (doubling, <= 600 s); 200 / 304 / 404 keep the normal interval
-                s["fails"] = s.get("fails", 0) + 1 if st == "error" or (isinstance(st, int) and st >= 500) else 0
-                due[key] = time.monotonic() + min(600.0, every * 2 ** s["fails"])
+                # transport errors / 429 / 5xx: back off (doubling, <= 600 s, never shorter than a Retry-After);
+                # 200 / 304 / 404 keep the normal interval
+                bad = st == "error" or (isinstance(st, int) and (st >= 500 or st == 429))
+                s["fails"] = s.get("fails", 0) + 1 if bad else 0
+                due[key] = time.monotonic() + max(min(600.0, every * 2 ** s["fails"]), s.pop("retry_after", 0.0))
             next_due = min(due.values(), default=m + 5)
             wait = max(0.25, min(5.0, next_due - time.monotonic(), (until - now()).total_seconds()))
             feeds = {key: {"interval": max(MIN_INTERVAL, float(spec.get("interval", 60))),

@@ -1,0 +1,387 @@
+{
+ "_note": "added-source races: Polymarket / Kalshi market whose YES is config side a (the Democrat); analysis/us_extra_markets.py, looked up 2026-11-02",
+ "house:CO-03": {
+  "pm": {
+   "event": "co-03-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-co-03-house-seat",
+   "token": "24395104702642353411948925889097630568855366590528757185881735998149149192479",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the CO-03 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSECO3-26-D",
+   "series": "HOUSECO3",
+   "event": "HOUSECO3-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for CO-3? \u2014 YES: Dwayne Romero"
+  }
+ },
+ "house:CO-04": {
+  "pm": {
+   "event": "co-04-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-co-04-house-seat",
+   "token": "21114904170244249083059864962815455303156569744726868991298626905734505722454",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the CO-04 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-CO04-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-CO04-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for CO-04? \u2014 YES: Eileen Laubacher"
+  }
+ },
+ "house:CO-05": {
+  "pm": {
+   "event": "co-05-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-co-05-house-seat",
+   "token": "65297644285404916901193334448264414280160658285706744124400713188840107279310",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the CO-05 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-CO05-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-CO05-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for CO-05? \u2014 YES: Jessica Killin"
+  }
+ },
+ "house:CO-08": {
+  "pm": {
+   "event": "co-08-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-co-08-house-seat",
+   "token": "111540362553565728751187438925859908575427409891112173540802616759607897153785",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the CO-08 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSECO8-26-D",
+   "series": "HOUSECO8",
+   "event": "HOUSECO8-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for CO-8? \u2014 YES: Manny Rutinel"
+  }
+ },
+ "house:IA-01": {
+  "pm": {
+   "event": "ia-01-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-ia-01-house-seat",
+   "token": "70626084342654528512319514273738308837103071303735022481383733918592331109261",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the IA-01 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSEIA1-26-D",
+   "series": "HOUSEIA1",
+   "event": "HOUSEIA1-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for IA-1? \u2014 YES: Christina Bohannan"
+  }
+ },
+ "house:IA-02": {
+  "pm": {
+   "event": "ia-02-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-ia-02-house-seat",
+   "token": "24808423328362642269928339618535398875519836942812329525201323299850907438220",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the IA-02 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-IA02-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-IA02-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for IA-02? \u2014 YES: Lindsay James"
+  }
+ },
+ "house:IA-03": {
+  "pm": {
+   "event": "ia-03-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-ia-03-house-seat",
+   "token": "105724155866026243386456609196248574198788679514540436663740641053049222730942",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the IA-03 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSEIA3-26-D",
+   "series": "HOUSEIA3",
+   "event": "HOUSEIA3-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for IA-3? \u2014 YES: Sarah Trone Garriott"
+  }
+ },
+ "house:IN-05": {
+  "pm": {
+   "event": "in-05-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-in-05-house-seat",
+   "token": "108361235100175615834197260073509874529620842534476319914175075380891440992948",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the IN-05 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-IN05-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-IN05-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for IN-05? \u2014 YES: J.D. Ford"
+  }
+ },
+ "house:MD-01": {
+  "pm": {
+   "event": "md-01-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-md-01-house-seat",
+   "token": "43551811102928029751432190548617551826892017052050399354613010689574429530162",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the MD-01 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-MD01-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-MD01-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for MD-01? \u2014 YES: Dan Schwartz"
+  }
+ },
+ "house:ME-02": {
+  "pm": {
+   "event": "me-02-house-election-winner-20260720160226434",
+   "slug": "will-the-democratic-party-win-the-me-01-house-seat-20260720160014016",
+   "token": "96914958250546616618098909674490573266030506817741031776466109480920768219053",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the ME-02 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSEME2-26-D",
+   "series": "HOUSEME2",
+   "event": "HOUSEME2-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for ME-2? \u2014 YES: Matt Dunlap"
+  }
+ },
+ "me-sen": {
+  "pm": {
+   "event": "maine-senate-election-winner",
+   "slug": "will-the-democrats-win-the-maine-senate-race-in-2026",
+   "token": "7589880081658059374445882095611024032084645048848237404312287942463647821549",
+   "yes_is": "a",
+   "question": "Will the Democrats win the Maine Senate race in 2026?"
+  },
+  "kalshi": {
+   "ticker": "SENATEME-26-D",
+   "series": "SENATEME",
+   "event": "SENATEME-26",
+   "yes_is": "a",
+   "question": "Will Democratics win the Senate race in Maine? \u2014 YES: Troy Jackson"
+  }
+ },
+ "house:MO-02": {
+  "pm": {
+   "event": "mo-02-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-mo-02-house-seat",
+   "token": "88848058547666616739103287803590501509467481820772923821669512190352449566302",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the MO-02 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-MO02-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-MO02-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for MO-02? \u2014 YES: Fred Wellman"
+  }
+ },
+ "house:MT-01": {
+  "pm": {
+   "event": "mt-01-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-mt-01-house-seat",
+   "token": "94033987553817825990709512567031751048276730850154145976615728913102874968691",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the MT-01 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSEMT1-26-D",
+   "series": "HOUSEMT1",
+   "event": "HOUSEMT1-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for MT-1? \u2014 YES: Sam Forstag"
+  }
+ },
+ "nh-gov": {
+  "pm": {
+   "event": "new-hampshire-governor-winner-2026",
+   "slug": "will-the-democrats-win-the-new-hampshire-governor-race-in-2026",
+   "token": "50014042446564445111498439180144732017863294969428914194102372141019045896702",
+   "yes_is": "a",
+   "question": "Will the Democrats win the New Hampshire governor race in 2026?"
+  },
+  "kalshi": {
+   "ticker": "GOVPARTYNH-28-D",
+   "series": "GOVPARTYNH",
+   "event": "GOVPARTYNH-28",
+   "yes_is": "a",
+   "question": "Will the Democratic party win the governorship in New Hampshire \u2014 YES: Cinde Warmington"
+  }
+ },
+ "nh-sen": {
+  "pm": {
+   "event": "new-hampshire-senate-election-winner",
+   "slug": "will-the-democrats-win-the-new-hampshire-senate-race-in-2026",
+   "token": "82410058691149830741200014405570918770267839390767234397030380747995715352939",
+   "yes_is": "a",
+   "question": "Will the Democrats win the New Hampshire Senate race in 2026?"
+  },
+  "kalshi": {
+   "ticker": "SENATENH-26-D",
+   "series": "SENATENH",
+   "event": "SENATENH-26",
+   "yes_is": "a",
+   "question": "Will Democratics win the Senate race in New Hampshire? \u2014 YES: Chris Pappas"
+  }
+ },
+ "house:NV-02": {
+  "pm": {
+   "event": "nv-02-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-nv-02-house-seat",
+   "token": "15417233802837722432443020757568946017595518485255200663627832853052302991564",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the NV-02 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-NV02-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-NV02-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for NV-02? \u2014 YES: Teresa Benitez-Thompson"
+  }
+ },
+ "house:NV-03": {
+  "pm": {
+   "event": "nv-03-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-nv-03-house-seat",
+   "token": "94909040987536769270715360325201420589044604443243218743462043270034738802453",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the NV-03 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSENV3-26-D",
+   "series": "HOUSENV3",
+   "event": "HOUSENV3-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for NV-3? \u2014 YES: Susie Lee"
+  }
+ },
+ "nv-gov": {
+  "pm": {
+   "event": "nevada-governor-winner-2026",
+   "slug": "will-the-democrats-win-the-nevada-governor-race-in-2026",
+   "token": "1246864710804983890692377994891598401616546411512113588399830364959833951829",
+   "yes_is": "a",
+   "question": "Will the Democrats win the Nevada governor race in 2026?"
+  },
+  "kalshi": {
+   "ticker": "GOVPARTYNV-26-D",
+   "series": "GOVPARTYNV",
+   "event": "GOVPARTYNV-26",
+   "yes_is": "a",
+   "question": "Will the Democratic party win the governorship in Nevada \u2014 YES: Aaron Ford"
+  }
+ },
+ "or-gov": {
+  "pm": {
+   "event": "oregon-governor-winner-2026",
+   "slug": "will-the-democrats-win-the-oregon-governor-race-in-2026",
+   "token": "9755787435930070640870536823763281543938387827225853124824813626465365556107",
+   "yes_is": "a",
+   "question": "Will the Democrats win the Oregon governor race in 2026?"
+  },
+  "kalshi": {
+   "ticker": "GOVPARTYOR-26-D",
+   "series": "GOVPARTYOR",
+   "event": "GOVPARTYOR-26",
+   "yes_is": "a",
+   "question": "Will the Democratic party win the governorship in Oregon \u2014 YES: Tina Kotek"
+  }
+ },
+ "house:VA-01": {
+  "pm": {
+   "event": "va-01-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-va-01-house-seat",
+   "token": "88628412725357801969852238315853152041907755032296775468463465337049299853893",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the VA-01 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSEVA1-26-D",
+   "series": "HOUSEVA1",
+   "event": "HOUSEVA1-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for VA-1? \u2014 YES: Shannon Taylor"
+  }
+ },
+ "house:VA-05": {
+  "pm": {
+   "event": "va-05-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-va-05-house-seat",
+   "token": "30424541292784877350495001354252975055952568624850695789713995653053526735723",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the VA-05 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-VA05-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-VA05-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for VA-05? \u2014 YES: Tom Perriello"
+  }
+ },
+ "house:WA-03": {
+  "pm": {
+   "event": "wa-03-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-wa-03-house-seat",
+   "token": "62003269433640683744291727761785528693342099533191419822618434570267086928393",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the WA-03 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSEWA3-26-D",
+   "series": "HOUSEWA3",
+   "event": "HOUSEWA3-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for WA-3? \u2014 YES: Marie Gluesenkamp Perez"
+  }
+ },
+ "house:WA-04": {
+  "pm": {
+   "event": "wa-04-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-wa-04-house-seat",
+   "token": "30593975999350825877587438529917201650410921221852686898350933855891343459981",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the WA-04 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-WA04-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-WA04-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for WA-04? \u2014 YES: John Duresky"
+  }
+ },
+ "house:WA-05": {
+  "pm": {
+   "event": "wa-05-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-wa-05-house-seat",
+   "token": "112862321997345954305895476178540142507721821891401811454362607325211739158646",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the WA-05 House seat?"
+  },
+  "kalshi": {
+   "ticker": "KXHOUSERACE-WA05-26-D",
+   "series": "KXHOUSERACE",
+   "event": "KXHOUSERACE-WA05-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for WA-05? \u2014 YES: Carmela Conroy"
+  }
+ }
+}

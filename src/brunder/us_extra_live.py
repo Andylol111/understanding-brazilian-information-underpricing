@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import us, us_house_night
+from . import extra_markets, us, us_house_night
 from .paths import RAW, ROOT
 from .us_extra_sources import MODULES
 
@@ -105,6 +105,10 @@ def install() -> None:
                              "V": vo.loc[common, "dem"].to_numpy(float) + vo.loc[common, "rep"].to_numpy(float)})
 
     us.race_prior = race_prior
+    # Market lines: the added races' Polymarket / Kalshi markets come from configs/us2026_extra/markets.json (YES =
+    # side a); their books are recorded by brunder.us_extra_rec into this archive in the registered formats.
+    us.kalshi_markets = lambda cfgs, pairs_path=None: extra_markets.kalshi_markets(cfgs)
+    us.pm_tokens = lambda cfgs, pairs_path=None, lookup=False: extra_markets.race_tokens(cfgs)
     _INSTALLED = True
 
 
@@ -113,7 +117,7 @@ def _is_house(path: Path) -> bool:
         return str(tomllib.load(f).get("election", {}).get("race_id", "")).startswith("house:")
 
 
-SHARED_KEYS = ("polymarket_books", "kalshi_books")
+SHARED_KEYS: tuple[str, ...] = ()      # market books are recorded into the extra archive itself
 
 
 def link_shared(configs: list[Path], snap_root: Path, shared_root: Path | None) -> list[Path]:
@@ -122,7 +126,8 @@ def link_shared(configs: list[Path], snap_root: Path, shared_root: Path | None) 
     lines or poll marker. Dangling links are fine: a key appears once the shared recorder first saves it."""
     if shared_root is None:
         return []
-    own = {spec["key"] for module in MODULES for spec in module.RECORD}     # written here by brunder.us_extra_rec
+    own = ({spec["key"] for module in MODULES for spec in module.RECORD}     # written here by brunder.us_extra_rec
+           | {extra_markets.PM_KEY, extra_markets.KALSHI_KEY})
     keys = set(SHARED_KEYS)
     for p in configs:
         with p.open("rb") as f:

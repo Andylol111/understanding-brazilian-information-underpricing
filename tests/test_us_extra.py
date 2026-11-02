@@ -6,10 +6,28 @@ from pathlib import Path
 
 import httpx
 import pandas as pd
+import pytest
 
 from brunder import extra_civic_house, extra_ev, us, us_extra_live, us_house_night
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(autouse=True)
+def _restore_us():
+    """us_extra_live.install() patches brunder.us in-process (the extra service's own process); undo it after each
+    test so other test files see the registered behaviour."""
+    from brunder import us_feeds_extra
+    names = ("parse_feed", "load_priors", "race_prior", "kalshi_markets", "pm_tokens")
+    saved = {n: getattr(us, n) for n in names}
+    dicts = {id(d): (d, dict(d)) for d in (us.FEEDS, us.STATES, us.POLL_CLOSE, us.SOURCE_INFO, us_feeds_extra.CHECKS)}
+    yield
+    for n, f in saved.items():
+        setattr(us, n, f)
+    for d, copy in dicts.values():
+        d.clear()
+        d.update(copy)
+    us_extra_live._INSTALLED = False
 
 
 def wa_item(district: int = 3, dem: int = 60, rep: int = 40) -> dict:
@@ -179,10 +197,62 @@ def test_link_shared_never_links_keys_the_added_recorder_writes(tmp_path):
     made = {p.name for p in us_extra_live.link_shared(cfgs, tmp_path / "extra", tmp_path / "shared")}
     own = {s["key"] for m in us_extra_live.MODULES for s in m.RECORD}
     assert not made & own
-    assert {"civic_87188", "civic_87260", "civic_87283", "civic_87284", "civic_87524", "polymarket_books"} <= made
+    assert {"civic_87188", "civic_87260", "civic_87283", "civic_87284", "civic_87524"} <= made
+    assert "polymarket_books" not in made and "kalshi_books" not in made
 
 
 def test_pdf_and_html_snapshots_pass_the_archive_check():
     us_extra_live.install()
     us_extra_live._check_pdf(b"%PDF-1.7\n...\n%%EOF\n")
     us_extra_live._check_text("<html>é</html>".encode("latin-1"))
+
+
+def test_markets_json_maps_every_added_race_with_yes_on_the_democrat():
+    """configs/us2026_extra/markets.json (analysis/us_extra_markets.py, looked up 2026-11-02): every added race has a
+    Polymarket and a Kalshi market, YES = config side a, the configs carry the same Polymarket event/market."""
+    import tomllib
+    from brunder import extra_markets
+    m = extra_markets.load()
+    for f in sorted((ROOT / "configs" / "us2026_extra").glob("*_v*.toml")):
+        c = tomllib.loads(f.read_text())
+        rid, dem = c["election"]["race_id"], c["election"]["a"]["name"]
+        pm, k = m[rid]["pm"], m[rid]["kalshi"]
+        assert pm["yes_is"] == "a" and "democrat" in pm["question"].lower(), rid
+        assert (c["markets"]["polymarket"]["event"], c["markets"]["polymarket"]["market"]) == (pm["event"], pm["slug"])
+        assert c["markets"]["polymarket"].get("yes_is", "a") == "a"
+        assert k["yes_is"] == "a" and "democrat" in k["question"].lower(), rid
+        yes_name = k["question"].split("YES:")[-1].strip().lower()
+        assert dem.split()[-1].lower() in yes_name or yes_name.split()[-1] in dem.lower(), (rid, dem, yes_name)
+        assert len(pm["token"]) > 20 and k["ticker"]
+    assert len(m) == len(list((ROOT / "configs" / "us2026_extra").glob("*_v1.toml")))
+
+
+def test_market_books_give_row_prices_oriented_to_the_democrat(tmp_path):
+    """Books in the registered formats under the extra archive -> rows' pm / kalshi = P(side a), as for the
+    registered races (Polymarket mid of the YES book; Kalshi mid of yes bid / implied ask)."""
+    from brunder import extra_markets
+    us_extra_live.install()
+    arc = tmp_path / "snap"
+    m = extra_markets.load()["house:WA-03"]
+    for key, doc in (
+            ("polymarket_books", {f"{m['pm']['event']}/{m['pm']['slug']}": {
+                "asset_id": m["pm"]["token"], "bids": [{"price": "0.30", "size": "100"}],
+                "asks": [{"price": "0.32", "size": "100"}], "last_trade_price": "0.31"}}),
+            ("kalshi_books", {m["kalshi"]["ticker"]: {"yes_dollars": [["0.2800", "10"]], "no_dollars": [["0.7000", "10"]]}}),
+            ("wa_house_03", wa_item(dem=6000, rep=4000))):
+        (arc / key).mkdir(parents=True)
+        (arc / key / "20261104T050000.000000Z.json").write_text(json.dumps(doc))
+    cfg = ROOT / "configs" / "us2026_extra" / "wa-03_v1.toml"
+    ex = us_house_night.HouseExporter([cfg], arc)
+    assert ex.kalshi_mk["house:WA-03"]["ticker"] == m["kalshi"]["ticker"] and ex.tokens["house:WA-03"] == m["pm"]["token"]
+    ex.update(pd.Timestamp("2026-11-04T05:01:00Z"))
+    row = ex.timeline["house:WA-03"][-1]
+    assert row["pm"] == pytest.approx(0.31) and row["kalshi"] == pytest.approx(0.29)
+
+
+def test_forbidden_hosts_are_exact_and_the_oregon_cdn_passes():
+    from brunder import us_extra_rec as R
+    assert R.forbidden("orresws.azurewebsites.us") and R.forbidden("sdresws.azurewebsites.us")
+    assert not R.forbidden("orresultswebservices.azureedge.us")
+    assert not R.forbidden("azurewebsites.us.example.org")
+    assert R.forbidden("civicapi.org") and R.forbidden("api.civicapi.org") and not R.forbidden("api.civicapi.org.example.com")

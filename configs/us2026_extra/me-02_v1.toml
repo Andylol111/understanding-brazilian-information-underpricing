@@ -31,7 +31,7 @@ learn_turnout = false
 vote_type = false
 [markets.polymarket]
 event = "me-02-house-election-winner-20260720160226434"
-market = "will-the-democratic-party-win-the-me-02-house-seat"
+market = "will-the-democratic-party-win-the-me-01-house-seat-20260720160014016"   # Polymarket slug as listed (question: ME-02)
 question = "Will the Democratic Party win the ME-02 House seat?"
 yes_is = "a"
 [markets.kalshi]
