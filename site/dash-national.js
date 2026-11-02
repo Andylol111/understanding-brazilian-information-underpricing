@@ -131,19 +131,37 @@ export function createNational(root, { overview, office = "senate", summary = nu
     chart(box, (r.history ?? []).map(([t, pm, k]) => ({ t: new Date(t), pm, k })));
   }
 
-  // 14 days of prices (pm: Polymarket black, k: Kalshi green), 0 to 1
-  function chart(box, rows) {
+  // 14 days of prices (pm: Polymarket black, k: Kalshi green), the y axis fitted to the prices' range; hover or drag reads a moment
+  // into `read` (its default text restored on leaving)
+  function chart(box, rows, read) {
     if (rows.length < 2) { box.innerHTML = `<p class="note">No price history yet.</p>`; return; }
-    const w = Math.max(240, box.clientWidth || 300), h = 120, m = { l: 26, r: 6, t: 6, b: 18 };
+    const w = Math.max(240, box.clientWidth || 300), h = 96, m = { l: 30, r: 8, t: 6, b: 18 };
     const x = d3.scaleUtc().domain(d3.extent(rows, (d) => d.t)).range([m.l, w - m.r]);
-    const y = d3.scaleLinear().domain([0, 1]).range([h - m.b, m.t]);
-    const s = d3.select(box).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h);
-    s.append("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y(0.5)).attr("y2", y(0.5)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
-    s.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([0, 0.5, 1]).tickSize(0).tickPadding(4)).call((a) => a.select(".domain").remove());
+    const vals = rows.flatMap((d) => [d.pm, d.k]).filter((v) => v != null);
+    const lo = Math.max(0, Math.floor((d3.min(vals) - 0.05) * 20) / 20), hi = Math.min(1, Math.ceil((d3.max(vals) + 0.05) * 20) / 20);
+    const y = d3.scaleLinear().domain([lo, hi]).range([h - m.b, m.t]);
+    const s = d3.select(box).html("").append("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).style("touch-action", "pan-y");
+    if (lo < 0.5 && hi > 0.5) s.append("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y(0.5)).attr("y2", y(0.5)).attr("stroke", "#bdb9ae").attr("stroke-dasharray", "2,3");
+    s.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(3).tickFormat(d3.format(".2f")).tickSize(0).tickPadding(4)).call((a) => a.select(".domain").remove());
     s.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(d3.utcWeek.every(1)).tickFormat(d3.utcFormat("%-d %b")).tickSizeOuter(0));
     const line = (k) => d3.line().defined((d) => d[k] != null).x((d) => x(d.t)).y((d) => y(d[k])).curve(d3.curveStepAfter);
     s.append("path").datum(rows).attr("fill", "none").attr("stroke", C.kalshi).attr("stroke-width", 1.4).attr("d", line("k"));
     s.append("path").datum(rows).attr("fill", "none").attr("stroke", C.market).attr("stroke-width", 1.5).attr("d", line("pm"));
+    // the reading: a rule and a dot per market at the hovered time (each market's last price at or before it)
+    const rule = s.append("line").attr("y1", m.t).attr("y2", h - m.b).attr("stroke", "#9a968c").attr("visibility", "hidden");
+    const dots = { pm: s.append("circle").attr("r", 3).attr("fill", C.market).attr("visibility", "hidden"), k: s.append("circle").attr("r", 3).attr("fill", C.kalshi).attr("visibility", "hidden") };
+    const last = (k, t) => { let v = null; for (const d of rows) { if (d.t > t) break; if (d[k] != null) v = d[k]; } return v; };
+    const dflt = read?.innerHTML ?? "";
+    const show = (ev) => {
+      const [px] = d3.pointer(ev, s.node()), t = x.invert(Math.max(m.l, Math.min(w - m.r, px)));
+      rule.attr("x1", x(t)).attr("x2", x(t)).attr("visibility", "visible");
+      const v = { pm: last("pm", t), k: last("k", t) };
+      for (const k of ["pm", "k"]) dots[k].attr("cx", x(t)).attr("cy", v[k] == null ? 0 : y(v[k])).attr("visibility", v[k] == null ? "hidden" : "visible");
+      if (read) read.innerHTML = `${d3.utcFormat("%-d %b %H:%M UTC")(t)} · <span class="k">Polymarket ${v.pm == null ? "–" : num(v.pm)}</span> · <span class="kx">Kalshi ${v.k == null ? "–" : num(v.k)}</span>`;
+    };
+    const hide = () => { rule.attr("visibility", "hidden"); dots.pm.attr("visibility", "hidden"); dots.k.attr("visibility", "hidden"); if (read) read.innerHTML = dflt; };
+    s.append("rect").attr("x", m.l).attr("y", 0).attr("width", w - m.l - m.r).attr("height", h).attr("fill", "transparent").style("cursor", "crosshair")
+      .on("pointermove", show).on("pointerdown", show).on("pointerleave", hide);
   }
 
   // Chance the Democrats control the Senate: the control markets (live Polymarket price when read)
@@ -163,16 +181,16 @@ export function createNational(root, { overview, office = "senate", summary = nu
     const ctlHTML = senate && (markets.length || sen.control_p_corr != null) ? `<h3 class="tab-h">Control of the Senate</h3>
       <p>Chance the Democrats control the Senate: ${markets.map((c) => `<span class="${c.platform === "kalshi" ? "kx" : "k"}">${num(c.now)}</span> ${c.platform === "kalshi" ? "Kalshi" : `Polymarket${c.slug && st.live.has(`ctl:${c.slug}`) ? " now" : ""}`}`).join(" · ")}${sen.control_p_corr != null ? `${markets.length ? " · " : ""}<span class="m" title="${esc(sen.control_note ?? "")}">${num(sen.control_p_corr)}</span> model with polls, poll errors correlated across states${sen.control_p_indep != null ? ` (${num(sen.control_p_indep)} if independent)` : ""}` : ""}</p>
 ` : "";
-    const ctlChart = senate && markets.length ? `<div class="nat-ctl-chart"></div><p class="note">Control markets, the last 14 days: <span class="k">Polymarket</span>, <span class="kx">Kalshi</span>.</p>` : "";
+    const ctlChart = senate && markets.length ? `<div class="nat-ctl-chart"></div><p class="note nat-ctl-read">Control markets, the last 14 days: <span class="k">Polymarket</span>, <span class="kx">Kalshi</span>.</p>` : "";
     summary.innerHTML = `<p class="ro-head"><span class="ro-at"><b>${office}</b> races this year</span></p>
-      ${ctlHTML}
-      ${senate ? `<div class="hemi" data-chamber="senate"></div>${ctlChart}` : ""}`;
+      ${senate ? `<div class="hemi" data-chamber="senate"></div>` : ""}
+      ${ctlHTML}${ctlChart}`;
     if (markets.length) {
       const pm = markets.find((c) => c.platform !== "kalshi"), ks = markets.find((c) => c.platform === "kalshi");
       const byT = new Map();
       for (const [t, p] of pm?.history ?? []) byT.set(t, { t: new Date(t), pm: p, k: null });
       for (const [t, p] of ks?.history ?? []) byT.set(t, { ...(byT.get(t) ?? { t: new Date(t), pm: null }), k: p });
-      chart(summary.querySelector(".nat-ctl-chart"), [...byT.values()].sort((a, b) => a.t - b.t));
+      chart(summary.querySelector(".nat-ctl-chart"), [...byT.values()].sort((a, b) => a.t - b.t), summary.querySelector(".nat-ctl-read"));
     }
     onSummary?.();
   }
