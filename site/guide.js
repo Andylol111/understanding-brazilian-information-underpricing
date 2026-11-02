@@ -5,7 +5,7 @@
 import * as d3 from "./vendor/d3.js";
 import { LIVE, STATIC, getJSON, esc, param, votesShort } from "./common.js";
 import { prepRace, nationalPick } from "./groups-agg.js";
-import { createEvents, renderBanner, bindBanner, loadSaved, save, controlChance, SENATE_NEED, HOUSE_NEED } from "./dash-events.js";
+import { partialOf, addedLabel, createEvents, renderBanner, bindBanner, loadSaved, save, controlChance, SENATE_NEED, HOUSE_NEED } from "./dash-events.js";
 import { seatProjection, hemicycleShell, renderHemicycle, bindHemicycle } from "./dash-bop.js";
 import {
   GATE, LEVELS, GAP_OPEN, GAP_CLOSE, COUNTED_STEPS, SHIFT_MIN, TURNOUT_MIN, COOL_MIN, normRows, forSide, letter, createEngine, feedRows, feedGroups, feedOf,
@@ -24,8 +24,8 @@ const S = {
   groups: null, counties: null, index: null, preps: new Map(), stamp: new Map(), fetched: new Map(),
   pre: {},                    // static files of the "before the results" part
   sort: { key: param("sort") ?? "close", dir: 1 }, showAll: false, showMini: false, gstate: param("st"),
-  districts: null, houseP: new Map(), houseC: new Map(), civicMeta: null, civicLast: new Map(), houseT: new Map(), houseRow: new Map(),
-  liveGet: Object.fromEntries(["house", "civicMeta", "civicTail"].map((k) => [k, { miss: 0, skip: 0, at: 0 }])),
+  districts: null, houseP: new Map(), houseC: new Map(), civicMeta: null, civicLast: new Map(), houseT: new Map(), houseRow: new Map(), extraMeta: new Map(), extraLast: new Map(), houseXMeta: new Map(), houseMainIds: new Set(), houseAdded: new Set(),
+  liveGet: Object.fromEntries(["house", "civicMeta", "civicTail", "extraMeta", "extraTail", "extraHouseMeta", "extraHouseTail"].map((k) => [k, { miss: 0, skip: 0, at: 0 }])),
   ticks: 0, lastOk: null, failed: false, lastT: null, rowsFull: false, board: [],
 };
 window.__guide = { ready: false, live: !!LIVE, build: window.__BUILD, ticks: 0, events: 0, races: 0, counting: 0, leads: 0, lastT: null };
@@ -138,7 +138,7 @@ async function loadPre() {
 // races' (civic/us2026/: secondary source, the states without a registered race): the last two exist only once the count runs
 // (asked for only then), are read once a minute, and after a missing read back off (2, 4, 8, 10 minutes) so a page before
 // those units start does not ask every tick.
-const CIVIC = "civic/us2026";
+const CIVIC = "civic/us2026", XTRA = "extra/us2026"; // XTRA: the added models (unregistered, secondary source), same schema as CIVIC
 const BOP_MS = 60000;
 async function liveGet(kind, path) {
   const g = S.liveGet[kind];
@@ -163,7 +163,7 @@ async function loadBop() {
     for (const [id, rows] of Object.entries(src)) {
       if (!id.startsWith("house:") || !Array.isArray(rows) || !rows.length) continue;
       const last = normRows(rows, "v2").at(-1);
-      if (last?.p != null && (S.houseP.get(id) !== last.p || S.houseC.get(id) !== last.c)) { S.houseP.set(id, last.p); S.houseC.set(id, last.c); S.houseT.set(id, last.t); S.houseRow.set(id, last); changed = true; }
+      if (last?.p != null && (S.houseP.get(id) !== last.p || S.houseC.get(id) !== last.c)) { S.houseMainIds.add(id); S.houseAdded.delete(id); S.houseP.set(id, last.p); S.houseC.set(id, last.c); S.houseT.set(id, last.t); S.houseRow.set(id, last); changed = true; }
     }
   }
   if (!S.civicMeta) {
@@ -178,6 +178,35 @@ async function loadBop() {
       if (!c || !Array.isArray(rows) || !rows.length) continue;
       const last = normRows(rows, c.poll_model ?? "v2").at(-1);
       if (last && (S.civicLast.get(id)?.p !== last.p || S.civicLast.get(id)?.c !== last.c)) { S.civicLast.set(id, last); changed = true; }
+    }
+  }
+  // The added models (extra/us2026/): statewide races and House districts, read like civicAPI's and the registered House files; a
+  // registered race wins everywhere, then civicAPI's. The metas are read every time (coverage and stale flags change).
+  const added = (c) => ({ ...c, added: true, source: { name: "added model", role: "secondary", ...c.source } });
+  const xm = await liveGet("extraMeta", `${XTRA}/meta.json`);
+  for (const c of xm?.races ?? []) {
+    if (!c.race_id || c.race_id.startsWith("house:") || S.races.some((r) => r.race_id === c.race_id) || S.civicMeta?.has(c.race_id.replace(/-civic$/, ""))) continue;
+    if (JSON.stringify(S.extraMeta.get(c.race_id)) !== JSON.stringify(added(c))) { S.extraMeta.set(c.race_id, added(c)); changed = true; }
+  }
+  if (S.extraMeta.size) {
+    const tail = await liveGet("extraTail", `${XTRA}/timeline_tail.json`);
+    for (const [id, rows] of Object.entries(tail?.rows ?? tail ?? {})) {
+      const c = S.extraMeta.get(id);
+      if (!c || !Array.isArray(rows) || !rows.length) continue;
+      const last = normRows(rows, c.poll_model ?? "v2").at(-1);
+      if (last && (S.extraLast.get(id)?.p !== last.p || S.extraLast.get(id)?.c !== last.c)) { S.extraLast.set(id, last); changed = true; }
+    }
+  }
+  const hm = await liveGet("extraHouseMeta", `${XTRA}/house_live/meta.json`);
+  for (const c of hm?.races ?? []) {
+    if (c.race_id?.startsWith("house:") && JSON.stringify(S.houseXMeta.get(c.race_id)) !== JSON.stringify(added(c))) { S.houseXMeta.set(c.race_id, added(c)); changed = true; }
+  }
+  if (S.houseXMeta.size) {
+    const tail = await liveGet("extraHouseTail", `${XTRA}/house_live/timeline_tail.json`);
+    for (const [id, rows] of Object.entries(tail?.rows ?? tail ?? {})) {
+      if (!id.startsWith("house:") || S.houseMainIds.has(id) || !Array.isArray(rows) || !rows.length) continue;
+      const last = normRows(rows, "v2").at(-1);
+      if (last?.p != null && (S.houseP.get(id) !== last.p || S.houseC.get(id) !== last.c)) { S.houseAdded.add(id); S.houseP.set(id, last.p); S.houseC.set(id, last.c); S.houseT.set(id, last.t); S.houseRow.set(id, last); changed = true; }
     }
   }
   return changed;
@@ -196,8 +225,8 @@ function senateProjection() {
   const hold = sen.holdovers ?? {}, ups = sen.races ?? [], counted = [], total = sen.seats_total ?? 100, notUpD = (hold.D ?? 0) + (hold.I ?? 0);
   const races = ups.map((o) => {
     // the registered race's live model, else the civicAPI race's (a state without a registered race)
-    const reg = S.races.find((x) => x.race_id === (o.race_id ?? o.race_key)), civ = reg ? null : S.civicMeta?.get(o.race_key), r = reg ?? civ;
-    const last = reg ? S.rows.get(reg.race_id)?.at(-1) : civ ? S.civicLast.get(civ.race_id) : null;
+    const reg = S.races.find((x) => x.race_id === (o.race_id ?? o.race_key)), civ = reg ? null : S.civicMeta?.get(o.race_key), xr = reg || civ ? null : S.extraMeta.get(o.race_key), r = reg ?? civ ?? xr;
+    const last = reg ? S.rows.get(reg.race_id)?.at(-1) : civ ? S.civicLast.get(civ.race_id) : xr ? S.extraLast.get(xr.race_id) : null;
     let p = last?.p ?? null;
     if (p != null && r.b?.id === "dem") p = 1 - p;
     if (last?.c != null) counted.push(last.c);
@@ -243,9 +272,14 @@ function feedEvents() {
     const last = S.civicLast.get(c.race_id);
     if (last && !registered.has(c.race_id.replace(/-civic$/, ""))) EV.feedRace({ id: c.race_id, label: c.name ?? c.race_id, a: c.a, b: c.b, secondary: true }, [last]);
   }
+  for (const [id, c] of S.extraMeta) {
+    const last = S.extraLast.get(id);
+    if (last && !c.stale) EV.feedRace({ id, label: c.name ?? id, a: c.a, b: c.b, secondary: addedLabel(c), partial: partialOf(c) }, [last]);
+  }
   for (const [id, p] of S.houseP) {
-    const k = id.replace(/^house:/, "");
-    EV.feedRace({ id, label: `${k} House`, a: { id: "dem", name: "Democratic candidate" }, b: { id: "rep", name: "Republican candidate" } }, [{ ...(S.houseRow.get(id) ?? {}), t: S.houseT.get(id), p, c: S.houseC.get(id) ?? null }]);
+    const k = id.replace(/^house:/, ""), x = S.houseAdded.has(id) ? S.houseXMeta.get(id) : null;
+    if (x?.stale) continue;
+    EV.feedRace({ id, label: x?.name ?? `${k} House`, a: x?.a ?? { id: "dem", name: "Democratic candidate" }, b: x?.b ?? { id: "rep", name: "Republican candidate" }, ...(x ? { secondary: addedLabel(x), partial: partialOf(x) } : {}) }, [{ ...(S.houseRow.get(id) ?? {}), t: S.houseT.get(id), p, c: S.houseC.get(id) ?? null }]);
   }
   for (const [name, proj] of [["senate", senateProjection()], ["house", houseProjection()]]) {
     if (!proj) continue;

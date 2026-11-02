@@ -15,10 +15,10 @@ import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
 import { seatProjection, hemicycleShell, renderHemicycle, bindHemicycle } from "./dash-bop.js";
-import { createOverlay, houseDistricts, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, houseModelP, ourModelHTML, CENSUS } from "./dash-house.js";
+import { createOverlay, setLiveDistricts, houseDistricts, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, houseModelP, ourModelHTML, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { createUx } from "./dash-ux.js";
-import { createEvents, renderBanner, bindBanner, loadSaved, save, controlChance, partyOf, SENATE_NEED, HOUSE_NEED } from "./dash-events.js";
+import { partialOf, addedLabel, createEvents, renderBanner, bindBanner, loadSaved, save, controlChance, partyOf, SENATE_NEED, HOUSE_NEED } from "./dash-events.js";
 import { regionAgg, regionWinner, regionTally, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
 import { decidedBeforeCount, outcomeA, winnerName, winnerProbability, settledAt, staysAbove } from "./decided.js";
 
@@ -129,15 +129,6 @@ const national = () => statewide().find((r) => !r.region);
 const mainRace = () => national() ?? statewide()[0];
 const regionName = (id) => S.meta.regions?.find((r) => r.id === id)?.name ?? (countryCode() === "US" && id ? usStateName(id) : id?.toUpperCase());
 const raceBase = (r) => (r.region && !r.name.includes(regionName(r.region)) ? `${r.name}, ${regionName(r.region)}` : r.name);
-// the added models (site/data/extra/us2026/, unregistered): "added model (secondary source)" where the count comes from civicAPI, "added model" where official
-// An added race whose live feed covers only part of its district / state is "partial": no projection, no decided item. The meta says so
-// with partial (true/false) or a coverage share (coverage, coverage_share: 0 to 1; full = 1); a missing field counts as partial (safe default).
-const partialOf = (c) => {
-  if (!c?.added) return false;
-  if (typeof c.partial === "boolean") return c.partial;
-  const cov = c.coverage_share ?? c.coverage;
-  return !(typeof cov === "number" && cov >= 0.999);
-};
 // The note under an added race's readout: its partial coverage and, when its source has stopped updating, since when.
 const addedNote = (race) => {
   if (!race?.added) return "";
@@ -146,7 +137,6 @@ const addedNote = (race) => {
   if (race.stale) { const t = Date.parse(race.stale_since); bits.push(`stale since ${Number.isFinite(t) ? `${clock(t, "America/New_York")} ET` : "an unknown time"}: its source has stopped updating`); }
   return bits.length ? `<p class="note added-note">${esc(addedLabel(race))}: ${bits.join(" · ")}</p>` : "";
 };
-const addedLabel = (r) => (/civicapi/i.test(r?.source?.name ?? "") ? "added model (secondary source)" : "added model");
 const raceName = (r) => raceBase(r) + (r.added ? ` · ${addedLabel(r)}` : r.civic ? " · secondary source (civicAPI)" : "");
 const replay = () => S.entry?.status === "replay" && !LIVE && !PRE();
 const outcomeOf = (r) => replay() ? outcomeA(S.rows?.get(r.race_id), S.stats?.settle?.[r.race_id]) : null;
@@ -2487,6 +2477,7 @@ async function initNational() {
   if (!overview) return;
   S.overview = overview;
   S.feeds = feeds;
+  setLiveDistricts([...(feeds?.house ?? []), ...(feeds?.extra_house ?? [])]);
   bindHemicycle($("nat-summary"), (key) => (S.office === "house" ? selectDistrict(key) : S.nat.open(key)));
   S.nat = createNational($("national"), {
     overview, office: "senate", summary: $("nat-summary"),

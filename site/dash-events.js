@@ -18,6 +18,16 @@ import { clock } from "./common.js";
 export const DECIDED_COUNTED = 0.8, DECIDED_HEADROOM = 1.5;
 export const CALL = 0.99, WITHDRAW = 0.95, MIN_COUNTED = 0.2, NEED_ROWS = 2, MARKET_LEVEL = 0.9;
 const TZ = "America/New_York";
+// An added (extra/us2026) race whose live feed covers only part of its district / state is "partial": no projection, no decided item.
+// The meta says so with partial (true/false) or a coverage share (coverage_share, coverage: 0 to 1; full = 1); a missing field counts as partial.
+export const partialOf = (c) => {
+  if (!c?.added) return false;
+  if (typeof c.partial === "boolean") return c.partial;
+  const cov = c.coverage_share ?? c.coverage;
+  return !(typeof cov === "number" && cov >= 0.999);
+};
+// "added model (secondary source)" where the added race's count comes from civicAPI, "added model" where from an official feed
+export const addedLabel = (r) => (/civicapi/i.test(r?.source?.name ?? "") ? "added model (secondary source)" : "added model");
 export const etClock = (t) => `${clock(t, TZ)} ET`;
 const pct = (x) => `${Math.round(100 * x)}%`;
 const min = (ms) => Math.max(0, Math.round(ms / 60000));

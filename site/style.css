@@ -917,3 +917,4 @@ circle.hs:hover { stroke: var(--ink); stroke-width: 1.8; }
 .ev-list li { padding: 4px 0; border-top: 1px solid var(--rule); }
 .ev-list li:first-child { border-top: 0; }
 @media (max-width: 640px) { .ev-top { padding: 0 10px; } .ev-lab { display: none; } .ev-list { padding: 4px 10px 8px; } }
+.live-dot { color: var(--ink); font-size: .85em; }

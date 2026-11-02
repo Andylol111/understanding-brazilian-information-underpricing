@@ -46,7 +46,9 @@ export const CENSUS = [
   ["median_income", "Median household income", (v) => `$${d3.format(",")(Math.round(v))}`],
 ];
 
-const H = { files: null, data: {}, topo: {} }; // loaded files
+const H = { files: null, data: {}, topo: {}, live: new Set() }; // loaded files; live: districts with a live county model on election night
+export const setLiveDistricts = (ids) => { H.live = new Set(ids); };
+const LIVE_MARK = `<span class="live-dot" title="Live county model on election night">●</span> `;
 const mkt = (id) => H.files?.markets?.districts?.[id] ?? null;
 const mk = (d) => mkt(d.id)?.pm?.p ?? mkt(d.id)?.kalshi?.p ?? null;
 const pollM = (d) => { const a = mkt(d.id)?.polls?.average; return a?.avg != null ? (2 * a.avg - 1) * 100 : null; };
@@ -427,7 +429,7 @@ export function createOverlay(container, { onSelect, onState, modelOf = () => nu
       d.swing_pres != null && ["Swing 2020→24 (president)", marginText(d.swing_pres)],
       e && ["Early vote", `${d3.format(",")(e.ev_total)} (${pct(e.share_of_2022_total, 0)} of 2022)`],
     ].filter(Boolean);
-    return `<p class="pc-name"><b>${esc(id)}</b>${d.redrawn ? " <small>new lines</small>" : ""}</p><table class="kv"><tbody>${rows.map(([k, v]) => `<tr><td>${k}</td><td class="n">${v}</td></tr>`).join("")}</tbody></table><p class="pc-hint">${st.state ? "Click to select." : "Click for the state's districts."}</p>`;
+    return `<p class="pc-name"><b>${esc(id)}</b>${d.redrawn ? " <small>new lines</small>" : ""}${H.live.has(id) ? ` ${LIVE_MARK}` : ""}</p><table class="kv"><tbody>${rows.map(([k, v]) => `<tr><td>${k}</td><td class="n">${v}</td></tr>`).join("")}</tbody></table><p class="pc-hint">${st.state ? "Click to select." : "Click for the state's districts."}</p>`;
   }
   function hover(ev, id) {
     const html = cardHTML(id);
@@ -610,14 +612,14 @@ export function houseRaceTable(el, { state = null, selected = null, onPick, mode
   const cols = [["id", "District"], S("model") && ["model", "Model"], S("pm") && ["pm", "Polymarket"], S("kalshi") && ["kalshi", "Kalshi"], S("polls") && ["polls", "Polls"], ["pres", "Harris 2024"], hasGap && ["gap", "Market vs model"]].filter(Boolean);
   el.innerHTML = `<label class="select"><span>District</span> <input type="search" class="hr-filter" placeholder="TX-07, Fletcher…" aria-label="Filter districts"></label>
     <div class="hub-scroll"><table class="races hr-table"><thead><tr>${cols.map(([key, label]) => `<th class="${key === "id" ? "" : "n"}">${label}</th>`).join("")}</tr></thead><tbody></tbody></table></div>
-    <p class="note">${state ? `${esc(state.toUpperCase())} first, then` : "Most competitive first:"} the split bars name each source's leader. Market vs model is the market's confidence in the model leader, minus the model's, in points.</p>`;
+    <p class="note">${state ? `${esc(state.toUpperCase())} first, then` : "Most competitive first:"} the split bars name each source's leader. Market vs model is the market's confidence in the model leader, minus the model's, in points.${H.live.size ? " ● live county model on election night." : ""}</p>`;
   const body = el.querySelector("tbody"), filter = el.querySelector(".hr-filter");
   const fill = () => {
     const f = filter.value.trim().toLowerCase();
     body.innerHTML = rows.filter((d) => !f || d.id.toLowerCase().includes(f) || (h24(d)?.incumbent ?? "").toLowerCase().includes(f)).slice(0, 150).map((d) => {
       const m = mkt(d.id), model = modelOf(d.id), o = ours(d, model), base = o?.p ?? null, market = (S("pm") ? (model?.row?.pm ?? m?.pm?.p) : null) ?? (S("kalshi") ? (model?.row?.kalshi ?? m?.kalshi?.p) : null), sides = houseSides(m, model), fav = probabilityLead(base, sides.a, sides.b);
       const points = fav && market != null ? 100 * ((fav.aLeads ? market : 1 - market) - fav.chance) : null;
-      const val = { id: `${esc(d.id)}${d.redrawn ? " <small>new</small>" : ""}`, model: splitChanceHTML(base, sides.a, sides.b, { compact: true, source: "Model" }), pm: splitChanceHTML(model?.row?.pm ?? m?.pm?.p, sides.a, sides.b, { compact: true, source: "Polymarket" }), kalshi: splitChanceHTML(model?.row?.kalshi ?? m?.kalshi?.p, sides.a, sides.b, { compact: true, source: "Kalshi" }), polls: pollM(d) != null ? candidateMargin(pollM(d), sides) : "–", pres: marginText(d.pres24?.margin), gap: points == null ? "–" : `<span class="chance-gap">${Math.abs(points) < 0.5 ? "0" : `${points > 0 ? "+" : "−"}${Math.abs(points).toFixed(0)}`}<small>pt</small></span>` };
+      const val = { id: `${H.live.has(d.id) ? LIVE_MARK : ""}${esc(d.id)}${d.redrawn ? " <small>new</small>" : ""}`, model: splitChanceHTML(base, sides.a, sides.b, { compact: true, source: "Model" }), pm: splitChanceHTML(model?.row?.pm ?? m?.pm?.p, sides.a, sides.b, { compact: true, source: "Polymarket" }), kalshi: splitChanceHTML(model?.row?.kalshi ?? m?.kalshi?.p, sides.a, sides.b, { compact: true, source: "Kalshi" }), polls: pollM(d) != null ? candidateMargin(pollM(d), sides) : "–", pres: marginText(d.pres24?.margin), gap: points == null ? "–" : `<span class="chance-gap">${Math.abs(points) < 0.5 ? "0" : `${points > 0 ? "+" : "−"}${Math.abs(points).toFixed(0)}`}<small>pt</small></span>` };
       return `<tr tabindex="0" data-id="${esc(d.id)}"${d.id === selected ? ' class="sel"' : ""}>${cols.map(([key]) => `<td class="${key === "id" ? "" : "n"}">${val[key]}</td>`).join("")}</tr>`;
     }).join("");
   };
