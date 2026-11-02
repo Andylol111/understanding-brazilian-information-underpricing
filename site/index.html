@@ -8,7 +8,7 @@
 <!-- the stylesheet and every module of this page carry the build stamp (and a Reload's ?_r), so cached code cannot mix with new data -->
 <link id="page-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261101m4";
+window.__BUILD = "20261102m6";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 (() => {
@@ -22,7 +22,7 @@ document.getElementById("page-css").href = "style.css?v=" + window.__V;
 </script>
 <!-- a cross-document view transition into this page: its modules load once it is over (window.__afterReveal) -->
 <script>
-addEventListener("pagereveal", (e) => { window.__vtDone = e.viewTransition ? e.viewTransition.finished.catch(() => {}) : null; }, { once: true });
+addEventListener("pagereveal", (e) => { e.viewTransition?.ready.catch(() => {}); window.__vtDone = e.viewTransition ? e.viewTransition.finished.catch(() => {}) : null; }, { once: true });
 // the page's modules load once a view transition into it is over (at most 700 ms), so its frames run free
 window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtDone ? Promise.race([window.__vtDone, new Promise((s) => setTimeout(s, 700))]).then(r) : r()); if (window.__vtDone !== undefined) go(); else { addEventListener("pagereveal", go, { once: true }); setTimeout(r, 200); } });
 </script>

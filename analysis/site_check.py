@@ -834,7 +834,7 @@ async def check_page(
                           natOn: document.querySelector('#dash').classList.contains('nat-on'),
                           stateMap: !document.querySelector('#national').classList.contains('off'),
                           summary: document.querySelector('#nat-summary').innerText.trim().length,
-                          control: /Control of the Senate/i.test(document.querySelector('#nat-summary').innerText) && /Pick a race/i.test(document.querySelector('#nat-summary').innerText),
+                          control: /Control of the Senate/i.test(document.querySelector('#nat-summary').innerText),
                           readoutShown: document.querySelector('#readout').innerText.trim().length > 0,
                           chartShown: document.querySelector('#timeline').offsetParent !== null && document.querySelector('#timeline').innerText.trim().length > 0,
                           office: window.__dashAudit?.office?.() ?? null, region: window.__dashAudit?.region?.() ?? null,

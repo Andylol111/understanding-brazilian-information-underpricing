@@ -1855,10 +1855,16 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     if (e.target.id === "play") return; // the button's click handler toggles
     S.playing ? pause() : play();
-  } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-    if (tag === "BUTTON" || e.target.getAttribute("role") === "tab" || e.target.closest?.(".map-pop")) return;
+  } else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.shiftKey) {
+    if (tag === "BUTTON" || e.target.getAttribute("role") === "tab" || e.target.closest?.(".map-pop") || e.target.type === "range") return;
     e.preventDefault();
-    stepFrame(e.key === "ArrowRight" ? 1 : -1);
+    // ← one level up: a pinned place, the House or census layer zoomed to a state, the state, then the world map;
+    // → undoes the last ← (back into the state just left). Time steps are , and .
+    if (e.key === "ArrowRight") { if (S.leftRegion && !S.region) { const r = S.leftRegion; S.leftRegion = null; selectRegion(r); } return; }
+    if (S.pinned >= 0) { releasePin(); return; }
+    if (S.ov?.kind && S.ov.state) { S.ov.focus(null); return; }
+    if (S.region) { S.leftRegion = S.region; backToNational(); return; }
+    toWorld();
   }
 });
 

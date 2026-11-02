@@ -24,7 +24,8 @@ const ENCODINGS = [
 const HELP = [
   ["+ / −", "Zoom in / out"],
   ["0", "Reset the view"],
-  ["← ↑ → ↓", "Pan the map"],
+  ["← / →", "Back up a level (place → country → world) / forward again"],
+  ["↑ ↓, Shift + ← →", "Pan the map"],
   ["Space", "Play or pause"],
   [", / .", "Previous / next map frame"],
   ["L", "Layers menu"],
@@ -448,8 +449,10 @@ export function createUx(host) {
     if (k === "+" || k === "=") { e.preventDefault(); S.map.zoomBy(1.5); return true; }
     if (k === "-" || k === "_") { e.preventDefault(); S.map.zoomBy(1 / 1.5); return true; }
     if (k === "0") { e.preventDefault(); S.map.resetView(); return true; }
-    if (inMap && k.startsWith("Arrow")) {
-      const r = box.getBoundingClientRect(), step = (e.shiftKey ? 0.5 : 0.2) * (k === "ArrowLeft" || k === "ArrowRight" ? r.width : r.height);
+    // ← / → (no Shift) move between levels (the page's own handler); ↑ ↓ and Shift + ← → pan
+    const horiz = k === "ArrowLeft" || k === "ArrowRight";
+    if (inMap && k.startsWith("Arrow") && (!horiz || e.shiftKey)) {
+      const r = box.getBoundingClientRect(), step = (horiz ? 0.2 : e.shiftKey ? 0.5 : 0.2) * (horiz ? r.width : r.height);
       e.preventDefault();
       S.map.panBy(k === "ArrowLeft" ? step : k === "ArrowRight" ? -step : 0, k === "ArrowUp" ? step : k === "ArrowDown" ? -step : 0);
       return true;

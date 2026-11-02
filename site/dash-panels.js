@@ -335,17 +335,19 @@ function accuracyHTML(acc, race, raceName, hasMarket = true) {
 
 function reliabilityPlot(model, market) {
   if (!model?.length) return "";
-  const w = 230, h = 200, m = { l: 34, r: 8, t: 8, b: 30 };
+  const w = 230, h = 204, m = { l: 34, r: 8, t: 8, b: 34 };
   const x = d3.scaleLinear().domain([0, 1]).range([m.l, w - m.r]);
   const y = d3.scaleLinear().domain([0, 1]).range([h - m.b, m.t]);
   const r = d3.scaleSqrt().domain([0, d3.max([...model, ...(market ?? [])], (d) => d.minutes) || 1]).range([1.5, 7]);
+  // drawn at about its own size (".panel svg" would stretch it to the panel, its text with it)
   const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).attr("role", "img")
+    .style("width", "100%").style("max-width", `${Math.round(w * 1.3)}px`).style("height", "auto")
     .attr("aria-label", "Reliability: predicted probability against how often the event happened");
   svg.append("g").attr("class", "grid").selectAll("line").data([0.25, 0.5, 0.75]).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
   svg.append("line").attr("x1", x(0)).attr("y1", y(0)).attr("x2", x(1)).attr("y2", y(1)).attr("stroke", "#9a968c").attr("stroke-dasharray", "3,3");
   svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(4).tickSize(3));
   svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(4).tickSize(3));
-  svg.append("text").attr("class", "legend-text").attr("x", (m.l + w - m.r) / 2).attr("y", h - 2).attr("text-anchor", "middle").text("predicted probability");
+  svg.append("text").attr("class", "legend-text").attr("x", (m.l + w - m.r) / 2).attr("y", h - 6).attr("text-anchor", "middle").text("predicted probability");
   for (const [rows, color] of [[market, C.market], [model, C.model]]) {
     if (!rows?.length) continue;
     const pts = rows.filter((d) => d.minutes > 0 && d.mean_p != null && d.freq != null);

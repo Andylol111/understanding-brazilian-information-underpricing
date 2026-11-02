@@ -592,8 +592,7 @@ export function houseList(el, { state = null, onDone } = {}) {
   const gb = H.files?.markets?.generic_ballot ?? H.files?.districts?.national?.generic_ballot;
   const ps = D.map((d) => mk(d)).filter((p) => p != null);
   const F = state ? H.files?.flows?.states?.[state.toUpperCase()] : null;
-  el.innerHTML = `<p class="nat-prompt">Pick a district on the map or in the Races tab to see its model, polls and markets.</p>
-    <p class="ro-head"><span class="ro-at"><b>House</b> ${state ? `· ${esc(state.toUpperCase())} districts` : "districts this year"}</span></p>
+  el.innerHTML = `<p class="ro-head"><span class="ro-at"><b>House</b> ${state ? `· ${esc(state.toUpperCase())} districts` : "districts this year"}</span></p>
     ${state ? "" : `<p class="nat-sum-ctl">Generic ballot: Democrats ${pct(gb?.avg)} of the two-party vote (± ${(100 * (gb?.sd ?? 0)).toFixed(1)}; ${gb?.n_polls ?? 0} qualifying polls). Markets: Democrats favoured in <b>${ps.filter((p) => p > 0.5).length}</b> of ${ps.length} priced seats.</p>`}
     ${F ? `<p class="nat-sum-ctl">Redrawn: seats Harris won ${F.old_seats.harris_won} of ${F.old_seats.districts} on the 2024 lines, ${F.new_seats.harris_won} on the new ones (expected Democratic seats at the 2024 vote ${num(F.old_seats.expected_d, 1)} → ${num(F.new_seats.expected_d, 1)}); Democrats won ${F.house24_won_d} in 2024.</p>` : ""}
     <div class="hemi" data-chamber="house"></div>`;

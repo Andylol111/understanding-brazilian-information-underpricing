@@ -86,5 +86,5 @@ console.log(JSON.stringify({ head, n: dots.length, nu: dots.filter((d) => d[2]).
     assert out["first"] == ["d", 3, True, False] and out["last"] == ["r", 3, True, False]
     assert (out["dDots"], out["rDots"], out["tDots"]) == (51, 48, 1)                # 34 not up + 17 races above 50%; 31 + 17 below; one at exactly 50%
     assert out["d"] == 52                                                           # 34 + sum(i/34) = 51.5
-    assert f"Democrats <b>{out['d']}</b>" in out["head"] and "majority 51" in out["head"] and "Projection before votes" in out["head"]
+    assert f"Democrats <b>{out['d']}</b>" in out["head"] and "51 for majority" in out["all"] and "Projection before votes" in out["head"]
     assert not any(w in out["all"].lower() for w in ("polymarket", "kalshi", "market"))

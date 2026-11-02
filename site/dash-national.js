@@ -164,9 +164,9 @@ export function createNational(root, { overview, office = "senate", summary = nu
       <p>Chance the Democrats control the Senate: ${markets.map((c) => `<span class="${c.platform === "kalshi" ? "kx" : "k"}">${num(c.now)}</span> ${c.platform === "kalshi" ? "Kalshi" : `Polymarket${c.slug && st.live.has(`ctl:${c.slug}`) ? " now" : ""}`}`).join(" · ")}${sen.control_p_corr != null ? `${markets.length ? " · " : ""}<span class="m" title="${esc(sen.control_note ?? "")}">${num(sen.control_p_corr)}</span> model with polls, poll errors correlated across states${sen.control_p_indep != null ? ` (${num(sen.control_p_indep)} if independent)` : ""}` : ""}</p>
 ` : "";
     const ctlChart = senate && markets.length ? `<div class="nat-ctl-chart"></div><p class="note">Control markets, the last 14 days: <span class="k">Polymarket</span>, <span class="kx">Kalshi</span>.</p>` : "";
-    summary.innerHTML = `<p class="nat-prompt">Pick a race on the map or in the Races tab to see its model, polls and markets.</p><p class="ro-head"><span class="ro-at"><b>${office}</b> races this year</span></p>
+    summary.innerHTML = `<p class="ro-head"><span class="ro-at"><b>${office}</b> races this year</span></p>
       ${ctlHTML}
-      ${senate ? `<div class="hemi" data-chamber="senate"></div>${ctlChart}` : `<p class="note">The ${races().length} governor races are listed in the Races tab. <span class="mk-live" aria-hidden="true"></span> marks a live county model on election night. Click a state to open its counties.</p>`}`;
+      ${senate ? `<div class="hemi" data-chamber="senate"></div>${ctlChart}` : ""}`;
     if (markets.length) {
       const pm = markets.find((c) => c.platform !== "kalshi"), ks = markets.find((c) => c.platform === "kalshi");
       const byT = new Map();

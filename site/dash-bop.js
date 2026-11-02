@@ -90,11 +90,10 @@ export function projectionLabel(proj) {
 // The headline over the chart (label, projected seats, seats each side leads, majority) and the chart itself, as two strings so
 // a page can replace each only when it changed.
 export function hemicycleParts(proj) {
-  const L = layoutFor(proj.seats.length), nu = proj.seats.filter((s) => !s.up).length;
+  const L = layoutFor(proj.seats.length);
   const head = `<p class="hemi-label"${proj.counted != null ? ` title="Average share of the expected vote counted across the ${esc(proj.chamber)} races with a live model"` : ""}>${esc(projectionLabel(proj))}</p>
     <p class="hemi-head" title="Expected seats ${proj.expectedD.toFixed(1)} Democratic, ${(proj.total - proj.expectedD).toFixed(1)} Republican: the sum of each seat's model chance">
-      <span class="hd">Democrats <b>${proj.d}</b></span> · <span class="hr">Republicans <b>${proj.r}</b></span><span class="hemi-maj-n">majority ${proj.majority}</span></p>
-    <p class="hemi-sub">Projected seats: each seat counted at the model's chance, rounded. Ahead in ${proj.dLeads} (D) · ${proj.rLeads} (R)${proj.tied ? ` · ${proj.tied} even` : ""}.</p>`;
+      <span class="hd">Democrats <b>${proj.d}</b></span> · <span class="hr">Republicans <b>${proj.r}</b></span></p>`;
   const dots = proj.seats.map((s, i) => {
     const t = tier(s.p), p = L.pts[i];
     return `<circle class="hs ${t.party.toLowerCase()}${t.conf}${s.up ? "" : " nu"}${s.key ? " go" : ""}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${L.dot.toFixed(2)}"${s.key ? ` data-k="${esc(s.key)}"` : ""} data-t="${esc(seatText(s))}"/>`;
@@ -103,12 +102,10 @@ export function hemicycleParts(proj) {
   const svg = `<svg class="hemi-svg" viewBox="0 0 ${L.w.toFixed(0)} ${L.h.toFixed(0)}" role="img" aria-label="${esc(`${proj.chamber} projection: Democrats ${proj.d} seats, Republicans ${proj.r}, majority ${proj.majority}`)}">
     <line class="hemi-maj" x1="${L.cx}" x2="${L.cx}" y1="${top}" y2="${(L.cy - L.inner + L.dot + 3).toFixed(1)}"/>
     <text class="hemi-maj-t" x="${L.cx}" y="${top - 3}" text-anchor="middle">${proj.majority} for majority</text>${dots}</svg>`;
-  const sw = (cls) => `<i class="sw ${cls}"></i>`;
-  const key = `<p class="hemi-key">Shade = the leading side's chance: ${sw("d3")}${sw("d2")}${sw("d1")} Democratic 90%+, 70–90%, 50–70% · ${sw("r1")}${sw("r2")}${sw("r3")} Republican 50–70%, 70–90%, 90%+${nu ? ` · ${sw("d3 nu")}${sw("r3 nu")} ringed: ${nu} seats not up in 2026` : ""}</p>`;
-  return { head, svg, key };
+  return { head, svg, key: "" };
 }
 
-export const hemicycleShell = (title) => `<h3 class="tab-h">${esc(title)}</h3><div class="hemi-top"></div><div class="hemi-chart"></div><p class="hemi-hover">Hover a dot for the seat; click it to open the race.</p><div class="hemi-keys"></div>`;
+export const hemicycleShell = (title) => `<h3 class="tab-h">${esc(title)}</h3><div class="hemi-top"></div><div class="hemi-chart"></div><p class="hemi-hover"></p><div class="hemi-keys"></div>`;
 
 // Fill a shell (hemicycleShell) with a projection; each part is replaced only when its markup changed, so a hovered dot's readout
 // survives a refresh that changes nothing.
@@ -123,7 +120,7 @@ export function renderHemicycle(el, proj) {
 // Hover readout and click for every hemicycle inside `root` (one delegated listener set): onPick(seat key) on a dot of a race.
 export function bindHemicycle(root, onPick) {
   const readout = (e) => e.target.closest?.("circle.hs")?.closest(".hemi")?.querySelector(".hemi-hover");
-  const hint = "Hover a dot for the seat; click it to open the race.";
+  const hint = "";
   root.addEventListener("pointerover", (e) => { const c = e.target.closest?.("circle.hs"), r = readout(e); if (c && r) r.textContent = c.dataset.t; });
   root.addEventListener("pointerout", (e) => { const c = e.target.closest?.("circle.hs"), r = readout(e); if (c && r) r.textContent = hint; });
   root.addEventListener("click", (e) => { const c = e.target.closest?.("circle.hs[data-k]"); if (c) onPick?.(c.dataset.k); });

@@ -247,7 +247,7 @@ function drawCharts(s) {
   $("#c1-sub").textContent = `${s.name}: cumulative, through each day. ${hasSplit ? "" : "The state does not split mail and in-person on every day."}`;
   const key1 = keyHTML(ser.map((q) => [q.color, q.name]));
   const r1 = $("#c1-read"), say1 = (d) => {
-    if (d == null) { r1.textContent = "Move over the chart to read a day."; return; }
+    if (d == null) { r1.textContent = ""; return; }
     const i = dayRow(d); r1.textContent = i == null ? `${d} days before Election Day: no report for this day.` : `${dateLabel(db[i])}: ${ser.map((q) => `${q.name} ${num(col(s, q.k)[i])}`).join(" · ")}`;
   };
   const dateLabel = (d) => `${dayLong(dateAt(d, ed))} (${d} days before Election Day)`;
@@ -260,7 +260,7 @@ function drawCharts(s) {
   const multi = bars.some((b) => b.span > 1);
   $("#c2-sub").textContent = `${s.name}: ballots added in a day, from the change between one report and the next.${multi ? " Where reports are more than a day apart, the change is spread evenly over the days (lighter bars)." : ""}`;
   const r2 = $("#c2-read"), say2 = (d) => {
-    if (d == null) { r2.textContent = "Move over the chart to read a day."; return; }
+    if (d == null) { r2.textContent = ""; return; }
     const b = bars.find((q) => d >= q.x && d < q.x + (q.span || 1)); if (!b) { r2.textContent = `${d} days before Election Day: no change reported.`; return; }
     r2.textContent = `${dateLabel(b.x)}: +${num(col(s, "added_total")[b.i])} in ${b.span > 1 ? `${b.span} days` : "the day"}${splitAdd ? ` (${s.mail_label.toLowerCase()} ${num(col(s, "added_mail")[b.i])}, in person ${num(col(s, "added_inperson")[b.i])})` : ""}`;
   };
@@ -271,7 +271,7 @@ function drawCharts(s) {
   if (s.has_party) {
     const ld = pts(s, "lead");
     $("#c3-sub").textContent = `${s.name}: the Democratic share minus the Republican share of all returned ballots, in percentage points. Above zero: more ballots from registered Democrats.`;
-    const r3 = $("#c3-read"), say3 = (d) => { if (d == null) { r3.textContent = "Move over the chart to read a day."; return; } const i = dayRow(d); r3.textContent = i == null ? `${d} days before Election Day: no report.` : `${dateLabel(db[i])}: ${pt(col(s, "lead")[i])}`; };
+    const r3 = $("#c3-read"), say3 = (d) => { if (d == null) { r3.textContent = ""; return; } const i = dayRow(d); r3.textContent = i == null ? `${d} days before Election Day: no report.` : `${dateLabel(db[i])}: ${pt(col(s, "lead")[i])}`; };
     lineChart($("#c3"), say3, { series: [{ name: "D minus R", color: "#1b1b1b", width: 2.4, pts: ld }], x, yFmt: (v) => `${v > 0 ? "+" : ""}${v}`, zero: true }); say3(null);
     const P = s.latest.party, tot = d3.sum(Object.values(P), (v) => v ?? 0);
     $("#party-table").innerHTML = `<thead><tr><th>Registration</th><th class="n">Returned ballots</th><th class="n">Share</th></tr></thead><tbody>${[["D", "Democratic"], ["R", "Republican"], ["U", "Unaffiliated"], ["other", "Other parties"]].filter(([k]) => P[k] != null).map(([k, t]) => `<tr><td><span style="color:${COLORS[k]}">■</span> ${t}</td><td class="n">${num(P[k])}</td><td class="n">${pc((100 * P[k]) / tot)}</td></tr>`).join("")}</tbody>`;
@@ -297,7 +297,7 @@ function drawCompare(s) {
   const x = [Math.min(45, Math.max(...ser.flatMap((q) => q.pts.map((p) => p[0])))), 0];
   const key = keyHTML([[COLORS.now, "2026"], ...ok.map((y) => [CYCLE_COLORS[y.year], `${y.year}${y.midterm ? " (midterm)" : ""}`])]);
   const r = $("#c4-read"), say = (d) => {
-    if (d == null) { r.textContent = "Move over the chart to read a day. Dashed lines are presidential years."; return; }
+    if (d == null) { r.textContent = "Dashed lines are presidential years."; return; }
     const at = (q) => { const p = q.pts.find((v) => v[0] === d); return p?.[1]; };
     r.textContent = `${d} days before Election Day: ${ser.map((q) => `${q.name} ${num(at(q))}`).join(" · ")}`;
   };

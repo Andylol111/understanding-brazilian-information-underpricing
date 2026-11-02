@@ -102,14 +102,15 @@ function timeChart(el, series, { height = 240, fmt = (v) => v, zero = false, ban
 
 // reliability: predicted chance (across) against how often it happened (up), dots sized by count
 function calibration(el, series) {
-  const w = 300, h = 260, m = { l: 36, r: 10, t: 10, b: 32 };
+  const w = 300, h = 264, m = { l: 36, r: 10, t: 10, b: 36 };
   const x = d3.scaleLinear().domain([0, 1]).range([m.l, w - m.r]), y = d3.scaleLinear().domain([0, 1]).range([h - m.b, m.t]);
   const r = d3.scaleSqrt().domain([0, d3.max(series.flatMap((s) => s.bins), (d) => d.n) || 1]).range([2, 9]);
-  const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).style("max-width", "100%").style("height", "auto");
+  // drawn at about its own size (".panel svg" would stretch it to the panel, its text with it)
+  const svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("width", w).attr("height", h).style("width", "100%").style("max-width", `${w * 1.2}px`).style("height", "auto");
   svg.append("line").attr("x1", x(0)).attr("y1", y(0)).attr("x2", x(1)).attr("y2", y(1)).attr("stroke", "#9a968c").attr("stroke-dasharray", "3,3");
   svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b})`).call(d3.axisBottom(x).ticks(5).tickSize(3));
   svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(3));
-  svg.append("text").attr("class", "legend-text").attr("x", (m.l + w - m.r) / 2).attr("y", h - 2).attr("text-anchor", "middle").text("chance given");
+  svg.append("text").attr("class", "legend-text").attr("x", (m.l + w - m.r) / 2).attr("y", h - 6).attr("text-anchor", "middle").text("chance given");
   for (const s of series) {
     const pts = s.bins.filter((d) => d.n > 0 && d.mean_p != null);
     svg.append("path").datum(pts).attr("fill", "none").attr("stroke", s.color).attr("opacity", 0.6).attr("d", d3.line().x((d) => x(d.mean_p)).y((d) => y(d.freq)));
@@ -424,8 +425,8 @@ function drawAllMarkets(H, el, c) {
   });
   const where = c.state ? stateName(H, c.state) : null;
   const lede = where
-    ? (rows.length ? `<b>${esc(where)}</b>: each split bar names the market leader. Click a race for its price history.` : `<b>${esc(where)}</b>: no Senate or governor market.`)
-    : `Every Senate and governor market, with both party sides represented. Click a race for its price history, implied margins and traders.`;
+    ? (rows.length ? `<b>${esc(where)}</b>: each split bar names the market leader.` : `<b>${esc(where)}</b>: no Senate or governor market.`)
+    : `Every Senate and governor market, with both party sides represented.`;
   el.innerHTML = `<p class="hub-lede">${lede}</p>${rows.length ? `<div class="hub-scroll" data-slot="races"></div>
     <p class="note">Price: the midpoint of the best bid and ask, else the last daily price. Gap: Polymarket minus Kalshi. ${esc(MK?.note ?? "")}</p>` : ""}
     ${W ? `<h3 class="tab-h">Who trades on Polymarket</h3><p class="note">Do large orders move the price first? ${walletPooled(W)}</p>${walletPrivacy(W)}` : ""}

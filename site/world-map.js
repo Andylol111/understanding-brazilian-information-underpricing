@@ -387,7 +387,17 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
     else if (h.f.properties.iso2 !== st.code) choose(h.f.properties.iso2);
   });
   root.querySelectorAll(".wm-list button").forEach((b) => b.addEventListener("click", () => choose(b.dataset.code)));
-  document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && st.code) back(); });
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && st.code) { back(); return; }
+    // ← out of a chosen country; → back into the election this map was opened from (?from=<id>); not while typing
+    const tag = ev.target.tagName;
+    if (ev.shiftKey || ev.metaKey || ev.ctrlKey || ev.altKey || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || ev.target.type === "range") return;
+    if (ev.key === "ArrowLeft" && st.code) { ev.preventDefault(); back(); }
+    else if (ev.key === "ArrowRight") {
+      const from = new URLSearchParams(location.search).get("from");
+      if (from) { ev.preventDefault(); leave(`election.html?id=${encodeURIComponent(from)}`); }
+    }
+  });
 
   // A country's card: its name and one line per election, at most five lines ("7 Nov 2026 · General
   // election · before the count"). No summaries here; the list below the map has them.
