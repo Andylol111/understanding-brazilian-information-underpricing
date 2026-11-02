@@ -1,24 +1,29 @@
-# Secondary/unregistered added-source models. Isolated from registered official-feed and existing civic processes;
-# writes only site/data/extra/us2026/ (statewide files + house_live/). Reads its own archive; the civic_* race
-# documents and market books of the shared archive are symlinked into it at start (read only).
+# Added-source live models (secondary, UNREGISTERED, kept out of registered scoring; docs/us_coverage_2026.md).
+# Own process and checkout (/srv/brunder/usextra), isolated from brunder-us-live / -civic-live / -house-live. Reads its
+# own archive us_midterms_2026_extra; the civicAPI race documents (civic_87188 ME-Sen, civic_87260 NV-Gov,
+# civic_87283/87284 NH, civic_87524 House) and market books of the shared archive are symlinked into it at start
+# (read only). Writes only /srv/brunder/repo/site/data/extra/us2026/ (statewide files + house_live/), served by
+# brunder-site with --election extra. Later model versions (*_v2.toml) next to each v1 config are attached automatically.
 [Unit]
-Description=brunder added-source live models: US midterms 2026-11-03
+Description=brunder added-source live models (secondary, unregistered): US midterms 2026-11-03
 After=brunder-snap-us.service brunder-civic-us.service brunder-us-extra-record.service
-Wants=brunder-us-extra-record.service
 
 [Service]
 Type=simple
 User=brunder
 Group=brunder
-WorkingDirectory=/srv/brunder/repo
+WorkingDirectory=/srv/brunder/usextra
 Environment=HOME=/srv/brunder
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/srv/brunder/.local/bin/uv run --frozen python -m brunder.us_extra_live \
-  configs/us2026_extra/me_sen_v1.toml configs/us2026_extra/nv_gov_v1.toml \
+  configs/us2026_extra/me_sen_v1.toml configs/us2026_extra/nv_gov_v1.toml configs/us2026_extra/or_gov_v1.toml \
   configs/us2026_extra/nh_sen_v1.toml configs/us2026_extra/nh_gov_v1.toml \
-  configs/us2026_extra/wa-03_v1.toml configs/us2026_extra/wa-04_v1.toml \
-  configs/us2026_extra/wa-05_v1.toml configs/us2026_extra/nv-02_v1.toml \
-  configs/us2026_extra/nv-03_v1.toml configs/us2026_extra/me-02_v1.toml \
+  configs/us2026_extra/va-05_v1.toml configs/us2026_extra/me-02_v1.toml configs/us2026_extra/mt-01_v1.toml \
+  configs/us2026_extra/co-03_v1.toml configs/us2026_extra/co-05_v1.toml configs/us2026_extra/nv-02_v1.toml \
+  configs/us2026_extra/wa-05_v1.toml configs/us2026_extra/ia-02_v1.toml configs/us2026_extra/mo-02_v1.toml \
+  configs/us2026_extra/va-01_v1.toml configs/us2026_extra/co-04_v1.toml configs/us2026_extra/md-01_v1.toml \
+  configs/us2026_extra/ia-01_v1.toml configs/us2026_extra/ia-03_v1.toml configs/us2026_extra/co-08_v1.toml \
+  configs/us2026_extra/wa-03_v1.toml configs/us2026_extra/wa-04_v1.toml configs/us2026_extra/nv-03_v1.toml \
   --snap /srv/brunder/repo/data/raw/snap/us_midterms_2026_extra \
   --shared /srv/brunder/repo/data/raw/snap/us_midterms_2026 \
   --out /srv/brunder/repo/site/data/extra --interval 30 --until 2026-11-20T00:00:00Z

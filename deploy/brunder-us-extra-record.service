@@ -1,21 +1,26 @@
-# Secondary/unregistered sources added 2026-11-02. Writes ONLY its own archive data/raw/snap/us_midterms_2026_extra
-# (the registered recorders' archive, index and poll markers are untouched);
-# one identified request stream, robots.txt enforced, <=1 request/s/host, no challenge bypass.
+# Added-source recorder (secondary, UNREGISTERED models; docs/us_coverage_2026.md), US midterms 2026-11-03.
+# Runs from its own checkout /srv/brunder/usextra (the pinned election repo is not touched) and writes ONLY its own
+# archive /srv/brunder/repo/data/raw/snap/us_midterms_2026_extra: the registered recorders' archive, index.jsonl and
+# poll markers are untouched. One identified User-Agent "brunder/0.1 (research; recorder)", robots.txt enforced,
+# <= 1 request/s/host, conditional GETs, a 401/403/429 / challenge stops that host for the run (no bypass), never the
+# do-not-request hosts (hard-coded refusal). Sources: VoteWA (WA-03/04/05), Virginia ENR (VA-01/05, 120 s),
+# Maryland SBE (MD-01), Montana SoS service (MT-01), Missouri county pages (MO-02), Oregon SoS service (governor).
+# Iowa/Colorado Clarity is skipped here: AWS WAF challenges this server's IP (docs/us_midterms.md); see the doc for
+# the optional Mac-side run. Started by brunder-election-night.target (22:30 UTC).
 [Unit]
-Description=brunder added-source recorder: US midterms 2026-11-03
+Description=brunder added-source recorder (secondary, unregistered): US midterms 2026-11-03
 Wants=network-online.target
 After=network-online.target
-Before=brunder-us-extra-live.service
 
 [Service]
 Type=simple
 User=brunder
 Group=brunder
-WorkingDirectory=/srv/brunder/repo
+WorkingDirectory=/srv/brunder/usextra
 Environment=HOME=/srv/brunder
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/srv/brunder/.local/bin/uv run --frozen python -m brunder.us_extra_rec \
-  --out /srv/brunder/repo/data/raw/snap/us_midterms_2026_extra --until 2026-11-20T00:00:00Z
+  --out /srv/brunder/repo/data/raw/snap/us_midterms_2026_extra --skip clarity_ --until 2026-11-20T00:00:00Z
 Restart=on-failure
 RestartSec=30
 Nice=15
