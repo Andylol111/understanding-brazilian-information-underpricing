@@ -146,3 +146,14 @@ def test_market_already_above_90_before_count_is_no_item():
     # a market that crosses 90% only after the first counted votes still gets its minutes item
     rows2 = [{"m": 0, "p": 0.5, "c": 0.1, "pm": 0.5}, {"m": 5, "p": 0.995, "c": 0.5, "pm": 0.6}, {"m": 10, "p": 0.995, "c": 0.5, "pm": 0.6}, {"m": 15, "p": 0.995, "c": 0.5, "pm": 0.93}]
     assert any("5 min after the model" in i[1] for i in feed(rows2))
+
+
+def test_partial_race_never_projects_or_decides():
+    rows = [{"m": i * 5, "p": 0.999, "c": 1.0, "raw": 0.95, "vp": 1_000_000, "rem": 0, "exp": 1_000_000} for i in range(6)]
+    out = run_js(f"""
+const T = (m) => Date.UTC(2026, 10, 4, 1, m);
+const rows = {json.dumps(rows)}.map((r) => ({{ ...r, t: T(r.m) }}));
+const mk = (partial) => {{ const ev = E.createEvents(); ev.feedRace({{ ...{RACE}, partial }}, rows); return [ev.items().map((i) => i.kind), ev.decidedOf('tx-sen')]; }};
+console.log(JSON.stringify([mk(true), mk(false)]));""")
+    assert out[0] == [[], None]
+    assert sorted(out[1][0]) == ["call", "decided"] and out[1][1]["party"] == "D"

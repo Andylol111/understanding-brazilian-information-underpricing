@@ -121,7 +121,7 @@ export function createEvents(saved = null) {
     // race: { id, label (state and office), a, b (sides with id/name), secondary }, rows: [{ t, p, c, pm, k }] ascending by t
     feedRace(race, rows) {
       const key = `race:${race.id}`, s = ser(key);
-      const label = race.label + (race.secondary ? " (secondary source, civicAPI)" : "");
+      const label = race.label + (typeof race.secondary === "string" ? ` (${race.secondary})` : race.secondary ? " (secondary source, civicAPI)" : "");
       const who = (side) => { const x = race[side]; const pty = partyOf(x); return `${x?.name ?? (side === "a" ? "first side" : "second side")}${pty ? ` (${pty})` : ""}`; };
       const d = {
         call: (side) => `Model projects ${who(side)} wins ${label} · ≥99%`,
@@ -131,6 +131,8 @@ export function createEvents(saved = null) {
       for (const r of rows) {
         if (!(r.t > s.lastT)) continue;
         s.lastT = r.t;
+        // a race with only part of its vote covered live (race.partial) never produces a projection or a "decided" item
+        if (race.partial) continue;
         step(key, s, r, d);
         markets(key, s, r, label);
         const side = st.decided[race.id] ? null : countDecided(r);

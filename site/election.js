@@ -129,7 +129,25 @@ const national = () => statewide().find((r) => !r.region);
 const mainRace = () => national() ?? statewide()[0];
 const regionName = (id) => S.meta.regions?.find((r) => r.id === id)?.name ?? (countryCode() === "US" && id ? usStateName(id) : id?.toUpperCase());
 const raceBase = (r) => (r.region && !r.name.includes(regionName(r.region)) ? `${r.name}, ${regionName(r.region)}` : r.name);
-const raceName = (r) => raceBase(r) + (r.civic ? " · secondary source (civicAPI)" : "");
+// the added models (site/data/extra/us2026/, unregistered): "added model (secondary source)" where the count comes from civicAPI, "added model" where official
+// An added race whose live feed covers only part of its district / state is "partial": no projection, no decided item. The meta says so
+// with partial (true/false) or a coverage share (coverage, coverage_share: 0 to 1; full = 1); a missing field counts as partial (safe default).
+const partialOf = (c) => {
+  if (!c?.added) return false;
+  if (typeof c.partial === "boolean") return c.partial;
+  const cov = c.coverage_share ?? c.coverage;
+  return !(typeof cov === "number" && cov >= 0.999);
+};
+// The note under an added race's readout: its partial coverage and, when its source has stopped updating, since when.
+const addedNote = (race) => {
+  if (!race?.added) return "";
+  const bits = [];
+  if (partialOf(race)) bits.push(esc(race.note || (typeof (race.coverage_share ?? race.coverage) === "number" ? `partial: ${Math.round(100 * (race.coverage_share ?? race.coverage))}% of the expected vote has a live source` : "partial: no coverage figure given, treated as partial")) + "; no projection or decided item is made from it");
+  if (race.stale) { const t = Date.parse(race.stale_since); bits.push(`stale since ${Number.isFinite(t) ? `${clock(t, "America/New_York")} ET` : "an unknown time"}: its source has stopped updating`); }
+  return bits.length ? `<p class="note added-note">${esc(addedLabel(race))}: ${bits.join(" · ")}</p>` : "";
+};
+const addedLabel = (r) => (/civicapi/i.test(r?.source?.name ?? "") ? "added model (secondary source)" : "added model");
+const raceName = (r) => raceBase(r) + (r.added ? ` · ${addedLabel(r)}` : r.civic ? " · secondary source (civicAPI)" : "");
 const replay = () => S.entry?.status === "replay" && !LIVE && !PRE();
 const outcomeOf = (r) => replay() ? outcomeA(S.rows?.get(r.race_id), S.stats?.settle?.[r.race_id]) : null;
 // The Races table's result tag: the main race names its winner; any other race gets ✓ only when its first-named outcome resolved YES.
@@ -149,9 +167,10 @@ const officeRaces = (off) => [...statewide(), ...(S.extra?.values() ?? [])].filt
 const raceRow = (r, t) => (r ? rowAt(r.race_id, t) ?? (r.ov ? extraRow(r) : null) : null);
 // a state's line on election-night coverage (site/data/us_night_feeds.json, from
 // docs/us_midterms.md "States checked"): live model, configured, or why there is none
-const civicFeed = (r) => !!S.feeds?.civic?.includes(r?.race_id ?? r?.race_key); // a civicAPI county model is configured for the race: files appear on election night
+const civicFeed = (r) => !!S.feeds?.civic?.includes(r?.race_id ?? r?.race_key) || !!S.feeds?.extra?.includes(r?.race_id ?? r?.race_key); // a civicAPI county model is configured for the race: files appear on election night
 function feedLine(st) {
   const f = S.feeds?.states?.[st], name = regionName(st);
+  if (f?.status !== "model" && !S.feeds?.civic?.some((id) => id.startsWith(`${st}-`)) && S.feeds?.extra?.some((id) => id.startsWith(`${st}-`))) return `${name}: live county model on election night, an added model (secondary source; added 2026-11-02, outside the registered scoring).`;
   if (f?.status !== "model" && S.feeds?.civic?.some((id) => id.startsWith(`${st}-`))) return `${name}: live county model on election night from civicAPI (secondary source, civicapi.org); no official-feed model.`;
   const civic = civicIn(st).length ? ` A secondary-source county count (civicAPI, civicapi.org) is also shown for ${name}.` : "";
   if (f?.status === "model") return `${name}: live county model on election night, from the state's official results feed.${civic}`;
@@ -170,7 +189,7 @@ const seriesOf = (id) => rowsOf(id) ?? S.houseLive?.rows.get(id) ?? null;
 const districtModel = (id, t = S.preview ?? (S.followLatest ? Infinity : S.t)) => (id && seriesOf(`house:${id}`)?.length ? { row: rowAt(`house:${id}`, t), race: raceById(`house:${id}`) } : null);
 const shortRaceName = (r) => {
   const s = r.name.replace(regionName(r.region), "").replace(/(\s+(in|of|for|the))+\s*$/i, "").replace(/^[\s,:–-]+|[\s,:–-]+$/g, "") || r.name;
-  return s[0].toUpperCase() + s.slice(1) + (r.civic ? " (civicAPI)" : "");
+  return s[0].toUpperCase() + s.slice(1) + (r.added ? " (added)" : r.civic ? " (civicAPI)" : "");
 };
 // Country code: the elections.json entry, else meta.country, else the geometry file's prefix ("geo/us_…").
 const countryCode = () => (S.entry?.country ?? S.meta.country ?? (S.meta.geometry ?? "").match(/geo\/([a-z]{2})_/)?.[1] ?? "").toUpperCase();
@@ -300,8 +319,18 @@ const civicWanted = () => EID === "us2026" && (!PRE() || !!param("civic"));
 const civicGet = (f) => getJSON(`${CIVIC}/${f}`, { optional: true }); // null when absent (404); throws on any other failure
 const civicRows = (timeline, list = S.civic?.races ?? []) => new Map(Object.entries(timeline ?? {}).filter(([, rows]) => Array.isArray(rows)).map(([id, rows]) => [id, withTime(rows, list.find((c) => c.race_id === id)?.poll_model ?? "v2")]));
 let civicMiss = 0, civicSkip = 0; // live: after a miss the next tries wait 1, 2, 4, 8, 10, 10… refreshes
+// Both secondary sources end up in S.civic: races (civicAPI's, then the added models'), the rows of each source kept apart
+// (parts) and their union in rows (civicAPI's first where an id is in both); a race the registered models cover is never added.
+function addCivicSource(kind, meta, races, rows) {
+  S.civic ??= { meta: null, metaExtra: null, races: [], parts: { civic: new Map(), extra: new Map() }, rows: new Map() };
+  S.civic[kind === "extra" ? "metaExtra" : "meta"] = meta;
+  S.civic.races.push(...races);
+  S.civic.parts[kind] = rows;
+  S.civic.rows = new Map([...S.civic.parts.extra, ...S.civic.parts.civic]);
+  S.civicNew = true; // the selector, state list and Method tab are rebuilt
+}
 async function loadCivic() {
-  if (S.civic || !civicWanted()) return false;
+  if (S.civicLoaded || !civicWanted()) return false;
   if (civicSkip > 0) { civicSkip--; return false; }
   let meta;
   try { meta = await civicGet("meta.json"); } catch { return false; } // an outage: tried again next time
@@ -313,11 +342,34 @@ async function loadCivic() {
   if (!races.length) { civicMiss++; civicSkip = Math.min(10, 2 ** (civicMiss - 1)); return false; }
   civicMiss = 0;
   const timeline = await civicGet("timeline.json").catch(() => null);
-  S.civic = { meta, races, rows: civicRows(timeline, races) };
-  S.civicNew = true; // the selector, state list and Method tab are rebuilt
+  S.civicLoaded = true;
+  addCivicSource("civic", meta, races, civicRows(timeline, races));
   return true;
 }
-// The civic races beside the overview's estimate-only races (S.extra): the overview's entry of a
+// The added models (extra/us2026/: statewide races; the House districts are in extra/us2026/house_live/, read with house_live/):
+// same schema as civic/us2026/, written by the night's added-coverage process. Unregistered, a secondary source. Looked for under
+// the same rule as civicAPI's files (no request before the night), and a race already registered or in civicAPI's files is skipped.
+const EXTRA = "extra/us2026";
+const extraGet = (f) => getJSON(`${EXTRA}/${f}`, { optional: true });
+let extraMiss = 0, extraSkip = 0;
+async function loadExtra() {
+  if (S.extraLoaded || !civicWanted()) return false;
+  if (extraSkip > 0) { extraSkip--; return false; }
+  let meta;
+  try { meta = await extraGet("meta.json"); } catch { return false; }
+  const taken = new Set([...statewide().map((r) => r.race_id), ...(S.civic?.races ?? []).flatMap((c) => [c.race_id, c.race_id.replace(/-civic$/, "")])]);
+  const races = (meta?.races ?? []).filter((c) => c.race_id && !isHouse(c) && !taken.has(c.race_id)).map((c) => ({
+    ...c, civic: true, added: true, source: { name: "added model", role: "secondary", ...c.source },
+    units: c.units ? `../${EXTRA}/${c.units}` : null,
+  }));
+  if (!races.length) { extraMiss++; extraSkip = Math.min(10, 2 ** (extraMiss - 1)); return false; }
+  extraMiss = 0;
+  const timeline = await extraGet("timeline.json").catch(() => null);
+  S.extraLoaded = true;
+  addCivicSource("extra", meta, races, civicRows(timeline, races));
+  return true;
+}
+// The secondary races beside the overview's estimate-only races (S.extra): the overview's entry of a
 // state without a registered race (same id, e.g. "mi-sen": the civic race fills it in place, so
 // the selection and its units follow), else a new entry ("oh-gov-civic": the alternate beside the
 // registered Ohio race).
@@ -328,17 +380,35 @@ function registerCivic() {
     if (had) Object.assign(had, c); else S.extra.set(c.race_id, { ...c });
   }
 }
-// Live refresh of the civic rows: the tail merged by time, the whole timeline after a gap; the held
-// rows stay when a file cannot be read.
+// Live refresh of one source's rows: the tail merged by time, the whole timeline after a gap; the held rows stay when a file
+// cannot be read.
+async function refreshCivicRows(kind, get) {
+  const held = S.civic.parts[kind];
+  let tail;
+  try { tail = await get("timeline_tail.json"); } catch { return; }
+  const merged = tail ? mergeTail(held, civicRows(tail)) : null;
+  const next = merged ?? (await get("timeline.json").then((f) => (f ? civicRows(f) : null), () => null));
+  if (!next) return;
+  S.civic.parts[kind] = next;
+  S.civic.rows = new Map([...S.civic.parts.extra, ...S.civic.parts.civic]);
+}
 async function refreshCivic() {
   if (!civicWanted()) return;
-  if (!S.civic) { if (await loadCivic()) registerCivic(); return; }
-  let tail;
-  try { tail = await civicGet("timeline_tail.json"); } catch { return; }
-  const merged = tail ? mergeTail(S.civic.rows, civicRows(tail)) : null;
-  if (merged) { S.civic.rows = merged; return; }
-  const full = await civicGet("timeline.json").catch(() => null);
-  if (full) S.civic.rows = civicRows(full);
+  if (!S.civicLoaded && (await loadCivic())) registerCivic();
+  if (!S.extraLoaded && (await loadExtra())) registerCivic();
+  if (S.civicLoaded) await refreshCivicRows("civic", civicGet);
+  if (S.extraLoaded) {
+    await refreshCivicRows("extra", extraGet);
+    // the meta carries the live coverage / stale flags of each race: read again with the rows
+    const meta = await extraGet("meta.json").catch(() => null);
+    let changed = false;
+    for (const m of meta?.races ?? []) {
+      const c = S.civic.races.find((x) => x.added && x.race_id === m.race_id);
+      if (!c) continue;
+      for (const k of ["coverage", "coverage_share", "partial", "note", "stale", "stale_since"]) if (c[k] !== m[k]) { c[k] = m[k]; changed = true; }
+    }
+    if (changed) registerCivic();
+  }
 }
 // the civic race entry of a state: for the readout, the state list and the notes
 const civicIn = (region) => S.civic?.races.filter((c) => c.region === region) ?? [];
@@ -389,34 +459,44 @@ function mergeTail(have, tail) {
 // unit starts the files are absent and the House view stays the pre-count one. True when held
 // rows changed.
 const HOUSE_LIVE_MS = 60000;
-let houseLiveMiss = 0, houseLiveSkip = 0; // consecutive missing reads; ticks still to skip
+// Two folders, read the same way: <eid>/house_live/ (the registered House models) and extra/us2026/house_live/ (the added models: an
+// unregistered secondary source, read only under civicWanted's rule). A district in both keeps the registered one.
+const HL = {
+  main: { dir: `${EID}/house_live`, miss: 0, skip: 0, races: new Map(), rows: new Map(), status: null },
+  extra: { dir: `${EXTRA}/house_live`, added: true, miss: 0, skip: 0, races: new Map(), rows: new Map(), status: null },
+};
+async function readHouseDir(h) {
+  if (h.skip > 0) { h.skip--; return false; }
+  const get = async (f) => {
+    try { const r = await fetch(absUrl(`${h.dir}/${f}`), { cache: "no-cache" }); return r.ok ? await r.json() : null; } catch { return null; }
+  };
+  const meta = await get("meta.json");
+  if (!meta) { h.miss++; h.skip = Math.min(10, 2 ** (h.miss - 1)); return false; }
+  h.miss = 0;
+  const list = (meta.races ?? []).filter(isHouse);
+  if (!list.length) return false;
+  h.races = new Map(list.map((r) => [r.race_id, h.added ? { ...r, added: true, source: { name: "added model", role: "secondary", ...r.source } } : r]));
+  // the tail merged onto the held rows; the whole timeline on the first read or after a gap
+  const tail = h.rows.size ? await get("timeline_tail.json") : null;
+  const merged = tail ? mergeTail(h.rows, timelineRows(tail)) : null;
+  const rows = merged ?? timelineRows(await get("timeline.json"));
+  if (rows.size) h.rows = rows;
+  h.status = await get("status.json");
+  return rows.size > 0;
+}
 async function loadHouseLive() {
-  // The folder does not exist before election night: no request while the election is pre-count (as
+  // The folders do not exist before election night: no request while the election is pre-count (as
   // loadArb), and after a missing meta.json the next reads back off (1, 2, 4 ... 10 ticks) instead of
   // asking every minute.
   if (S.meta?.phase === "pre-count") return false;
-  if (houseLiveSkip > 0) { houseLiveSkip--; return false; }
-  const get = async (f) => {
-    try { const r = await fetch(absUrl(`${EID}/house_live/${f}`), { cache: "no-cache" }); return r.ok ? await r.json() : null; } catch { return null; }
-  };
-  const meta = await get("meta.json");
-  if (!meta) { houseLiveMiss++; houseLiveSkip = Math.min(10, 2 ** (houseLiveMiss - 1)); return false; }
-  houseLiveMiss = 0;
-  const list = (meta.races ?? []).filter(isHouse);
-  if (!list.length) return false;
-  const had = S.houseLive;
-  S.houseLive = { races: new Map(list.map((r) => [r.race_id, r])), rows: had?.rows ?? new Map(), status: had?.status ?? null };
-  // the tail merged onto the held rows; the whole timeline on the first read or after a gap
-  const tail = had?.rows.size ? await get("timeline_tail.json") : null;
-  const merged = tail ? mergeTail(had.rows, timelineRows(tail)) : null;
-  const rows = merged ?? timelineRows(await get("timeline.json"));
-  if (rows.size) S.houseLive.rows = rows;
-  S.houseLive.status = await get("status.json");
-  return rows.size > 0;
+  const [a, b] = await Promise.all([readHouseDir(HL.main), civicWanted() ? readHouseDir(HL.extra) : false]);
+  if (!HL.main.races.size && !HL.extra.races.size) return false;
+  S.houseLive = { races: new Map([...HL.extra.races, ...HL.main.races]), rows: new Map([...HL.extra.rows, ...HL.main.rows]), status: HL.main.status };
+  return a || b;
 }
 // after a House read: the district's readout and chart, the House races and statistics
 function houseLiveShown() {
-  if (houseShown()) { $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel), showOf()); drawChart(); }
+  if (houseShown()) { $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel), showOf()) + addedNote(raceById(`house:${S.houseSel}`)); drawChart(); }
   feedEvents();
   updateNational();
   S.ov?.resize(); // refresh the House map's registered-model colours and hover figures
@@ -943,7 +1023,7 @@ function render() {
   $("scrub-time").innerHTML = S.preview != null
     ? `<b>${clock(S.preview, S.tz)}</b> preview · scrubber at ${clock(S.t, S.tz)}`
     : `${PRE() ? `${esc(dayOf(S.t))} ` : ""}<b>${clock(S.t, S.tz)}</b> ${esc(tzName(S.tz, S.t))}${frameT != null && S.countTimeline && !S.playing && !PRE() ? ` · map frame ${clock(frameT, S.tz)}` : ""}`;
-  if (houseShown()) $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel), showOf());
+  if (houseShown()) $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel), showOf()) + addedNote(raceById(`house:${S.houseSel}`));
   if (S.race && !houseShown() && !S.overviewDefault) {
     refreshLayers();
     const show = showOf();
@@ -953,6 +1033,7 @@ function render() {
     const aWon = outcomeOf(S.race);
     const priced = [...(rowsOf(S.race.race_id) ?? [])].reverse().find((d) => d.tms <= tt && d.pm != null);
     renderReadout($("readout"), { race: S.race, row, t: tt, preview: S.preview != null, tz: S.tz, countTimeline: S.countTimeline, frameT: S.playing ? null : frameT, pre, ev: evLine(S.race.region), turnout: turnoutChip(row), sensitivities: sensitivitiesOf(S.meta), nPolls: nPollsOf(S.race), settled: replay() && settledAt(priced ?? row, aWon), winner: replay() ? winnerName(S.race, aWon) : null, show });
+    $("readout").insertAdjacentHTML("beforeend", addedNote(S.race));
     // the turnout chart follows the map's frame
     if (S.tlView === "turnout" && S.tlK !== k) drawChart();
   }
@@ -1998,7 +2079,7 @@ function renderStatsTab() {
     return;
   }
   // a civicAPI race has no statistics: they are the registered races' (calibration, settling, profit)
-  if (S.race?.civic) { $("pane-stats").innerHTML = `<p class="note">${esc(raceName(S.race))}: the statistics (accuracy, calibration, market comparison, profit) are computed for the registered races only, which use the states' official feeds. This race's count comes from <a href="${CIVIC_SOURCE.url}" target="_blank" rel="noopener">${esc(CIVIC_SOURCE.name)}</a>, a secondary source, and is kept out of them.</p>`; return; }
+  if (S.race?.civic) { $("pane-stats").innerHTML = `<p class="note">${esc(raceName(S.race))}: the statistics (accuracy, calibration, market comparison, profit) are computed for the registered races only, which use the states' official feeds. This race's count comes from ${S.race.added ? esc(S.race.source?.name ?? "an added source") : `<a href="${CIVIC_SOURCE.url}" target="_blank" rel="noopener">${esc(CIVIC_SOURCE.name)}</a>`}, a secondary source, and is kept out of them.</p>`; return; }
   renderStats($("pane-stats"), { stats: S.stats, race: S.race, races: statewide(), raceName, tz: S.tz, arb: S.arb, settleOf, profitOf, hasMarket: showOf().marketExists });
 }
 
@@ -2010,15 +2091,15 @@ function drawMethod() {
   const margins = [...S.rows.values()].some((rows) => rows.some((d) => d.margin_market != null || d.margin_model != null));
   let meta = S.meta;
   if (S.civic) {
-    const cm = S.civic.meta ?? {};
+    const cm = S.civic.meta ?? {}, xm = S.civic.metaExtra ?? {}, hasCivic = S.civic.races.some((c) => !c.added), hasAdded = S.civic.races.some((c) => c.added);
     const names = new Set((meta.sources ?? []).map((s) => s.name)), notes = new Set(meta.notes ?? []);
     const own = (cm.sources ?? []).filter((s) => /civicapi/i.test(s.name));
     meta = {
       ...meta,
-      sources: [...(meta.sources ?? []), ...(own.length ? [] : [{ ...CIVIC_SOURCE, name: `${CIVIC_SOURCE.name}: election-night county results, secondary source (${[...new Set(S.civic.races.map((c) => regionName(c.region)))].join(", ")})` }]),
-        ...(cm.sources ?? []).filter((s) => !names.has(s.name))],
-      notes: [...(meta.notes ?? []), "Races labelled secondary source (civicAPI) are counted from civicAPI, an unofficial county feed, apart from the registered races: they are not in the statistics, the Senate-control figures or the registered models' summaries; where a state has a registered race too, that one is shown first.",
-        ...(cm.notes ?? []).filter((n) => !notes.has(n))],
+      sources: [...(meta.sources ?? []), ...(own.length || !hasCivic ? [] : [{ ...CIVIC_SOURCE, name: `${CIVIC_SOURCE.name}: election-night county results, secondary source (${[...new Set(S.civic.races.filter((c) => !c.added).map((c) => regionName(c.region)))].join(", ")})` }]),
+        ...[...(cm.sources ?? []), ...(xm.sources ?? [])].filter((s, i, all) => !names.has(s.name) && all.findIndex((x) => x.name === s.name) === i)],
+      notes: [...(meta.notes ?? []), ...(hasAdded ? ["Races labelled added model are county models added on 2026-11-02 for competitive races the registered models do not cover: unregistered, a secondary source (official feed or civicAPI, as the label says), outside the registered scoring, the statistics and the Senate-control figures of the registered models."] : []), ...(hasCivic ? ["Races labelled secondary source (civicAPI) are counted from civicAPI, an unofficial county feed, apart from the registered races: they are not in the statistics, the Senate-control figures or the registered models' summaries; where a state has a registered race too, that one is shown first."] : []),
+        ...[...(cm.notes ?? []), ...(xm.notes ?? [])].filter((n) => !notes.has(n))],
     };
   }
   const keep = $("our-model")?.outerHTML;
@@ -2348,15 +2429,15 @@ function feedEvents() {
   const list = [
     ...statewide().filter((r) => r.region).map((r) => ({ r, label: raceBase(r), secondary: false })),
     // civicAPI: secondary source, and only for a race the registered models do not cover (the registered one is the headline)
-    ...(S.civic?.races ?? []).filter((c) => !regIds.has(c.race_id.replace(/-civic$/, ""))).map((r) => ({ r, label: raceBase(r), secondary: true })),
-    ...houseRaces().map((r) => ({ r, label: r.name, secondary: false })),
+    ...(S.civic?.races ?? []).filter((c) => !regIds.has(c.race_id.replace(/-civic$/, ""))).map((r) => ({ r, label: raceBase(r), secondary: r.added ? addedLabel(r) : true })),
+    ...houseRaces().map((r) => ({ r, label: r.name, secondary: r.added ? addedLabel(r) : false })),
   ];
   for (const { r, label, secondary } of list) {
     const rows = seriesOf(r.race_id);
     if (!rows?.length) continue;
     const from = EV.lastT(`race:${r.race_id}`);
     const fresh = rows.filter((d) => d.tms > from);
-    if (fresh.length) EV.feedRace({ id: r.race_id, label, a: r.a, b: r.b, secondary }, fresh.map(evSample));
+    if (fresh.length && !r.stale) EV.feedRace({ id: r.race_id, label, a: r.a, b: r.b, secondary, partial: partialOf(r) }, fresh.map(evSample));
   }
   // chamber control: the live seat projection at each new row time, seats independent (the hemicycle's own figures)
   const chambers = [
@@ -2533,7 +2614,7 @@ function showDistrict(id) {
   S.houseSel = id;
   $("race").value = `house:${id}`;
   S.list?.select(null);
-  $("readout").innerHTML = districtReadout(id, districtModel(id), showOf());
+  $("readout").innerHTML = districtReadout(id, districtModel(id), showOf()) + addedNote(raceById(`house:${id}`));
   $("tl-view").hidden = true;
   $("tl-feed").hidden = true;
   districtChart($("timeline"), id, districtModel(id), showOf());
@@ -2663,7 +2744,7 @@ async function main() {
     return;
   }
   document.body.classList.toggle("no-count", !S.countTimeline);
-  const civicP = loadCivic(); // optional, in parallel with the engine and the first files
+  const civicP = loadCivic().then(() => loadExtra()); // optional, in parallel with the engine and the first files
   renderTopbar();
   ux = createUx({
     S, $, frameIndex, render, canSelect, layerOn, unitNoun, regionName, releasePin, modes, stepFrame, searchItems, goTo, afterZoom,

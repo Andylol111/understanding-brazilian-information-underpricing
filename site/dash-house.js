@@ -505,7 +505,8 @@ const OURS_REG = "Registered House v2: same inputs, plus the live count on elect
 const gbPolls = () => H.files?.markets?.generic_ballot?.n_polls ?? H.files?.districts?.national?.generic_ballot?.n_polls;
 const oursEst = () => `2024 president on the 2026 lines + generic-ballot swing${gbPolls() != null ? ` (${gbPolls()} polls)` : ""}; no district count model`;
 // the model's chance for a district: the registered House model's where it has one, else the district estimate
-const ours = (d, model) => (modelChance(model) != null ? { p: modelChance(model), src: OURS_REG } : d?.baseline?.p_d != null ? { p: d.baseline.p_d, src: oursEst() } : null);
+const OURS_ADDED = "Added model (unregistered, secondary source): the same kind of county count model, added 2026-11-02; outside the registered scoring";
+const ours = (d, model) => (modelChance(model) != null ? { p: modelChance(model), src: model.race?.added ? OURS_ADDED : OURS_REG } : d?.baseline?.p_d != null ? { p: d.baseline.p_d, src: oursEst() } : null);
 // the chance the Races table's Model column shows for district id (model: its count model at the time shown, or null)
 export const houseModelP = (id, model) => ours(houseDistrict(id), model)?.p ?? null;
 // "How the model works": the one place the model's caveats are written (Method & sources tab)
@@ -569,7 +570,7 @@ export function districtReadout(id, model = null, show = {}) {
   if (row?.counted > 0) live.push(chip("Counted", pct(row.counted, 0)));
   if (row?.raw != null && row.counted > 0 && show.raw !== false) live.push(chip("Raw count", candidateMargin((2 * row.raw - 1) * 100, sides), "r"));
   const share = row?.share_v2 ?? row?.share;
-  if (share != null && show.model !== false) live.push(chip("Model projection", candidateMargin((2 * share - 1) * 100, sides), "m", OURS_REG));
+  if (share != null && show.model !== false) live.push(chip("Model projection", candidateMargin((2 * share - 1) * 100, sides), "m", model?.race?.added ? OURS_ADDED : OURS_REG));
   if (h) live.push(chip("House 2024", marginText(h.margin)));
   if (e && show.early !== false) live.push(chip("Early vote", `${d3.format(",")(e.ev_total)} · ${pct(e.share_of_2022_total, 0)} of 2022`));
   const detail = flow ? `New lines: core ${esc(flow.core_2024 ?? "")}; lean changed ${marginText(flow.lean_change)}.` : "";
