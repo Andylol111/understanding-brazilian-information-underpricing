@@ -147,3 +147,15 @@ def test_wisconsin_wi01_kenosha_rock():
     assert p1["unit_id"].nunique() == 2 and p1["votes"].sum() == 0 and set(p1["party"]) >= {"DEM", "REP"}
     assert set(p1.groupby("unit_id")["units"].first()) == {129.0, 78.0}
     assert WI.parse("wi_house", {"kenosha": b"<html>Incapsula incident</html>", "rock": None}).empty
+
+
+def test_michigan_mi10_macomb_pdf():
+    from brunder import extra_mi as MI
+    df = MI.parse("mi_house", {"macomb": _fx("extra_mi_macomb_2024_unofficial.pdf.gz")})
+    x = df[df["race"] == "house-10"].set_index("party")["votes"]
+    assert (x["DEM"], x["REP"]) == (166802, 190543)          # Macomb's 2024 unofficial summary (night final)
+    assert set(df["race"]) == {"house-09", "house-10"} and (df["unit_id"] == "us-mi-26099").all()
+    pre = MI.parse("mi_house", {"macomb": _fx("extra_mi_macomb_2026pre.pdf.gz")})
+    p10 = pre[pre["race"] == "house-10"]
+    assert set(p10["party"]) >= {"DEM", "REP"} and pre["votes"].sum() == 0
+    assert MI.parse("mi_house", {"macomb": b"<html>404</html>"}).empty and MI.parse("mi_house", {}).empty
