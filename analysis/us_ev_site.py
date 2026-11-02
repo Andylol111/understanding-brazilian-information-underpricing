@@ -496,9 +496,19 @@ def build(db_path: Path, out: Path, use_daily: bool = True, log=print) -> dict:
     names = geo_names()
     cur_days = 0
     states, counties = {}, {}
+    # UF Election Lab days AFTER a state's last official day extend that state's official statewide series (the
+    # official file is the base and keeps its county detail; the Lab, collected automatically, carries the series on
+    # when an official file stops arriving, e.g. one published only behind a bot check and loaded by hand)
+    ufc = canon.canonical(uf_rows) if len(uf_rows) else None
+    uf_src = {UF_ID: {"id": UF_ID, "url": UF_PAGE, "what": UF_LABEL, "cadence": "daily"}}
     for st in sorted(NAMES):
         srcs = source_labels(frames["sources"], st)
         x = cstate[cstate["state"] == st]
+        if len(x) and ufc is not None:
+            later = ufc[(ufc["state"] == st) & (ufc["as_of_date"] > x["as_of_date"].max())]
+            if len(later):
+                x = pd.concat([x, later], ignore_index=True)
+                srcs = {**srcs, **uf_src}
         if len(x):
             res = build_state(st, x, srcs, hist, cur_days)
             if res:
@@ -510,9 +520,7 @@ def build(db_path: Path, out: Path, use_daily: bool = True, log=print) -> dict:
                 if c:
                     counties[st] = c
     uf_hist = load_uf_2024()
-    if len(uf_rows):
-        ufc = canon.canonical(uf_rows)
-        uf_src = {UF_ID: {"id": UF_ID, "url": UF_PAGE, "what": UF_LABEL, "cadence": "daily"}}
+    if ufc is not None:
         for st in sorted(NAMES):
             x = ufc[ufc["state"] == st]
             if not len(x):
