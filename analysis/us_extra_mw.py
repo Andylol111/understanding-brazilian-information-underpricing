@@ -30,23 +30,29 @@ from brunder import extra_clarity as C  # noqa: E402
 from brunder import extra_in as IN  # noqa: E402
 from brunder import extra_mo as MO  # noqa: E402
 from brunder import extra_mt as M  # noqa: E402
+from brunder import extra_wi as WI  # noqa: E402
 
 ROOT = us.ROOT_DIR
-DISTRICTS = {"clarity_mw": {"ia": (1, 2, 3), "co": (3, 4, 5, 8)}, "mt": {"mt": (1,)}, "mo": {"mo": (2,)}, "in": {"in": (5,)}}
-MODULES = {"clarity_mw": C, "mt": M, "mo": MO, "in": IN}
+DISTRICTS = {"clarity_mw": {"ia": (1, 2, 3), "co": (3, 4, 5, 8)}, "mt": {"mt": (1,)}, "mo": {"mo": (2,)}, "in": {"in": (5,)}, "wi": {"wi": (1,)}}
+MODULES = {"clarity_mw": C, "mt": M, "mo": MO, "in": IN, "wi": WI}
 OUT_CFG = ROOT / "configs" / "us2026_extra"
 FIX = ROOT / "tests" / "fixtures" / "us"
 SOURCE_URL = {"ia": "https://electionresults.iowa.gov/IA/", "co": "https://results.enr.clarityelections.com/CO/",
               "mt": "https://electionresults.mt.gov/ (data: esersws.mt.gov/ResultsAjax.svc/GetMapData)",
               "mo": "https://extcontent.stlouisco.com/BOE/eResults/ ; https://www.livevoterturnout.com/ENR/stcharlesmoenr/",
-              "in": "https://enr.indianavoters.in.gov/"}
+              "in": "https://enr.indianavoters.in.gov/",
+              "wi": "https://apps.kenoshacounty.org/ElectionResults_v2/ ; http://elections.co.rock.wi.us/"}
 SOURCE_NAME = {"ia": "Iowa Secretary of State, Election Night Reporting (Clarity)",
                "co": "Colorado Secretary of State, Election Night Reporting (Clarity)",
                "mt": "Montana Secretary of State, election results web service",
                "mo": "St. Louis County Board of Elections and St. Charles County Election Authority",
-               "in": "Indiana Election Division, Election Night Reporting"}
+               "in": "Indiana Election Division, Election Night Reporting",
+               "wi": "Kenosha County and Rock County clerks"}
 NOTE = {"mo": ("# PARTIAL COVERAGE: St. Louis and St. Charles counties = 84 % of the district's 2024 presidential vote;\n"
-               "# Franklin and Warren counties (16 %) have no night source and are projected from the prior and swing.\n")}
+               "# Franklin and Warren counties (16 %) have no night source and are projected from the prior and swing.\n"),
+        "wi": ("# PARTIAL COVERAGE: Kenosha and Rock (WI-01 part) counties = 38 % of the district's 2024 presidential vote;\n"
+               "# Racine (27 %, site 403), Milwaukee (21 %, Cloudflare challenge) and Walworth (14 %, no fixed URL) are\n"
+               "# projected from the prior and the swing of the covered counties.\n")}
 
 
 def priors() -> list[Path]:

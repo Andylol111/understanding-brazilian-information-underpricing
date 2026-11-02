@@ -1,0 +1,13 @@
+# US midterms 2026 House district priors, secondary source wi (analysis/us_extra_mw.py priors;
+# added 2026-11-02, unregistered): 2024 president (Harris, Trump, all candidates) in each county's part
+# of each 2026 district (analysis/us_house_night.county_pieces, the allocation of
+# site/data/us2026/house/districts.json; max deviation of district sums 0.0e+00).
+# Sources: MIT Election Data and Science Lab, County Presidential Election Returns 2000-2024
+#   (doi:10.7910/DVN/VOQCHQ) and U.S. President Precinct-Level Returns 2024 (doi:10.7910/DVN/XDJYKC), CC0;
+#   US Census Bureau 119th/120th Congress block equivalency files (public domain).
+source,unit_id,dem,rep,total
+wi-01_pres_2024,us-wi-55059,41826.0,47478.0,90680.0
+wi-01_pres_2024,us-wi-55079,41389.0,42157.0,85589.0
+wi-01_pres_2024,us-wi-55101,49721.0,56347.0,107686.0
+wi-01_pres_2024,us-wi-55105,35379.0,29103.0,65634.0
+wi-01_pres_2024,us-wi-55127,21245.0,32651.0,54640.0

@@ -130,3 +130,20 @@ def test_indiana_2024_in05_exact_and_resolver():
     assert spec["resolve"](lambda u: b'{"Root":{"VersionType":"B"}}') == f"{IN.BASE}/OffCatC_1005_B.json"
     IN._VER.clear()
     assert spec["resolve"](lambda u: None) is None
+
+
+def test_wisconsin_wi01_kenosha_rock():
+    from brunder import extra_wi as WI
+    df = WI.parse("wi_house", {"kenosha": _fx("extra_wi_kenosha_2024.html.gz"), "rock": _fx("extra_wi_rock_2024.html.gz")})
+    g = df[df["race"] == "house-01"].groupby(["unit_id", "party"])["votes"].sum()
+    assert (g["us-wi-55059", "DEM"], g["us-wi-55059", "REP"]) == (39813, 47584)     # Kenosha County's 2024 page
+    assert (g["us-wi-55105", "DEM"], g["us-wi-55105", "REP"]) == (32018, 30294)     # Rock County, WI-01 part
+    assert set(df[df["unit_id"] == "us-wi-55105"]["race"]) == {"house-01", "house-02"}
+    rk = df[(df["unit_id"] == "us-wi-55105") & (df["race"] == "house-01")]
+    assert (rk["reporting"] == 76).all() and (rk["units"] == 76).all()
+    pre = WI.parse("wi_house", {"kenosha": _fx("extra_wi_kenosha_2026pre.html.gz"),
+                                "rock": _fx("extra_wi_rock_2026pre.html.gz")})
+    p1 = pre[pre["race"] == "house-01"]
+    assert p1["unit_id"].nunique() == 2 and p1["votes"].sum() == 0 and set(p1["party"]) >= {"DEM", "REP"}
+    assert set(p1.groupby("unit_id")["units"].first()) == {129.0, 78.0}
+    assert WI.parse("wi_house", {"kenosha": b"<html>Incapsula incident</html>", "rock": None}).empty
