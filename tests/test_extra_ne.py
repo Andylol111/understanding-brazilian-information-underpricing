@@ -1,5 +1,5 @@
-"""Parsers of the northeast/mid-Atlantic secondary sources (brunder.extra_va, extra_md, extra_pa) on past-cycle files:
-VA 2024 general 1st/5th District items (Enhanced Voting API), MD 2024 general District 1 county table, PA 2024 PA-10
+"""Parsers of the northeast/mid-Atlantic secondary sources (brunder.extra_va, extra_md) on past-cycle files:
+VA 2024 general 1st/5th District items (Enhanced Voting API), MD 2024 general District 1 county table
 House document (the registered fixture, used for the 11th-district parser). No network."""
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from brunder import extra_md, extra_pa, extra_va, us
+from brunder import extra_md, extra_va, us
 
 FX = Path(__file__).parent / "fixtures" / "us"
 PRI = Path(__file__).parents[1] / "data_public"
@@ -80,16 +80,8 @@ def test_md_2026_template_partial_count():
     assert _sum(df, "DEM") == 1000 and _sum(df, "REP") == 3000 and len(df) == 4
 
 
-def test_pa_house_wrapper_matches_registered_parser():
-    blob = _gz("house_pa_2024_cd10.json.gz")
-    df = extra_pa.parse("pa_house_x", {"d11": blob})
-    assert not df.empty and set(df["race"]) == {"house-10"} and df["unit_id"].str.startswith("us-pa-").all()
-    assert extra_pa.parse("pa_house_x", {"d11": b"x"}).empty and extra_pa.parse("pa_house_x", {"d11": None}).empty
-    assert "districtId=12" in extra_pa.RECORD[0]["url"]
-
-
 @pytest.mark.parametrize("mod,src,units", [("va", "va-01_pres_2024", 18), ("va", "va-05_pres_2024", 24),
-                                           ("md", "md-01_pres_2024", 11), ("pa", "pa-11_pres_2024", 2)])
+                                           ("md", "md-01_pres_2024", 11)])
 def test_priors_cover_the_feed_units(mod, src, units):
     p = pd.read_csv(PRI / f"us2026_extra_priors_{mod}.csv", comment="#")
     x = p[p["source"] == src]

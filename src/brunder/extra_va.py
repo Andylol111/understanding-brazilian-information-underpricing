@@ -10,6 +10,9 @@ for 2024NovemberGeneral (1st and 5th District items; tests/fixtures/us/extra_va_
 
 early = Early Voting + Mailed Absentee (Election Day, Provisional, Post-Election are the late part). The configs do not use
 the vote-type split (vote_type = false), like the feeds replayed without one.
+
+Recorded by brunder.us_extra_rec every 120 s per item (the pace of brunder-extra-rec, which records only the Senate,
+VA-02 and VA-07 items of the same host, so VA-01/05 are not in its output).
 """
 from __future__ import annotations
 
@@ -24,7 +27,7 @@ from brunder import us
 NAME = "va"
 _BASE = "https://enr.elections.virginia.gov/results/public/api/elections/virginia/2026-November-General/data/ballot-item"
 _ITEMS = {1: "01000000-f030-c43d-abd6-08df1fee5328", 5: "01000000-f030-c43d-608c-08df1fee52fa"}
-RECORD = [dict(key=f"va_house_d{n:02d}", url=f"{_BASE}/{i}", interval=60, ext="json") for n, i in _ITEMS.items()]
+RECORD = [dict(key=f"va_house_d{n:02d}", url=f"{_BASE}/{i}", interval=120, ext="json") for n, i in _ITEMS.items()]
 FEEDS = {"va_house": {f"d{n:02d}": f"va_house_d{n:02d}" for n in _ITEMS}}
 STATES = {"va": "Virginia"}
 POLL_CLOSE = {"va": "2026-11-04T00:00:00Z"}

@@ -5,9 +5,9 @@ for the model, and ``parse(kind, blobs)``.  Sources remain secondary and unregis
 """
 from __future__ import annotations
 
-from . import extra_civic_house, extra_ev
+from . import extra_civic_house, extra_ev, extra_md, extra_va
 
-MODULES = (extra_ev, extra_civic_house)
+MODULES = (extra_ev, extra_civic_house, extra_va, extra_md)
 
 
 def records() -> list[tuple[object, dict]]:

@@ -20,8 +20,8 @@ from .paths import RAW, ROOT
 from .us_extra_sources import MODULES
 
 _INSTALLED = False
-PRIOR_INFO = ("MIT Election Data and Science Lab, 2024 precinct returns allocated to 2026 House districts "
-              "(data_public/us2026_extra_priors_district.csv)", "https://github.com/MEDSL/2024-elections-official",
+PRIOR_INFO = ("MIT Election Data and Science Lab, 2024 president returns allocated to 2026 House districts "
+              "(data_public/us2026_extra_priors_*.csv)", "https://github.com/MEDSL/2024-elections-official",
               "CC0 1.0")
 
 
@@ -39,7 +39,7 @@ def install() -> None:
             owners[kind] = module
         us.STATES.update(module.STATES)
         for st in module.STATES:
-            us.SOURCE_INFO.setdefault(st, PRIOR_INFO)
+            us.SOURCE_INFO.setdefault(st, getattr(module, "SOURCE_INFO", {}).get(st, PRIOR_INFO))
         if hasattr(us, "POLL_CLOSE"):
             us.POLL_CLOSE.update(module.POLL_CLOSE)
 
