@@ -176,6 +176,38 @@
    "question": "Will Democratics win the Senate race in Maine? \u2014 YES: Troy Jackson"
   }
  },
+ "house:MI-04": {
+  "pm": {
+   "event": "mi-04-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-mi-04-house-seat",
+   "token": "88776488175071791462909511406316753979194373422367163888126718728750245407110",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the MI-04 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSEMI4-26-D",
+   "series": "HOUSEMI4",
+   "event": "HOUSEMI4-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for MI-4? \u2014 YES: Sean McCann"
+  }
+ },
+ "house:MI-10": {
+  "pm": {
+   "event": "mi-10-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-mi-10-house-seat",
+   "token": "75685534826787951976275953631896177236439299709473517876953614908104349066066",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the MI-10 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSEMI10-26-D",
+   "series": "HOUSEMI10",
+   "event": "HOUSEMI10-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for MI-10? \u2014 YES: Christina Hines"
+  }
+ },
  "house:MO-02": {
   "pm": {
    "event": "mo-02-house-election-winner",
@@ -382,6 +414,22 @@
    "event": "KXHOUSERACE-WA05-26",
    "yes_is": "a",
    "question": "Will Democratic win the House race for WA-05? \u2014 YES: Carmela Conroy"
+  }
+ },
+ "house:WI-01": {
+  "pm": {
+   "event": "wi-01-house-election-winner",
+   "slug": "will-the-democratic-party-win-the-wi-01-house-seat",
+   "token": "27864379735636967187061174592974985530606192477476602134082994654383977817622",
+   "yes_is": "a",
+   "question": "Will the Democratic Party win the WI-01 House seat?"
+  },
+  "kalshi": {
+   "ticker": "HOUSEWI1-26-D",
+   "series": "HOUSEWI1",
+   "event": "HOUSEWI1-26",
+   "yes_is": "a",
+   "question": "Will Democratic win the House race for WI-1? \u2014 YES: Mitchell Berman"
   }
  }
 }

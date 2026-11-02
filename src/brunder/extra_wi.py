@@ -35,6 +35,7 @@ POLL_CLOSE = {"wi": "2026-11-04T02:00:00Z"}
 SOURCE_INFO = {"wi": ("Kenosha County and Rock County clerks, unofficial election results",
                       "https://apps.kenoshacounty.org/ElectionResults_v2/", "public record")}
 UNITS = {"kenosha": ("us-wi-55059", "Kenosha"), "rock": ("us-wi-55105", "Rock")}
+LIVE_UNITS = {"wi_house": {u for u, _ in UNITS.values()}}   # partial coverage (brunder.us_extra_live coverage)
 _PARTY = {"DEMOCRATIC": "DEM", "REPUBLICAN": "REP", "LIBERTARIAN": "LIB", "GREEN": "GRN"}
 
 

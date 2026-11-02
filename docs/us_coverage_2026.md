@@ -26,7 +26,7 @@ all mapped; civic_sc_sen_2026, civic_ia_pres_2024). No civic archive of the nigh
 |---|---|---|---|
 | ME-Sen | .63 / .705 / .685 | maine.gov results: CloudFront 403 (robots too) | **built on civicAPI** (recorded `civic_87188`, county rows) — `me_sen_v1` |
 | NV-Gov | .57 / .785 / .755 | silverstateelection.nv.gov, nvsos.gov: Incapsula challenge ("Pardon Our Interruption", `x-iinfo`); elections.clarkcountynv.gov robots `Disallow: /`; electionresults.washoecounty.gov 503, washoecounty.gov/voters/results 403 | **built on civicAPI** (`civic_87260`) — `nv_gov_v1` |
-| OR-Gov | .60 / .845 / .805 | results.oregonvotes.gov 200; its map service `orresultswebservices.azureedge.us/ResultsAjax.svc/GetMapData` 200 JSON (NE/NM vendor format, 36 counties) | **viable, built** (`or_gov_v1`, brunder.extra_or) — **integrator decision needed**: the CDN host fronts `orresws.azurewebsites.us` (cookies name it); drop `or_gov_mapdata` if that counts under the *.azurewebsites.us rule |
+| OR-Gov | .60 / .845 / .805 | results.oregonvotes.gov 200; its map service `orresultswebservices.azureedge.us/ResultsAjax.svc/GetMapData` 200 JSON (NE/NM vendor format, 36 counties) | **viable, built** (`or_gov_v1`, brunder.extra_or). User decision 2026-11-02: use the CDN host only; `*.azurewebsites.us` stays forbidden (exact host / subdomain rule, redirects never followed; test) |
 | NH-Sen | .82 / .94 / .9255 | sos.nh.gov results 404 (now); nh.electionstats.com → nh.elstats2.civera.com robots `Disallow: /` | **built on civicAPI** (`civic_87283`) — `nh_sen_v1` |
 | NH-Gov | .16 / .0765 / .0765 | as NH-Sen | **built on civicAPI** (`civic_87284`) — `nh_gov_v1` |
 | MS-Sen | .33 / .11 / .105 | sos.ms.gov (Cloudflare): result archive pages/PDF only, no night feed; not in civicAPI RACES | **no data** |
@@ -62,9 +62,11 @@ sites loop/403/do-not-request host); NJ-02/07/09 no data (21 county sites, no st
 CoverMW (in progress; packages folded so far): IA-01/02/03 and CO-03/04/05/08 built on Clarity ENR — **server
 blocked** (AWS WAF 202 challenge to the server IP, docs/us_midterms.md), Mac-verified; MT-01 built (esersws.mt.gov,
 server unverified); MO-02 built, partial (St. Louis County PDF + St. Charles Live Voter Turnout page = 84 % of the
-district's vote; Franklin/Warren projected); IN-05 built (enr.indianavoters.in.gov county file via settings.json
-version, no precinct counts, server unverified); KY-06 blocked (vrsws.sos.ky.gov Akamai 403, Clarity KY 403). MI, WI,
-CA, KS and the remaining districts: CoverMW reports
+district's vote; Franklin/Warren projected); MI-10 built, partial 88 % (Macomb County PDF); MI-04 built, partial 26 %
+(Ottawa County Clarity, server-blocked → Mac); WI-01 built, partial 38 % (Kenosha, Incapsula → Mac, and Rock County pages);
+IN-05 built (enr.indianavoters.in.gov county file via settings.json
+version, no precinct counts, server unverified); KY-06 blocked (vrsws.sos.ky.gov Akamai 403, Clarity KY 403). Verdicts for the rest of the slice: docs/us_coverage_2026_mw.md. Further
+packages: CoverMW reports
 directly to the integrator after this hand-off (fold steps below).
 
 ## Host table (Mac, 2026-11-02; second column of headers from the 100 s recorder smoke run)
@@ -88,6 +90,27 @@ directly to the integrator after this hand-off (fold steps below).
 
 No 429, Retry-After or challenge was seen on any host used by the recorder. Every Cloudflare/Akamai/Azure-FD host is
 "Mac-verified, server unverified": the recorder stops a host on its first 403/429/challenge and logs `event=blocked`.
+
+## Market prices (added races)
+
+`configs/us2026_extra/markets.json` (analysis/us_extra_markets.py, looked up from the Mac 2026-11-02): for all 27 added
+races the Polymarket market (event, slug, YES token) and the Kalshi market (ticker) whose YES pays if the Democrat
+(config side a) wins; every mapping printed with its title and live bid/ask and checked by a test against the config
+(Polymarket event/market equal; Kalshi YES name = the Democrat). ME-02's Polymarket slug is
+`will-the-democratic-party-win-the-me-01-house-seat-20260720160014016` (question: ME-02) as listed. The added recorder
+polls ONE `POST clob.polymarket.com/books` (all tokens) and ONE `GET api.elections.kalshi.com/.../markets/orderbooks`
+(all tickers) every 60 s, 429 → backoff honouring Retry-After (not a block), and stores `polymarket_books` /
+`kalshi_books` in its own archive in the registered recorders' formats; the live wrapper maps them via markets.json, so
+rows carry `pm` / `kalshi` = P(Democrat) through the unchanged exporter (registered pm_ws / kalshi recorders untouched).
+
+## Partial coverage
+
+A source module may declare `LIVE_UNITS = {kind: {unit ids}}` (MO-02, MI-04, MI-10, WI-01). The district's prior keeps
+every county; units without a live source stay uncounted at their prior (the engine's normal treatment of unreported
+units, no extra extrapolation). The row's `counted` is the live counted vote over the WHOLE district's expected vote.
+meta.json of the extra output carries `coverage` (0-1, live share of the race's expected vote; 1.0 when full) for every
+race and, below 1, `coverage_note` "partial: N% of the district's expected vote has a live source; the rest stays at its
+prior". Test: MI-10 with Macomb fully counted reports counted ≈ coverage (0.88), not 100 %.
 
 ## Integration convention (all slices)
 
@@ -114,7 +137,7 @@ No 429, Retry-After or challenge was seen on any host used by the recorder. Ever
 ## Test evidence
 
 * `uv run --frozen pytest tests/test_us_extra.py tests/test_extra_ne.py tests/test_extra_mw.py tests/test_civic.py
-  tests/test_us_feeds_extra.py`: 146 passed (Mac; after folding IN-05 the three added-source files: 35 passed). Includes: real VoteWA 2026-08-04 WA-05 item (totals = summaryResults,
+  tests/test_us_feeds_extra.py`: 154 passed (Mac, after folding MI-04/MI-10/WI-01 and the market work). Includes: real VoteWA 2026-08-04 WA-05 item (totals = summaryResults,
   842/842 precincts, county breakdowns sum to the district); real Oregon 2026 pre-count map data (36 counties, parties
   from PartyName) + filled copy (exact sums); civicAPI House adapter; synthetic WA-03 snapshot → archive → House engine →
   `house_live/timeline.json` with counted > 0; ME-Sen civic document in a shared archive → link → statewide engine →
@@ -140,19 +163,22 @@ No 429, Retry-After or challenge was seen on any host used by the recorder. Ever
    (WantedBy brunder-election-night.target: both start with the night stack at 22:30 UTC).
 5. Pre-flight without network: `sudo -n -u brunder bash -c 'cd /srv/brunder/usextra && uv run --frozen pytest -q
    tests/test_us_extra.py tests/test_extra_ne.py tests/test_extra_mw.py'`.
-6. Decisions before 22:30 UTC: (a) Oregon CDN host vs the *.azurewebsites.us rule (to drop: add `--skip or_` to the
-   recorder unit and remove `or_gov_v1.toml` from the live unit); (b) Iowa/Colorado Clarity: server-blocked; either
-   leave the 7 IA/CO districts pre-count, or run on this Mac `uv run --frozen python -m brunder.us_extra_rec --out
-   $BRUNDER_DATA/raw/snap/us_midterms_2026_extra_mac --only clarity_ --until 2026-11-05T12:00:00Z` plus a push loop
-   `while sleep 60; do rsync -a --rsync-path="sudo -n -u brunder rsync" <mac archive>/clarity_* <mac archive>/index.jsonl
-   oracle-slotbank:/srv/brunder/repo/data/raw/snap/us_midterms_2026_extra/; done` (pushes INTO the server; no
-   outbound request from the server; only the clarity_* key folders are pushed, the server's own index.jsonl must not be
-   overwritten: drop the index.jsonl part, the House engine lists folders, it does not need the index);
-   (c) the site reading `extra/us2026/` (front-end, not built here).
+6. Mac side (IA, CO, Ottawa MI Clarity and Kenosha WI: their hosts challenge the server's IP). On this Mac, in the
+   merged checkout, any time before 23:30 UTC:
+   `nohup deploy/mac_extra_rec_push.sh >/dev/null 2>&1 &`
+   It waits for 2026-11-03T23:30Z, runs `brunder.us_extra_rec --only clarity_ --only mi_ottawa --only wi_kenosha`
+   with this checkout's uv into `$BRUNDER_DATA/raw/snap/us_midterms_2026_extra_mac` until 2026-11-04T10:00Z, and every
+   30 s rsyncs only those key folders into `oracle-slotbank:/srv/brunder/repo/data/raw/snap/us_midterms_2026_extra/`
+   (`--rsync-path="sudo -n -u brunder rsync"`, files owned by brunder; never index.jsonl / .poll / manifest; rsync's
+   dot-named temp files are ignored by the archive reader). Under `caffeinate -dims`; the recorder is restarted if it
+   exits early and a failed push is retried on the next tick; nothing exits before UNTIL. Log: `<archive>.log`. The
+   server recorder unit skips these keys (`--skip clarity_ --skip mi_ottawa --skip wi_kenosha`). Missing or broken
+   pushed files = no data for those districts (pre-count frame), never a crash (test); if the Mac stops, the last pushed
+   count stays. Tested 2026-11-02 22:23-22:26Z for 2 min against `/srv/brunder/scratch_cover_pushtest`: 5 snapshots
+   (IA Clarity x3, Ottawa, Kenosha) recorded, 0 blocks, every push ok, files on the server owned by brunder; scratch dir
+   deleted afterwards. The site reading `extra/us2026/` (front-end) is not built here.
 7. Fold more CoverMW sources: cherry-pick, add the module to `MODULES` in src/brunder/us_extra_sources.py, add the v1
    configs to brunder-us-extra-live.service, rerun step 5.
 
-Known limits: House market lines for the added districts need their Polymarket events in the shared
-`polymarket_books` (the registered recorder's --pm-event list holds only the 71 live districts; model P is computed
-regardless). civicAPI's live cadence is unrehearsed (docs/us_midterms.md). Maine races are ranked-choice: first-round
+Known limits: civicAPI's live cadence is unrehearsed (docs/us_midterms.md). Maine races are ranked-choice: first-round
 two-party projection only.

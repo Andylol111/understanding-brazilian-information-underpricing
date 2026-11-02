@@ -18,7 +18,7 @@ def _restore_us():
     """us_extra_live.install() patches brunder.us in-process (the extra service's own process); undo it after each
     test so other test files see the registered behaviour."""
     from brunder import us_feeds_extra
-    names = ("parse_feed", "load_priors", "race_prior", "kalshi_markets", "pm_tokens")
+    names = ("parse_feed", "load_priors", "race_prior", "kalshi_markets", "pm_tokens", "meta")
     saved = {n: getattr(us, n) for n in names}
     dicts = {id(d): (d, dict(d)) for d in (us.FEEDS, us.STATES, us.POLL_CLOSE, us.SOURCE_INFO, us_feeds_extra.CHECKS)}
     yield
@@ -256,3 +256,60 @@ def test_forbidden_hosts_are_exact_and_the_oregon_cdn_passes():
     assert not R.forbidden("orresultswebservices.azureedge.us")
     assert not R.forbidden("azurewebsites.us.example.org")
     assert R.forbidden("civicapi.org") and R.forbidden("api.civicapi.org") and not R.forbidden("api.civicapi.org.example.com")
+
+
+def test_partial_district_counted_is_against_the_whole_district_and_meta_has_coverage(tmp_path, monkeypatch):
+    """MI-10: only Macomb County has a live source (extra_mi.LIVE_UNITS). Macomb fully counted -> the row's counted
+    share ~= the coverage share (of the whole district), not 100 %; meta carries coverage < 1 and the partial note;
+    a full-coverage race (WA-03) has coverage 1.0."""
+    import tomllib
+    from brunder import extra_mi
+    us_extra_live.install()
+    cfg_p = ROOT / "configs" / "us2026_extra" / "mi-10_v1.toml"
+    cfg = tomllib.loads(cfg_p.read_text())
+    E = cfg["election"]
+    pri = us.race_prior(cfg, us.load_priors())
+    mac = pri[pri["unit_id"] == "us-mi-26099"].iloc[0]
+    cov = us_extra_live.coverage(cfg, us.load_priors())
+    assert 0.8 < cov < 0.95                                       # Macomb ~ 88 % of the district's expected vote
+    n = 0.72 * mac["V"]
+
+    def fake_parse(kind, blobs):
+        rows = [{"level": "county", "unit_id": "us-mi-26099", "name": "Macomb", "race": E["race"],
+                 "candidate": c["name"], "party": c["party"], "votes": v, "early": float("nan"),
+                 "reporting": 10.0, "units": 10.0, "ballots": float("nan"), "registered": float("nan"),
+                 "outstanding": float("nan")} for c, v in ((E["a"], n * mac["s0"]), (E["b"], n * (1 - mac["s0"])))]
+        return us._frame(rows)
+    monkeypatch.setattr(extra_mi, "parse", fake_parse)
+    arc = tmp_path / "snap"
+    (arc / "mi_macomb").mkdir(parents=True)
+    (arc / "mi_macomb" / "20261104T030000.000000Z.pdf").write_bytes(b"%PDF-1.4\n%%EOF\n")
+    ex = us_house_night.HouseExporter([cfg_p, ROOT / "configs" / "us2026_extra" / "wa-03_v1.toml"], arc)
+    ex.update(pd.Timestamp("2026-11-04T03:01:00Z"))
+    d = ex.write(tmp_path / "out")
+    row = ex.timeline[E["race_id"]][-1]
+    assert abs(row["counted"] - cov) < 0.03 and row["counted"] < 0.95
+    races = {r["race_id"]: r for r in json.loads((d / "meta.json").read_text())["races"]}
+    assert races[E["race_id"]]["coverage"] == pytest.approx(cov) and "partial" in races[E["race_id"]]["coverage_note"]
+    assert races["house:WA-03"]["coverage"] == 1.0 and "coverage_note" not in races["house:WA-03"]
+
+
+def test_mac_fed_sources_missing_or_broken_files_are_no_data_not_a_crash(tmp_path):
+    """IA/CO/Ottawa Clarity and Kenosha arrive by push from the Mac: with no files, or only a truncated / non-JSON
+    push, the House engine writes the pre-count frame (no count row) for those districts and keeps going."""
+    us_extra_live.install()
+    arc = tmp_path / "snap"
+    for key, body in (("clarity_ia_all", b'{"Contests": ['), ("clarity_ia_summary", b"<html>challenge</html>"),
+                      ("wa_house_03", json.dumps(wa_item(dem=600, rep=400)).encode())):
+        (arc / key).mkdir(parents=True)
+        (arc / key / "20261104T050000.000000Z.json").write_bytes(body)
+    cfgs = [ROOT / "configs" / "us2026_extra" / f for f in ("ia-02_v1.toml", "co-08_v1.toml", "mi-04_v1.toml",
+                                                          "wi-01_v1.toml", "wa-03_v1.toml")]
+    ex = us_house_night.HouseExporter(cfgs, arc)
+    ex.update(pd.Timestamp("2026-11-04T05:01:00Z"))
+    d = ex.write(tmp_path / "out")
+    tl = json.loads((d / "timeline.json").read_text())
+    assert tl["house:WA-03"][-1]["counted"] > 0
+    for rid in ("house:IA-02", "house:CO-08", "house:MI-04", "house:WI-01"):
+        assert all(not r.get("counted") for r in tl.get(rid, [])), rid
+        assert (d / "units" / f"{rid}.json").exists()

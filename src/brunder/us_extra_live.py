@@ -35,6 +35,30 @@ def _check_text(body: bytes) -> None:
         raise ValueError("empty snapshot")
 
 
+def live_units(kind: str) -> set[str] | None:
+    """Units the feed of `kind` can ever report (module LIVE_UNITS); None = every unit of the race's prior."""
+    for module in MODULES:
+        lu = getattr(module, "LIVE_UNITS", {}).get(kind)
+        if lu is not None:
+            return set(lu)
+    return None
+
+
+def coverage(cfg: dict, priors: pd.DataFrame) -> float | None:
+    """Live share of the race's expected vote: prior two-party votes (the `votes` source, which sets the expected
+    vote) of the units a live source can report / of all the race's units; 1.0 for a full-coverage feed. The
+    engine's counted share is always against the whole race (unreported units keep their expected vote), so a
+    partial district whose live counties are all counted shows counted ~= coverage."""
+    pri = us.race_prior(cfg, priors)
+    if pri is None or pri.empty:
+        return None
+    lu = live_units(cfg["election"]["feed"])
+    if lu is None:
+        return 1.0
+    tot = float(pri["V"].sum())
+    return round(float(pri.loc[pri["unit_id"].isin(lu), "V"].sum()) / tot, 4) if tot > 0 else None
+
+
 def install() -> None:
     """Install extra feed/parse/prior hooks once in this process."""
     global _INSTALLED
@@ -109,6 +133,27 @@ def install() -> None:
     # side a); their books are recorded by brunder.us_extra_rec into this archive in the registered formats.
     us.kalshi_markets = lambda cfgs, pairs_path=None: extra_markets.kalshi_markets(cfgs)
     us.pm_tokens = lambda cfgs, pairs_path=None, lookup=False: extra_markets.race_tokens(cfgs)
+    old_meta = us.meta
+    _cov_cache: dict = {}
+
+    def meta(cfgs, *args, **kw):
+        """brunder.us.meta plus, per added race, `coverage` (0-1, live share of the expected vote) and, below 1, a
+        `coverage_note` the page can show."""
+        m = old_meta(cfgs, *args, **kw)
+        if "pri" not in _cov_cache:
+            _cov_cache["pri"] = us.load_priors()
+        pri = _cov_cache["pri"]
+        by_id = {c["election"]["race_id"]: c for c in cfgs}
+        for r in m.get("races", []):
+            c = by_id.get(r.get("race_id"))
+            cov = coverage(c, pri) if c is not None else None
+            r["coverage"] = cov
+            if cov is not None and cov < 0.999:
+                r["coverage_note"] = (f"partial: {round(100 * cov)}% of the district's expected vote has a live "
+                                      "source; the rest stays at its prior")
+        return m
+
+    us.meta = meta
     _INSTALLED = True
 
 

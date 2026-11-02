@@ -40,6 +40,7 @@ SOURCE_INFO = {"mo": ("St. Louis County Board of Elections and St. Charles Count
                       "results", "https://stlouiscountymo.gov/st-louis-county-government/board-of-elections/",
                       "public record")}
 UNITS = {"stlouis": ("us-mo-29189", "St. Louis"), "stcharles": ("us-mo-29183", "St. Charles")}
+LIVE_UNITS = {"mo_house": {u for u, _ in UNITS.values()}}   # partial coverage (brunder.us_extra_live coverage)
 
 _REP = re.compile(r"^\s*(?:U\.?\s*S\.?|US|UNITED STATES)\s+REPRESENTATIVE\s*[-,]?\s*DISTRICT\s*0*(\d+)\b", re.I)
 _PARTY = {"REPUBLICAN": "REP", "DEMOCRATIC": "DEM", "LIBERTARIAN": "LIB", "GREEN": "GRN"}

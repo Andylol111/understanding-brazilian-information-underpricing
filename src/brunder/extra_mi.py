@@ -41,6 +41,7 @@ SOURCE_INFO = {"mi": ("Macomb County Clerk, unofficial election results", "https
                       "clerk-register-deeds/elections", "public record")}
 UNIT = ("us-mi-26099", "Macomb")
 OTTAWA_UNIT = ("us-mi-26139", "Ottawa")
+LIVE_UNITS = {"mi_house": {UNIT[0], OTTAWA_UNIT[0]}}      # partial coverage (brunder.us_extra_live coverage)
 _CLARITY_RACE = re.compile(r"^\s*Representative in Congress\s+(\d+)(?:st|nd|rd|th)\s+District\s*$", re.I)
 _PARTIES = "DEM|REP|LIB|UST|GRN|WC|NLP|NPA|IND"
 _CAND = re.compile(rf"^\s{{0,3}}(\S.*?)\s{{2,}}({_PARTIES})\b(?:\s{{1,24}}([\d,]+)(?=\s|$))?")

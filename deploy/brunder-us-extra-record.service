@@ -5,8 +5,9 @@
 # <= 1 request/s/host, conditional GETs, a 401/403/429 / challenge stops that host for the run (no bypass), never the
 # do-not-request hosts (hard-coded refusal). Sources: VoteWA (WA-03/04/05), Virginia ENR (VA-01/05, 120 s),
 # Maryland SBE (MD-01), Montana SoS service (MT-01), Missouri county pages (MO-02), Oregon SoS service (governor).
-# Iowa/Colorado Clarity is skipped here: AWS WAF challenges this server's IP (docs/us_midterms.md); see the doc for
-# the optional Mac-side run. Started by brunder-election-night.target (22:30 UTC).
+# Skipped here (server IP challenged: AWS WAF / Incapsula): Iowa/Colorado/Ottawa Clarity and Kenosha; those are
+# recorded on the Mac and pushed into this archive (deploy/mac_extra_rec_push.sh). Also records the added races'
+# Polymarket / Kalshi books every 60 s (configs/us2026_extra/markets.json). Started by brunder-election-night.target (22:30 UTC).
 [Unit]
 Description=brunder added-source recorder (secondary, unregistered): US midterms 2026-11-03
 Wants=network-online.target
@@ -20,7 +21,7 @@ WorkingDirectory=/srv/brunder/usextra
 Environment=HOME=/srv/brunder
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/srv/brunder/.local/bin/uv run --frozen python -m brunder.us_extra_rec \
-  --out /srv/brunder/repo/data/raw/snap/us_midterms_2026_extra --skip clarity_ --until 2026-11-20T00:00:00Z
+  --out /srv/brunder/repo/data/raw/snap/us_midterms_2026_extra --skip clarity_ --skip mi_ottawa --skip wi_kenosha --until 2026-11-20T00:00:00Z
 Restart=on-failure
 RestartSec=30
 Nice=15
