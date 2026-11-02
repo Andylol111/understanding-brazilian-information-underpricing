@@ -91,7 +91,7 @@ export function createNational(root, { overview, office = "senate", summary = nu
   // overview polls: { avg (two-party Democratic share), n_polls, last_date, p_win } or null
   const pollsTitle = (p) => (p ? [p.avg != null ? `Polling average ${(100 * p.avg).toFixed(1)}% for the Democratic side (two-party)` : "Polling average", p.n_polls ? `${p.n_polls} poll${p.n_polls === 1 ? "" : "s"}` : "", p.last_date ? `last poll ${fmtDate(p.last_date)}` : ""].filter(Boolean).join(", ") : "No recent polls");
   function cardHTML(r) {
-    const m = r.race_id != null ? st.model.get(r.race_id) : null;
+    const m = r.race_id != null ? st.model.get(r.race_id) : st.model.get(r.race_key) ?? null;
     const p = r.polls;
     return `<p><b>${esc(raceName(r))}</b></p>
       <p>Incumbent: ${incumbent(r)}</p>
