@@ -1,0 +1,2 @@
+component,test,class,n,mean_delta,lo,hi,p,cycles_pos,cycles_eval
+housecount,v2 start + v1 count settings vs registered v2 (abs margin error),pooled,5600,0.55896494019044,0.5376519869207188,0.5797853002678085,5e-05,2,2

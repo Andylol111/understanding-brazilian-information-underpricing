@@ -1,0 +1,46 @@
+scope,check,variant,districts,draws_per_district,n,mean_abs_margin_err_pts,cover90,mean_sd_margin_pts,gain_pts,gain_lo,gain_hi
+all,pooled,registered_v2,28,200,22400,4.79558,0.83781,6.03203,,,
+all,pooled,v2_start_v1_count,28,200,22400,4.23661,0.91237,5.59426,,,
+all,pooled,gain (registered - candidate; + = candidate better),28,200,5600,,0.07455,,0.55896,0.53797,0.57968
+all,0.1,registered_v2,28,200,5600,6.41125,0.98839,10.62528,,,
+all,0.1,v2_start_v1_count,28,200,5600,6.32718,0.96839,9.14498,,,
+all,0.1,gain (registered - candidate; + = candidate better),28,200,5600,,-0.02,,0.08407,0.05562,0.11232
+all,0.25,registered_v2,28,200,5600,5.52249,0.93232,7.45211,,,
+all,0.25,v2_start_v1_count,28,200,5600,5.10531,0.92964,6.65375,,,
+all,0.25,gain (registered - candidate; + = candidate better),28,200,5600,,-0.00268,,0.41717,0.38538,0.44907
+all,0.5,registered_v2,28,200,5600,4.48612,0.73589,3.99652,,,
+all,0.5,v2_start_v1_count,28,200,5600,4.02845,0.77357,4.12768,,,
+all,0.5,gain (registered - candidate; + = candidate better),28,200,5600,,0.03768,,0.45767,0.42747,0.4881
+all,0.75,registered_v2,28,200,5600,2.76244,0.69464,2.05421,,,
+all,0.75,v2_start_v1_count,28,200,5600,1.4855,0.97786,2.45063,,,
+all,0.75,gain (registered - candidate; + = candidate better),28,200,5600,,0.28321,,1.27694,1.25322,1.30127
+2022,pooled,registered_v2,14,200,11200,6.52422,0.69661,6.066,,,
+2022,pooled,v2_start_v1_count,14,200,11200,5.48864,0.83643,5.77359,,,
+2022,pooled,gain (registered - candidate; + = candidate better),14,200,2800,,0.13982,,1.03557,0.9976,1.07519
+2022,0.1,registered_v2,14,200,2800,8.27717,0.97679,10.5834,,,
+2022,0.1,v2_start_v1_count,14,200,2800,8.24148,0.94679,9.16925,,,
+2022,0.1,gain (registered - candidate; + = candidate better),14,200,2800,,-0.03,,0.03569,-0.01467,0.08581
+2022,0.25,registered_v2,14,200,2800,6.72037,0.87893,7.09367,,,
+2022,0.25,v2_start_v1_count,14,200,2800,6.10826,0.88929,6.58026,,,
+2022,0.25,gain (registered - candidate; + = candidate better),14,200,2800,,0.01036,,0.61211,0.55408,0.66957
+2022,0.5,registered_v2,14,200,2800,7.03888,0.47321,4.27982,,,
+2022,0.5,v2_start_v1_count,14,200,2800,6.11691,0.55,4.65193,,,
+2022,0.5,gain (registered - candidate; + = candidate better),14,200,2800,,0.07679,,0.92197,0.86396,0.97909
+2022,0.75,registered_v2,14,200,2800,4.06045,0.4575,2.30711,,,
+2022,0.75,v2_start_v1_count,14,200,2800,1.48792,0.95964,2.69293,,,
+2022,0.75,gain (registered - candidate; + = candidate better),14,200,2800,,0.50214,,2.57253,2.52693,2.61674
+2024,pooled,registered_v2,14,200,11200,3.06694,0.97902,5.99806,,,
+2024,pooled,v2_start_v1_count,14,200,11200,2.98458,0.9883,5.41492,,,
+2024,pooled,gain (registered - candidate; + = candidate better),14,200,2800,,0.00929,,0.08235,0.0674,0.09736
+2024,0.1,registered_v2,14,200,2800,4.54534,1.0,10.66716,,,
+2024,0.1,v2_start_v1_count,14,200,2800,4.41288,0.99,9.1207,,,
+2024,0.1,gain (registered - candidate; + = candidate better),14,200,2800,,-0.01,,0.13245,0.10601,0.15922
+2024,0.25,registered_v2,14,200,2800,4.32461,0.98571,7.81055,,,
+2024,0.25,v2_start_v1_count,14,200,2800,4.10237,0.97,6.72724,,,
+2024,0.25,gain (registered - candidate; + = candidate better),14,200,2800,,-0.01571,,0.22224,0.19663,0.24801
+2024,0.5,registered_v2,14,200,2800,1.93337,0.99857,3.71322,,,
+2024,0.5,v2_start_v1_count,14,200,2800,1.93999,0.99714,3.60343,,,
+2024,0.5,gain (registered - candidate; + = candidate better),14,200,2800,,-0.00143,,-0.00663,-0.02671,0.01388
+2024,0.75,registered_v2,14,200,2800,1.46443,0.93179,1.8013,,,
+2024,0.75,v2_start_v1_count,14,200,2800,1.48308,0.99607,2.20832,,,
+2024,0.75,gain (registered - candidate; + = candidate better),14,200,2800,,0.06429,,-0.01865,-0.03577,-0.00183
