@@ -9,12 +9,12 @@
      a failed load adds a fresh ?_r stamp, which refetches all of it. -->
 <link id="page-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261102c9";
+window.__BUILD = "20261102d1";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 (() => {
   const imports = {};
-  for (const f of ["common.js", "decided.js", "dash-agg.js", "dash-map.js", "dash-timeline.js", "dash-layers.js", "dash-scrubber.js", "dash-panels.js", "dash-precount.js", "dash-national.js", "dash-house.js", "dash-us-tabs.js", "dash-ux.js", "dash-engine.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  for (const f of ["common.js", "decided.js", "dash-agg.js", "dash-map.js", "dash-timeline.js", "dash-layers.js", "dash-scrubber.js", "dash-panels.js", "dash-precount.js", "dash-national.js", "dash-house.js", "dash-us-tabs.js", "dash-ux.js", "dash-events.js", "dash-engine.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
   const m = document.createElement("script");
   m.type = "importmap";
   m.textContent = JSON.stringify({ imports });
@@ -38,6 +38,7 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
   <label class="tb-switch"><span class="visually-hidden">Election</span><select id="switcher" aria-label="Choose an election"></select></label>
   <span class="tb-live" id="live" hidden></span>
 </header>
+<div class="ev-strip" id="ev-strip" aria-label="Election-night announcements" hidden></div>
 
 <main class="dash" id="dash">
   <p class="dash-note" id="dash-note" hidden></p>

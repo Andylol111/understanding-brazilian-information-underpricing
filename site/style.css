@@ -896,3 +896,24 @@ circle.hs:hover { stroke: var(--ink); stroke-width: 1.8; }
 .sw.d3 { background: #1f5fbf; } .sw.d2 { background: #6f9bd8; } .sw.d1 { background: #bcd1ee; }
 .sw.r3 { background: #c8102e; } .sw.r2 { background: #e0707f; } .sw.r1 { background: #f2c0c6; }
 .sw.nu.d3 { background: #174a94; box-shadow: inset 0 0 0 1.5px #a9c4ea; } .sw.nu.r3 { background: #8f0b21; box-shadow: inset 0 0 0 1.5px #efa5ae; }
+
+/* ---------- election-night announcements (dash-events.js): one slim line under the top bar; the list opens over the page ---------- */
+.ev-strip { position: relative; z-index: 30; font: 13px/1.2 var(--sans); background: #f6f3ea; border-bottom: 1px solid var(--rule); }
+.gd .ev-strip { margin: 0 auto 8px; max-width: 1100px; border: 1px solid var(--rule); }
+.ev-none { display: block; padding: 6px 16px; height: 30px; box-sizing: border-box; color: var(--muted); }
+.ev-top { display: flex; align-items: center; gap: 10px; width: 100%; height: 30px; box-sizing: border-box; padding: 0 16px; border: 0; background: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.ev-top:disabled { cursor: default; }
+.ev-top:focus-visible { outline: 2px solid var(--model); outline-offset: -2px; }
+.ev-lab { color: var(--model); font-weight: 700; flex: none; }
+.ev-line { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-n { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ev-n::after { content: " ▾"; }
+.ev-strip.open .ev-n::after { content: " ▴"; }
+.ev-t { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
+.ev-struck { text-decoration: line-through; color: var(--muted); }
+.ev-wd { color: #8b1a1a; }
+.ev-list { position: absolute; left: 0; right: 0; top: 100%; margin: 0; padding: 4px 16px 8px; list-style: none; max-height: 50vh; overflow: auto; background: #fcfbf8; border: 1px solid var(--rule); border-top: 0; box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+.ev-list[hidden] { display: none; }
+.ev-list li { padding: 4px 0; border-top: 1px solid var(--rule); }
+.ev-list li:first-child { border-top: 0; }
+@media (max-width: 640px) { .ev-top { padding: 0 10px; } .ev-lab { display: none; } .ev-list { padding: 4px 10px 8px; } }

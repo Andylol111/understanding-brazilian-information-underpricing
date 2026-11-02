@@ -18,6 +18,7 @@ import { seatProjection, hemicycleShell, renderHemicycle, bindHemicycle } from "
 import { createOverlay, houseDistricts, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, houseModelP, ourModelHTML, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { createUx } from "./dash-ux.js";
+import { createEvents, renderBanner, bindBanner, loadSaved, save, controlChance, partyOf, SENATE_NEED, HOUSE_NEED } from "./dash-events.js";
 import { regionAgg, regionWinner, regionTally, BANDS, TIE, bandOf, bandColours, tieBreak } from "./dash-agg.js";
 import { decidedBeforeCount, outcomeA, winnerName, winnerProbability, settledAt, staysAbove } from "./decided.js";
 
@@ -416,6 +417,7 @@ async function loadHouseLive() {
 // after a House read: the district's readout and chart, the House races and statistics
 function houseLiveShown() {
   if (houseShown()) { $("readout").innerHTML = districtReadout(S.houseSel, districtModel(S.houseSel), showOf()); drawChart(); }
+  feedEvents();
   updateNational();
   S.ov?.resize(); // refresh the House map's registered-model colours and hover figures
   if (S.office === "house" && S.rows) {
@@ -908,6 +910,7 @@ function render() {
   const tt = S.preview ?? S.t;
   const k = frameIndex(tt);
   scheduleHemi(); // the seat count follows the time shown
+  showEvents();
   if (S.map && S.units) {
     // the worker paints: every animation frame while playing (colours tweened between map
     // frames), otherwise only when the frame or the mode changes
@@ -2099,6 +2102,7 @@ async function refresh() {
   computeDomain();
   S.t = follow ? S.domain[1] : clampT(S.t);
   S.followLatest = S.t >= S.domain[1];
+  feedEvents();
   if (S.map && S.units) { bindUnits(); showMapState(); }
   drawChart();
   updateScrubber();
@@ -2291,10 +2295,10 @@ const meanCounted = (list) => {
   const c = list.filter((x) => x != null);
   return c.some((x) => x >= 0.01) ? c.reduce((a, b) => a + b, 0) / c.length : null;
 };
-function senateProjection() {
+function senateProjection(at = S.preview ?? S.t) {
   const sen = S.overview?.offices?.senate;
   if (!sen) return null;
-  const t = S.preview ?? S.t, hold = sen.holdovers ?? {}, ups = sen.races ?? [], counted = [];
+  const t = at, hold = sen.holdovers ?? {}, ups = sen.races ?? [], counted = [];
   const races = ups.map((o) => {
     const r = statewide().find((x) => x.race_id === (o.race_id ?? o.race_key)) ?? S.extra?.get(o.race_key);
     const row = r ? raceRow(r, t) : null;
@@ -2306,12 +2310,12 @@ function senateProjection() {
   const total = sen.seats_total ?? 100, notUpD = (hold.D ?? 0) + (hold.I ?? 0);
   return seatProjection({ chamber: "Senate", notUp: { D: notUpD, R: hold.R ?? total - notUpD - ups.length }, races, majority: sen.majority ?? null, counted: meanCounted(counted) });
 }
-function houseProjection() {
+function houseProjection(at) {
   const ids = houseDistrictIds();
   if (!ids.length) return null;
   const counted = [];
   const races = ids.map((id) => {
-    const model = districtModel(id);
+    const model = at == null ? districtModel(id) : districtModel(id, at);
     if (model?.row?.counted != null) counted.push(model.row.counted);
     return { key: id, name: `${id} (House)`, p: houseModelP(id, model) };
   });
@@ -2328,6 +2332,68 @@ function renderHemi() {
 }
 let hemiFrame = 0;
 const scheduleHemi = () => { if (!hemiFrame) hemiFrame = requestAnimationFrame(() => { hemiFrame = 0; renderHemi(); }); };
+
+/* ---------------------------------------------------------------- announcements (dash-events.js) */
+
+// The strip under the top bar: items are derived from the rows this page holds (statewide races incl. civicAPI, House count
+// models, the seat projections) and kept in sessionStorage, so a reload does not announce them again. The strip shows the
+// items up to the time shown, so playing the slider from the start reveals them in order.
+const EV_KEY = `ubiu.events.${EID}.${window.__BUILD}`;
+let EV = null;
+const evSample = (d) => ({ t: d.tms, p: modelP(d), c: d.counted ?? null, pm: d.pm ?? null, k: d.kalshi ?? null });
+function feedEvents() {
+  if (EID !== "us2026" || PRE() || !S.meta) return;
+  EV ??= createEvents(loadSaved(EV_KEY));
+  const regIds = new Set(statewide().map((r) => r.race_id));
+  const list = [
+    ...statewide().filter((r) => r.region).map((r) => ({ r, label: raceBase(r), secondary: false })),
+    // civicAPI: secondary source, and only for a race the registered models do not cover (the registered one is the headline)
+    ...(S.civic?.races ?? []).filter((c) => !regIds.has(c.race_id.replace(/-civic$/, ""))).map((r) => ({ r, label: raceBase(r), secondary: true })),
+    ...houseRaces().map((r) => ({ r, label: r.name, secondary: false })),
+  ];
+  for (const { r, label, secondary } of list) {
+    const rows = seriesOf(r.race_id);
+    if (!rows?.length) continue;
+    const from = EV.lastT(`race:${r.race_id}`);
+    const fresh = rows.filter((d) => d.tms > from);
+    if (fresh.length) EV.feedRace({ id: r.race_id, label, a: r.a, b: r.b, secondary }, fresh.map(evSample));
+  }
+  // chamber control: the live seat projection at each new row time, seats independent (the hemicycle's own figures)
+  const chambers = [
+    ["senate", (t) => senateProjection(t), () => (S.overview?.offices?.senate?.races ?? []).flatMap((o) => { const id = o.race_id ?? o.race_key; return [id, `${id}-civic`]; })],
+    ["house", (t) => houseProjection(t), () => houseDistrictIds().map((id) => `house:${id}`)],
+  ];
+  for (const [name, proj, ids] of chambers) {
+    const from = EV.lastT(`chamber:${name}`);
+    const times = new Set();
+    for (const id of ids()) for (const d of seriesOf(id) ?? []) if (d.tms > from) times.add(d.tms);
+    const samples = [];
+    for (const t of [...times].sort((a, b) => a - b)) {
+      const pr = proj(t);
+      if (pr) samples.push({ t, p: controlChance(pr.seats.map((x) => x.p), pr.majority), c: pr.counted ?? 0 });
+    }
+    if (samples.length) EV.feedChamber(name, samples);
+  }
+  // Senate decided: seats not up + races the page's own decision rule (decisionOf: registered statewide races on a replayed night)
+  // calls decided. House and civicAPI races have no such rule here, so they never count toward "decided".
+  const sen = S.overview?.offices?.senate;
+  if (sen && replay()) {
+    const dec = { D: 0, R: 0 }, hold = sen.holdovers ?? {};
+    for (const o of sen.races ?? []) {
+      const r = statewide().find((x) => x.race_id === (o.race_id ?? o.race_key)), d = r ? decisionOf(r) : null;
+      const pty = d?.decided && d.outcome_a != null ? partyOf(d.outcome_a ? r.a : r.b) : null;
+      if (pty) dec[pty]++;
+    }
+    const total = sen.seats_total ?? 100, notUpD = (hold.D ?? 0) + (hold.I ?? 0);
+    EV.feedDecided("senate", { notUp: { D: notUpD, R: hold.R ?? total - notUpD - (sen.races ?? []).length }, decided: dec, need: SENATE_NEED, t: S.domain?.[1] ?? Date.now() });
+  }
+  save(EV_KEY, EV);
+}
+function showEvents() {
+  const host = $("ev-strip");
+  if (!host || !EV) return;
+  renderBanner(host, EV.items(S.preview ?? (S.followLatest ? Infinity : S.t)), { counting: EID === "us2026" && !PRE() });
+}
 
 // The overview's office ("senate" | "governor") as the race-id suffix of the modelled races.
 const OFFICE_ID = { senate: "sen", governor: "gov" };
@@ -2619,6 +2685,8 @@ async function main() {
   S.t = defaultTime();
   updateReplayHint();
   S.followLatest = S.t >= S.domain[1];
+  bindBanner($("ev-strip"));
+  feedEvents();
   S.scrub = createScrubber($("scrubber"), { onInput: (t) => { pause(); S.preview = null; setTime(t); } });
   mountLayers($("layer-bar"));
   refreshLayers(); // apply stored / shared-link state before the first table and chart are drawn

@@ -5,6 +5,7 @@
 import * as d3 from "./vendor/d3.js";
 import { LIVE, STATIC, getJSON, esc, param, votesShort } from "./common.js";
 import { prepRace, nationalPick } from "./groups-agg.js";
+import { createEvents, renderBanner, bindBanner, loadSaved, save, controlChance } from "./dash-events.js";
 import { seatProjection, hemicycleShell, renderHemicycle, bindHemicycle } from "./dash-bop.js";
 import {
   GATE, LEVELS, GAP_OPEN, GAP_CLOSE, COUNTED_STEPS, SHIFT_MIN, TURNOUT_MIN, COOL_MIN, normRows, forSide, letter, createEngine, feedRows, feedGroups, feedOf,
@@ -23,7 +24,7 @@ const S = {
   groups: null, counties: null, index: null, preps: new Map(), stamp: new Map(), fetched: new Map(),
   pre: {},                    // static files of the "before the results" part
   sort: { key: param("sort") ?? "close", dir: 1 }, showAll: false, showMini: false, gstate: param("st"),
-  districts: null, houseP: new Map(), houseC: new Map(), civicMeta: null, civicLast: new Map(),
+  districts: null, houseP: new Map(), houseC: new Map(), civicMeta: null, civicLast: new Map(), houseT: new Map(),
   liveGet: Object.fromEntries(["house", "civicMeta", "civicTail"].map((k) => [k, { miss: 0, skip: 0, at: 0 }])),
   ticks: 0, lastOk: null, failed: false, lastT: null, rowsFull: false, board: [],
 };
@@ -162,7 +163,7 @@ async function loadBop() {
     for (const [id, rows] of Object.entries(src)) {
       if (!id.startsWith("house:") || !Array.isArray(rows) || !rows.length) continue;
       const last = normRows(rows, "v2").at(-1);
-      if (last?.p != null && (S.houseP.get(id) !== last.p || S.houseC.get(id) !== last.c)) { S.houseP.set(id, last.p); S.houseC.set(id, last.c); changed = true; }
+      if (last?.p != null && (S.houseP.get(id) !== last.p || S.houseC.get(id) !== last.c)) { S.houseP.set(id, last.p); S.houseC.set(id, last.c); S.houseT.set(id, last.t); changed = true; }
     }
   }
   if (!S.civicMeta) {
@@ -219,6 +220,43 @@ function renderBop() {
   if (box.children.length !== projs.length) box.innerHTML = projs.map(() => `<div class="hemi">${hemicycleShell("")}</div>`).join("");
   projs.forEach((proj, i) => { const el = box.children[i]; el.querySelector(".tab-h").textContent = proj.chamber; renderHemicycle(el, proj); });
   window.__guide.bop = Object.fromEntries(projs.map((p) => [p.chamber.toLowerCase(), { dots: p.seats.length, d: p.d, r: p.r, expectedD: p.expectedD, dLeads: p.dLeads, rLeads: p.rLeads, counted: p.counted }]));
+}
+
+/* ---------------------------------------------------------------- announcements (dash-events.js) */
+
+// The strip at the top: "Model projects ..." items (a race's model at 99% or more on 2 refreshes in a row with 20% counted; a chamber's
+// chance of control at 99% or more, seats independent), each once, kept in sessionStorage. The guide holds the whole timeline of the
+// registered races, only the latest row of the civicAPI races and the House districts, and has no decision rule for "decided", so
+// no "control decided" item appears here (the election page's strip has it where its rule applies).
+const EV_KEY = `ubiu.events.${EID}.guide.${window.__BUILD}`;
+let EV = null;
+function feedEvents() {
+  if (!anyCounting()) return;
+  EV ??= createEvents(loadSaved(EV_KEY));
+  for (const race of S.races) {
+    const rows = S.rows.get(race.race_id) ?? [], from = EV.lastT(`race:${race.race_id}`);
+    const fresh = rows.filter((r) => r.t > from);
+    if (fresh.length) EV.feedRace({ id: race.race_id, label: race.name, a: race.a, b: race.b }, fresh);
+  }
+  const registered = new Set(S.races.map((r) => r.race_id));
+  for (const c of S.civicMeta?.values() ?? []) {
+    const last = S.civicLast.get(c.race_id);
+    if (last && !registered.has(c.race_id.replace(/-civic$/, ""))) EV.feedRace({ id: c.race_id, label: c.name ?? c.race_id, a: c.a, b: c.b, secondary: true }, [last]);
+  }
+  for (const [id, p] of S.houseP) {
+    const k = id.replace(/^house:/, "");
+    EV.feedRace({ id, label: `${k} House`, a: { id: "dem", name: "Democratic candidate" }, b: { id: "rep", name: "Republican candidate" } }, [{ t: S.houseT.get(id), p, c: S.houseC.get(id) ?? null }]);
+  }
+  for (const [name, proj] of [["senate", senateProjection()], ["house", houseProjection()]]) {
+    if (!proj) continue;
+    const t = name === "senate" ? S.lastT : Math.max(0, ...S.houseT.values());
+    if (t) EV.feedChamber(name, [{ t, p: controlChance(proj.seats.map((x) => x.p), proj.majority), c: proj.counted ?? 0 }]);
+  }
+  save(EV_KEY, EV);
+}
+function renderEvents() {
+  const host = $("ev-strip");
+  if (host && EV) renderBanner(host, EV.items(), { counting: anyCounting() });
 }
 
 /* ---------------------------------------------------------------- board */
@@ -474,6 +512,8 @@ function renderAll() {
   S.board = boardRows();
   S.lastT = Math.max(0, ...[...S.rows.values()].map((r) => r.at(-1)?.t ?? 0)) || null;
   renderStatus();
+  feedEvents();
+  renderEvents();
   renderBop();
   renderFeed();
   renderBoard();
@@ -526,6 +566,7 @@ function liveLinks() {
 }
 
 function wire() {
+  bindBanner($("ev-strip"));
   bindHemicycle($("gd-bop"), (key) => { location.href = `${raceLink(key)}${LIVE ? `&live=${encodeURIComponent(LIVE)}` : ""}`; });
   $("gd-board").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-sort]");
