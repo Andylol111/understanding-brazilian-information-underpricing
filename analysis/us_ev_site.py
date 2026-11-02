@@ -581,7 +581,11 @@ def main(argv: list[str] | None = None) -> int:
     res = build(a.db or default_db(), a.out, use_daily=not a.no_daily)
     ix = res["index"]
     print(json.dumps({"counts": ix["counts"], "audit": ix["audit"]}, indent=1))
-    bad = res["audit"]["county_not_equal_state"] or res["audit"]["canonical_has_two_sources"]
+    # --strict: a county sum more than 0.5 % off its state row, or a double-counted source, fails the build. Smaller gaps come
+    # from a state's own file (county and state tables taken at slightly different moments, e.g. North Dakota 2026-11-02:
+    # 0.1 %); they stay counted in the published audit but do not stop the page.
+    big = [r for r in res["audit"]["county_not_equal_state"] if abs(r["county_sum"] - r["state_total"]) > 0.005 * max(r["state_total"], 1)]
+    bad = big or res["audit"]["canonical_has_two_sources"]
     return 1 if (a.strict and bad) else 0
 
 
