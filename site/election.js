@@ -2473,7 +2473,9 @@ const OFFICE_ID = { senate: "sen", governor: "gov" };
 
 async function initNational() {
   if (!S.meta.overview || !S.meta.geometry) return;
-  const [overview, feeds] = await Promise.all([getJSON(`${EID}/${S.meta.overview}`, { optional: true }).catch(() => null), getJSON("us_night_feeds.json", { optional: true }).catch(() => null)]);
+  // us_night_feeds.json is the site's own file (which states/districts have a live model), never the night server's: on the
+  // night the live root is the pinned server checkout, which does not carry the current file
+  const [overview, feeds] = await Promise.all([getJSON(`${EID}/${S.meta.overview}`, { optional: true }).catch(() => null), getJSON("us_night_feeds.json", { root: STATIC, optional: true }).catch(() => null)]);
   if (!overview) return;
   S.overview = overview;
   S.feeds = feeds;
