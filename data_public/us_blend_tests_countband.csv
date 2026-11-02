@@ -1,0 +1,3 @@
+component,test,class,n,mean_delta,lo,hi,p,cycles_pos,cycles_eval
+countband,"m fitted 2024, held-out 2020",real nights pooled checkpoints,33,-0.0003164627835510597,-0.0005851582727439082,-4.692930840369814e-05,0.0198,0,1
+countband,"m fitted 2020, held-out 2024",real nights pooled checkpoints,41,-0.0027137163238764544,-0.003966019883076842,-0.0012990820021770632,0.0004,0,1
