@@ -1,0 +1,11 @@
+component,test,class,n,mean_delta,lo,hi,p,cycles_pos,cycles_eval
+turnout,S1 level correction of v1,not evaluable,0,,,,,0.0,0.0
+turnout,S1 level correction of unified,not evaluable,0,,,,,0.0,0.0
+turnout,S2 level correction of v1,not evaluable,0,,,,,0.0,0.0
+turnout,S2 level correction of unified,not evaluable,0,,,,,0.0,0.0
+turnout,S3 level correction of v1,pooled,130,-0.11694534315456055,-0.1320299195772777,-0.09971746815835536,5e-05,0.0,2.0
+turnout,S3 level correction of v1,cycle 2018,64,0.0,,,,,
+turnout,S3 level correction of v1,cycle 2022,66,-0.23034688803171016,,,,,
+turnout,S3 level correction of unified,pooled,130,-0.014666879283137787,-0.03757557244782244,0.009479135435183141,0.2228,1.0,2.0
+turnout,S3 level correction of unified,cycle 2018,64,0.054443252835908396,,,,,
+turnout,S3 level correction of unified,cycle 2022,66,-0.08168276497433409,,,,,
