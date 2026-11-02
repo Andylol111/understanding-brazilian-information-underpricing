@@ -1,0 +1,58 @@
+component,test,class,n,mean_delta,lo,hi,p,cycles_pos,cycles_eval,p_holm,passed_test
+countband,"m fitted 2024, held-out 2020",real nights pooled checkpoints,33,-0.000316,-0.000585,-4.7e-05,0.0198,0.0,1.0,0.495,False
+countband,"m fitted 2020, held-out 2024",real nights pooled checkpoints,41,-0.002714,-0.003966,-0.001299,0.0004,0.0,1.0,0.0128,False
+county,blend_eq vs v3,pooled,260,0.432586,0.277083,0.579403,5e-05,5.0,5.0,0.00245,True
+county,blend_eq vs v3,C1 low,101,0.217802,0.148696,0.290183,5e-05,5.0,5.0,0.00245,True
+county,blend_eq vs v3,C1 medium,95,0.612642,0.447108,0.785738,5e-05,5.0,5.0,0.00245,True
+county,blend_eq vs v3,C1 high,64,0.50427,-0.056528,0.991706,0.0756,3.0,5.0,1.0,False
+county,blend_eq vs unified,pooled,260,-0.054607,-0.196548,0.099829,0.4549,3.0,5.0,1.0,False
+county,blend_eq vs unified,C1 low,101,-0.051212,-0.117879,0.014707,0.1291,1.0,5.0,1.0,False
+county,blend_eq vs unified,C1 medium,95,-0.195229,-0.399242,0.00473,0.0567,1.0,5.0,1.0,False
+county,blend_eq vs unified,C1 high,64,0.14877,-0.315633,0.661683,0.5606,4.0,5.0,1.0,False
+county,blend_loco vs v3,pooled,260,0.495339,0.242009,0.720976,0.0002,5.0,5.0,0.0068,True
+county,blend_loco vs v3,C1 low,101,0.267421,0.161246,0.378222,5e-05,5.0,5.0,0.00245,True
+county,blend_loco vs v3,C1 medium,95,0.779834,0.517038,1.06019,5e-05,5.0,5.0,0.00245,True
+county,blend_loco vs v3,C1 high,64,0.432724,-0.484261,1.201583,0.3222,3.0,5.0,1.0,False
+county,blend_loco vs unified,pooled,260,0.008146,-0.049967,0.065364,0.7797,4.0,5.0,1.0,False
+county,blend_loco vs unified,C1 low,101,-0.001593,-0.02722,0.024,0.9049,2.0,5.0,1.0,False
+county,blend_loco vs unified,C1 medium,95,-0.028037,-0.111191,0.054758,0.4968,1.0,5.0,1.0,False
+county,blend_loco vs unified,C1 high,64,0.077224,-0.115052,0.260796,0.4245,4.0,5.0,1.0,False
+house,blend_eq vs v2,pooled,2223,0.303129,0.269477,0.337899,5e-05,6.0,6.0,0.00245,True
+house,blend_eq vs v2,H1 polled,319,0.466941,0.329682,0.618048,5e-05,4.0,4.0,0.00245,True
+house,blend_eq vs v2,H1 unpolled,1904,0.275683,0.244672,0.307368,5e-05,6.0,6.0,0.00245,True
+house,blend_eq vs unified,pooled,2223,-0.013896,-0.048232,0.020262,0.4345,4.0,6.0,1.0,False
+house,blend_eq vs unified,H1 polled,319,0.158772,0.029058,0.291416,0.0166,2.0,4.0,0.4482,False
+house,blend_eq vs unified,H1 unpolled,1904,-0.042825,-0.076028,-0.009981,0.0104,3.0,6.0,0.2912,False
+house,blend_loco vs v2,pooled,2223,0.322191,0.270545,0.375501,5e-05,6.0,6.0,0.00245,True
+house,blend_loco vs v2,H1 polled,319,0.450289,0.238666,0.677222,5e-05,4.0,4.0,0.00245,True
+house,blend_loco vs v2,H1 unpolled,1904,0.300729,0.252458,0.349889,5e-05,6.0,6.0,0.00245,True
+house,blend_loco vs unified,pooled,2223,0.005167,-0.010337,0.020733,0.5303,4.0,6.0,1.0,False
+house,blend_loco vs unified,H1 polled,319,0.14212,0.08912,0.197896,5e-05,3.0,4.0,0.00245,True
+house,blend_loco vs unified,H1 unpolled,1904,-0.017779,-0.033418,-0.00203,0.025,4.0,6.0,0.6,False
+housecount,v2 start + v1 count settings vs registered v2 (abs margin error),pooled,5600,0.558965,0.537652,0.579785,5e-05,2.0,2.0,0.00245,True
+statewide,blend_eq vs v3,pooled,264,0.178296,0.083018,0.276814,0.0003,4.0,5.0,0.0099,True
+statewide,blend_eq vs v3,C1 low,102,0.066015,0.027288,0.105348,0.0008,5.0,5.0,0.024,True
+statewide,blend_eq vs v3,C1 medium,97,0.24916,0.140659,0.364649,5e-05,5.0,5.0,0.00245,True
+statewide,blend_eq vs v3,C1 high,65,0.248741,-0.084395,0.592229,0.1399,3.0,5.0,1.0,False
+statewide,blend_eq vs unified,pooled,264,0.007451,-0.104174,0.142269,0.9608,4.0,5.0,1.0,False
+statewide,blend_eq vs unified,C1 low,102,-0.032748,-0.073097,0.012284,0.1454,1.0,5.0,1.0,False
+statewide,blend_eq vs unified,C1 medium,97,-0.084336,-0.201159,0.041097,0.1825,2.0,5.0,1.0,False
+statewide,blend_eq vs unified,C1 high,65,0.207505,-0.189628,0.695343,0.3666,4.0,5.0,1.0,False
+statewide,blend_loco vs v3,pooled,264,0.194778,0.036967,0.344539,0.0169,4.0,5.0,0.4482,False
+statewide,blend_loco vs v3,C1 low,102,0.089225,0.026028,0.150453,0.0062,5.0,5.0,0.1798,False
+statewide,blend_loco vs v3,C1 medium,97,0.318156,0.145933,0.497652,0.0004,4.0,5.0,0.0128,True
+statewide,blend_loco vs v3,C1 high,65,0.176297,-0.381266,0.709193,0.5091,3.0,5.0,1.0,False
+statewide,blend_loco vs unified,pooled,264,0.023932,-0.031405,0.091961,0.4721,4.0,5.0,1.0,False
+statewide,blend_loco vs unified,C1 low,102,-0.009538,-0.026834,0.010852,0.3223,1.0,5.0,1.0,False
+statewide,blend_loco vs unified,C1 medium,97,-0.015341,-0.070064,0.04504,0.5827,3.0,5.0,1.0,False
+statewide,blend_loco vs unified,C1 high,65,0.135062,-0.061505,0.388489,0.2199,4.0,5.0,1.0,False
+turnout,S1 level correction of v1,not evaluable,0,,,,,0.0,0.0,,False
+turnout,S1 level correction of unified,not evaluable,0,,,,,0.0,0.0,,False
+turnout,S2 level correction of v1,not evaluable,0,,,,,0.0,0.0,,False
+turnout,S2 level correction of unified,not evaluable,0,,,,,0.0,0.0,,False
+turnout,S3 level correction of v1,pooled,130,-0.116945,-0.13203,-0.099717,5e-05,0.0,2.0,0.00245,False
+turnout,S3 level correction of v1,cycle 2018,64,0.0,,,,,,,False
+turnout,S3 level correction of v1,cycle 2022,66,-0.230347,,,,,,,False
+turnout,S3 level correction of unified,pooled,130,-0.014667,-0.037576,0.009479,0.2228,1.0,2.0,1.0,False
+turnout,S3 level correction of unified,cycle 2018,64,0.054443,,,,,,,False
+turnout,S3 level correction of unified,cycle 2022,66,-0.081683,,,,,,,False
