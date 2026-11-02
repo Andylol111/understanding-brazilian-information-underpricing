@@ -350,3 +350,30 @@ def test_stale_flag_on_meta_and_latest_row_and_cleared_by_fresh_poll(tmp_path):
     us_extra_live.mark_stale(d, cl, arc, now=pd.Timestamp("2026-11-04T05:00:00Z"))
     assert flags() == ((None, None), (None, None), None)          # unchanged body but polled 30 s ago: fresh
     assert us_extra_live.race_staleness(arc, cl[0], pd.Timestamp("2026-11-04T12:00:00Z")) == (False, None)
+
+
+@pytest.mark.parametrize("rk,stem", [("me-sen", "me_sen"), ("nv-gov", "nv_gov"), ("or-gov", "or_gov"),
+                                     ("nh-sen", "nh_sen"), ("nh-gov", "nh_gov")])
+def test_statewide_precount_p_matches_the_overview_estimate_of_the_same_race(tmp_path, rk, stem):
+    """Pre-count (nothing counted) P of each added statewide race = its poll-based overview.json estimate within
+    0.02. Before the poll swing prior every v1 gave only the 2024 baseline: NH Senate and Governor were identical."""
+    us_extra_live.install()
+    ov = json.loads((ROOT / "site/data/us2026/overview.json").read_text())["offices"]
+    race = {r["race_key"]: r for off in ("senate", "governor") for r in ov[off]["races"]}[rk]
+    cfg = ROOT / "configs" / "us2026_extra" / f"{stem}_v1.toml"
+    arc = tmp_path / "snap"
+    (arc / "marker").mkdir(parents=True)                      # any snapshot: the timeline needs one minute
+    (arc / "marker" / "20261104T000000.000000Z.json").write_text("{}")
+    ex = us.Exporter([cfg], arc)
+    ex.update(pd.Timestamp("2026-11-04T00:01:00Z"))
+    row = ex.timeline[rk][-1]
+    assert row["counted"] in (0, 0.0, None) or row["counted"] == 0
+    assert row["P"] == pytest.approx(race["estimate"]["P"], abs=0.02), (rk, row["P"], race["estimate"]["P"])
+    assert row["P"] == pytest.approx(race["polls"]["p_win"], abs=0.02)
+
+
+def test_nh_senate_and_governor_precount_differ():
+    import tomllib
+    a, b = (tomllib.loads((ROOT / "configs" / "us2026_extra" / f"nh_{o}_v1.toml").read_text())["model"]
+            for o in ("sen", "gov"))
+    assert a["swing_prior_mean"] * b["swing_prior_mean"] < 0     # opposite shifts of the one NH county prior

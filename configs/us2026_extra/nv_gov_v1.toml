@@ -24,7 +24,15 @@ votes = "nv_pres_2024"
 [model]
 tau = 0.06
 rho = 0.3
-sigma_mun0 = 0.08
+sigma_mun0 = 0.0154   # county swing spread (us.county_resid_sd)
+# Poll swing prior (analysis/us_extra_swing.py): polls frozen from site/data/us2026/overview.json, asof 2026-11-01 (VoteHub, CC BY 4.0); pre-count P = Phi((poll avg - 0.5) / poll sd), as the overview estimate.
+poll_avg = 0.5073          # two-party Dem share, 2 polls, last 2026-10-25
+poll_sd = 0.0412
+swing_prior_mean = 0.0231   # poll avg - prior statewide share 0.4842 (V-weighted)
+swing_prior_sd = 0.0412
+count_scaled_terms = true   # tau / between-region terms scale in with the counted votes
+
+
 
 [count]
 turnout_ratio = 0.72
