@@ -1,0 +1,50 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. US midterms 2026-11-03, PA-11 U.S. House: model v1 on Pennsylvania Department of State, election returns (county break, U.S. House 11th).
+# No swing: the count alone moves the 2024 president baseline. Counted units = the district's counties (a split
+# county: only its part in the district, as the feed reports it).
+# Prior = 2024 president in each county's part of the district (data_public/us2026_extra_priors_pa.csv,
+# analysis/us_extra_ne.py priors; same allocation as site/data/us2026/house/districts.json). Settings (tau, rho, sigma_uf0)
+# are the group "split" settings of data_public/us2026_house_calibration.json: 90 % coverage 0.98/0.98/0.95 at 5/25/50 % counted, mean |error| 0.018/0.012/0.010.
+# The Pennsylvania feed is not in that replay; its parser is checked on the registered PA 2024 House document of PA-10 (district 11's URL was not requested).
+# Nothing here was chosen on 2026 count data. Market selection: P(D) Polymarket 0.046, Kalshi 0.047 in markets.json built 2026-10-29.
+id = "us2026_extra_pa-11_v1"
+
+[election]
+eid = "us2026"
+race_id = "house:PA-11"
+name = "PA-11 U.S. House"
+state = "pa"
+race = "house-11"
+feed = "pa_house_x"
+source = "Pennsylvania Department of State, election returns (county break, U.S. House 11th)"
+source_url = "https://www.electionreturns.pa.gov/"
+poll_close_utc = "2026-11-04T01:00:00Z"
+a = { party = "DEM", name = "Nancy Mannion", color = "#1f5fbf" }
+b = { party = "REP", name = "Lloyd Smucker", color = "#c8102e" }
+
+[prior]
+share = "pa-11_pres_2024"
+votes = "pa-11_pres_2024"
+
+[model]
+tau = 0.01
+rho = 0.6
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03
+
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = true
+early_share = 0.23
+
+[markets.polymarket]
+event = "pa-11-house-election-winner"
+market = "will-the-democratic-party-win-the-pa-11-house-seat"
+question = "Will the Democratic Party win the PA-11 House seat?"
+yes_is = "a"
+
+[markets.kalshi]
+ticker = ""                # Kalshi event KXHOUSERACE-PA11-26, YES = KXHOUSERACE-PA11-26-D

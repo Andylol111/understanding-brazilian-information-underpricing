@@ -1,0 +1,18 @@
+# US midterms 2026 House district priors, secondary sources (md; analysis/us_extra_ne.py priors):
+# 2024 president (Harris, Trump, all candidates) in each county's part of the district. Source
+# '<st>-<nn>_pres_2024', unit_id us-<st>-<5-digit county FIPS>. Sources: MIT Election Data and Science Lab,
+#   County Presidential Election Returns 2000-2024 (doi:10.7910/DVN/VOQCHQ) and U.S. President Precinct-Level
+#   Returns 2024 (doi:10.7910/DVN/XDJYKC), CC0; US Census Bureau 119th/120th Congress block equivalency files and
+#   2020 P.L. 94-171 population (public domain); allocation analysis/us_house.py (as data_public/us2026_house_priors.csv).
+source,unit_id,dem,rep,total
+md-01_pres_2024,us-md-24005,14019.0,19604.0,34791.0
+md-01_pres_2024,us-md-24011,4860.0,11053.0,16330.0
+md-01_pres_2024,us-md-24015,17628.0,33871.0,52831.0
+md-01_pres_2024,us-md-24019,6955.0,9390.0,16772.0
+md-01_pres_2024,us-md-24025,62453.0,83050.0,150090.0
+md-01_pres_2024,us-md-24029,5251.0,5561.0,11128.0
+md-01_pres_2024,us-md-24035,11273.0,20200.0,32347.0
+md-01_pres_2024,us-md-24039,4054.0,5805.0,10137.0
+md-01_pres_2024,us-md-24041,11119.0,11125.0,22830.0
+md-01_pres_2024,us-md-24045,21513.0,24065.0,46912.0
+md-01_pres_2024,us-md-24047,12431.0,19632.0,32881.0

@@ -1,0 +1,49 @@
+# SECONDARY SOURCE, ADDED 2026-11-02, UNREGISTERED. US midterms 2026-11-03, VA-01 U.S. House: model v1 on Virginia Department of Elections, election night reporting.
+# No swing: the count alone moves the 2024 president baseline. Counted units = the district's counties (a split
+# county: only its part in the district, as the feed reports it).
+# Prior = 2024 president in each county's part of the district (data_public/us2026_extra_priors_va.csv,
+# analysis/us_extra_ne.py priors; same allocation as site/data/us2026/house/districts.json). Settings (tau, rho, sigma_uf0)
+# are the group "nosplit" settings of data_public/us2026_house_calibration.json: 90 % coverage 0.98/0.95/0.87 at 5/25/50 % counted, mean |error| 0.016/0.015/0.013.
+# The Virginia feed is not in that replay; its parser is checked on the 2024 general 1st and 5th District items of the same API (certified totals matched exactly).
+# Nothing here was chosen on 2026 count data. Market selection: P(D) Polymarket 0.655, Kalshi 0.635 in markets.json built 2026-10-29.
+id = "us2026_extra_va-01_v1"
+
+[election]
+eid = "us2026"
+race_id = "house:VA-01"
+name = "VA-01 U.S. House"
+state = "va"
+race = "house-01"
+feed = "va_house"
+source = "Virginia Department of Elections, election night reporting"
+source_url = "https://enr.elections.virginia.gov/results/public/virginia/elections/2026-November-General"
+poll_close_utc = "2026-11-04T00:00:00Z"
+a = { party = "DEM", name = "Shannon Taylor", color = "#1f5fbf" }
+b = { party = "REP", name = "Rob Wittman", color = "#c8102e" }
+
+[prior]
+share = "va-01_pres_2024"
+votes = "va-01_pres_2024"
+
+[model]
+tau = 0.01
+rho = 0.3
+sigma_mun0 = 0.08
+sigma_uf0 = 0.03
+
+[count]
+turnout_ratio = 0.72
+f_max = 0.95
+f_complete = 0.98
+use_outstanding = false
+learn_turnout = true
+vote_type = false
+
+[markets.polymarket]
+event = "va-01-house-election-winner"
+market = "will-the-democratic-party-win-the-va-01-house-seat"
+question = "Will the Democratic Party win the VA-01 House seat?"
+yes_is = "a"
+
+[markets.kalshi]
+ticker = ""                # Kalshi event HOUSEVA1-26, YES = HOUSEVA1-26-D
