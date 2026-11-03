@@ -41,7 +41,7 @@ function summary(rec, E, live) {
   if (st.shift) parts.push(`vs 2022: D ${sgn(st.shift.d_pt)}`);
   else if (st.pct_2022_final != null) parts.push(`vs 2022: ${rnd(st.pct_2022_final)} % of the final 2022 total`);
   const im = rec.implied;
-  if (im?.ok) parts.push(`EV-implied D ${fix(im.implied)} vs model ${fix(rec.model.model_share)}${im.vs_model ? ` (${im.vs_model.text})` : ""}`);
+  if (im?.ok) parts.push(`EV-implied D ${fix(im.implied)} vs model${rec.model.compared === "past" ? " (no polls)" : ""} ${fix(rec.model.model_share)}${im.vs_model ? ` (${im.vs_model.text})` : ""}`);
   if (live) parts.push(`counted D ${fix(100 * live.raw)} at ${rnd(100 * live.counted)} % counted`);
   return { parts, flag: !!im?.ok };
 }
@@ -69,16 +69,18 @@ function countyText(st) {
   const c = st?.composition;
   if (!c) return "";
   return `<h4>County pattern</h4><p>Each county voting as in 2024, weighted by the ballots banked there: D ${fix(c.share_so_far)} %, against D ${fix(c.share_expected)} % weighted by expected votes `
-    + `(${sgn(c.diff_pt, 2)} pts, 95 % interval ${sgn(c.lo, 2)} to ${sgn(c.hi, 2)}, ${c.n} counties). <span class="note">Partial-day, a different mix of methods in each state, and the banked pool drifts toward R as Election Day nears: read it as so far, not as a lean.</span></p>`;
+    + `(${sgn(c.diff_pt, 2)} pts, ${c.n} counties). <span class="note">Partial-day, a different mix of methods in each state, and the banked pool drifts toward R as Election Day nears: read it as so far, not as a lean.</span></p>`;
 }
 
 function modelText(rec) {
-  const m = rec.model;
-  const bits = [`Pre-count D ${fix(m.model_share)} %${m.model_p != null ? ` · P(D) ${prob(m.model_p)}` : ""}${m.model_basis ? ` <span class="note">(${esc(m.model_basis)})</span>` : ""}`];
+  const m = rec.model, bits = [];
+  if (m.past_share != null) bits.push(`Registered model, past results only (no polls): D ${fix(m.past_share)} %${m.past_p != null ? `, P ${prob(m.past_p)}` : ""}`);
+  if (m.polled_share != null) bits.push(`Registered model with polls (${esc(m.polled_version)}): D ${fix(m.polled_share)} %${m.polled_p != null ? `, P ${prob(m.polled_p)}` : ""}`);
+  if (!bits.length && m.model_share != null) bits.push(`${esc(m.model_basis)}: D ${fix(m.model_share)} %${m.model_p != null ? `, P ${prob(m.model_p)}` : ""}`);
   if (m.polls_avg != null) bits.push(`Poll average D ${fix(m.polls_avg)} %${m.polls_n != null ? ` (${m.polls_n} polls)` : ""}`);
   const mk = [m.pm != null ? `Polymarket ${prob(m.pm)}` : "", m.kalshi != null ? `Kalshi ${prob(m.kalshi)}` : ""].filter(Boolean);
   if (mk.length) bits.push(`Market P(D) ${mk.join(" · ")}`);
-  return `<h4>Model view</h4><p>${bits.join("<br>")}</p>`;
+  return `<h4>Model view</h4><p>${bits.join("<br>") || '<span class="note">no model figure for this race</span>'}</p>`;
 }
 
 function impliedText(rec, E) {
@@ -86,7 +88,7 @@ function impliedText(rec, E) {
   if (!im?.ok) return `<h4>EV-implied</h4><p class="note">No EV-implied figure: ${esc(im?.why ?? "not available")}.</p>${caveat(E)}`;
   return `<h4>EV-implied</h4><p>2022 certified D two-party ${fix(im.act22)} % (${esc(im.act22_office)}) − 2022 registered D share of D + R ${fix(im.ev22_d_share_dr)} = offset ${sgn(im.offset)}.<br>`
     + `2026 registered D share of D + R ${fix(im.ev26_d_share_dr)} + offset = <b>EV-implied D ${fix(im.implied)} %</b>, `
-    + `${im.vs_model ? `<b>${esc(im.vs_model.text)}</b> against the model's ${fix(rec.model.model_share)} %` : "no model share to compare"}`
+    + `${im.vs_model ? `<b>${esc(im.vs_model.text)}</b> against ${rec.model.compared === "past" ? "the past-results-only model's" : "the model-with-polls"} ${fix(rec.model.model_share)} %` : "no model share to compare"}`
     + `${im.vs_polls ? ` (poll average: ${esc(im.vs_polls.text)})` : ""}.`
     + `${im.note ? `<br><span class="note">${esc(im.note)}</span>` : ""}</p>${caveat(E)}`;
 }
@@ -109,7 +111,8 @@ function liveText(rec, E, live) {
     body = `<table class="compact evr-t"><thead><tr><th></th><th>D %</th><th>Counted share minus it, pts</th></tr></thead><tbody>`
       + r3("Counted so far", `${fix(raw)}<br><small>${rnd(100 * live.counted)} % counted</small>`, "")
       + (im != null ? r3("EV-implied", fix(im), sgn(raw - im)) : "")
-      + (mo != null ? r3("Model pre-count", fix(mo), sgn(raw - mo)) : "")
+      + (mo != null ? r3(rec.model.compared === "past" ? "Model pre-count (past results only)" : "Model with polls, pre-count", fix(mo), sgn(raw - mo)) : "")
+      + (rec.model.compared !== "past" && rec.model.past_share != null ? r3("Model, past results only", fix(rec.model.past_share), sgn(raw - rec.model.past_share)) : "")
       + `</tbody></table><p class="note">Counted share is the raw two-party count so far. Which batches are in is not known here: compare it with the count order below.</p>`;
   }
   return `<h4>Live count</h4>${body}${order}`;
@@ -208,11 +211,12 @@ function initElection() {
 // ------------------------------------------------------------------------------------------------------------ turnout page
 const COLS = [
   ["name", "Race", false, (r) => r.name],
-  ["p", "Model P(D)", true, (r) => r.model.model_p],
+  ["pp", "Model P(D), past results only", true, (r) => r.model.past_p],
+  ["p", "Model P(D), with polls", true, (r) => r.model.polled_p ?? (r.model.compared === "polls" ? r.model.model_p : null)],
   ["polls", "Polls, D %", true, (r) => r.model.polls_avg],
   ["mk", "Market P(D)", true, (r) => r.model.pm ?? r.model.kalshi],
   ["shift", "EV party shift vs 2022, D (pts)", true, (r, E) => E.states[r.ev_state]?.shift?.d_pt ?? null],
-  ["imp", "EV-implied D % (model D %)", true, (r) => (r.implied.ok ? r.implied.implied : null)],
+  ["imp", "EV-implied D % (model with polls D %)", true, (r) => (r.implied.ok ? r.implied.implied : null)],
   ["diff", "Agreement", true, (r) => (r.implied.ok && r.implied.vs_model ? r.implied.vs_model.diff : null)],
 ];
 
@@ -227,7 +231,7 @@ function initTable() {
       + `<p class="td-label"><b>Registration-based. Unvalidated context, not used by any model.</b></p>`
       + `<p class="note">The EV-implied D share is the 2026 registered-party D share of D + R among banked ballots, moved by each state's 2022 offset (the 2022 certified D two-party share minus the 2022 registered D share of D + R at the same stage). `
       + `<b>${esc(FAILED.charAt(0).toUpperCase() + FAILED.slice(1))}.</b> It exists for ${E.n_states_with_estimate} states (${esc(E.states_with_estimate.join(", "))}); other races have no 2022 same-stage party figure. `
-      + `'Agrees' means within ${E.agree_pt} points of the model's pre-count D share. Snapshot ${esc(E.generated_utc)}. Click a race to show its state above.</p>`
+      + `'Agrees' means within ${E.agree_pt} points of the registered model's pre-count D share with polls (the past-results-only share where a race has no poll-informed one). Snapshot ${esc(E.generated_utc)}. Click a race to show its state above.</p>`
       + `<div class="toggle evr-filter" role="group" aria-label="Races shown"><button type="button" data-only="0" aria-pressed="true">All races</button><button type="button" data-only="1" aria-pressed="false">With an EV-implied value</button></div>`
       + `<div class="table-scroll" tabindex="0" role="region" aria-label="Races: early vote versus the model"><table class="compact races evr-races"><thead><tr></tr></thead><tbody></tbody></table></div>`;
     const head = host.querySelector("thead tr"), body = host.querySelector("tbody");
@@ -236,11 +240,11 @@ function initTable() {
       const v = val(c, r);
       switch (c[0]) {
         case "name": return `<td><button type="button" class="evr-pick" data-st="${esc(r.state)}">${esc(r.name)}</button></td>`;
-        case "p": return `<td>${prob(v)}</td>`;
+        case "pp": case "p": return `<td>${prob(v)}</td>`;
         case "polls": return `<td>${v == null ? "–" : fix(v)}</td>`;
         case "mk": return `<td>${prob(v)}</td>`;
         case "shift": return `<td>${v == null ? '<span class="na">no 2022 figure</span>' : sgn(v)}</td>`;
-        case "imp": return `<td>${r.implied.ok ? `${fix(r.implied.implied)} (${fix(r.model.model_share)})` : '<span class="na">–</span>'}</td>`;
+        case "imp": return `<td>${r.implied.ok ? `${fix(r.implied.implied)} (${fix(r.model.model_share)}${r.model.compared === "past" ? ", no polls" : ""})` : '<span class="na">–</span>'}</td>`;
         default: return `<td>${r.implied.ok && r.implied.vs_model ? esc(r.implied.vs_model.text) : '<span class="na">–</span>'}</td>`;
       }
     };
@@ -280,13 +284,28 @@ function initTable() {
       draw();
     });
     // a row selects the state's panel in place: the dashboard's own picker changes, the page does not scroll
+    // The state panel above changes height when it redraws. The page must not move: the panel's current height is held until the
+    // table leaves the screen, and the clicked row is put back where it was (the browser's scroll anchoring varies by engine).
+    const main = document.getElementById("tdd-panel");
+    let hold = null;
+    const release = () => { hold?.disconnect(); hold = null; if (main) main.style.minHeight = ""; };
     body.addEventListener("click", (e) => {
       const tr = e.target.closest("tr");
       const p = pickEl();
-      if (!tr || !p || ![...p.options].some((o) => o.value === tr.dataset.st)) return;
+      if (!tr || !p || ![...p.options].some((o) => o.value === tr.dataset.st) || tr.dataset.st === p.value) return;
+      const top = () => tr.getBoundingClientRect().top, t0 = top();
+      if (main) main.style.minHeight = `${main.offsetHeight}px`;
+      if (!hold) { hold = new IntersectionObserver((en) => { if (!en[0].isIntersecting) release(); }); hold.observe(host); }
       p.value = tr.dataset.st;
       p.dispatchEvent(new Event("change", { bubbles: true }));
       syncSel();
+      const until = performance.now() + 2500;
+      const fix = () => {
+        const d = top() - t0;
+        if (Math.abs(d) > 0.5) window.scrollBy(0, d);
+        if (performance.now() < until) requestAnimationFrame(fix);
+      };
+      requestAnimationFrame(fix);
     });
     pickEl()?.addEventListener("change", syncSel);
     setInterval(syncSel, 1000); // the dashboard sets its picker in code (no event) when it opens on a state

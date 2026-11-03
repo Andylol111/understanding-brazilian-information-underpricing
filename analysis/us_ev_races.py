@@ -159,7 +159,7 @@ def state_block(st: str, ts: dict[str, Any], panel: list[dict[str, Any]]) -> dic
     }
     comp = ts.get("composition") or {}
     if comp.get("ok"):
-        out["composition"] = {k: comp.get(k) for k in ("n", "share_so_far", "share_expected", "diff_pt", "lo", "hi", "coverage_pct", "kind")}
+        out["composition"] = {k: comp.get(k) for k in ("n", "share_so_far", "share_expected", "diff_pt", "coverage_pct", "kind")}
     order = ts.get("order") or {}
     if order.get("text"):
         out["order"] = {"text": order["text"], "class": order.get("class"), "config": order.get("config")}
@@ -177,15 +177,25 @@ def state_block(st: str, ts: dict[str, Any], panel: list[dict[str, Any]]) -> dic
 
 
 def race_view(r: dict[str, Any]) -> dict[str, Any]:
+    """Model figures of a race. Two registered-model versions: the headline pre-count (county prior from past results only, no polls:
+    share / P) and the poll-informed one the election page shows (the race's poll_model version, v3 for most races; v2 when none is named).
+    model_share / model_p are the figures the EV-implied value is compared with: the poll-informed share, else (compared = 'past') the no-poll one."""
     pc, est, pol = r.get("precount") or {}, r.get("estimate") or {}, r.get("polls") or {}
-    share = num(pc.get("share")) if pc else None
-    basis = "registered model (pre-count)" if share is not None else None
-    P = num(pc.get("P")) if pc else None
+    past, past_p = (num(pc.get("share")), num(pc.get("P"))) if pc else (None, None)
+    ver = pc.get("poll_model") or "v2" if pc else None
+    polled, polled_p = (num(pc.get(f"share_{ver}")), num(pc.get(f"P_{ver}"))) if pc else (None, None)
+    if pc and polled is None and ver != "v2":
+        ver, polled, polled_p = "v2", num(pc.get("share_v2")), num(pc.get("P_v2"))
+    share, P, basis, compared = polled, polled_p, f"registered model with polls ({ver})" if polled is not None else None, "polls"
+    if share is None and past is not None:
+        share, P, basis, compared = past, past_p, "registered model, past results only (no polls)", "past"
     if share is None and est:
-        share, P, basis = num(est.get("share")), num(est.get("P")), f"poll-based estimate ({est.get('basis') or 'polls'})"
+        share, P, basis, compared = num(est.get("share")), num(est.get("P")), f"poll-based estimate ({est.get('basis') or 'polls'})", "polls"
     pm, kx = (r.get("pm") or {}).get("price"), (r.get("kalshi") or {}).get("price")
+    pct = lambda v: None if v is None else 100.0 * v  # noqa: E731
     return {
-        "model_share": None if share is None else 100.0 * share, "model_p": P, "model_basis": basis,
+        "model_share": pct(share), "model_p": P, "model_basis": basis, "compared": compared,
+        "past_share": pct(past), "past_p": past_p, "polled_share": pct(polled), "polled_p": polled_p, "polled_version": ver if polled is not None else None,
         "polls_avg": None if num(pol.get("avg")) is None else 100.0 * pol["avg"], "polls_p": num(pol.get("p_win")), "polls_n": pol.get("n_polls"),
         "pm": num(pm), "kalshi": num(kx),
     }
@@ -211,9 +221,11 @@ def implied_block(st: str, office: str, race: dict[str, Any], blk: dict[str, Any
            "vs_model": verdict(imp, view["model_share"]), "vs_polls": None}
     if view["polls_avg"] is not None:
         out["vs_polls"] = verdict(imp, view["polls_avg"])
+    if view["compared"] == "past":
+        out["note"] = "no poll-informed registered model for this race: compared with the past-results-only share"
     d_party = (race.get("dem_side") or {}).get("party")
     if d_party and d_party != "D":
-        out["note"] = f"the D-side candidate is {d_party}: registered D share is a rougher guide"
+        out["note"] = (out.get("note", "") + f" the D-side candidate is {d_party}: registered D share is a rougher guide").strip()
     if a_office != office:
         out["note"] = (out.get("note", "") + f" 2022 {a_office} result used (no 2022 {office} race)").strip()
     return out

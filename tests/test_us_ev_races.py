@@ -103,3 +103,23 @@ def test_secondary_2022_only_at_matching_stage():
     ia = er.found_2022("IA", 1)
     assert ia["prov"] == "secondary" and ia["D"] == 51.4
     assert er.found_2022("IA", 3) is None and er.found_2022("ZZ", 1) is None
+
+
+def test_poll_informed_share_is_compared_and_past_share_shown():
+    r = _race("aa-sen", "aa", "senate", share=0.4835, p=0.36)
+    r["precount"].update({"poll_model": "v3", "share_v2": 0.5603, "P_v2": 0.8377, "share_v3": 0.5603, "P_v3": 0.9569})
+    v = er.race_view(r)
+    assert v["past_share"] == pytest.approx(48.35) and v["past_p"] == 0.36
+    assert v["polled_share"] == pytest.approx(56.03) and v["polled_p"] == 0.9569 and v["polled_version"] == "v3"
+    assert v["model_share"] == pytest.approx(56.03) and v["compared"] == "polls"
+    ov = {"as_of": "x", "offices": {"senate": {"races": [r]}, "governor": {"races": []}}}
+    imp = er.build(ov, _tm("AA", 550, 450, 300), _panel("aa", 600, 400, 200), _miss("aa", 52.0))["races"][0]["implied"]
+    assert imp["implied"] == pytest.approx(47.0) and imp["vs_model"]["text"] == "EV leans R by 9.0"   # 47.0 vs 56.03
+
+
+def test_no_poll_version_falls_back_to_past_share_and_says_so():
+    v = er.race_view(_race("aa-sen", "aa", "senate", share=0.47))
+    assert v["compared"] == "past" and v["polled_share"] is None and v["model_share"] == pytest.approx(47.0)
+    ov = {"as_of": "x", "offices": {"senate": {"races": [_race("aa-sen", "aa", "senate", share=0.47)]}, "governor": {"races": []}}}
+    imp = er.build(ov, _tm("AA", 550, 450, 300), _panel("aa", 600, 400, 200), _miss("aa", 52.0))["races"][0]["implied"]
+    assert "past-results-only" in imp["note"]

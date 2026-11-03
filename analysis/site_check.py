@@ -723,17 +723,17 @@ async def check_evr_table(page: Page, viewport_name: str) -> list[str]:
     p = await page.evaluate("""() => ({ rows: document.querySelectorAll('.evr-races tbody tr').length, heads: document.querySelectorAll('.evr-races thead th').length,
         text: document.getElementById('evr-table').innerText, hidden: document.getElementById('evr-table').hidden })""")
     low = p["text"].lower()
-    if p["hidden"] or p["rows"] != len(ev["races"]) or p["heads"] != 7:
+    if p["hidden"] or p["rows"] != len(ev["races"]) or p["heads"] != 8:
         out.append(f"races table has {p['rows']} rows of {len(ev['races'])} and {p['heads']} columns: {p['hidden']=}")
     for want in ("registration-based", "not used by any model", "failed the project's registered test (right on direction 61 %, made estimates worse)", f"{ev['n_states_with_estimate']} states"):
         if want not in low:
             out.append(f"races table lacks the wording {want!r}")
     if re.search(r"forecast", low):
         out.append("races table uses the word 'forecast'")
-    await page.click(".evr-races thead th:nth-child(2) button")
-    sort1 = await page.evaluate("document.querySelector('.evr-races thead th:nth-child(2)').getAttribute('aria-sort')")
-    await page.click(".evr-races thead th:nth-child(2) button")
-    sort2 = await page.evaluate("document.querySelector('.evr-races thead th:nth-child(2)').getAttribute('aria-sort')")
+    await page.click(".evr-races thead th:nth-child(3) button")
+    sort1 = await page.evaluate("document.querySelector('.evr-races thead th:nth-child(3)').getAttribute('aria-sort')")
+    await page.click(".evr-races thead th:nth-child(3) button")
+    sort2 = await page.evaluate("document.querySelector('.evr-races thead th:nth-child(3)').getAttribute('aria-sort')")
     if {sort1, sort2} != {"ascending", "descending"}:
         out.append(f"races table sort does not toggle: {sort1} / {sort2}")
     await page.click(".evr-filter button[data-only='1']")
@@ -756,8 +756,11 @@ async def check_evr_table(page: Page, viewport_name: str) -> list[str]:
     t1 = await page.evaluate(row_top)
     sel = await page.evaluate("document.querySelectorAll('.evr-races tbody tr.sel').length")
     # the panel above may change height (the browser's scroll anchoring then moves scrollY with it); a scroll is a row that left its place
-    if y1 > y0 + 2 and abs(t1 - t0) > 8:
-        out.append(f"clicking a race scrolled the page ({y0} -> {y1}, the row moved {t0:.0f} -> {t1:.0f})")
+    await page.wait_for_timeout(2800)  # the panel's series finish drawing and the position is held
+    y2 = await page.evaluate("scrollY")
+    t2 = await page.evaluate(row_top)
+    if abs(t1 - t0) > 1 or abs(t2 - t0) > 1:
+        out.append(f"clicking a race moved it on screen (scrollY {y0} -> {y1} -> {y2}; the row at {t0:.1f} -> {t1:.1f} -> {t2:.1f})")
     if not sel:
         out.append("the clicked race's row is not marked selected")
     return out
