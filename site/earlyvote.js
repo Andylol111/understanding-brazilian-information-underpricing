@@ -127,12 +127,33 @@ const MAPM = {
     note: () => "This year's ballots divided by the 2022 ballots on the same number of days before Election Day. 1.00× is level with 2022. Shown only where a state published a comparable 2022 figure; the rest are grey." },
   expected: { label: "% of model's expected", val: (c) => modelOf(c)?.banked_pct_expected, fmt: pc, short: (v) => `${Math.round(v)}%`, colors: SEQ, unit: "of expected", derived: true, asof: () => (S.model ? stamp(S.model.generated_utc) : "–"), src: () => "turnout_model.json (banked ballots over the models' expected votes)",
     note: () => "Banked ballots (early, mail, and Election Day check-ins where published) over the total votes the registered models expect; breaks are quintiles. Unvalidated context, not used by any model. Ballots include third-party and blank votes, so shares run a little high." },
-  lead: { label: "Party lead (registration)", val: (c) => c.lead, fmt: pt, short: (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(0)}`, fixed: [-10, -3, 3, 10], colors: DIVP, unit: "D minus R", asof: (c) => dayShort(c.as_of), src: (c) => `${SRC[c.status]}; party registration`,
-    note: () => "Democratic minus Republican share of returned ballots, by the voter's party registration, only where a state publishes it. Registration is not a vote: unaffiliated and crossover voters are large." },
+  lead: { label: "Party lead of banked ballots (registration)", val: (c) => c.lead, fmt: pt, short: (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(0)}`, fixed: [-10, -3, 3, 10], colors: DIVP, unit: "D minus R", asof: (c) => dayShort(c.as_of), src: (c) => `${SRC[c.status]}; party registration`,
+    note: () => "Democratic minus Republican share of returned ballots, by the voter's party registration, only where a state publishes it; at county level, the county's own party figures where its state publishes them. Registration, not votes; unaffiliated and crossover voters are large." },
+  shift: { label: "Party shift vs 2022 (registration)", val: (c) => S.races?.[c.st.toUpperCase()]?.shift?.d_share_dr_pt ?? null, fmt: pt, short: (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}`, fixed: [-3, -1, 1, 3], colors: DIVP, unit: "change in the Democratic share of D+R ballots vs 2022 at the same point", asof: (c) => dayShort(S.races?.[c.st.toUpperCase()]?.party?.as_of), src: () => "ev_races.json: party registration of returned ballots, this year against the 2022 final pre-election report",
+    note: () => "Change in the Democratic share of Democratic plus Republican returned ballots (by party registration) against the same measure in 2022, only where both years' party figures exist; there is no county version. Registration, not votes; unaffiliated and crossover voters are large." },
   coverage: { label: "Data coverage", val: null, note: () => "Which states publish counts we can collect, at what level, and which we fill from the UF Election Lab compilation." },
 };
+// County figures from turnout_model.json's county tables for the counties level; a measure with no county figure leaves the counties grey.
+const cparty = (r) => { const p = r.party; if (!p || p.D == null || p.R == null) return null; const t = ["D", "R", "U", "other", "O"].reduce((a, k) => a + (+p[k] || 0), 0); return t > 0 ? { v: (100 * (p.D - p.R)) / t, asof: p.as_of } : null; };
+const CVAL = {
+  expected: { f: (r) => (!r.no_figure && r.exp > 0 && r.banked != null ? { v: (100 * r.banked) / r.exp, asof: r.as_of } : null), src: (r) => `turnout_model.json county table: banked over expected${r.prov ? `, ${r.prov}` : ""}` },
+  lead: { f: cparty, src: () => "county party registration of returned ballots" },
+};
+const countyRows = (st) => S.model?.states?.[st.toUpperCase()]?.counties ?? [];
+const countyFill = (st) => {
+  const cv = CVAL[S.metric];
+  if (!cv || !S.scale) return null;
+  const out = new Map();
+  for (const r of countyRows(st)) { const x = cv.f(r); if (x) out.set(r.fips, S.scale.colors[d3.bisect(S.scale.breaks, x.v)]); }
+  return out;
+};
+function countyTipHTML(st, cty) {
+  const head = `<b>${esc(cty.name)}, ${esc(st.toUpperCase())}</b>`, m = MAPM[S.metric], cv = CVAL[S.metric];
+  const row = countyRows(st).find((r) => r.fips === cty.fips), x = row && cv ? cv.f(row) : null;
+  return x ? `${head}<br>${esc(m.fmt(x.v))}${S.metric === "lead" ? " D minus R" : " of expected"}<br>As of ${esc(dayShort(x.asof))}<br>Source: ${esc(cv.src(row))}` : `${head}<br>No county figure for this measure<br>Source: turnout_model.json county tables`;
+}
 const covKey = (c) => (c.status !== "collected" ? c.status : c.partial ? "partial" : c.level);
-const metricsAvailable = () => Object.keys(MAPM).filter((k) => k !== "expected" || S.model);
+const metricsAvailable = () => Object.keys(MAPM).filter((k) => (k !== "expected" || S.model) && (k !== "shift" || S.index.states.some((c) => MAPM.shift.val(c) != null)));
 // breaks: fixed ones, else quintiles of this metric's values, rounded and de-duplicated (colours thin out with them)
 function scaleOf(k) {
   const m = MAPM[k];
@@ -220,8 +241,8 @@ function drawMetricUI() {
   } else {
     const m = MAPM[S.metric], { breaks: b, colors } = S.scale, f = (v) => m.short(v);
     const labs = colors.map((_, i) => (i === 0 ? `below ${f(b[0])}` : i === b.length ? `${f(b[i - 1])} and above` : `${f(b[i - 1])} to ${f(b[i])}`));
-    if (S.metric === "lead") { labs[0] = `Republican by more than ${Math.abs(b[0])} pt`; labs[b.length] = `Democratic by more than ${b[b.length - 1]} pt`; labs[2] = "within 3 pt"; }
-    lg.innerHTML = `<ul class="party-legend">${colors.map((c, i) => `<li><i style="background:${c}"></i>${esc(labs[i])}</li>`).join("")}<li><i style="background:${NOFIG}"></i>no figure</li></ul>`;
+    if (S.metric === "lead" || S.metric === "shift") { labs[0] = `Republican side by more than ${Math.abs(b[0])} pt`; labs[b.length] = `Democratic side by more than ${b[b.length - 1]} pt`; labs[2] = `within ${b[2]} pt`; }
+    lg.innerHTML = `<ul class="party-legend">${colors.map((c, i) => `<li><i style="background:${c}"></i>${esc(labs[i])}</li>`).join("")}<li><i style="background:${NOFIG}"></i>no figure</li></ul>${S.metric === "lead" || S.metric === "shift" ? `<p class="legend-note">Registration, not votes; unaffiliated and crossover voters are large.</p>` : ""}`;
   }
   updateSel();
 }
@@ -230,13 +251,14 @@ function recolorMap() {
   S.us.colour(new Map(S.index.states.map((c) => [c.st, fillOf(c)])));
   const m = MAPM[S.metric];
   S.us.values(new Map(S.metric === "coverage" ? [] : S.index.states.filter((c) => m.val(c) != null).map((c) => [c.st, m.short(m.val(c))])));
+  S.us.counties(countyFill);
   for (const c of S.index.states) S.us.label(c.st, mapText(c));
 }
 // the hover card of election.html (.place-card), over the map box
-function showTip(c, at) {
+function showTip(c, at, cty) {
   const card = $("#cov-tip");
   if (!c) { card.hidden = true; return; }
-  card.innerHTML = `<p class="pc-name">${tipHTML(c)}</p>`;
+  card.innerHTML = `<p class="pc-name">${cty ? countyTipHTML(c.st, cty) : tipHTML(c)}</p>`;
   card.hidden = false;
   const box = $("#cov-map").getBoundingClientRect(), pos = at ?? [box.width / 2, box.height / 2];
   if (matchMedia("(min-width: 700px)").matches) {
@@ -253,12 +275,15 @@ async function drawCoverageMap() {
   const at = (ev) => { const r = box.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
   S.us = await usMap(box, {
     names: (r) => by.get(r)?.name ?? r.toUpperCase(),
-    onHover: (r, ev) => showTip(r ? by.get(r) : null, ev ? at(ev) : null),
+    onHover: (r, ev, cty) => showTip(r ? by.get(r) : null, ev ? at(ev) : null, cty),
     onClick: (r) => select(r),
     onFocus: (r) => showTip(r ? by.get(r) : null, null),
+    onZoom: () => showTip(null),
   });
   if (S.st) S.us.select(S.st);
-  $("#cov-legend-toggle").onclick = () => { const lg = $("#cov-legend"), on = lg.hidden; lg.hidden = !on; $("#cov-legend-toggle").textContent = on ? "Hide legend" : "Show legend"; $("#cov-legend-toggle").setAttribute("aria-expanded", String(on)); };
+  const setLegend = (on) => { $("#cov-legend").hidden = !on; $("#cov-legend-toggle").textContent = on ? "Hide legend" : "Legend"; $("#cov-legend-toggle").setAttribute("aria-expanded", String(on)); };
+  $("#cov-legend-toggle").onclick = () => setLegend($("#cov-legend").hidden);
+  setLegend(matchMedia("(min-width: 701px)").matches); // the election page's key starts collapsed on a narrow screen
   drawMetricUI();
   recolorMap();
 }
@@ -390,7 +415,7 @@ async function select(st) {
   const u = new URL(location.href); u.searchParams.set("st", st); history.replaceState(null, "", u);
   $("#st-pick").value = st;
   $("#cov-table tbody").querySelectorAll("tr").forEach((r) => r.classList.toggle("sel", r.dataset.st === st));
-  S.us?.select(st);
+  S.us?.open(st);
   $("#st-sec").hidden = false;
   for (const el of document.querySelectorAll("#st-chips, #st-uf, #st-sources")) el.hidden = false;
   updateSel();
@@ -556,6 +581,7 @@ async function boot() {
   pick.innerHTML = `<option value="">Choose a state</option>` + idx.states.map((c) => `<option value="${c.st}">${esc(c.name)}${c.status === "collected" ? "" : ` (${STATUS[c.status]})`}</option>`).join("");
   pick.onchange = () => { if (pick.value) select(pick.value); };
   S.model = await getJSON("ev2026/turnout_model.json", { optional: true }).catch(() => null);
+  S.races = (await getJSON("ev2026/ev_races.json", { optional: true }).catch(() => null))?.states ?? null; // party_2022 / shift per state, for the shift map
   drawCoverage();
   const td = initTurnout(drawFindings);
   drawFindings();

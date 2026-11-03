@@ -26,14 +26,23 @@ const STATUS = {
   none: ["none found", "No turnout count found for this state."], blocked: ["blocked", "The source is blocked or excluded by project rule."], excluded: ["blocked", "The source is excluded by project rule."],
 };
 const STATUS_FILL = { all_methods: "#2f8a6c", partial_methods: "#86bfa7", counties_only: "#c9a24a", none: null, blocked: "#d9743a", excluded: "#d9743a" };
+const NEUTRAL = "#f4f2ec", DEMC = "#1f5fbf", REPC = "#c8102e"; // the election page's party colours
+const DIVP = [d3.interpolateLab(NEUTRAL, REPC)(0.95), d3.interpolateLab(NEUTRAL, REPC)(0.5), NEUTRAL, d3.interpolateLab(NEUTRAL, DEMC)(0.5), d3.interpolateLab(NEUTRAL, DEMC)(0.95)];
+const sgn = (v, d = 0) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(d)}`;
+const REG = "Registration, not votes; unaffiliated and crossover voters are large.";
+// lead of banked ballots by party registration: (D - R) over all ballots with a party figure, as the files' own lead is
+const leadOf = (p) => { if (!p || p.D == null || p.R == null) return null; const t = ["D", "R", "U", "other", "O"].reduce((a, k) => a + (+p[k] || 0), 0); return t > 0 ? (100 * (p.D - p.R)) / t : null; };
 const METRICS = {
-  expected: { label: "Banked, % of expected votes", val: (s) => s.banked_pct_expected, fmt: (v) => pc(v), dom: [0, 100], unit: "of the votes the model expects" },
+  expected: { label: "Banked, % of expected votes", val: (s) => s.banked_pct_expected, fmt: (v) => pc(v), dom: [0, 100], unit: "of the votes the model expects", cval: (r) => (!r.no_figure && r.exp > 0 && r.banked != null ? { v: (100 * r.banked) / r.exp, asof: r.as_of } : null), csrc: "county table, banked over expected" },
   total22: { label: "Banked, % of 2022 total", val: (s) => s.banked_pct_2022, fmt: (v) => pc(v), dom: [0, 100], unit: "of the 2022 total" },
   same22: { label: "Now vs 2022, same point", val: (s) => s.vs_2022_same_point, fmt: (v) => `${v.toFixed(2)}×`, dom: [0.5, 1.5], div: true, unit: "of the 2022 count at the same point" },
+  lead: { label: "Party lead of banked ballots (registration)", val: (s) => leadOf(s.party?.[0]), fmt: (v) => `${sgn(v, 1)} pt`, bins: [-10, -3, 3, 10], unit: "D minus R, by party registration", reg: true, short: (v) => sgn(v), asof: (s) => s.party?.[0]?.as_of, cval: (r) => { const v = leadOf(r.party); return v == null ? null : { v, asof: r.party.as_of }; }, csrc: "county party registration of returned ballots" },
+  shift: { label: "Party shift vs 2022 (registration)", val: (s) => T.races?.[s.st]?.shift?.d_share_dr_pt ?? null, fmt: (v) => `${sgn(v, 1)} pt`, bins: [-3, -1, 1, 3], unit: "change in the Democratic share of D+R ballots vs 2022, same point", reg: true, short: (v) => sgn(v, 1), asof: (s) => T.races?.[s.st]?.party?.as_of, src: "ev_races.json, party registration of returned ballots against the 2022 final pre-election report; no county version" },
+  out: { label: "Mail ballots not yet returned", val: (s) => (s.outstanding?.ok && s.outstanding.pct_returned != null ? 100 - s.outstanding.pct_returned : null), fmt: (v) => pc(v), dom: [0, 100], unit: "of ballots sent or requested, not yet returned", asof: (s) => s.outstanding?.as_of_utc ?? s.outstanding?.as_of_date, extra: (s) => `${int(s.outstanding.value)} not yet returned of ${int(s.outstanding.issued)} ${s.outstanding.issued_label}`, cval: (r) => (r.mail && r.mail.issued > 0 ? { v: (100 * r.mail.outstanding) / r.mail.issued, asof: r.mail.as_of, extra: `${int(r.mail.outstanding)} not yet returned of ${int(r.mail.issued)} ${r.mail.label ?? "sent"}` } : null), csrc: "county mail table, sent minus returned" },
   type: { label: "Data type", cat: true },
 };
 
-const T = { m: null, vol: null, st: null, metric: "expected", us: null, ev: new Map(), sort: { key: "exp", dir: -1 }, gen: "", drawn: false };
+const T = { races: null, m: null, vol: null, st: null, metric: "expected", us: null, ev: new Map(), sort: { key: "exp", dir: -1 }, gen: "", drawn: false };
 
 function asOf(iso, genMs) {
   if (!iso) return { text: "as-of unclear", stale: false };
@@ -61,52 +70,97 @@ async function drawHist() {
 // -------------------------------------------------------------------------------------------------------------------- map
 const seq = d3.scaleSequential(d3.interpolateGreens).domain([0, 100]);
 const seqColor = (v) => seq(Math.max(0, Math.min(100, v)) * 0.85 + 8);
+const NOFIG = "#e6e4dd";
+// one colour for one value of the current measure, for a state or a county alike
+function colourOf(M, v) {
+  if (v == null) return null;
+  if (M.bins) return DIVP[d3.bisect(M.bins, v)];
+  if (M.div) return d3.interpolateRdBu(1 - Math.max(0, Math.min(1, (v - M.dom[0]) / (M.dom[1] - M.dom[0]))));
+  return seqColor(v);
+}
 function fillFor(s) {
   const M = METRICS[T.metric];
   if (!s) return null;
   if (M.cat) return STATUS_FILL[s.status];
-  const v = M.val(s);
-  if (v == null) return null;
-  if (M.div) return d3.interpolateRdBu(1 - Math.max(0, Math.min(1, (v - M.dom[0]) / (M.dom[1] - M.dom[0]))));
-  return seqColor(v);
+  return colourOf(M, M.val(s));
 }
 function tip(s) {
   if (!s) return "";
   const M = METRICS[T.metric];
   const v = M.cat ? null : M.val(s);
-  return `${s.name}: ${M.cat ? STATUS[s.status][0] : v != null ? `${M.fmt(v)} ${M.unit}` : "no figure for this measure"}${s.banked ? `; ${int(s.banked.value)} banked${s.banked.complete ? "" : " (lower bound)"}` : ""}`;
+  return `${s.name}: ${M.cat ? STATUS[s.status][0] : v != null ? `${M.fmt(v)} ${M.unit}` : "no figure for this measure"}${!M.cat && v != null && M.extra ? `; ${M.extra(s)}` : ""}${s.banked ? `; ${int(s.banked.value)} banked${s.banked.complete ? "" : " (lower bound)"}` : ""}`;
 }
-function mapCard(s) {
+// the hover card of election.html (.place-card): a state, or one county of the open state (name, value, as-of, source)
+function mapCard(s, at, cty) {
   const el = $("#tdd-tip");
   if (!s) { el.hidden = true; return; }
-  el.innerHTML = `<p><b>${esc(s.name)}</b></p><p>${esc(tip(s))}</p><p class="pc-hint">Click for full state detail beside the map.</p>`;
+  const M = METRICS[T.metric];
+  if (cty) {
+    const row = s.counties.find((r) => r.fips === cty.fips), x = row && M.cval ? M.cval(row) : null;
+    el.innerHTML = `<p><b>${esc(cty.name)}, ${esc(s.st)}</b></p>` + (x
+      ? `<p>${esc(M.fmt(x.v))} ${esc(M.unit)}${x.extra ? `<br>${esc(x.extra)}` : ""}</p><p class="pc-hint">As of ${esc(stamp(x.asof))} · Source: ${esc(M.csrc)}${row.prov ? `, ${esc(PROV[row.prov] ?? row.prov)}` : ""}</p>`
+      : `<p>No county figure for this measure</p><p class="pc-hint">Source: turnout_model.json county tables</p>`);
+  } else {
+    const asof = !M.cat && M.asof ? M.asof(s) : null;
+    el.innerHTML = `<p><b>${esc(s.name)}</b></p><p>${esc(tip(s))}</p>${asof ? `<p class="pc-hint">As of ${esc(stamp(asof))}${M.src ? ` · Source: ${esc(M.src)}` : ""}</p>` : ""}${M.reg ? `<p class="pc-hint">${REG}</p>` : ""}<p class="pc-hint">Click to open its counties and the full state detail.</p>`;
+  }
   el.hidden = false;
+  const box = $("#tdd-map").getBoundingClientRect(), pos = at ?? [box.width / 2, box.height / 2];
+  if (matchMedia("(min-width: 700px)").matches) {
+    let x = pos[0] + 16, y = pos[1] + 16;
+    if (x + el.offsetWidth > box.width - 8) x = pos[0] - el.offsetWidth - 16;
+    if (y + el.offsetHeight > box.height - 8) y = Math.max(8, box.height - el.offsetHeight - 8);
+    el.style.left = `${Math.max(8, x)}px`; el.style.top = `${Math.max(8, y)}px`;
+  } else { el.style.left = ""; el.style.top = ""; }
+}
+function countyFill(st) {
+  const M = METRICS[T.metric], s = T.m.states[st.toUpperCase()], out = new Map();
+  if (!s || !M.cval) return out;
+  for (const r of s.counties) { const x = M.cval(r); if (x) out.set(r.fips, colourOf(M, x.v)); }
+  return out;
 }
 async function drawMap() {
   const states = T.m.states, host = $("#tdd-map"), M = METRICS[T.metric];
   if (!T.us) {
+    const at = (ev) => { const r = host.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
     T.us = await usMap(host, {
       names: (r) => states[r.toUpperCase()]?.name ?? r.toUpperCase(),
-      onHover: (r) => mapCard(r ? states[r.toUpperCase()] : null),
+      onHover: (r, ev, cty) => mapCard(r ? states[r.toUpperCase()] : null, ev ? at(ev) : null, cty),
       onClick: (r) => select(r.toUpperCase()),
-      onFocus: (r) => mapCard(r ? states[r.toUpperCase()] : null),
+      onFocus: (r) => mapCard(r ? states[r.toUpperCase()] : null, null),
+      onZoom: () => mapCard(null),
     });
+    const setLegend = (on) => { $("#tdd-legend").hidden = !on; $("#tdd-legend-toggle").textContent = on ? "Hide legend" : "Legend"; $("#tdd-legend-toggle").setAttribute("aria-expanded", String(on)); };
+    $("#tdd-legend-toggle").onclick = () => setLegend($("#tdd-legend").hidden);
+    setLegend(matchMedia("(min-width: 701px)").matches); // the election page's key starts collapsed on a narrow screen
   }
-  T.us.colour(new Map(Object.values(states).map((s) => [s.st.toLowerCase(), fillFor(s) ?? "#e6e4dd"])));
-  T.us.values(new Map(M.cat ? [] : Object.values(states).filter((s) => M.val(s) != null).map((s) => [s.st.toLowerCase(), M.div ? `${M.val(s).toFixed(2)}×` : `${Math.round(M.val(s))}%`])));
+  T.us.colour(new Map(Object.values(states).map((s) => [s.st.toLowerCase(), fillFor(s) ?? NOFIG])));
+  T.us.values(new Map(M.cat ? [] : Object.values(states).filter((s) => M.val(s) != null).map((s) => [s.st.toLowerCase(), M.short ? M.short(M.val(s)) : M.div ? `${M.val(s).toFixed(2)}×` : `${Math.round(M.val(s))}%`])));
+  T.us.counties(countyFill);
   T.us.select(T.st?.toLowerCase());
   for (const s of Object.values(states)) T.us.label(s.st.toLowerCase(), tip(s));
+  const none = `<li><i style="background:${NOFIG}"></i>no figure</li>`;
   $("#tdd-legend").innerHTML = M.cat
-    ? `<ul class="party-legend">${["all_methods", "partial_methods", "counties_only", "blocked"].map((k) => `<li><i style="background:${STATUS_FILL[k]}"></i>${STATUS[k][0]}</li>`).join("")}<li><i style="background:#e6e4dd"></i>none found</li></ul>`
-    : `<ul class="party-legend"><li>${M.fmt(M.dom[0])}<span class="grad" style="background:linear-gradient(90deg,${M.div ? `${d3.interpolateRdBu(1)},${d3.interpolateRdBu(0.5)},${d3.interpolateRdBu(0)}` : `${seqColor(0)},${seqColor(100)}`})"></span>${M.fmt(M.dom[1])}</li><li><i style="background:#e6e4dd"></i>no figure</li></ul>`;
-  $("#tdd-metric-note").textContent = M.cat ? "How much of the vote each state's published counts cover." : `${M.label}. Only whole-state counts are shown; states with only county sums or none are grey. Unvalidated context, not used by any model.`;
+    ? `<ul class="party-legend">${["all_methods", "partial_methods", "counties_only", "blocked"].map((k) => `<li><i style="background:${STATUS_FILL[k]}"></i>${STATUS[k][0]}</li>`).join("")}<li><i style="background:${NOFIG}"></i>none found</li></ul>`
+    : M.bins
+      ? `<ul class="party-legend">${DIVP.map((c, i) => `<li><i style="background:${c}"></i>${i === 0 ? `Republican side by more than ${Math.abs(M.bins[0])} pt` : i === 4 ? `Democratic side by more than ${M.bins[3]} pt` : i === 2 ? `within ${M.bins[2]} pt` : `${sgn(M.bins[i - 1])} to ${sgn(M.bins[i])} pt`}</li>`).join("")}${none}</ul><p class="legend-note">${REG}</p>`
+      : `<ul class="party-legend"><li>${M.fmt(M.dom[0])}<span class="grad" style="background:linear-gradient(90deg,${M.div ? `${d3.interpolateRdBu(1)},${d3.interpolateRdBu(0.5)},${d3.interpolateRdBu(0)}` : `${seqColor(0)},${seqColor(100)}`})"></span>${M.fmt(M.dom[1])}</li>${none}</ul>`;
+  $("#tdd-metric-note").textContent = M.cat ? "How much of the vote each state's published counts cover." : `${M.label}. ${M.cval ? "Click a state to see its counties on the same scale; counties with no figure are grey." : "Statewide figures only; there is no county version."} ${M.reg ? `${REG} ` : ""}Unvalidated context, not used by any model.`;
 }
 function drawMetric() {
   const tg = $("#tdd-metric");
-  tg.replaceChildren(...Object.entries(METRICS).map(([k, m]) => {
+  tg.replaceChildren(...Object.entries(METRICS).filter(([k]) => k !== "shift" || Object.values(T.m.states).some((s) => METRICS.shift.val(s) != null)).map(([k, m]) => {
     const b = document.createElement("button"); b.type = "button"; b.textContent = m.label; b.setAttribute("aria-pressed", String(T.metric === k));
     b.onclick = () => { T.metric = k; drawMetric(); drawMap(); }; return b;
   }));
+}
+// the compact panel beside the map: the chosen state in a few figures (the full dashboard follows below)
+function drawSel() {
+  const s = T.m.states[T.st], host = $("#tdd-sel");
+  if (!s) { host.innerHTML = `<p class="side-note">Click a state on the map for its counties and details.</p>`; return; }
+  const [label] = STATUS[s.status] ?? [s.status];
+  const rows = [["Banked ballots", s.banked ? `${int(s.banked.value)}${s.banked.complete ? "" : " (lower bound)"}` : "–"], ["% of expected", pc(s.banked_pct_expected)], ["Party lead (registration)", leadOf(s.party?.[0]) == null ? "–" : `${sgn(leadOf(s.party[0]), 1)} pt`], ["Mail not yet returned", s.outstanding?.ok ? int(s.outstanding.value) : "–"]];
+  host.innerHTML = `<h3 class="side-h">${esc(s.name)}</h3><p class="side-note"><span class="td-badge td-s-${s.status}">${esc(label)}</span> ${esc(s.verdict)}</p><ol class="side-list">${rows.map(([k, v]) => `<li>${esc(k)} <span class="n">${esc(v)}</span></li>`).join("")}</ol><p class="note">${s.counties.length} counties listed. ${REG} Full detail follows below the map.</p>`;
 }
 
 // -------------------------------------------------------------------------------------------------------------------- state panel
@@ -300,12 +354,13 @@ async function drawPanel() {
   document.title = `Turnout today: ${s.name}`;
 }
 
-async function select(st) {
+async function select(st, zoom = true) {
   if (!T.m.states[st]) return;
   T.st = st;
   $("#tdd-pick").value = st;
   const u = new URL(location.href); u.searchParams.set("st", st); history.replaceState(null, "", u);
-  T.us?.select(st.toLowerCase());
+  if (zoom) T.us?.open(st.toLowerCase()); else T.us?.select(st.toLowerCase());
+  drawSel();
   await drawPanel();
 }
 
@@ -320,6 +375,7 @@ async function load(first) {
   const m = await fetchJSON("turnout_model.json");
   if (!m) throw new Error("turnout_model.json is not published yet");
   T.vol = await fetchJSON("turnout_volume.json").catch(() => null);
+  T.races = (await fetchJSON("ev_races.json").catch(() => null))?.states ?? null;
   if (m.generated_utc === T.gen && m.published_utc === T.m?.published_utc) return;
   T.gen = m.generated_utc; T.m = m;
   drawStrip(); drawHist();
@@ -334,7 +390,7 @@ async function load(first) {
   }
   drawMetric();
   await drawMap();
-  await select(T.st);
+  await select(T.st, false);
   if (first) window.__tddReady = true;
 }
 

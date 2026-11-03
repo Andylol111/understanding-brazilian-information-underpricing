@@ -11,7 +11,7 @@
 <link id="ev-css" rel="stylesheet">
 <link id="td-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103c3";
+window.__BUILD = "20261103m1";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
@@ -43,17 +43,21 @@ document.getElementById("td-css").href = "turnout.css?v=" + window.__V;
   <p class="note td-hist" id="tdd-hist">Loading…</p>
   <p class="note" id="tdd-asof"></p>
 
-  <div class="td-grid">
-    <aside class="td-side">
-      <div id="tdd-map" class="map-box ev-mapbox td-mapbox" aria-label="US map. Each state is also a keyboard button.">
-        <div class="map-ui map-modes toggle" id="tdd-metric" role="group" aria-label="Map shading"></div>
-        <div class="map-ui map-legend" id="tdd-legend"></div>
-        <div class="place-card" id="tdd-tip" hidden></div>
-      </div>
+  <div class="ev-mapgrid td-mapgrid">
+    <div id="tdd-map" class="map-box ev-mapbox td-mapbox" role="group" aria-label="US map, shaded by the chosen measure. Click a state to open its counties. Each state is also a keyboard button.">
+      <div class="map-ui map-modes toggle" id="tdd-metric" role="group" aria-label="Map shading"></div>
+      <button type="button" class="map-ui map-legend-toggle" id="tdd-legend-toggle" aria-expanded="true" aria-controls="tdd-legend">Hide legend</button>
+      <div class="map-ui map-legend" id="tdd-legend"></div>
+      <div class="place-card" id="tdd-tip" hidden></div>
+    </div>
+    <aside class="ev-mapside td-side" aria-label="State detail" aria-live="polite">
+      <div class="ev-sel" id="tdd-sel"></div>
       <p class="note" id="tdd-metric-note"></p>
       <div class="ev-pick"><label class="select">State <select id="tdd-pick"></select></label></div>
     </aside>
+  </div>
 
+  <div class="td-grid">
     <div class="td-main" id="tdd-panel" aria-live="polite">
       <h2 id="tdd-title" tabindex="-1">State</h2>
       <p class="td-statusline" id="tdd-status"></p>

@@ -572,6 +572,7 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
         out.append(f"coverage map has {p['mapPaths']} states")
     if not p["c1"] or not p["c2"] or not p["chips"]:
         out.append(f"default state is missing charts or key figures: {p}")
+    out.extend(await check_county_zoom(page, "#cov-map", "#cov-tip", "#cov-legend", "#cov-metric", "early-vote map"))
     # key findings: the outstanding-mail card and the 2022 final pre-election comparison, from turnout_model.json
     tm_ = await page.evaluate("fetch('data/ev2026/turnout_model.json').then((r) => r.ok ? r.json() : null)")
     kf = await page.evaluate("document.querySelector('#kf-cards')?.textContent ?? ''")
@@ -641,6 +642,84 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
     return out
 
 
+async def check_county_zoom(page: Page, box: str, tip: str, legend: str, metric: str, name: str) -> list[str]:
+    """The early-vote and turnout maps (usMap in turnout.js) behave like the election watch: controls, a state click zooms into its counties
+    (box data-level), a county hover shows the place card with name, value, as-of and source, Back to US returns, party measures exist with their
+    registration wording, and the page never scrolls on any of it."""
+    out: list[str] = []
+    labels = await page.evaluate(f"[...document.querySelectorAll('{metric} button')].map((b) => b.textContent)")
+    if not any(t.startswith("Party lead of banked ballots") for t in labels) or not any(t.startswith("Party shift vs 2022") for t in labels):
+        out.append(f"{name}: the map lacks the party lead / party shift measures: {labels}")
+    ctl = await page.evaluate(f"[...document.querySelectorAll('{box} .map-tools button')].map((b) => b.textContent)")
+    if ctl != ["+", "−", "Fit"] or not await page.evaluate(f"!!document.querySelector('{box}').usMap && !!document.querySelector('{box} .map-national')"):
+        out.append(f"{name}: map controls are {ctl}, expected + − Fit and a Back to US button")
+    await page.evaluate(f"document.querySelector('{box}').scrollIntoView({{block: 'center'}})")
+    await page.wait_for_timeout(300)
+    if await page.evaluate(f"document.querySelector('{box}').dataset.level") == "counties":  # a state was opened from the picker
+        await page.click(f"{box} .map-national")
+        await page.wait_for_timeout(1000)
+    y0 = await page.evaluate("scrollY")
+
+    async def still(step: str) -> None:
+        y = await page.evaluate("scrollY")
+        if abs(y - y0) > 1:
+            out.append(f"{name}: the page scrolled ({y0} -> {y}) on {step}")
+
+    async def level() -> str:
+        return await page.evaluate(f"document.querySelector('{box}').dataset.level")
+
+    for label in ("Party lead of banked ballots", "Party shift vs 2022"):
+        await page.click(f"{metric} button:has-text('{label}')")
+        await page.wait_for_timeout(250)
+        lg = await page.evaluate(f"document.querySelector('{legend}').textContent")
+        if "Registration, not votes; unaffiliated and crossover voters are large." not in lg:
+            out.append(f"{name}: the {label!r} legend lacks the registration wording: {lg!r}")
+        await still(f"choosing {label!r}")
+    await page.click(f"{metric} button:has-text('Party lead of banked ballots')")
+    await page.wait_for_timeout(250)
+    pt = await page.evaluate(f"document.querySelector('{box}').usMap.pointOf('nc')")
+    await page.mouse.move(pt[0] - 5, pt[1] - 5)
+    await page.mouse.move(*pt)
+    await page.wait_for_timeout(300)
+    card = await page.evaluate(f"(() => {{ const e = document.querySelector('{tip}'); return e.hidden ? '' : e.textContent; }})()")
+    if "North Carolina" not in card:
+        out.append(f"{name}: hovering a state shows no place card with its name: {card!r}")
+    await page.mouse.click(*pt)
+    try:
+        await page.wait_for_function(f"document.querySelector('{box}').dataset.level === 'counties' && document.querySelector('{box}').dataset.focus === 'nc'", timeout=4000)
+    except Exception:
+        out.append(f"{name}: clicking a state did not zoom to its counties (level {await level()})")
+        return out
+    await page.wait_for_timeout(1300)
+    await still("a state click")
+    cp = await page.evaluate(f"document.querySelector('{box}').usMap.countyPoint('37183')")
+    if not cp:
+        out.append(f"{name}: no county point for Wake County")
+    else:
+        await page.mouse.move(cp[0] - 3, cp[1] - 3)
+        await page.mouse.move(*cp)
+        await page.wait_for_timeout(300)
+        card = await page.evaluate(f"(() => {{ const e = document.querySelector('{tip}'); return e.hidden ? '' : e.textContent; }})()")
+        if "Wake" not in card or "As of" not in card or "Source" not in card or "D minus R" not in card:
+            out.append(f"{name}: a county hover card lacks name / value / as-of / source: {card!r}")
+    await still("a county hover")
+    await page.click(f"{box} .map-tools button[data-act='in']")
+    await page.wait_for_timeout(500)
+    await still("zoom in")
+    await page.click(f"{box} .map-tools button[data-act='reset']")
+    await page.wait_for_timeout(900)
+    await still("Fit")
+    if await level() != "counties":
+        await page.mouse.click(*pt)
+        await page.wait_for_timeout(1300)
+    await page.click(f"{box} .map-national")
+    await page.wait_for_timeout(1000)
+    if await level() != "states":
+        out.append(f"{name}: Back to US did not return to the states (level {await level()})")
+    await still("Back to US")
+    return out
+
+
 async def check_turnout(page: Page, viewport_name: str) -> list[str]:
     """Turnout dashboard: header strip, map of all 51, state panel with its cards / bar / party / model section, county scatter and table, keyboard, wording."""
     out: list[str] = []
@@ -654,7 +733,7 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
     model = await page.evaluate("fetch('data/ev2026/turnout_model.json').then((r) => r.ok ? r.json() : null)")
     if not model:
         return ["turnout_model.json is not published"]
-    if not p["ready"] or p["chips"] != 7 or p["picks"] != 51 or p["map"] != 51 or p["dc"] != 1 or p["metrics"] != 4 or p["cards"] != 10:
+    if not p["ready"] or p["chips"] != 7 or p["picks"] != 51 or p["map"] != 51 or p["dc"] != 1 or p["metrics"] < 6 or p["cards"] != 10:
         out.append(f"turnout dashboard is missing its header strip, picker, map of 51 or the ten cards: {p}")
     if p["model"] != ["(a)", "(b)", "(c)", "(d)"] or not p["ctx"]:
         out.append(f"'how the model sees this' must have items (a) to (d) and the unvalidated-context label: {p}")
@@ -690,12 +769,13 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
             out.append(f"{st['st']}: county table columns do not match the model file (mail / party)")
         if st["banked"] is None and p["cards"] and "no count" not in await page.evaluate("document.querySelector('#tdd-kpis').textContent"):
             out.append(f"{st['st']}: a state with no count should say so")
-    # the four map measures all redraw 51 shapes; the map is keyboard operable
-    for i in range(4):
+    # every map measure redraws 51 shapes; the map is keyboard operable
+    for i in range(p["metrics"]):
         await page.click(f"#tdd-metric button:nth-child({i + 1})")
         n = await page.evaluate("document.querySelectorAll('#tdd-map .ev-kb button[data-st]').length")
         if n != 51:
             out.append(f"map measure {i + 1} drew {n} shapes")
+    out.extend(await check_county_zoom(page, "#tdd-map", "#tdd-tip", "#tdd-legend", "#tdd-metric", "turnout map"))
     await page.focus("#tdd-map .ev-kb button[data-st='tx']")
     await page.keyboard.press("Enter")
     await page.wait_for_function("() => document.querySelector('#tdd-title').textContent === 'Texas'")

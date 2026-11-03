@@ -11,10 +11,10 @@ body.td {
 .td-strip { margin: 6px 0 12px; }
 .td-strip .chip { background: var(--td-card); }
 .td-hist { font-size: 14px; max-width: 980px; }
-.td-grid { display: grid; grid-template-columns: minmax(300px, 4fr) minmax(0, 8fr); gap: 28px; align-items: start; margin-top: 14px; }
+.td-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; align-items: start; margin-top: 14px; }
+.td-mapgrid { margin-top: 14px; }
 .td-side { position: sticky; top: 12px; min-width: 0; }
 .td-side .toggle { flex-wrap: wrap; }
-.td-mapfig { position: static; }
 .td-main { min-width: 0; }
 .td-main h2 { margin: 0 0 6px; font-size: 32px; }
 .td-main h2:focus { outline: none; }
@@ -87,8 +87,6 @@ body.td {
   .td-strip .chip { flex: 1 1 140px; }
   .td-strip .chip small, .td-strip .chip i { white-space: normal; }
 }
-.td-mapbox { height: clamp(390px, 55vh, 590px); border: 1px solid var(--rule); }
-#tdd-tip { top: 52px; right: 10px; }
 .td-comp-cap { display: block; margin: 5px 0; padding: 5px 7px; border-left: 3px solid var(--model); color: var(--ink); }
 .td-age th, .td-age td { padding: 3px 10px 3px 0; }
 .td-age th[scope="row"] { font-weight: 600; white-space: nowrap; }
