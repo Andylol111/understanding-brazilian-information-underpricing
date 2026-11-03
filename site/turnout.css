@@ -1,28 +1,8 @@
 /* US turnout dashboard. Builds on style.css and earlyvote.css (map, legend, chips, tables); only what they lack.
-   Colours come from variables, so the dark scheme (prefers-color-scheme) re-themes the page. */
+   Same light colours as election.html. */
 body.td {
   --td-none: #e4e1d8; --td-ed: #c4501b; --td-early: #2f8a6c; --td-mail: #6a7f99; --td-adv: #7a5fa8; --td-total: #55524a;
   --td-d: #1f5fbf; --td-r: #c8102e; --td-o: #b9b5aa; --td-card: #f6f4ee; --td-line: #6a7f99; --td-snap: #c4501b; --td-ctxbg: #ece7d6; --td-ctx: #5a4a10;
-}
-@media (prefers-color-scheme: dark) {
-  html { background: #15161a; color: #e9e7e0; }
-  body.td {
-    --ink: #e9e7e0; --muted: #a7a69e; --rule: #34363c; --paper: #15161a; --td-none: #34363c; --td-card: #1d1f25; --td-line: #8fa6c4; --td-snap: #f0905a; --td-ctxbg: #3a3420; --td-ctx: #e4d38a;
-    --td-ed: #e2733c; --td-early: #4fb58f; --td-mail: #8fa6c4; --td-adv: #a98fd6; --td-total: #a7a69e; --td-d: #5a93e6; --td-r: #e8566a; --td-o: #6d6c66;
-  }
-  body.td .dek, body.td .ev-explain { color: #cfcdc5; }
-  body.td a { text-decoration-color: #5b5d63; }
-  body.td .toggle button { background: var(--paper); color: var(--muted); }
-  body.td .toggle button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
-  body.td .ev-pick select, body.td .select select { background: var(--paper); color: var(--ink); border: 1px solid var(--rule); }
-  body.td .ev-cov tbody tr:hover td { background: #22242a; }
-  body.td .ev-legend i { border-color: rgba(255, 255, 255, 0.2); }
-  body.td .ev-chart .axis path, body.td .ev-chart .axis line { stroke: #4b4d54; }
-  body.td .td-kind, body.td .td-badge { background: #2b2d33; color: #d6d4cc; }
-  body.td .td-s-all_methods { background: #1f4a3a; color: #bfe8d6; }
-  body.td .td-s-partial_methods { background: #27463a; color: #c4e4d4; }
-  body.td .td-s-counties_only { background: #4b3f1b; color: #ecd99a; }
-  body.td .td-s-blocked, body.td .td-s-excluded { background: #4f2d1b; color: #f0c0a0; }
 }
 .td-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .td-head { margin-bottom: 8px; }
@@ -107,3 +87,6 @@ body.td {
   .td-strip .chip { flex: 1 1 140px; }
   .td-strip .chip small, .td-strip .chip i { white-space: normal; }
 }
+.td-mapbox { height: clamp(390px, 55vh, 590px); border: 1px solid var(--rule); }
+#tdd-tip { top: 52px; right: 10px; }
+.td-comp-cap { display: block; margin: 5px 0; padding: 5px 7px; border-left: 3px solid var(--model); color: var(--ink); }

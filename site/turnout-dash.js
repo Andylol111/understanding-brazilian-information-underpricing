@@ -2,8 +2,8 @@
 // and, for the time series, data/ev2026/state_<st>.json. Every number shown comes from those files; this module only formats and draws them.
 // Turnout only: who voted, not how. Unvalidated context, not used by any model.
 import * as d3 from "./vendor/d3.js";
-import * as topojson from "./vendor/topojson-client.js";
-import { getJSON, esc, STATIC } from "./common.js";
+import { getJSON, esc } from "./common.js";
+import { usMap } from "./turnout.js";
 
 const $ = (s) => document.querySelector(s);
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -33,7 +33,7 @@ const METRICS = {
   type: { label: "Data type", cat: true },
 };
 
-const T = { m: null, vol: null, st: null, metric: "expected", geo: null, ev: new Map(), sort: { key: "exp", dir: -1 }, gen: "", drawn: false };
+const T = { m: null, vol: null, st: null, metric: "expected", us: null, ev: new Map(), sort: { key: "exp", dir: -1 }, gen: "", drawn: false };
 
 function asOf(iso, genMs) {
   if (!iso) return { text: "as-of unclear", stale: false };
@@ -76,29 +76,29 @@ function tip(s) {
   const v = M.cat ? null : M.val(s);
   return `${s.name}: ${M.cat ? STATUS[s.status][0] : v != null ? `${M.fmt(v)} ${M.unit}` : "no figure for this measure"}${s.banked ? `; ${int(s.banked.value)} banked${s.banked.complete ? "" : " (lower bound)"}` : ""}`;
 }
+function mapCard(s) {
+  const el = $("#tdd-tip");
+  if (!s) { el.hidden = true; return; }
+  el.innerHTML = `<p><b>${esc(s.name)}</b></p><p>${esc(tip(s))}</p><p class="pc-hint">Click for full state detail beside the map.</p>`;
+  el.hidden = false;
+}
 async function drawMap() {
-  T.geo ??= await getJSON("geo/us_regions.topo.json", { root: STATIC });
-  const fc = topojson.feature(T.geo, T.geo.objects.regions);
-  const host = $("#tdd-map"), w = Math.max(300, host.clientWidth || 560), h = Math.round(w * 0.62);
-  const proj = d3.geoAlbersUsa().fitSize([w, h], fc), path = d3.geoPath(proj);
-  const S = T.m.states, svg = d3.create("svg").attr("viewBox", `0 0 ${w} ${h}`).attr("role", "group").attr("aria-label", "Map of the states, coloured by the chosen measure; each state is a button");
-  const pick = (id) => select(id.toUpperCase(), true);
-  svg.append("g").selectAll("path").data(fc.features).join("path").attr("class", (f) => `td-st${f.id.toUpperCase() === T.st ? " sel" : ""}`).attr("d", path).attr("data-st", (f) => f.id.toUpperCase())
-    .attr("fill", (f) => fillFor(S[f.id.toUpperCase()]) ?? "var(--td-none)").attr("tabindex", 0).attr("role", "button").attr("aria-label", (f) => tip(S[f.id.toUpperCase()]))
-    .on("click", (_, f) => pick(f.id)).on("keydown", (e, f) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(f.id); } })
-    .append("title").text((f) => tip(S[f.id.toUpperCase()]));
-  const dc = fc.features.find((f) => f.id === "dc");
-  if (dc) {
-    const [x, y] = path.centroid(dc);
-    svg.append("circle").attr("class", `td-dc${T.st === "DC" ? " sel" : ""}`).attr("data-st", "DC").attr("cx", x).attr("cy", y).attr("r", 6).attr("fill", fillFor(S.DC) ?? "var(--td-none)")
-      .attr("tabindex", 0).attr("role", "button").attr("aria-label", tip(S.DC)).on("click", () => pick("dc")).on("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick("dc"); } })
-      .append("title").text(tip(S.DC));
+  const states = T.m.states, host = $("#tdd-map"), M = METRICS[T.metric];
+  if (!T.us) {
+    T.us = await usMap(host, {
+      names: (r) => states[r.toUpperCase()]?.name ?? r.toUpperCase(),
+      onHover: (r) => mapCard(r ? states[r.toUpperCase()] : null),
+      onClick: (r) => select(r.toUpperCase()),
+      onFocus: (r) => mapCard(r ? states[r.toUpperCase()] : null),
+    });
   }
-  host.replaceChildren(svg.node());
-  const M = METRICS[T.metric];
+  T.us.colour(new Map(Object.values(states).map((s) => [s.st.toLowerCase(), fillFor(s) ?? "#e6e4dd"])));
+  T.us.values(new Map(M.cat ? [] : Object.values(states).filter((s) => M.val(s) != null).map((s) => [s.st.toLowerCase(), M.div ? `${M.val(s).toFixed(2)}×` : `${Math.round(M.val(s))}%`])));
+  T.us.select(T.st?.toLowerCase());
+  for (const s of Object.values(states)) T.us.label(s.st.toLowerCase(), tip(s));
   $("#tdd-legend").innerHTML = M.cat
-    ? ["all_methods", "partial_methods", "counties_only", "blocked"].map((k) => `<span><i style="background:${STATUS_FILL[k]}"></i>${STATUS[k][0]}</span>`).join("") + `<span><i style="background:var(--td-none)"></i>none found</span>`
-    : `<span>${M.fmt(M.dom[0])}<span class="grad" style="background:linear-gradient(90deg,${M.div ? `${d3.interpolateRdBu(1)},${d3.interpolateRdBu(0.5)},${d3.interpolateRdBu(0)}` : `${seqColor(0)},${seqColor(100)}`})"></span>${M.fmt(M.dom[1])}</span><span><i style="background:var(--td-none)"></i>no figure</span>`;
+    ? `<ul class="party-legend">${["all_methods", "partial_methods", "counties_only", "blocked"].map((k) => `<li><i style="background:${STATUS_FILL[k]}"></i>${STATUS[k][0]}</li>`).join("")}<li><i style="background:#e6e4dd"></i>none found</li></ul>`
+    : `<ul class="party-legend"><li>${M.fmt(M.dom[0])}<span class="grad" style="background:linear-gradient(90deg,${M.div ? `${d3.interpolateRdBu(1)},${d3.interpolateRdBu(0.5)},${d3.interpolateRdBu(0)}` : `${seqColor(0)},${seqColor(100)}`})"></span>${M.fmt(M.dom[1])}</li><li><i style="background:#e6e4dd"></i>no figure</li></ul>`;
   $("#tdd-metric-note").textContent = M.cat ? "How much of the vote each state's published counts cover." : `${M.label}. Only whole-state counts are shown; states with only county sums or none are grey. Unvalidated context, not used by any model.`;
 }
 function drawMetric() {
@@ -267,14 +267,13 @@ async function drawPanel() {
   document.title = `Turnout today: ${s.name}`;
 }
 
-async function select(st, scroll = false) {
+async function select(st) {
   if (!T.m.states[st]) return;
   T.st = st;
   $("#tdd-pick").value = st;
   const u = new URL(location.href); u.searchParams.set("st", st); history.replaceState(null, "", u);
-  document.querySelectorAll("#tdd-map [data-st]").forEach((el) => el.classList.toggle("sel", el.dataset.st === st));
+  T.us?.select(st.toLowerCase());
   await drawPanel();
-  if (scroll && matchMedia("(max-width: 1000px)").matches) $("#tdd-title").scrollIntoView({ block: "start" });
 }
 
 // -------------------------------------------------------------------------------------------------------------------- boot
@@ -316,5 +315,5 @@ export async function initDash() {
   }
   document.fonts?.ready;
   setInterval(() => load(false).catch(() => {}), REFRESH_MS);
-  let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (T.m) { drawMap(); drawPanel(); } }, 200); });
+  let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { if (T.m) drawPanel(); }, 200); });
 }

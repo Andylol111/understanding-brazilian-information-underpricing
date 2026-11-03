@@ -556,12 +556,18 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
     """US early-vote page: coverage of all 51, map, charts for the default state and for others, county map, wording."""
     out: list[str] = []
     probe = """() => ({ rows: document.querySelectorAll('#cov-table tbody tr[data-st]').length,
-        mapPaths: document.querySelectorAll('#cov-map path.ev-st').length,
+        mapPaths: document.querySelectorAll('#cov-map .ev-kb button[data-st]').length,
         c1: document.querySelectorAll('#c1 svg path').length, c2: document.querySelectorAll('#c2 svg rect').length,
         picks: document.querySelectorAll('#st-pick option').length, chips: document.querySelectorAll('#st-chips .chip').length })"""
     p = await page.evaluate(probe)
-    if p["rows"] != 51 or p["picks"] != 51:
-        out.append(f"coverage has {p['rows']} table rows and {p['picks']} picker entries, expected 51")
+    # The map deliberately opens at a national summary; no state is preselected.
+    if await page.evaluate("new URLSearchParams(location.search).has('st')"):
+        out.append("early-vote page preselects a state instead of opening on the national summary")
+    await page.select_option("#st-pick", "nc")
+    await page.wait_for_function("new URLSearchParams(location.search).get('st') === 'nc'")
+    p.update(await page.evaluate("() => ({ c1: document.querySelectorAll('#c1 svg path').length, c2: document.querySelectorAll('#c2 svg rect').length, chips: document.querySelectorAll('#st-chips .chip').length })"))
+    if p["rows"] != 51 or p["picks"] != 52:
+        out.append(f"coverage has {p['rows']} table rows and {p['picks']} picker entries, expected 51 states plus the picker placeholder")
     if p["mapPaths"] < 51:
         out.append(f"coverage map has {p['mapPaths']} states")
     if not p["c1"] or not p["c2"] or not p["chips"]:
@@ -632,7 +638,7 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
     """Turnout dashboard: header strip, map of all 51, state panel with its cards / bar / party / model section, county scatter and table, keyboard, wording."""
     out: list[str] = []
     probe = """() => ({ ready: !!window.__tddReady, chips: document.querySelectorAll('#tdd-chips .chip').length, picks: document.querySelectorAll('#tdd-pick option').length,
-        map: document.querySelectorAll('#tdd-map path[data-st]').length, dc: document.querySelectorAll('#tdd-map circle[data-st]').length, metrics: document.querySelectorAll('#tdd-metric button').length,
+        map: document.querySelectorAll('#tdd-map .ev-kb button[data-st]').length, dc: document.querySelectorAll("#tdd-map .ev-kb button[data-st='dc']").length, metrics: document.querySelectorAll('#tdd-metric button').length,
         cards: document.querySelectorAll('#tdd-kpis .td-card').length, bar: document.querySelectorAll('#tdd-bar .td-seg').length || !!document.querySelector('#tdd-bar .note'),
         model: [...document.querySelectorAll('#tdd-model li')].map((e) => e.textContent.trim().slice(0, 3)), hist: document.querySelector('#tdd-hist')?.textContent ?? '',
         label: document.querySelector('.td-label')?.textContent ?? '', title: document.querySelector('#tdd-title')?.textContent ?? '', st: document.querySelector('#tdd-pick')?.value ?? '',
@@ -671,10 +677,10 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
     # the four map measures all redraw 51 shapes; the map is keyboard operable
     for i in range(4):
         await page.click(f"#tdd-metric button:nth-child({i + 1})")
-        n = await page.evaluate("document.querySelectorAll('#tdd-map path[data-st]').length")
+        n = await page.evaluate("document.querySelectorAll('#tdd-map .ev-kb button[data-st]').length")
         if n != 51:
             out.append(f"map measure {i + 1} drew {n} shapes")
-    await page.focus("#tdd-map path[data-st='TX']")
+    await page.focus("#tdd-map .ev-kb button[data-st='tx']")
     await page.keyboard.press("Enter")
     await page.wait_for_function("() => document.querySelector('#tdd-title').textContent === 'Texas'")
     text = await page.evaluate("document.body.innerText")

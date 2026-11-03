@@ -11,14 +11,14 @@
 <link id="ev-css" rel="stylesheet">
 <link id="td-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103b1";
+window.__BUILD = "20261103c1";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
 document.getElementById("td-css").href = "turnout.css?v=" + window.__V;
 (() => {
   const imports = {};
-  for (const f of ["common.js", "turnout-dash.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  for (const f of ["common.js", "turnout.js", "turnout-dash.js", "dash-map.js", "dash-engine.js", "dash-agg.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
   const m = document.createElement("script");
   m.type = "importmap";
   m.textContent = JSON.stringify({ imports });
@@ -27,12 +27,11 @@ document.getElementById("td-css").href = "turnout.css?v=" + window.__V;
 </script>
 </head>
 <body class="ev td">
+<header class="topbar"><a class="tb-home" href="./">All elections</a><h1 class="tb-name">US turnout today</h1><span class="tb-date">Election Day 2026</span><span class="tb-evidence">Turnout only: who voted, not how.</span></header>
 <main>
 <nav class="col sitenav" aria-label="Site"><a href="guide.html">Night guide</a> / <a href="./">Election nights</a> / <a href="earlyvote.html">US early vote</a> / <span aria-current="page">Turnout today</span> / <a href="midterms.html">Electorate by state</a> / <a href="groups.html">Live by place</a> / <a href="scorecard.html">Track record</a></nav>
 
 <header class="col td-head">
-  <p class="kicker">Election Day 2026</p>
-  <h1>US turnout today</h1>
   <p class="dek">How many ballots are already banked in each state (early, mail and Election Day check-ins), against what the project's models expect and against 2022 and 2024. It counts ballots. It does not say who will win.</p>
   <p class="td-label"><b>Turnout only: who voted, not how. Unvalidated context, not used by any model.</b></p>
   <p class="byline"><a href="earlyvote.html">Early vote by day and party registration</a> · <a href="guide.html">Night guide</a></p>
@@ -46,11 +45,11 @@ document.getElementById("td-css").href = "turnout.css?v=" + window.__V;
 
   <div class="td-grid">
     <aside class="td-side">
-      <div class="toggle" id="tdd-metric" role="group" aria-label="Map shading"></div>
-      <figure class="ev-mapfig td-mapfig">
-        <div id="tdd-map" class="ev-map"></div>
-        <div class="ev-legend" id="tdd-legend"></div>
-      </figure>
+      <div id="tdd-map" class="map-box ev-mapbox td-mapbox" aria-label="US map. Each state is also a keyboard button.">
+        <div class="map-ui map-modes toggle" id="tdd-metric" role="group" aria-label="Map shading"></div>
+        <div class="map-ui map-legend" id="tdd-legend"></div>
+        <div class="place-card" id="tdd-tip" hidden></div>
+      </div>
       <p class="note" id="tdd-metric-note"></p>
       <div class="ev-pick"><label class="select">State <select id="tdd-pick"></select></label></div>
     </aside>

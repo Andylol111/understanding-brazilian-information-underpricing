@@ -1,5 +1,6 @@
 /* US early-vote page. Builds on style.css (type, colours, tables, .chips, .toggle, .select); only what that file lacks. */
-body.ev main { padding-top: 40px; }
+body.ev, body.td { font-size: 16px; line-height: 1.45; }
+body.ev main, body.td main { padding-top: 14px; }
 /* one wide grid for the whole page (also turnout.html): every top-level block is at most 1400px, centred */
 body.ev .col, body.td .col, .ev-wrap, .ev-hero { max-width: 1400px; margin-left: auto; margin-right: auto; }
 .ev-wrap h3 { margin: 36px 0 8px; }
@@ -100,35 +101,48 @@ table.compact td.n { white-space: nowrap; }
 /* Election Day turnout summary (the viewer is on turnout.html, styled by turnout.css) */
 .td-label { font: 15px/1.5 var(--sans); margin: 4px 0 6px; }
 
-/* top: title and intro left, key findings right */
+/* top: intro left, key findings right (election.html's page chrome: .topbar, hairline panels, square cards, 16px type) */
 .ev-hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px 44px; align-items: start; }
 .ev-lead, .ev-kf { min-width: 0; }
-.ev-lead .dek { max-width: 60ch; }
+.ev-lead .dek { max-width: 60ch; font-size: 19px; }
 .ev-kf h2 { margin: 4px 0 2px; }
 .kf-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 10px 0 14px; }
-.kf-card { border: 1px solid var(--rule); border-radius: 4px; padding: 11px 13px 10px; background: #f6f4ee; min-width: 0; }
+.kf-card { border: 1px solid var(--rule); padding: 10px 12px 9px; background: var(--paper); min-width: 0; }
 .kf-card p { margin: 0; }
-.kf-k { font: 600 12px/1.3 var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
-.kf-n { font: 600 32px/1.15 var(--serif); font-variant-numeric: tabular-nums; margin: 3px 0 4px !important; overflow-wrap: anywhere; }
+.kf-k { font: 600 12px/1.3 var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin: 8px 0 2px; }
+.kf-card .kf-k { margin: 0; }
+.kf-n { font: 700 28px/1.15 var(--serif); font-variant-numeric: tabular-nums; margin: 3px 0 4px !important; overflow-wrap: anywhere; }
 .kf-m { font: 13.5px/1.4 var(--sans); }
-.kf-a { font: 12px/1.35 var(--sans); color: var(--muted); margin-top: 5px !important; }
-.kf-ctx { font: 600 11px/1.3 var(--sans); color: #5a4a10; background: #ece7d6; display: inline-block; padding: 1px 5px; border-radius: 2px; margin-top: 5px; }
+.kf-a { font: 12px/1.35 var(--sans); color: var(--muted); margin-top: 3px; }
+.kf-card .kf-a { margin-top: 5px; }
+.kf-ctx { font: 600 11px/1.3 var(--sans); color: #5a4a10; background: #ece7d6; display: inline-block; padding: 1px 5px; margin-top: 5px !important; }
 .kf-list { margin: 0 0 8px; padding-left: 20px; font: 15px/1.5 var(--sans); }
 .kf-list li { margin: 0 0 5px; }
 #kf-more p { margin: 8px 0; }
 
-/* map with the early data */
-#cov-metric { margin: 10px 0 14px; }
-.ev-mapgrid { display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); gap: 28px; align-items: start; }
-.ev-mapgrid .ev-mapfig { position: relative; top: 0; }
-.ev-mapside { position: sticky; top: 12px; min-width: 0; }
-.ev-selcard { border: 1px solid var(--rule); border-radius: 4px; padding: 12px 14px; background: #f6f4ee; font: 14px/1.45 var(--sans); }
-.ev-selcard b.big { display: block; font: 600 30px/1.15 var(--serif); margin: 2px 0; }
-.ev-selcard p { margin: 4px 0 0; }
-.ev-selcard button { font: 600 13px var(--sans); margin-top: 8px; padding: 4px 10px; cursor: pointer; }
-.ev-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--paper); border: 1px solid var(--ink); border-radius: 3px; padding: 6px 9px; font: 12.5px/1.4 var(--sans); max-width: 260px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
-.ev-tip[hidden] { display: none; }
-.ev-legend .nofig { color: var(--muted); }
+/* map with the early data: the election page's map (canvas, hover card, legend) with the state's detail beside it */
+.ev-mapgrid { display: grid; grid-template-columns: minmax(0, 8fr) minmax(300px, 4fr); gap: 20px; align-items: start; }
+.ev-mapbox { height: clamp(440px, 66vh, 680px); border: 1px solid var(--rule); }
+.ev-mapbox .map-canvas, .ev-mapbox .map-overlay { position: absolute; left: 0; top: 0; }
+.ev-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+.ev-labels span { position: absolute; left: 0; top: 0; font: 600 11px/1 var(--sans); color: var(--ink); white-space: nowrap; text-shadow: 0 0 2px #fff, 0 0 3px #fff, 0 0 3px #fff; font-variant-numeric: tabular-nums; }
+.ev-kb { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ev-kb button:focus-visible { outline: 2px solid var(--ink); }
+.ev-mapside { position: sticky; top: 12px; min-width: 0; max-height: calc(100vh - 24px); overflow-y: auto; }
+.ev-sel { border: 1px solid var(--rule); padding: 12px 14px; font: 14px/1.45 var(--sans); background: var(--paper); }
+.side-h { font: 700 20px/1.2 var(--serif); margin: 0 0 8px; }
+.side-h .ev-pill { vertical-align: 3px; margin-left: 4px; }
+.side-note { margin: 0 0 8px; }
+.side-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 6px; }
+.side-cards .kf-n { font-size: 22px; }
+.side-list { list-style: none; margin: 0 0 6px; padding: 0 !important; }
+.side-list li { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; border-bottom: 1px solid var(--rule); }
+.side-list .n { font-variant-numeric: tabular-nums; }
+.side-list .ev-name { font: 600 14px/1.3 var(--sans); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); }
+.side-bar { display: flex; height: 12px; background: #f1efe9; }
+.side-bar span { display: block; min-width: 1px; }
+.kf-a i { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; }
+.side-spark { display: block; width: 100%; height: auto; background: #f7f5f0; }
 .ev-map path.ev-st:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 
 /* the state section: two charts side by side */
@@ -140,8 +154,9 @@ table.compact td.n { white-space: nowrap; }
 @media (max-width: 1100px) { .kf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1000px) {
   .ev-hero, .ev-mapgrid, #st-sec { grid-template-columns: minmax(0, 1fr); }
-  .ev-mapside { position: static; }
+  .ev-mapside { position: static; max-height: none; }
+  .ev-mapbox { height: 380px; }
   #st-sec > .ev-fig:not(#party-fig):not(#cmp-fig):not(#cty-fig) { grid-column: 1 / -1; }
 }
-@media (max-width: 460px) { .kf-cards { grid-template-columns: minmax(0, 1fr); } .kf-n { font-size: 28px; } }
-@media (prefers-color-scheme: dark) { body.td .kf-card, body.td .ev-selcard { background: var(--td-card); } body.td .ev-tip { background: var(--paper); } }
+@media (max-width: 460px) { .kf-cards { grid-template-columns: minmax(0, 1fr); } }
+.map-legend .grad { display: inline-block; width: 110px; height: 10px; margin: 0 6px; vertical-align: -1px; }
