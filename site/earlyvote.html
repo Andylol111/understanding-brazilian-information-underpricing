@@ -11,7 +11,7 @@
 <link id="page-css" rel="stylesheet">
 <link id="ev-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103p1";
+window.__BUILD = "20261103p2";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
@@ -34,7 +34,9 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
 </header>
 <main>
 <nav class="col sitenav" aria-label="Site"><a href="guide.html">Night guide</a> / <a href="./">Election nights</a> / <span aria-current="page">US early vote</span> / <a href="turnout.html">Turnout today</a> / <a href="midterms.html">Electorate by state</a> / <a href="groups.html">Live by place</a> / <a href="scorecard.html">Track record</a></nav>
+<section class="col ev-brief" id="brief" aria-labelledby="brief-h"><h2 id="brief-h">What the early data says</h2><div class="brief-wait">Loading the answers…</div></section>
 
+<details class="ev-explain ev-more ev-hero-more" id="ev-more"><summary>More detail: key findings and how to read this page</summary>
 <div class="ev-hero">
 <header class="ev-lead">
   <p class="dek">What the states have published about mail and early in-person ballots that are already in, with the same day before past general elections. It counts ballots. It does not say who will win.</p>
@@ -60,6 +62,7 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
   <details class="ev-explain" id="kf-details"><summary>Details: which states are in each number</summary><div id="kf-more"></div></details>
 </aside>
 </div>
+</details>
 
 
 <section class="ev-wrap" id="cov-sec" aria-labelledby="cov-h">
@@ -193,6 +196,7 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
 </footer>
 </main>
 <script src="load-error.js"></script>
+<script type="module">import("./ev-brief.js?v=" + window.__V).then((m) => m.initBrief()).catch(window.__showLoadError);</script>
 <script type="module">import("./earlyvote.js?v=" + window.__V).catch(window.__showLoadError);</script>
 <script type="module">import("./earlyvote.history.js?v=" + window.__V).catch((e) => console.error(e));</script>
 </body>

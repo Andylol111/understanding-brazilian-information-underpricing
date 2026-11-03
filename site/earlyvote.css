@@ -201,3 +201,22 @@ table.compact td.n { white-space: nowrap; }
 .eh-table .ev-detail { max-width: none; }
 .eh-table th button { white-space: normal; max-width: 15ch; text-align: inherit; }
 .eh-table th.n { text-align: right; }
+
+/* 'What the early data says' (ev-brief.js): four answers, each one line + one chart; used on turnout.html and earlyvote.html */
+.ev-brief { margin-bottom: 28px; }
+.ev-brief h2 { margin: 0 0 8px; }
+.brief-wait { font: 14px/1.4 var(--sans); color: var(--muted); }
+.brief-bottom { font: 17px/1.45 var(--sans); margin: 0 0 6px; padding: 10px 14px; background: #f3f1ea; border-left: 4px solid var(--ink); max-width: 1100px; }
+.brief-label { font: 13px/1.4 var(--sans); color: var(--muted); margin: 0 0 14px; }
+.brief-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; }
+.brief-card { min-width: 0; border-top: 2px solid var(--ink); padding-top: 8px; }
+.brief-card h3 { margin: 0 0 6px; font-size: 19px; line-height: 1.25; }
+.brief-answer { font: 15.5px/1.45 var(--sans); margin: 0 0 6px; }
+.brief-chart { min-width: 0; margin: 2px 0 4px; }
+.brief-svg { display: block; max-width: 100%; font-family: var(--sans); }
+.brief-cav { font: 13px/1.4 var(--sans); color: var(--muted); margin: 0 0 4px; }
+.brief-how { font: 13px/1.45 var(--sans); color: #3a3a3a; margin: 6px 0 0; }
+.brief-how summary { cursor: pointer; font-weight: 600; }
+.ev-more { margin: 6px 0 12px; }
+.ev-more > summary { color: var(--ink); }
+@media (max-width: 860px) { .brief-grid { grid-template-columns: minmax(0, 1fr); } }

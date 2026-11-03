@@ -11,7 +11,7 @@
 <link id="ev-css" rel="stylesheet">
 <link id="td-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103p1";
+window.__BUILD = "20261103p2";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
@@ -30,18 +30,23 @@ document.getElementById("td-css").href = "turnout.css?v=" + window.__V;
 <header class="topbar"><a class="tb-home" href="./">All elections</a><h1 class="tb-name">US turnout today</h1><span class="tb-date">Election Day 2026</span><span class="tb-evidence">Turnout only: who voted, not how.</span></header>
 <main>
 <nav class="col sitenav" aria-label="Site"><a href="guide.html">Night guide</a> / <a href="./">Election nights</a> / <a href="earlyvote.html">US early vote</a> / <span aria-current="page">Turnout today</span> / <a href="midterms.html">Electorate by state</a> / <a href="groups.html">Live by place</a> / <a href="scorecard.html">Track record</a></nav>
+<section class="col ev-brief" id="brief" aria-labelledby="brief-h"><h2 id="brief-h">What the early data says</h2><div class="brief-wait">Loading the answers…</div></section>
 
 <header class="col td-head">
-  <p class="dek">How many ballots are already banked in each state (early, mail and Election Day check-ins), against what the project's models expect and against 2022 and 2024. It counts ballots. It does not say who will win.</p>
   <p class="td-label"><b>Turnout only: who voted, not how. Unvalidated context, not used by any model.</b></p>
+  <details class="ev-explain ev-more"><summary>More detail: what this page counts</summary>
+  <p class="dek">How many ballots are already banked in each state (early, mail and Election Day check-ins), against what the project's models expect and against 2022 and 2024. It counts ballots. It does not say who will win.</p>
   <p class="byline"><a href="earlyvote.html">Early vote by day and party registration</a> · <a href="guide.html">Night guide</a></p>
+  </details>
 </header>
 
 <section class="td-dash" aria-labelledby="tdd-h">
   <h2 id="tdd-h" class="td-sr">Dashboard</h2>
+  <details class="ev-explain ev-more" id="tdd-more"><summary>More detail: totals so far and the history verdict</summary>
   <div class="chips td-strip" id="tdd-chips" aria-live="polite"></div>
   <p class="note td-hist" id="tdd-hist">Loading…</p>
   <p class="note" id="tdd-asof"></p>
+  </details>
 
   <div class="ev-mapgrid td-mapgrid">
     <div id="tdd-map" class="map-box ev-mapbox td-mapbox" role="group" aria-label="US map, shaded by the chosen measure. Click a state to open its counties. Each state is also a keyboard button.">
@@ -115,6 +120,7 @@ document.getElementById("td-css").href = "turnout.css?v=" + window.__V;
 </footer>
 </main>
 <script src="load-error.js"></script>
+<script type="module">import("./ev-brief.js?v=" + window.__V).then((m) => m.initBrief()).catch(window.__showLoadError);</script>
 <script type="module">import("./turnout-dash.js?v=" + window.__V).then((m) => m.initDash()).catch(window.__showLoadError);</script>
 <script type="module">import("./ev-races.js?v=" + window.__V).catch(() => {});</script>
 </body>

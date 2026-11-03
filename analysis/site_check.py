@@ -808,6 +808,62 @@ async def check_ev_history(page: Page) -> list[str]:
     return out
 
 
+async def check_brief(page: Page, viewport_name: str) -> list[str]:
+    """'What the early data says' (ev-brief.js), first section of turnout.html and earlyvote.html: four generated answers with a chart each, a bottom line,
+    the numbers agree with the data files, no 'forecast' wording, and opening the 'how computed' details never scrolls the page."""
+    out: list[str] = []
+    ready = False
+    for _ in range(40):
+        if await page.evaluate("!!window.__briefReady"):
+            ready = True
+            break
+        await page.wait_for_timeout(250)
+    if not ready:
+        return ["the 'What the early data says' section did not finish loading"]
+    q = await page.evaluate("""() => ({ h: document.querySelector('#brief-h')?.textContent ?? '', first: document.querySelector('main > nav + section')?.id ?? '',
+        bottom: document.querySelector('#brief-bottom')?.textContent ?? '', label: document.querySelector('.brief-label')?.textContent ?? '', text: document.querySelector('#brief')?.textContent ?? '',
+        cards: ['model', 'history', 'turnout', 'returns'].map((k) => ({ k, q: document.querySelector(`#brief-${k} h3`)?.textContent ?? '', a: document.querySelector(`#brief-${k} [data-brief=answer]`)?.textContent ?? '',
+          dots: document.querySelectorAll(`#brief-${k} .brief-svg circle, #brief-${k} .brief-svg rect`).length, how: !!document.querySelector(`#brief-${k} details.brief-how`) })),
+        wide: document.documentElement.scrollWidth - document.documentElement.clientWidth })""")
+    if q["h"] != "What the early data says" or q["first"] != "brief":
+        out.append(f"the brief is not the first section titled 'What the early data says': {q['h']!r} first={q['first']!r}")
+    if len(q["bottom"]) < 60 or "not used by any model" not in q["label"] or "registration" not in q["label"].lower() or "failed its registered test" not in q["label"]:
+        out.append(f"brief lacks its bottom line or its registration / failed-test / not-used labels: {q['bottom']!r} {q['label']!r}")
+    if re.search(r"forecast", q["text"], re.I):
+        out.append("brief uses the word 'forecast'")
+    if q["wide"] > 1:
+        out.append(f"brief makes the page scroll sideways by {q['wide']}px on {viewport_name}")
+    for c in q["cards"]:
+        if len(c["q"]) < 12 or len(c["a"].strip()) < 40 or not re.search(r"\d", c["a"]) or not c["how"]:
+            out.append(f"brief answer {c['k']!r} is missing its question, generated answer or 'how computed' details: {c}")
+        if c["k"] != "returns" and c["dots"] < 3:
+            out.append(f"brief answer {c['k']!r} has no chart ({c['dots']} marks)")
+    # the numbers agree with the files
+    races = await page.evaluate("fetch('data/ev2026/ev_races.json').then((r) => r.json())")
+    diffs = [r["implied"]["vs_model"]["diff"] for r in races["races"] if r["implied"].get("ok") and r["implied"].get("vs_model", {}).get("diff") is not None]
+    marks = await page.evaluate("document.querySelectorAll('#brief-model .brief-svg circle').length")
+    if diffs and marks != len(diffs):
+        out.append(f"model dot plot has {marks} dots, expected {len(diffs)}")
+    if diffs:
+        m = sum(diffs) / len(diffs)
+        want = f"average {'even' if abs(m) < 0.05 else ('D' if m > 0 else 'R') + '+' + format(abs(m), '.1f')}"
+        if want not in q["cards"][0]["a"]:
+            out.append(f"model answer does not quote the average {want!r}: {q['cards'][0]['a']!r}")
+    hist = await page.evaluate("fetch('data/ev2026/ev_history_all.json').then((r) => r.json())")
+    rows = [r for r in hist["rows"] if r.get("gap") is not None and r.get("act") is not None]
+    right = sum(1 for r in rows if r["right"])
+    if f"Right on the winner in {right} of {len(rows)} state-cycles" not in q["cards"][1]["a"]:
+        out.append(f"history answer does not say right {right} of {len(rows)}: {q['cards'][1]['a']!r}")
+    # opening every 'how computed' details never moves the page
+    y0 = await page.evaluate("scrollY")
+    for sel in ["#brief-model .brief-how summary", "#brief-history .brief-how summary", "#brief-turnout .brief-how summary", "#brief-returns .brief-how summary"]:
+        await page.evaluate(f"document.querySelector('{sel}').click()")
+    y1 = await page.evaluate("scrollY")
+    if y1 != y0:
+        out.append(f"opening the brief's details scrolled the page ({y0} -> {y1})")
+    return out
+
+
 async def check_turnout(page: Page, viewport_name: str) -> list[str]:
     """Turnout dashboard: header strip, map of all 51, state panel with its cards / bar / party / model section, county scatter and table, keyboard, wording."""
     out: list[str] = []
@@ -1137,9 +1193,11 @@ async def check_page(
             elif case.kind == "article" and current["articlePaths"] <= 10:
                 result.failures.append("article charts were not drawn")
             elif case.kind == "earlyvote":
+                result.failures.extend(await check_brief(page, viewport_name))
                 result.failures.extend(await check_earlyvote(page, viewport_name))
                 result.failures.extend(await check_site_nav(page))
             elif case.kind == "turnout":
+                result.failures.extend(await check_brief(page, viewport_name))
                 result.failures.extend(await check_turnout(page, viewport_name))
                 result.failures.extend(await check_site_nav(page))
             elif case.kind == "scorecard":
