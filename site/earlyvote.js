@@ -3,6 +3,7 @@
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
 import { getJSON, esc, STATIC } from "./common.js";
+import { initTurnout } from "./turnout.js";
 
 const $ = (s) => document.querySelector(s);
 const COLORS = { total: "#1b1b1b", mail: "#6a7f99", inperson: "#c4501b", D: "#1f5fbf", R: "#c8102e", U: "#8a8578", other: "#b9b5aa", now: "#1b1b1b" };
@@ -362,6 +363,7 @@ async function boot() {
   pick.innerHTML = idx.states.map((c) => `<option value="${c.st}">${esc(c.name)}${c.status === "collected" ? "" : ` (${STATUS[c.status]})`}</option>`).join("");
   pick.onchange = () => select(pick.value);
   drawCoverage();
+  const td = initTurnout();
   const want = new URLSearchParams(location.search).get("st");
   const first = idx.states.filter((c) => c.status === "collected" && !c.partial).sort((a, b) => (b.total ?? 0) - (a.total ?? 0))[0];
   S.st = idx.states.some((c) => c.st === want) ? want : first?.st ?? idx.states[0].st;
@@ -370,6 +372,7 @@ async function boot() {
   await select(S.st);
   document.fonts?.ready;
   let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { drawCoverageMap(); drawState(); }, 200); });
+  await td;
   window.__evReady = true;
 }
 boot().catch(window.__showLoadError ?? console.error);

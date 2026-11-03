@@ -11,13 +11,13 @@
 <link id="page-css" rel="stylesheet">
 <link id="ev-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261102e4";
+window.__BUILD = "20261103a1";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
 (() => {
   const imports = {};
-  for (const f of ["common.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  for (const f of ["common.js", "turnout.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
   const m = document.createElement("script");
   m.type = "importmap";
   m.textContent = JSON.stringify({ imports });
@@ -47,6 +47,25 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
     </ul>
   </details>
 </header>
+
+<section class="ev-wrap" id="td-sec" aria-labelledby="td-h">
+  <h2 id="td-h">Turnout so far: early, absentee and Election Day</h2>
+  <p class="td-label"><b>Turnout only: who voted, not how. Not used by any model.</b></p>
+  <p class="chart-sub" id="td-asof">Loading…</p>
+  <p class="note" id="td-hist"></p>
+  <div class="ev-pick"><label class="select">State <select id="td-pick"></select></label></div>
+  <div class="toggle" id="td-kinds" role="group" aria-label="Kind of count"></div>
+  <p class="chart-sub" id="td-sum"></p>
+  <div class="table-scroll"><table class="compact td-table" id="td-table"></table></div>
+  <h3 id="td-none-h" hidden>States with no statewide count</h3>
+  <div class="table-scroll"><table class="compact td-table" id="td-none"></table></div>
+  <div id="td-cty-wrap" hidden>
+    <p class="note" id="td-state-note"></p>
+    <h3 id="td-cty-h"></h3>
+    <div class="table-scroll"><table class="compact td-table" id="td-cty"></table></div>
+  </div>
+  <p class="note">A count is only comparable with another of the same kind: Election Day check-ins, early in-person votes, mail or absentee ballots returned, all pre-Election Day ballots, and requests are each listed on their own. Sources are state and county election offices (official file; official via a post; a manual download we made in a browser), or news and compilers (secondary), each marked. Nothing is estimated here.</p>
+</section>
 
 <section class="ev-wrap" id="cov-sec" aria-labelledby="cov-h">
   <h2 id="cov-h">Which states publish, and what we have</h2>

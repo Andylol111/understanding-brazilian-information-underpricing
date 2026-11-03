@@ -563,6 +563,29 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
         out.append(f"coverage map has {p['mapPaths']} states")
     if not p["c1"] or not p["c2"] or not p["chips"]:
         out.append(f"default state is missing charts or key figures: {p}")
+    # Election Day turnout section: every state and DC appears (a row or a verdict), rows are grouped by kind, labels present
+    td = await page.evaluate("""() => ({ ready: !!window.__tdReady, picks: document.querySelectorAll('#td-pick option').length,
+        groups: document.querySelectorAll('#td-table tbody[data-kind]').length, rows: document.querySelectorAll('#td-table tbody[data-kind] tr:not(.td-group)').length,
+        none: document.querySelectorAll('#td-none tbody tr').length, label: document.querySelector('#td-sec .td-label')?.textContent ?? '',
+        badges: document.querySelectorAll('#td-table .td-badge').length, asof: document.querySelector('#td-asof')?.textContent ?? '' })"""
+    )
+    published = await page.evaluate("fetch('data/ev2026/turnout_day.json').then((r) => r.ok ? r.json() : null)")
+    if published:
+        n_state_rows = sum(len(s["rows"]) for s in published["states"])
+        n_none = sum(1 for s in published["states"] if not s["rows"])
+        if td["picks"] != 52 or td["rows"] != n_state_rows or td["none"] != n_none or not td["groups"] or td["badges"] != n_state_rows:
+            out.append(f"turnout section does not match turnout_day.json (rows {n_state_rows}, states without one {n_none}): {td}")
+        if "not used by any model" not in td["label"].lower():
+            out.append("turnout section lacks its 'not used by any model' label")
+        await page.select_option("#td-pick", "TX")
+        await page.wait_for_timeout(300)
+        tx = await page.evaluate("() => ({ cty: document.querySelectorAll('#td-cty tbody[data-kind] tr:not(.td-group)').length, shown: !document.querySelector('#td-cty-wrap').hidden })")
+        want = len(next(s for s in published["states"] if s["st"] == "TX")["counties"])
+        if want and (tx["cty"] != want or not tx["shown"]):
+            out.append(f"TX county drill-down shows {tx['cty']} rows, expected {want}")
+        await page.select_option("#td-pick", "")
+    elif not td["ready"]:
+        out.append("turnout section never became ready")
     # a state with party detail, daily files and history; one with county data only; a compiled one and a blocked one if there are any
     index = await page.evaluate("fetch('data/ev2026/index.json').then((r) => r.json())")
     by = {c["status"]: c for c in reversed(index["states"]) if c.get("has_state") or c["status"] in ("blocked", "not_published")}
