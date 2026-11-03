@@ -11,7 +11,7 @@
 <link id="ev-css" rel="stylesheet">
 <link id="td-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103c1";
+window.__BUILD = "20261103c2";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
@@ -102,11 +102,14 @@ document.getElementById("td-css").href = "turnout.css?v=" + window.__V;
   </div>
 </section>
 
+<section class="td-races" id="evr-table" aria-labelledby="evr-h" hidden></section>
+
 <footer class="col ev-foot">
   <p class="note">Counts: official state and county election offices where they publish; the UF Election Lab compile for states that publish no open file (marked secondary); a few manual downloads. Expected votes: the registered live models' county inputs where a statewide race is modelled, otherwise 0.72 × the 2024 president two-party votes (MIT Election Data and Science Lab, CC0). Every derived figure on this page is unvalidated context and is not used by any model. Counts of different kinds are never added together unless they do not overlap, and a row that only sums some counties is a lower bound. The data files are refreshed in place.</p>
 </footer>
 </main>
 <script src="load-error.js"></script>
 <script type="module">import("./turnout-dash.js?v=" + window.__V).then((m) => m.initDash()).catch(window.__showLoadError);</script>
+<script type="module">import("./ev-races.js?v=" + window.__V).catch(() => {});</script>
 </body>
 </html>

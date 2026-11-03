@@ -9,7 +9,7 @@
      a failed load adds a fresh ?_r stamp, which refetches all of it. -->
 <link id="page-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103a1";
+window.__BUILD = "20261103a2";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 (() => {
@@ -108,6 +108,7 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
       <button type="button" role="tab" id="tab-inky" aria-controls="pane-inky" aria-selected="false" hidden>Early signal</button>
     </div>
     <div class="tab-panes">
+      <div class="evr" id="evr" hidden></div>
       <div role="tabpanel" id="pane-races" aria-labelledby="tab-races"></div>
       <div role="tabpanel" id="pane-stats" aria-labelledby="tab-stats" hidden></div>
       <div role="tabpanel" id="pane-method" aria-labelledby="tab-method" hidden></div>
@@ -122,5 +123,6 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
 
 <script src="load-error.js"></script>
 <script type="module">window.__afterReveal().then(() => import("./election.js?v=" + window.__V)).catch(window.__showLoadError);</script>
+<script type="module">window.__afterReveal().then(() => import("./ev-races.js?v=" + window.__V)).catch(() => {});</script>
 </body>
 </html>

@@ -699,6 +699,7 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
     await page.focus("#tdd-map .ev-kb button[data-st='tx']")
     await page.keyboard.press("Enter")
     await page.wait_for_function("() => document.querySelector('#tdd-title').textContent === 'Texas'")
+    out.extend(await check_evr_table(page, viewport_name))
     text = await page.evaluate("document.body.innerText")
     for bad in ("NaN", "undefined", "null", "[object"):
         if bad in text:
@@ -707,6 +708,103 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
         out.append("page text mentions a forecast, probability or odds")
     if viewport_name == "mobile" and await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 2"):
         out.append("page scrolls sideways on mobile")
+    return out
+
+
+async def check_evr_table(page: Page, viewport_name: str) -> list[str]:
+    """turnout.html 'Races: early vote vs the model' (ev-races.js): one row per race of ev_races.json, sortable, wording, a click selects the state panel in place."""
+    out: list[str] = []
+    ev = await page.evaluate("fetch('data/ev2026/ev_races.json').then((r) => r.ok ? r.json() : null).catch(() => null)")
+    if not ev:
+        if not await page.evaluate("document.getElementById('evr-table').hidden"):
+            out.append("ev_races.json is missing but the races table is shown")
+        return out
+    await page.wait_for_function("window.__evrTableReady === true", timeout=15000)
+    p = await page.evaluate("""() => ({ rows: document.querySelectorAll('.evr-races tbody tr').length, heads: document.querySelectorAll('.evr-races thead th').length,
+        text: document.getElementById('evr-table').innerText, hidden: document.getElementById('evr-table').hidden })""")
+    low = p["text"].lower()
+    if p["hidden"] or p["rows"] != len(ev["races"]) or p["heads"] != 7:
+        out.append(f"races table has {p['rows']} rows of {len(ev['races'])} and {p['heads']} columns: {p['hidden']=}")
+    for want in ("registration-based", "not used by any model", "failed the project's registered test (right on direction 61 %, made estimates worse)", f"{ev['n_states_with_estimate']} states"):
+        if want not in low:
+            out.append(f"races table lacks the wording {want!r}")
+    if re.search(r"forecast", low):
+        out.append("races table uses the word 'forecast'")
+    await page.click(".evr-races thead th:nth-child(2) button")
+    sort1 = await page.evaluate("document.querySelector('.evr-races thead th:nth-child(2)').getAttribute('aria-sort')")
+    await page.click(".evr-races thead th:nth-child(2) button")
+    sort2 = await page.evaluate("document.querySelector('.evr-races thead th:nth-child(2)').getAttribute('aria-sort')")
+    if {sort1, sort2} != {"ascending", "descending"}:
+        out.append(f"races table sort does not toggle: {sort1} / {sort2}")
+    await page.click(".evr-filter button[data-only='1']")
+    n_est = await page.evaluate("document.querySelectorAll('.evr-races tbody tr').length")
+    if n_est != sum(1 for r in ev["races"] if r["implied"]["ok"]):
+        out.append(f"'with an EV-implied value' shows {n_est} rows")
+    await page.click(".evr-filter button[data-only='0']")
+    # a click on a race selects that state's panel in place: the dashboard's picker and title change, the page is not scrolled down
+    current = await page.evaluate("document.getElementById('tdd-pick').value")
+    want = next(r for r in ev["races"] if r["state"] != current)
+    name = await page.evaluate("(st) => [...document.querySelectorAll('#tdd-pick option')].find((o) => o.value === st)?.textContent.replace(/ \\(.*\\)$/, '') ?? ''", want["state"])
+    y0 = await page.evaluate("scrollY")
+    row_top = f"document.querySelector(\".evr-races tbody tr[data-st='{want['state']}']\").getBoundingClientRect().top"
+    await page.evaluate(f"(document.querySelector(\".evr-races tbody tr[data-st='{want['state']}']\")).scrollIntoView({{ block: 'center' }})")
+    y0 = await page.evaluate("scrollY")
+    t0 = await page.evaluate(row_top)
+    await page.click(f".evr-races tbody tr[data-st='{want['state']}'] .evr-pick")
+    await page.wait_for_function("(n) => document.querySelector('#tdd-title').textContent === n", arg=name, timeout=10000)
+    y1 = await page.evaluate("scrollY")
+    t1 = await page.evaluate(row_top)
+    sel = await page.evaluate("document.querySelectorAll('.evr-races tbody tr.sel').length")
+    # the panel above may change height (the browser's scroll anchoring then moves scrollY with it); a scroll is a row that left its place
+    if y1 > y0 + 2 and abs(t1 - t0) > 8:
+        out.append(f"clicking a race scrolled the page ({y0} -> {y1}, the row moved {t0:.0f} -> {t1:.0f})")
+    if not sel:
+        out.append("the clicked race's row is not marked selected")
+    return out
+
+
+async def check_evr_card(page: Page, viewport_name: str) -> list[str]:
+    """election.html race panel (ev-races.js): a collapsed one-line 'Early vote' card for the selected race, details on expand, no panel changes height, no scrolling."""
+    out: list[str] = []
+    ev = await page.evaluate("fetch('data/ev2026/ev_races.json').then((r) => r.ok ? r.json() : null).catch(() => null)")
+    race = await page.evaluate("document.querySelector('#race').value")
+    rec = next((r for r in ev["races"] if race in (r["race_id"], r["key"])), None) if ev else None
+    if not rec:
+        await page.wait_for_timeout(500)
+        if not await page.evaluate("document.getElementById('evr').hidden"):
+            out.append(f"early-vote card is shown for {race!r}, which has no ev_races.json entry")
+        return out
+    await page.wait_for_function("() => !document.getElementById('evr').hidden && !!document.querySelector('#evr .evr-sum')", timeout=15000)
+    await page.wait_for_timeout(1500)  # the readout and chart settle before the heights are taken
+    geo = """() => { const r = (s) => document.querySelector(s)?.getBoundingClientRect().height ?? null; return [r('.p-readout'), r('.p-timeline'), r('.p-tabs'), r('.tab-panes'), r('.p-map')]; }"""
+    before = await page.evaluate(geo)
+    y0 = await page.evaluate("scrollY")
+    sumry = await page.evaluate("({ t: document.querySelector('#evr .evr-sum').innerText, open: document.querySelector('#evr .evr-sum').getAttribute('aria-expanded'), body: !document.querySelector('#evr .evr-body').hidden })")
+    if not sumry["t"].strip().lstrip("▸▾ ").startswith("Early vote:") or sumry["open"] != "false" or sumry["body"]:
+        out.append(f"early-vote card is not a collapsed 'Early vote:' line: {sumry}")
+    if rec["implied"]["ok"] and "failed its registered test" not in sumry["t"]:
+        out.append("an EV-implied figure is shown without the registered-test flag")
+    await page.evaluate("document.querySelector('#evr .evr-sum').click()")
+    await page.wait_for_timeout(300)
+    body = await page.evaluate("({ t: document.querySelector('#evr .evr-body').innerText, hidden: document.querySelector('#evr .evr-body').hidden })")
+    after = await page.evaluate(geo)
+    y1 = await page.evaluate("scrollY")
+    low = body["t"].lower()
+    if body["hidden"] or "registration-based" not in low or "not used by any model" not in low or "live count" not in low:
+        out.append(f"expanded card lacks its wording or live section: {body['t'][:200]!r}")
+    if rec["implied"]["ok"] and "failed the project's registered test (right on direction 61 %, made estimates worse)" not in low:
+        out.append("expanded card has an EV-implied figure without the registered-test caveat")
+    for bad in ("nan", "undefined", "[object"):
+        if bad in low:
+            out.append(f"expanded card contains {bad!r}")
+    # no existing panel changes height (the page's own flow below the card may, on a narrow screen)
+    if viewport_name == "desktop" and any(abs((a or 0) - (b or 0)) > 0.5 for a, b in zip(before, after)):
+        out.append(f"expanding the early-vote card changed a panel height: {before} -> {after}")
+    if viewport_name != "desktop" and any(abs((a or 0) - (b or 0)) > 0.5 for a, b in zip(before[:2], after[:2])):
+        out.append(f"expanding the early-vote card changed the readout or timeline height: {before} -> {after}")
+    if abs(y1 - y0) > 2:
+        out.append(f"expanding the early-vote card scrolled the page ({y0} -> {y1})")
+    await page.evaluate("document.querySelector('#evr .evr-sum').click()")
     return out
 
 
@@ -932,6 +1030,8 @@ async def check_page(
                         result.failures.append(f"pl2025r2 replay hint/readout is missing or all-zero: {replay}")
                     if not replay["decidedTags"]:
                         result.failures.append("pl2025r2 Races table has no decided-before-count tag")
+                if case.name == "us2026-ca-gov":
+                    result.failures.extend(await check_evr_card(page, viewport_name))
                 if case.path == "election.html?id=us2026":
                     # no parameters: the national overview, no race preselected, no missing-file requests
                     nat = await page.evaluate(
