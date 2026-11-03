@@ -572,6 +572,13 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
         out.append(f"coverage map has {p['mapPaths']} states")
     if not p["c1"] or not p["c2"] or not p["chips"]:
         out.append(f"default state is missing charts or key figures: {p}")
+    # key findings: the outstanding-mail card and the 2022 final pre-election comparison, from turnout_model.json
+    tm_ = await page.evaluate("fetch('data/ev2026/turnout_model.json').then((r) => r.ok ? r.json() : null)")
+    kf = await page.evaluate("document.querySelector('#kf-cards')?.textContent ?? ''")
+    if tm_ and tm_["summary"].get("outstanding_states") and "Mail ballots not yet returned" not in kf:
+        out.append("key findings lack the 'Mail ballots not yet returned' card")
+    if tm_ and tm_["summary"].get("vs_2022_final_states") and "final pre-election report (not same day)" not in kf:
+        out.append("key findings lack the 2022 final pre-election comparison")
     # Election Day turnout summary: counts match turnout_day.json, the history line and the link to the dashboard are there, the long table is gone
     td = await page.evaluate("""() => ({ ready: !!window.__tdReady, label: document.querySelector('#td-sec .td-label')?.textContent ?? '', asof: document.querySelector('#td-asof')?.textContent ?? '',
         sum: document.querySelector('#td-sum')?.textContent ?? '', hist: document.querySelector('#td-hist')?.textContent ?? '',
@@ -647,8 +654,8 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
     model = await page.evaluate("fetch('data/ev2026/turnout_model.json').then((r) => r.ok ? r.json() : null)")
     if not model:
         return ["turnout_model.json is not published"]
-    if not p["ready"] or p["chips"] != 7 or p["picks"] != 51 or p["map"] != 51 or p["dc"] != 1 or p["metrics"] != 4 or p["cards"] != 8:
-        out.append(f"turnout dashboard is missing its header strip, picker, map of 51 or the eight cards: {p}")
+    if not p["ready"] or p["chips"] != 7 or p["picks"] != 51 or p["map"] != 51 or p["dc"] != 1 or p["metrics"] != 4 or p["cards"] != 10:
+        out.append(f"turnout dashboard is missing its header strip, picker, map of 51 or the ten cards: {p}")
     if p["model"] != ["(a)", "(b)", "(c)", "(d)"] or not p["ctx"]:
         out.append(f"'how the model sees this' must have items (a) to (d) and the unvalidated-context label: {p}")
     if "not used by any model" not in p["label"].lower() or not p["hist"]:
@@ -672,6 +679,15 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
             out.append(f"{st['st']}: composition shift has no partial-day caption: {q['b']!r}")
         if not st["composition"]["ok"] and "Not computed" not in q["b"]:
             out.append(f"{st['st']}: composition shift is not computed, and the panel must say why: {q['b']!r}")
+        w = await page.evaluate("""() => ({ kpis: document.querySelector('#tdd-kpis').textContent, who: document.querySelector('#tdd-who')?.textContent ?? '', head: [...document.querySelectorAll('#tdd-cty-table th')].map((e) => e.textContent) })""")
+        if "ballots not yet returned" not in w["kpis"] and "Not returned yet" not in w["kpis"]:
+            out.append(f"{st['st']}: no 'Mail ballots not yet returned' card")
+        if "Vs 2022 final pre-election" not in w["kpis"] or "New voters" not in w["who"]:
+            out.append(f"{st['st']}: lacks the 'vs 2022 final pre-election' card or the 'Who is voting' block")
+        if (st["outstanding"] or {}).get("ok") and f"{st['outstanding']['value']:,}" not in w["kpis"]:
+            out.append(f"{st['st']}: the outstanding-mail card does not show {st['outstanding']['value']:,}")
+        if st["counties"] and (any(c.get("mail") for c in st["counties"]) != any("Mail not yet returned" in h for h in w["head"]) or any(c.get("party") for c in st["counties"]) != any("Party of banked" in h for h in w["head"])):
+            out.append(f"{st['st']}: county table columns do not match the model file (mail / party)")
         if st["banked"] is None and p["cards"] and "no count" not in await page.evaluate("document.querySelector('#tdd-kpis').textContent"):
             out.append(f"{st['st']}: a state with no count should say so")
     # the four map measures all redraw 51 shapes; the map is keyboard operable

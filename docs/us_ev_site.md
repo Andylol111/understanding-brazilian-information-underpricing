@@ -135,6 +135,18 @@ Election Day 2026 only; turnout, not vote choice. **Unvalidated context, not use
   expected two-party votes; mean of a state's races), otherwise `EST_TURNOUT` (0.72, `brunder.us`) x 2024 president two-party votes
   (`data_public/us2026_county_baseline.csv`; state total from `us2026_state_pres24.csv`). Ballots include third-party and blank votes, so a share of
   the two-party expectation runs a little high.
+- **Outstanding mail ballots** (`states.<st>.outstanding`, county `mail`): ballots sent (else requested) minus ballots returned, from one source with
+  both figures (WI WEC, IA SOS, MT SOS, KS SOS via IKE Lab, MI SOS, a state-file mail row such as PA's; else the UF requested-vs-mail-accepted pair).
+  Not computed when a figure is missing, returned exceeds sent, or the two are as of dates more than a day apart. In a state that mails every active
+  voter (CO, NV, WA, OR, UT, CA, HI, VT, DC) the same difference is labelled "not returned yet", not outstanding, and is left out of the early-vote total.
+- **Vs 2022 final pre-election report** (`vs_2022_final`): latest 2026 count of the same kind over the 2022 figure at the last report before Election
+  Day (`ev_found.json`: IA 2022-11-07, ME, MI mail, KS E-1, OH, TX last early-vote day), always shown with both dates and "not same day". Alaska's 2022
+  figure is flagged do-not-use and shows no ratio.
+- **Who is voting** (`who`): age bands from `us2026_context/ev_groups.json` (only where >= 90% of the ballots have an age; NC and CO with their 2022 and
+  2024 same-day shares) or the IKE Lab age counts for Kansas (2026 / 2024 / 2022). The new-voter share is null: no vote history is recorded.
+- **County rows and county party.** `counties_<st>.json` for NC, CO, TN, WI; the research extras for IA, MT, KS (all counties); county party
+  (registration-based) from `counties_<st>.json` (NC, CO, FL, PA) and the extras (IA, KS). The extras are
+  `brunder-research/data/turnout_extra.json` (`scripts/live/turnout_extra.py`, aggregates only; `--extra` overrides the path).
 - **Composition shift** (states with >= 10 counties with a count): statewide Democratic two-party share if every county voted like its 2024 president
   two-party share (+ the mean poll-implied swing of the state's Senate / governor races, `overview.json`), weighted by banked ballots minus weighted by
   expected votes, over the same counties; 95% interval from 2000 bootstrap resamples of the counties (seed 2026).

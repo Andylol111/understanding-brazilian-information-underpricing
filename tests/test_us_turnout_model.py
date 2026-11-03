@@ -156,3 +156,72 @@ def test_build_flags_volusia_style_gap():
     fl = tm.build(day, ROOT)["states"]["FL"]
     by = {c["name"]: c for c in fl["counties"]}
     assert by["Volusia County"]["no_figure"] and not by["Broward County"]["no_figure"] and fl["n_county_no_figure"] == 1
+
+
+# ---- outstanding mail ballots, 2022 final pre-election ratio, county extras
+def test_outstanding_is_sent_minus_returned():
+    o = tm.outstanding_rule("WI", 858008, 796607, "2026-11-03", "2026-11-03", "sent")
+    assert o["ok"] and o["kind"] == "outstanding" and o["value"] == 61401 and o["pct_returned"] == 92.8 and o["issued_label"] == "sent"
+
+
+def test_outstanding_refuses_missing_inconsistent_or_stale_pairs():
+    assert not tm.outstanding_rule("IA", None, 100, "2026-11-03", "2026-11-03")["ok"]
+    assert not tm.outstanding_rule("IA", 0, 0, None, None)["ok"]
+    assert "exceeds" in tm.outstanding_rule("IA", 100, 120, None, None)["why"]                    # returned > sent: different bases
+    assert "days apart" in tm.outstanding_rule("MD", 1000, 500, "2026-10-30", "2026-11-02")["why"]
+    assert tm.outstanding_rule("MD", 1000, 500, "2026-11-01", "2026-11-02")["ok"]                 # one day apart is allowed
+    assert tm.outstanding_rule("MD", 1000, 500, None, "2026-11-02")["ok"]                         # a missing date is not a gap
+
+
+def test_all_mail_state_is_not_returned_yet_never_outstanding():
+    for st in ("CO", "NV", "WA", "OR", "UT"):
+        o = tm.outstanding_rule(st, 4054503, 1859900, "2026-11-02", "2026-11-02", "requested")
+        assert o["kind"] == "not_returned_yet" and o["value"] == 4054503 - 1859900 and "not a count of voters" in o["note"]
+    assert tm.outstanding_rule("PA", 100, 40, None, None)["kind"] == "outstanding"
+
+
+def test_build_outstanding_and_2022_ratio_from_extra():
+    day = {"generated_utc": "2026-11-03T17:00:00Z", "states": [
+        {"st": "IA", "name": "Iowa", "verdict": "x", "verdict_class": "none", "counties": [], "rows": [
+            {"state": "IA", "jurisdiction": "Iowa (statewide)", "level": "state", "kind": "advance", "count": 500000, "prov": "secondary", "measure": "m", "as_of_date": "2026-11-03"}]},
+        {"st": "AK", "name": "Alaska", "verdict": "excluded", "verdict_class": "excluded", "counties": [], "rows": [
+            {"state": "AK", "jurisdiction": "Alaska (statewide)", "level": "state", "kind": "advance", "count": 99424, "prov": "secondary", "measure": "m", "as_of_date": "2026-11-02"}]},
+        {"st": "MI", "name": "Michigan", "verdict": "x", "verdict_class": "none", "counties": [], "rows": []}]}
+    extra = {"state_extra": {"IA": {"sent": 510618, "requested": 513390, "returned": 498951, "as_of_date": "2026-11-03", "basis": "b", "prov": "manual"},
+                             "MI": {"requested": 2174646, "returned": 1569715, "as_of_date": "2026-11-02", "basis": "b", "prov": "official"}},
+             "final_2022": {"IA": {"kind": "advance", "value": 341237, "as_of": "2022-11-07", "src": "s", "label": "l"},
+                            "AK": {"kind": "advance", "value": 33597, "as_of": "2022-11-05", "src": "s", "usable": False, "label": "do not use"},
+                            "MI": {"kind": "mail", "value": 1525312, "as_of": "2022-11-08", "src": "s", "label": "l", "now_value": 1569715, "now_as_of": "2026-11-02", "now_label": "mail"}}}
+    out = tm.build(day, ROOT, extra=extra)["states"]
+    assert out["IA"]["outstanding"]["value"] == 510618 - 498951 and out["IA"]["outstanding"]["issued_label"] == "sent"
+    v = out["IA"]["vs_2022_final"]
+    assert v["ok"] and v["ratio"] == round(500000 / 341237, 3) and v["date_2022"] == "2022-11-07" and v["now_date"] == "2026-11-03" and "not same day" in v["label"]
+    assert out["MI"]["vs_2022_final"]["ratio"] == round(1569715 / 1525312, 3) and out["MI"]["outstanding"]["value"] == 2174646 - 1569715
+    ak = out["AK"]["vs_2022_final"]
+    assert ak["ok"] is False and "ratio" not in ak                                                                    # flagged do-not-use: no ratio
+    assert out["AK"]["outstanding"] is None                                                                           # excluded state: no UF pair either
+    assert out["IA"]["who"]["new_voters"]["share"] is None
+
+
+def test_extra_county_rows_carry_mail_outstanding_and_party():
+    names = ["Polk", "Linn", "Scott", "Johnson", "Black Hawk", "Dallas", "Story", "Woodbury", "Dubuque", "Pottawattamie", "Cerro Gordo"]
+    rows = [{"name": n, "count": 1000 + i, "requested": 1200, "issued": 1100 + i, "D": 500, "R": 300, "U": 200 + i, "other": 0} for i, n in enumerate(names)]
+    extra = {"county_extra": {"IA": {"kind": "mail_returned", "as_of_date": "2026-11-03", "prov": "manual", "rows": rows + [{"name": "Nowhere", "count": 5}]}}}
+    day = {"generated_utc": "2026-11-03T17:00:00Z", "states": [{"st": "IA", "name": "Iowa", "verdict": "x", "verdict_class": "none", "rows": [], "counties": []}]}
+    ia = tm.build(day, ROOT, extra=extra)["states"]["IA"]
+    assert ia["county_kind"] == "mail_returned" and ia["n_county_rows"] == len(names) and ia["county_unmatched"] == ["Nowhere"]
+    polk = next(c for c in ia["counties"] if c["name"].startswith("Polk"))
+    assert polk["mail"] == {"issued": 1100, "returned": 1000, "outstanding": 100, "label": "sent", "as_of": "2026-11-03"}
+    assert polk["party"]["D"] == 500 and polk["party"]["R"] == 300 and ia["county_party"]
+    assert tm.county_key("Lewis & Clark County", "MT") == tm.county_key("Lewis and Clark", "MT")
+
+
+def test_age_block_needs_coverage_and_keeps_comparison_year():
+    g = {"source": "s", "as_of": "2026-10-31", "coverage": {"age": 100.0}, "baselines": {"2022": {"label": "2022-11-03, same number of days before Election Day"}},
+         "groups": {"age:18-29": {"share": 10.0, "past": {"2022": {"share": 8.0}}}, "age:65+": {"share": 40.0, "past": {"2022": {"share": 41.0}, "2020": {"share": 20.0}}}}}
+    a = tm.age_block("NC", g, None)
+    assert [b["band"] for b in a["bands"]] == ["18-29", "65+"] and a["bands"][1]["past"] == {"2022": 41.0} and "2022-11-03" in a["past_labels"]["2022"]
+    g["coverage"] = {"age": 49.3}
+    assert tm.age_block("ID", g, None) is None                                                      # under 90% of ballots have an age
+    ks = tm.age_block("KS", None, {"source": "ike", "as_of_date": "2026-11-02", "bands": ["a", "b"], "note": "n", "counts": {"2026": {"a": 25, "b": 75}, "2022": {"a": 10, "b": 90}}})
+    assert ks["bands"][0] == {"band": "a", "share": 25.0, "past": {"2022": 10.0}}

@@ -52,6 +52,11 @@ ORDER_CLASS = {"GA": "early_first", "NC": "early_first", "TX": "early_first", "F
                "VT": "with_precincts"}
 NO_FIGURE_FRAC = 0.05         # a county count below this share of its expected votes ...
 NO_FIGURE_MEDIAN = 0.40       # ... while the state's median county is above this share is a feed gap, not turnout
+ALL_MAIL = {"CO", "OR", "WA", "UT", "HI", "NV", "CA", "VT", "DC"}   # states that mail a ballot to every active voter: "requested" there is not a request
+COUNTY_FILES = ("NC", "CO", "TN", "WI")   # full county tables from site/data/ev2026/counties_<st>.json (pre-Election Day ballots, all methods)
+PARTY_FILES = ("NC", "CO", "FL", "PA")    # counties_<st>.json that carries registration-based party counts of the returned ballots
+AGE_MIN_COVERAGE = 90.0       # an age split is shown only where at least this share of the ballots has an age
+OUTSTANDING_MAX_GAP_DAYS = 1  # issued and returned must be as of dates at most this far apart
 LEAN_MIN = 2.0                # points of D share of (D+R) away from 50 before the wording says "lean"
 
 
@@ -61,7 +66,7 @@ def num(v: Any) -> float | None:
 
 def county_key(name: str, st: str) -> str:
     """Comparable county name: no parenthesis, no trailing state code, no county/parish word, letters and digits only."""
-    s = re.sub(r"\(.*?\)", " ", name or "").strip()
+    s = re.sub(r"\(.*?\)", " ", (name or "").replace("&", " and ")).strip()
     s = re.sub(rf"[ ,]+{st}$", "", s, flags=re.I)
     s = COUNTY_WORDS.sub("", s.strip(" ,"))
     return re.sub(r"[^a-z0-9]", "", s.lower())
@@ -170,6 +175,90 @@ def party_from_ev(root: Path, st: str) -> dict[str, Any] | None:
             return {"source": "early-vote files", "label": d.get("basis") or "returned ballots", "as_of": s["date"][i], "kind": "pre_election_day",
                     "D": D, "R": R, "other": (U or 0) + (O or 0) if (U is not None or O is not None) else None}
     return None
+
+
+# ------------------------------------------------------------------------------------------------------------------ extras
+def load_extra(path: Path | None) -> dict[str, Any]:
+    """The research side's turnout_extra.json (outstanding mail inputs, 2022 final pre-election figures, all-county rows, age); {} if absent."""
+    if path and path.exists():
+        try:
+            return json.loads(path.read_text())
+        except ValueError:
+            return {}
+    return {}
+
+
+def day_gap(a: str | None, b: str | None) -> int | None:
+    """Days between two YYYY-MM-DD dates (None if either is missing or unparsable)."""
+    try:
+        return abs((datetime.fromisoformat(str(a)[:10]) - datetime.fromisoformat(str(b)[:10])).days)
+    except ValueError:
+        return None
+
+
+def outstanding_rule(st: str, issued: float | None, returned: float | None, issued_date: str | None, returned_date: str | None, issued_label: str = "sent") -> dict[str, Any]:
+    """Mail ballots not yet returned = ballots sent (else requested) minus ballots returned, both from the same state source.
+    Not computed (ok False, with the reason) when a number is missing, when returned exceeds issued, or when the two are as of dates more than
+    OUTSTANDING_MAX_GAP_DAYS apart. In a state that mails a ballot to every active voter (ALL_MAIL) the same difference is not "outstanding"
+    (most of those voters never asked for a ballot); it is labelled "not returned yet" and says so."""
+    if issued is None or returned is None or issued <= 0:
+        return {"ok": False, "why": "no ballots-sent/requested figure beside the returned figure"}
+    if returned > issued:
+        return {"ok": False, "why": "returned exceeds sent/requested, so the two are not on the same basis"}
+    gap = day_gap(issued_date, returned_date) if issued_date and returned_date else None
+    if gap is not None and gap > OUTSTANDING_MAX_GAP_DAYS:
+        return {"ok": False, "why": f"sent/requested and returned are as of dates {gap} days apart"}
+    all_mail = st in ALL_MAIL
+    out = {"ok": True, "kind": "not_returned_yet" if all_mail else "outstanding", "issued": round(issued), "issued_label": issued_label, "returned": round(returned),
+           "value": round(issued - returned), "pct_returned": round(100 * returned / issued, 1)}
+    out["note"] = ("A ballot is mailed to every active voter here, so this is not a count of voters still to vote; most were never requested."
+                   if all_mail else "Sent (or requested) and not yet returned; some of these voters will vote in person instead, and some will not vote.")
+    return out
+
+
+def uf_outstanding(root: Path, st: str) -> dict[str, Any] | None:
+    """Requested vs returned from the UF Election Lab state file (state_<st>.json): mail accepted where the file splits methods, else the total
+    (all-mail states, where a returned ballot in person is the same ballot)."""
+    p = root / "site" / "data" / "ev2026" / f"state_{st.lower()}.json"
+    if not p.exists():
+        return None
+    d = json.loads(p.read_text())
+    req, lat = d.get("requested") or {}, d.get("latest") or {}
+    issued = num(req.get("value"))
+    if not issued:
+        return None
+    returned = num(lat.get("total")) if st in ALL_MAIL else num(lat.get("mail"))
+    r = outstanding_rule(st, issued, returned, req.get("date"), lat.get("date"), "requested")
+    r.update({"as_of_date": lat.get("date"), "prov": "secondary", "source": "UF Election Lab state file: requested vs " + ("all returned ballots" if st in ALL_MAIL else "mail ballots accepted")})
+    return r
+
+
+def county_files(root: Path, st: str) -> dict[str, Any] | None:
+    p = root / "site" / "data" / "ev2026" / f"counties_{st.lower()}.json"
+    return json.loads(p.read_text()) if p.exists() else None
+
+
+def age_block(st: str, groups: dict[str, Any] | None, extra_age: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Age shares of the banked ballots. Kansas: IKE Lab counts (2026 / 2024 / 2022 at the same report dates). Others: ev_groups.json, only
+    where at least AGE_MIN_COVERAGE percent of the ballots has an age; its past-year shares are the same-day baselines the file names."""
+    if extra_age:
+        c = extra_age["counts"]
+        tot = {y: sum(v.values()) for y, v in c.items()}
+        bands = [{"band": b, "share": round(100 * c["2026"][b] / tot["2026"], 1),
+                  "past": {y: round(100 * c[y][b] / tot[y], 1) for y in c if y != "2026" and tot.get(y)}} for b in extra_age["bands"]]
+        return {"source": extra_age["source"], "as_of": extra_age["as_of_date"], "bands": bands, "past_labels": {y: extra_age["note"] for y in c if y != "2026"}, "n": tot["2026"]}
+    if not groups:
+        return None
+    cov = (groups.get("coverage") or {})
+    c = max((num(v) for k, v in cov.items() if k.startswith("age")), default=None)
+    if c is None or c < AGE_MIN_COVERAGE:
+        return None
+    gs = {k: v for k, v in (groups.get("groups") or {}).items() if k.startswith("age:")} or {k: v for k, v in (groups.get("own") or {}).items() if k.startswith("age_uf:")}
+    if not gs:
+        return None
+    bands = [{"band": k.split(":", 1)[1], "share": v["share"], "past": {y: p["share"] for y, p in (v.get("past") or {}).items() if y in ("2022", "2024")}} for k, v in gs.items()]
+    labels = {y: (b.get("label") or "") for y, b in (groups.get("baselines") or {}).items() if y in ("2022", "2024")}
+    return {"source": groups.get("source"), "as_of": groups.get("as_of"), "bands": bands, "past_labels": labels, "coverage_pct": c}
 
 
 # ------------------------------------------------------------------------------------------------------------------ banking
@@ -286,9 +375,12 @@ def parse_ts(s: str | None) -> float:
         return 0.0
 
 
-def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, Any]]] | None = None, prev: dict[str, Any] | None = None) -> dict[str, Any]:
+def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, Any]]] | None = None, prev: dict[str, Any] | None = None, extra: dict[str, Any] | None = None) -> dict[str, Any]:
     base, state_two, units, polls, orders = load_baseline(root), load_state_two(root), load_units(root), load_polls(root), count_orders(root)
     party_rows = party_rows or {}
+    extra = extra or {}
+    gp = root / "site" / "data" / "us2026_context" / "ev_groups.json"
+    groups = {g["state"].upper(): g for g in (json.loads(gp.read_text()).get("states") or [])} if gp.exists() else {}
     out_states: dict[str, Any] = {}
     kinds_seen: dict[str, set[str]] = {k: set() for k in ("election_day", "early_in_person", "mail_returned", "advance", "total")}
     history = {st: list(v) for st, v in ((prev or {}).get("history") or {}).items()}
@@ -305,6 +397,39 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
                 county_rows.append((hit, r))
             else:
                 statewide.append(r)
+        # mail ballots sent/requested vs returned per county (day-file rows that carry both), then the research extras; party of the county's banked ballots
+        by_fips = {c["fips"]: c for c in cs}
+        ocounty: dict[str, dict[str, Any]] = {}
+        pcounty: dict[str, dict[str, Any]] = {}
+        for hit, r in county_rows:
+            iss = r.get("sent") or r.get("requests") or r.get("requested")
+            if r["kind"] == "mail_returned" and num(r.get("count")) is not None and num(iss):
+                ocounty[hit["unit_id"]] = {"issued": iss, "returned": r["count"], "label": "sent" if r.get("sent") else "requested", "as_of": r.get("as_of_utc") or r.get("as_of_date")}
+        unmatched: list[str] = []
+        cf = county_files(root, st) if st in COUNTY_FILES else None
+        for c in (cf or {}).get("counties") or []:
+            hit = by_fips.get(c.get("fips"))
+            if hit and num(c.get("total")) is not None:
+                county_rows.append((hit, {"kind": "advance", "level": "county", "count": c["total"], "as_of_date": cf.get("as_of"), "prov": "secondary", "_extra": True}))
+        pf = county_files(root, st) if st in PARTY_FILES else None
+        for c in ((pf or {}).get("counties") or []) if (pf or {}).get("has_party") else []:
+            hit = by_fips.get(c.get("fips"))
+            if hit and num(c.get("D")) is not None and num(c.get("R")) is not None:
+                pcounty[hit["unit_id"]] = {"D": c["D"], "R": c["R"], "U": c.get("U"), "other": c.get("other"), "as_of": pf.get("as_of"), "of": "returned ballots"}
+        ce = (extra.get("county_extra") or {}).get(st)
+        for r in (ce or {}).get("rows") or []:
+            hit = by_key.get(county_key(r["name"], st))
+            if not hit:
+                unmatched.append(r["name"])
+                continue
+            if num(r.get("count")) is not None:
+                county_rows.append((hit, {"kind": ce["kind"], "level": "county", "count": r["count"], "as_of_date": ce.get("as_of_date"), "prov": ce.get("prov", "manual"), "_extra": True}))
+            iss = r.get("sent") or r.get("issued") or r.get("requested")
+            ret = r.get("returned", r.get("count"))
+            if num(iss) and num(ret) is not None:
+                ocounty[hit["unit_id"]] = {"issued": iss, "returned": ret, "label": "sent" if (r.get("sent") or r.get("issued")) else "requested", "as_of": ce.get("as_of_date")}
+            if num(r.get("D")) is not None and num(r.get("R")) is not None:
+                pcounty[hit["unit_id"]] = {"D": r["D"], "R": r["R"], "U": r.get("U"), "other": r.get("other"), "as_of": ce.get("as_of_date"), "of": "ballots counted in the county row"}
         for r in statewide + [r for _, r in county_rows]:
             if r["kind"] in kinds_seen:
                 kinds_seen[r["kind"]].add(st)
@@ -336,14 +461,21 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
             if r["kind"] not in PRIORITY or num(r.get("count")) is None:
                 continue
             cur = by_kind.setdefault(r["kind"], {}).get(hit["unit_id"])
-            if cur is None or (r.get("as_of_utc") or "") >= (cur[1].get("as_of_utc") or ""):
+            if cur is None or r.get("_extra") or (r.get("as_of_utc") or "") >= (cur[1].get("as_of_utc") or ""):
                 by_kind[r["kind"]][hit["unit_id"]] = (hit, r)
         ck = max(by_kind, key=lambda k: (len(by_kind[k]), -PRIORITY.index(k))) if by_kind else None
         counties = []
         if ck:
             for hit, r in by_kind[ck].values():
-                counties.append({"fips": hit["fips"], "name": re.sub(rf",\s*{st}$", "", hit["name"]), "share": round(hit["share"], 4), "exp": round(exp_by.get(hit["unit_id"], EST_TURNOUT * hit["two"])),
-                                 "banked": r["count"], "as_of": r.get("as_of_utc") or r.get("as_of_date"), "prov": r.get("prov")})
+                rec_c = {"fips": hit["fips"], "name": re.sub(rf",\s*{st}$", "", hit["name"]), "share": round(hit["share"], 4), "exp": round(exp_by.get(hit["unit_id"], EST_TURNOUT * hit["two"])),
+                         "banked": r["count"], "as_of": r.get("as_of_utc") or r.get("as_of_date"), "prov": r.get("prov")}
+                o = ocounty.get(hit["unit_id"])
+                if o and o["returned"] <= o["issued"]:
+                    rec_c["mail"] = {"issued": round(o["issued"]), "returned": round(o["returned"]), "outstanding": round(o["issued"] - o["returned"]), "label": o["label"], "as_of": o["as_of"]}
+                pt = pcounty.get(hit["unit_id"])
+                if pt:
+                    rec_c["party"] = {k: (round(v) if isinstance(v, (int, float)) else v) for k, v in pt.items() if v is not None}
+                counties.append(rec_c)
             counties.sort(key=lambda c: -c["exp"])
             flag_no_figure(counties)
         # swing
@@ -372,6 +504,47 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
         main_party = next((p for p in parties if p["kind"] != "election_day"), None)
         oc = ORDER_CLASS.get(st) if st in orders else None
         order = {"text": orders[st]["text"], "config": orders[st]["config"], "class": oc} if st in orders else {"text": None, "class": None}
+        # mail ballots not yet returned (state): research extras, then a day-file mail row that carries sent/requested, then the UF requested-vs-returned pair
+        outst = None
+        se = (extra.get("state_extra") or {}).get(st)
+        tries: list[dict[str, Any]] = []
+        if se and se.get("returned") is not None:
+            lab = "sent" if se.get("sent") else "requested"
+            o = outstanding_rule(st, se.get("sent") or se.get("requested"), se["returned"], se.get("as_of_date"), se.get("as_of_date"), lab)
+            o.update({"as_of_date": se.get("as_of_date"), "prov": se.get("prov"), "source": se.get("basis"), "source_url": se.get("source_url")})
+            tries.append(o)
+        mr = pick(statewide, "mail_returned")
+        if mr and is_complete(mr, len(cs)) and (mr.get("sent") or mr.get("requests") or mr.get("requested")):
+            d_ = mr.get("as_of_utc") or mr.get("as_of_date") or (mr.get("fetched_utc") or "")[:10] or None
+            o = outstanding_rule(st, mr.get("sent") or mr.get("requests") or mr.get("requested"), mr["count"], d_, d_, "sent" if mr.get("sent") else "applications" if mr.get("requests") else "requested")
+            o.update({"as_of_date": mr.get("as_of_date") or d_[:10] if d_ else None, "as_of_utc": mr.get("as_of_utc"), "prov": mr.get("prov"), "source": "state file: " + (mr.get("measure") or "mail ballots returned") + " beside its own sent/requested count",
+                      "source_url": mr.get("source_url")})
+            tries.append(o)
+        if s["verdict_class"] != "excluded":
+            u_ = uf_outstanding(root, st)
+            if u_:
+                tries.append(u_)
+        outst = next((t for t in tries if t["ok"]), tries[0] if tries else None)
+        # 2022 final pre-election report (not the same day): the ratio of the latest 2026 count of the same kind to it
+        f22 = (extra.get("final_2022") or {}).get(st)
+        vs22f = None
+        if f22:
+            vs22f = {"label": "vs 2022 final pre-election report (not same day)", "kind": f22["kind"], "value_2022": f22["value"], "date_2022": f22["as_of"], "what_2022": f22.get("label"), "source_2022": f22.get("src")}
+            now_v = now_d = now_l = None
+            adv = by_method.get("advance")
+            if f22.get("usable") is False:
+                vs22f.update({"ok": False, "why": f22.get("label")})
+            else:
+                if f22.get("now_value") is not None:
+                    now_v, now_d, now_l = f22["now_value"], f22.get("now_as_of"), f22.get("now_label")
+                elif adv and not adv["partial"] and f22["kind"] == "advance":
+                    now_v, now_d, now_l = adv["count"], str(adv.get("as_of") or "")[:10] or None, "pre-Election Day ballots (early + mail), latest report"
+                if now_v and f22["value"]:
+                    vs22f.update({"ok": True, "now": now_v, "now_date": now_d, "now_what": now_l, "ratio": round(now_v / f22["value"], 3)})
+                else:
+                    vs22f.update({"ok": False, "why": "no 2026 count of the same kind"})
+        who = {"age": age_block(st, groups.get(st.lower()) or groups.get(st), (extra.get("age") or {}).get(st)),
+               "new_voters": {"share": None, "why": "no vote history in the recorded files, so the share of 2026 advance voters who did not vote in 2022 is not published here"}}
         # status for the map
         if b and b["complete"] and b["all_methods"]:
             status = "all_methods"
@@ -390,7 +563,9 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
                "vs_2022_same_point": round(b["value"] / b["same_time_2022"], 3) if b and b["same_time_2022"] and b["complete"] else (b["same_time_2022_ratio"] if b and b["complete"] else None),
                "county_kind": ck, "n_county_rows": len(counties), "n_county_no_figure": sum(1 for c in counties if c.get("no_figure")), "counties": counties, "composition": comp, "order": order, "party": parties,
                "lean": lean_text(main_party, oc) if order["class"] else lean_text(main_party, None),
-               "swing_pt": None if swing is None else round(swing * 100, 2)}
+               "swing_pt": None if swing is None else round(swing * 100, 2),
+               "outstanding": outst, "vs_2022_final": vs22f, "who": who, "county_unmatched": unmatched or None,
+               "county_party": bool(pcounty)}
         out_states[st] = rec
         if b and gen:
             h = history.setdefault(st, [])
@@ -405,7 +580,9 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
                     "early_in_person": n("early_in_person"), "mail": n("mail_returned"), "advance": n("advance"), "total": n("total"),
                     "complete": sum(1 for r in out_states.values() if r["status"] == "all_methods"),
                     "with_expected_pct": sum(1 for r in out_states.values() if r["banked_pct_expected"] is not None),
-                    "composition_states": sorted(r["st"] for r in out_states.values() if r["composition"]["ok"])},
+                    "composition_states": sorted(r["st"] for r in out_states.values() if r["composition"]["ok"]),
+                    "outstanding_states": sorted(r["st"] for r in out_states.values() if r["outstanding"] and r["outstanding"]["ok"]),
+                    "vs_2022_final_states": sorted(r["st"] for r in out_states.values() if r["vs_2022_final"] and r["vs_2022_final"].get("ok"))},
         "states": out_states, "history": history,
     }
 
@@ -432,6 +609,7 @@ def main() -> int:
     ap.add_argument("--out-dir", default=None)
     ap.add_argument("--day", default=None, help="published turnout_day.json (default: <out-dir>/turnout_day.json)")
     ap.add_argument("--src", default=str(tp.RESEARCH / "turnout_day.json"), help="research file, for the party counts only")
+    ap.add_argument("--extra", default=str(tp.RESEARCH.parent.parent / "data" / "turnout_extra.json"), help="research turnout_extra.json (scripts/live/turnout_extra.py)")
     a = ap.parse_args()
     root = Path(a.root)
     out_dir = Path(a.out_dir) if a.out_dir else root / "site" / "data" / "ev2026"
@@ -444,7 +622,7 @@ def main() -> int:
     prev = json.loads(prev_p.read_text()) if prev_p.exists() else None
     src = Path(a.src)
     party = party_rows_from_research(json.loads(src.read_text())) if src.exists() else {}
-    out = build(day, root, party, prev)
+    out = build(day, root, party, prev, load_extra(Path(a.extra)))
     changed = tp.write_if_changed(prev_p, out, ignore=("published_utc",))
     s = out["summary"]
     print(f"{s['states_with_data']} states with data, {s['with_expected_pct']} with % of expected, composition for {len(s['composition_states'])}; {'changed' if changed else 'no change'}")

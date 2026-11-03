@@ -116,6 +116,19 @@ function methodCard(s, k, genMs) {
   if (!r) return card(KIND[k], "–", "not published for this state");
   return card(KIND[k], int(r.count), `${r.partial ? `<em>sum of some counties only</em> · ` : ""}${asOfHtml(r.as_of, genMs)}`);
 }
+const dayOr = (iso) => (iso ? day(iso) : "date not stated");
+function outCard(s) {
+  const o = s.outstanding, allMail = o?.kind === "not_returned_yet", t = allMail ? "Not returned yet (all-mail state)" : "Mail ballots not yet returned";
+  if (!o) return card(t, "–", "no ballots-sent or requested count beside the returned count in the files we have");
+  if (!o.ok) return card(t, "–", `not computed: ${esc(o.why)}`);
+  return card(t, int(o.value), `${int(o.issued)} ${esc(o.issued_label)} − ${int(o.returned)} returned (${pc(o.pct_returned)} back) · as of ${esc(stamp(o.as_of_utc ?? o.as_of_date))} · ${esc(o.note)} · ${esc(PROV[o.prov] ?? o.prov ?? "")}`);
+}
+function f22Card(s) {
+  const v = s.vs_2022_final, t = "Vs 2022 final pre-election";
+  if (!v) return card(t, "–", "no 2022 final pre-election figure recorded for this state");
+  if (!v.ok) return card(t, "–", `not shown: ${esc(v.why)}`);
+  return card(t, `${v.ratio.toFixed(2)}×`, `${int(v.now)} (${esc(v.now_what ?? "")}, ${dayOr(v.now_date)}) against ${int(v.value_2022)} (${esc(v.what_2022 ?? "")}, ${dayOr(v.date_2022)}) · ${esc(v.label)} · ${esc(v.source_2022 ?? "")}`);
+}
 function kpis(s, genMs) {
   const b = s.banked, E = s.expected;
   const t22 = b?.complete && b.total_2022 ? `${pc(s.banked_pct_2022)}` : "–", t24 = b?.complete && b.total_2024 ? pc(s.banked_pct_2024) : "–";
@@ -124,6 +137,7 @@ function kpis(s, genMs) {
     methodCard(s, "election_day", genMs), methodCard(s, "early_in_person", genMs), methodCard(s, "mail_returned", genMs), methodCard(s, "advance", genMs),
     card("Total banked", b ? int(b.value) : "–", b ? `${esc(b.basis)}${b.complete ? "" : " · <em>lower bound</em>"} · ${asOfHtml(b.parts.map((p) => p.as_of).filter(Boolean).sort()[0], genMs)}` : "no count", "td-card-main"),
     card("% of expected", s.banked_pct_expected != null ? pc(s.banked_pct_expected) : "–", s.banked_pct_expected != null ? `of ${int(E.votes)} expected two-party votes · ${CTX}` : `${b && !b.complete ? "lower bound; not compared" : "no whole-state count"} · ${CTX}`),
+    outCard(s), f22Card(s),
     card("Of the 2022 total", t22, `${b?.total_2022 ? `${int(b.total_2022)} votes in 2022` : "no 2022 total in the source"}${same}`),
     card("Of the 2024 total", t24, b?.total_2024 ? `${int(b.total_2024)} votes in 2024` : "no 2024 total in the source"),
   ].join("");
@@ -190,7 +204,7 @@ function drawCounties(s) {
   $("#tdd-cty-sec").hidden = !C.length;
   if (!C.length) return;
   const kind = KIND[s.county_kind] ?? s.county_kind;
-  $("#tdd-cty-sub").innerHTML = `${esc(s.name)}: ${C.length} counties listed${C.some((c) => c.no_figure) ? `, ${C.filter((c) => c.no_figure).length} with no figure from the source (a count of 0 or a gap; left out of the chart and every calculation)` : ""}. Measure: <b>${esc(kind)}</b>, divided by the county's expected votes (${esc(s.expected.source === "units" ? "registered models' expected two-party votes" : "0.72 × 2024 president two-party votes")}). ${CTX}`;
+  $("#tdd-cty-sub").innerHTML = `${esc(s.name)}: ${C.length} counties listed${C.some((c) => c.no_figure) ? `, ${C.filter((c) => c.no_figure).length} with no figure from the source (a count of 0 or a gap; left out of the chart and every calculation)` : ""}.${C.some((c) => c.mail) ? " Mail not yet returned is ballots sent (or requested) minus returned, from the state's own county file." : ""}${C.some((c) => c.party) ? " The party column is registration-based and may be as of a different day than the count (hover for the as-of)." : ""} Measure: <b>${esc(kind)}</b>, divided by the county's expected votes (${esc(s.expected.source === "units" ? "registered models' expected two-party votes" : "0.72 × 2024 president two-party votes")}). ${CTX}`;
   const host = $("#tdd-scatter");
   if (!C.some((c) => !c.no_figure)) { host.replaceChildren(); } else drawScatter(s, C, host);
   drawTable(s, C);
@@ -212,14 +226,19 @@ function drawScatter(s, C, host) {
   host.replaceChildren(svg.node());
 }
 function drawTable(s, C) {
-  const { key, dir } = T.sort, get = { name: (c) => c.name, banked: (c) => c.banked, exp: (c) => c.exp, y: (c) => (c.exp ? c.banked / c.exp : -1), x: (c) => c.share, as_of: (c) => c.as_of ?? "" };
+  const { key, dir } = T.sort;
+  const dsh = (c) => (c.party ? c.party.D / (c.party.D + c.party.R + (c.party.U ?? 0) + (c.party.other ?? 0)) : -1);
+  const get = { name: (c) => c.name, banked: (c) => c.banked, exp: (c) => c.exp, y: (c) => (c.exp ? c.banked / c.exp : -1), x: (c) => c.share, as_of: (c) => c.as_of ?? "", out: (c) => c.mail?.outstanding ?? -1, dem: dsh };
+  const hasMail = C.some((c) => c.mail), hasParty = C.some((c) => c.party);
   const sorted = [...C].sort((a, b) => (get[key](a) < get[key](b) ? -1 : get[key](a) > get[key](b) ? 1 : 0) * dir);
-  const cols = [["name", "County"], ["banked", "So far", "n"], ["exp", "Expected votes", "n"], ["y", "% of expected", "n"], ["x", "2024 D share", "n"], ["as_of", "As of", "n"]];
+  const cols = [["name", "County"], ["banked", "So far", "n"], ["exp", "Expected votes", "n"], ["y", "% of expected", "n"], ["x", "2024 D share", "n"], ...(hasMail ? [["out", "Mail not yet returned", "n"]] : []), ...(hasParty ? [["dem", "Party of banked ballots, by registration", "n"]] : []), ["as_of", "As of", "n"]];
+  const mailCell = (c) => (c.mail ? `${int(c.mail.outstanding)}<span class="ev-detail">${int(c.mail.issued)} ${esc(c.mail.label)}, ${int(c.mail.returned)} back</span>` : "–");
+  const partyCell = (c) => { const p = c.party; if (!p) return "–"; const t = p.D + p.R + (p.U ?? 0) + (p.other ?? 0), w = (v) => pc((100 * v) / t, 0); return `<span title="${esc(`${int(p.D)} D, ${int(p.R)} R, ${int((p.U ?? 0) + (p.other ?? 0))} unaffiliated or other; ${p.of}; as of ${p.as_of}`)}">D ${w(p.D)} · R ${w(p.R)} · U ${w((p.U ?? 0) + (p.other ?? 0))}</span>`; };
   const gen = Date.parse(T.m.generated_utc);
   $("#tdd-cty-table").innerHTML = `<thead><tr>${cols.map(([k, t, c]) => `<th class="${c ?? ""}" ${key === k ? `aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-k="${k}">${t}</button></th>`).join("")}</tr></thead><tbody>` +
     sorted.map((c) => (c.no_figure
-      ? `<tr class="td-nofig"><td>${esc(c.name)}</td><td class="n" colspan="2">– (no figure from source)</td><td class="n">–</td><td class="n">${pc(100 * c.share)}</td><td class="n">${asOfHtml(c.as_of, gen)}</td></tr>`
-      : `<tr><td>${esc(c.name)}</td><td class="n">${int(c.banked)}</td><td class="n">${int(c.exp)}</td><td class="n">${c.exp ? pc((100 * c.banked) / c.exp) : "–"}</td><td class="n">${pc(100 * c.share)}</td><td class="n">${asOfHtml(c.as_of, gen)}</td></tr>`)).join("") + `</tbody>`;
+      ? `<tr class="td-nofig"><td>${esc(c.name)}</td><td class="n" colspan="2">– (no figure from source)</td><td class="n">–</td><td class="n">${pc(100 * c.share)}</td>${hasMail ? `<td class="n">${mailCell(c)}</td>` : ""}${hasParty ? `<td class="n">${partyCell(c)}</td>` : ""}<td class="n">${asOfHtml(c.as_of, gen)}</td></tr>`
+      : `<tr><td>${esc(c.name)}</td><td class="n">${int(c.banked)}</td><td class="n">${int(c.exp)}</td><td class="n">${c.exp ? pc((100 * c.banked) / c.exp) : "–"}</td><td class="n">${pc(100 * c.share)}</td>${hasMail ? `<td class="n">${mailCell(c)}</td>` : ""}${hasParty ? `<td class="n">${partyCell(c)}</td>` : ""}<td class="n">${asOfHtml(c.as_of, gen)}</td></tr>`)).join("") + `</tbody>`;
   $("#tdd-cty-table").querySelectorAll("th button").forEach((b) => (b.onclick = () => { T.sort = { key: b.dataset.k, dir: key === b.dataset.k ? -dir : b.dataset.k === "name" ? 1 : -1 }; drawTable(s, C); }));
 }
 
@@ -251,6 +270,19 @@ function sourcesHtml(s, genMs) {
   return `<div class="table-scroll" tabindex="0" role="region" aria-label="Statewide rows for ${esc(s.name)}"><table class="compact td-table"><thead><tr><th>Place and measure</th><th>Kind</th><th class="n">Count</th><th class="n">As of</th><th>Provenance</th><th>Source</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+function whoHtml(s) {
+  const W = s.who, a = W?.age, nv = W?.new_voters;
+  const newv = `<p class="note"><b>New voters:</b> ${nv?.share != null ? `${pc(nv.share)} of banked ballots` : `not shown. ${esc(nv?.why ?? "No vote history in the files we have.")}`}</p>`;
+  if (!a) return `<p class="note">No age split of the banked ballots in the files we have for ${esc(s.name)}.</p>${newv}`;
+  const yrs = ["2022", "2024"].filter((y) => a.bands.some((b) => b.past?.[y] != null));
+  const rows = a.bands.map((b) => `<tr><th scope="row">${esc(b.band)}</th><td class="n">${pc(b.share)}</td>${yrs.map((y) => `<td class="n">${b.past?.[y] != null ? pc(b.past[y]) : "–"}</td>`).join("")}<td class="td-agecell"><span class="td-agebar" style="width:${Math.min(100, b.share)}%"></span></td></tr>`).join("");
+  const labs = yrs.map((y) => a.past_labels?.[y] || "same point");
+  const cmp = yrs.length ? ` Comparison columns: ${new Set(labs).size === 1 ? esc(labs[0]) : yrs.map((y, i) => `${y}: ${esc(labs[i])}`).join("; ")}.` : " No comparison year is published for this state.";
+  return `<p class="chart-sub">Share of banked ballots by age band · as of ${esc(stamp(a.as_of))} · ${esc(a.source ?? "")}${a.coverage_pct != null ? ` · ${pc(a.coverage_pct, 0)} of ballots have an age` : ""}</p>` +
+    `<table class="compact td-table td-age"><thead><tr><th>Age</th><th class="n">2026</th>${yrs.map((y) => `<th class="n">${y}</th>`).join("")}<th></th></tr></thead><tbody>${rows}</tbody></table>` +
+    `<p class="note">Shares of the ballots counted so far, not of voters. Age comes from the voter record, so it describes who has voted, not how.${cmp}</p>${newv}`;
+}
+
 async function drawPanel() {
   const s = T.m.states[T.st], genMs = Date.parse(T.m.generated_utc);
   const [label, why] = STATUS[s.status];
@@ -259,6 +291,7 @@ async function drawPanel() {
   $("#tdd-kpis").innerHTML = kpis(s, genMs);
   $("#tdd-bar").innerHTML = methodBar(s);
   $("#tdd-party").innerHTML = partyHtml(s);
+  $("#tdd-who").innerHTML = whoHtml(s);
   $("#tdd-model").innerHTML = modelHtml(s);
   $("#tdd-sources").innerHTML = sourcesHtml(s, genMs);
   drawCounties(s);

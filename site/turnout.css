@@ -90,3 +90,7 @@ body.td {
 .td-mapbox { height: clamp(390px, 55vh, 590px); border: 1px solid var(--rule); }
 #tdd-tip { top: 52px; right: 10px; }
 .td-comp-cap { display: block; margin: 5px 0; padding: 5px 7px; border-left: 3px solid var(--model); color: var(--ink); }
+.td-age th, .td-age td { padding: 3px 10px 3px 0; }
+.td-age th[scope="row"] { font-weight: 600; white-space: nowrap; }
+.td-agecell { width: 40%; min-width: 80px; }
+.td-agebar { display: block; height: 10px; background: var(--td-line); border-radius: 1px; }
