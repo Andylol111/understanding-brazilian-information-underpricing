@@ -11,7 +11,7 @@
 <link id="ev-css" rel="stylesheet">
 <link id="td-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103p2";
+window.__BUILD = "20261103p3";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
@@ -63,7 +63,8 @@ document.getElementById("td-css").href = "turnout.css?v=" + window.__V;
   </div>
 
   <div class="td-grid">
-    <div class="td-main" id="tdd-panel" aria-live="polite">
+    <div class="td-main td-none" id="tdd-panel" aria-live="polite">
+      <p class="note td-prompt" id="tdd-prompt">Choose a state on the map, in the list beside it or in the picker to see its full dashboard here: ballots banked by method, party mix, who is voting, counties and sources. The totals for the whole country are under "More detail" above.</p>
       <h2 id="tdd-title" tabindex="-1">State</h2>
       <p class="td-statusline" id="tdd-status"></p>
       <div class="td-kpis" id="tdd-kpis"></div>

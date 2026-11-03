@@ -32,20 +32,23 @@ const sgn = (v, d = 0) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFi
 const REG = "Registration, not votes; unaffiliated and crossover voters are large.";
 // lead of banked ballots by party registration: (D - R) over all ballots with a party figure, as the files' own lead is
 const leadOf = (p) => { if (!p || p.D == null || p.R == null) return null; const t = ["D", "R", "U", "other", "O"].reduce((a, k) => a + (+p[k] || 0), 0); return t > 0 ? (100 * (p.D - p.R)) / t : null; };
+const RAMP = d3.interpolateLab("#ece9e1", "#3d5a40"); // the early-vote ramp of election.html and earlyvote.html
+const SEQ = [0.14, 0.36, 0.58, 0.8, 1].map(RAMP);
+const DIVG = ["#c4501b", "#dedbd1", "#9fcbb6", "#52a17f", "#1f6a4f"];
 const METRICS = {
-  expected: { label: "Banked, % of expected votes", val: (s) => s.banked_pct_expected, fmt: (v) => pc(v), dom: [0, 100], unit: "of the votes the model expects", cval: (r) => (!r.no_figure && r.exp > 0 && r.banked != null ? { v: (100 * r.banked) / r.exp, asof: r.as_of } : null), csrc: "county table, banked over expected" },
-  total22: { label: "Banked, % of 2022 total", val: (s) => s.banked_pct_2022, fmt: (v) => pc(v), dom: [0, 100], unit: "of the 2022 total" },
-  same22: { label: "Now vs 2022, same point", val: (s) => s.vs_2022_same_point, fmt: (v) => `${v.toFixed(2)}×`, dom: [0.5, 1.5], div: true, unit: "of the 2022 count at the same point" },
-  lead: { label: "Party lead of banked ballots (registration)", val: (s) => leadOf(s.party?.[0]), fmt: (v) => `${sgn(v, 1)} pt`, bins: [-10, -3, 3, 10], unit: "D minus R, by party registration", reg: true, short: (v) => sgn(v), asof: (s) => s.party?.[0]?.as_of, cval: (r) => { const v = leadOf(r.party); return v == null ? null : { v, asof: r.party.as_of }; }, csrc: "county party registration of returned ballots" },
-  shift: { label: "Party shift vs 2022 (registration)", val: (s) => T.races?.[s.st]?.shift?.d_share_dr_pt ?? null, fmt: (v) => `${sgn(v, 1)} pt`, bins: [-3, -1, 1, 3], unit: "change in the Democratic share of D+R ballots vs 2022, same point", reg: true, short: (v) => sgn(v, 1), asof: (s) => T.races?.[s.st]?.party?.as_of, src: "ev_races.json, party registration of returned ballots against the 2022 final pre-election report; no county version" },
-  out: { label: "Mail ballots not yet returned", val: (s) => (s.outstanding?.ok && s.outstanding.pct_returned != null ? 100 - s.outstanding.pct_returned : null), fmt: (v) => pc(v), dom: [0, 100], unit: "of ballots sent or requested, not yet returned", asof: (s) => s.outstanding?.as_of_utc ?? s.outstanding?.as_of_date, extra: (s) => `${int(s.outstanding.value)} not yet returned of ${int(s.outstanding.issued)} ${s.outstanding.issued_label}`, cval: (r) => (r.mail && r.mail.issued > 0 ? { v: (100 * r.mail.outstanding) / r.mail.issued, asof: r.mail.as_of, extra: `${int(r.mail.outstanding)} not yet returned of ${int(r.mail.issued)} ${r.mail.label ?? "sent"}` } : null), csrc: "county mail table, sent minus returned" },
-  proj: { label: "Projected final turnout vs model expected", val: (s) => (s.proj?.ok && s.proj.vs_expected != null ? 100 * s.proj.vs_expected : null), fmt: (v) => pc(v), dom: [90, 110], div: true, short: (v) => `${Math.round(v)}%`,
+  expected: { label: "Banked, % of expected votes", val: (s) => s.banked_pct_expected, fmt: (v) => pc(v), colors: SEQ, lab: (v) => `${Math.round(v)}%`, unit: "of the votes the model expects", cval: (r) => (!r.no_figure && r.exp > 0 && r.banked != null ? { v: (100 * r.banked) / r.exp, asof: r.as_of } : null), csrc: "county table, banked over expected" },
+  total22: { label: "Banked, % of 2022 total", val: (s) => s.banked_pct_2022, fmt: (v) => pc(v), colors: SEQ, lab: (v) => `${Math.round(v)}%`, unit: "of the 2022 total" },
+  same22: { label: "Now vs 2022, same point", val: (s) => s.vs_2022_same_point, fmt: (v) => `${v.toFixed(2)}×`, fixed: [0.95, 1.05, 1.15, 1.3], colors: DIVG, short: (v) => `${v.toFixed(2)}×`, unit: "of the 2022 count at the same point" },
+  lead: { label: "Party lead of banked ballots (registration)", val: (s) => leadOf(s.party?.[0]), fmt: (v) => `${sgn(v, 1)} pt`, fixed: [-10, -3, 3, 10], colors: DIVP, unit: "D minus R, by party registration", reg: true, short: (v) => sgn(v), asof: (s) => s.party?.[0]?.as_of, cval: (r) => { const v = leadOf(r.party); return v == null ? null : { v, asof: r.party.as_of }; }, csrc: "county party registration of returned ballots" },
+  shift: { label: "Party shift vs 2022 (registration)", val: (s) => T.races?.[s.st]?.shift?.d_share_dr_pt ?? null, fmt: (v) => `${sgn(v, 1)} pt`, fixed: [-3, -1, 1, 3], colors: DIVP, unit: "change in the Democratic share of D+R ballots vs 2022, same point", reg: true, short: (v) => sgn(v, 1), asof: (s) => T.races?.[s.st]?.party?.as_of, src: "ev_races.json, party registration of returned ballots against the 2022 final pre-election report; no county version" },
+  out: { label: "Mail ballots not yet returned", val: (s) => (s.outstanding?.ok && s.outstanding.pct_returned != null ? 100 - s.outstanding.pct_returned : null), fmt: (v) => pc(v), colors: SEQ, lab: (v) => `${Math.round(v)}%`, unit: "of ballots sent or requested, not yet returned", asof: (s) => s.outstanding?.as_of_utc ?? s.outstanding?.as_of_date, extra: (s) => `${int(s.outstanding.value)} not yet returned of ${int(s.outstanding.issued)} ${s.outstanding.issued_label}`, cval: (r) => (r.mail && r.mail.issued > 0 ? { v: (100 * r.mail.outstanding) / r.mail.issued, asof: r.mail.as_of, extra: `${int(r.mail.outstanding)} not yet returned of ${int(r.mail.issued)} ${r.mail.label ?? "sent"}` } : null), csrc: "county mail table, sent minus returned" },
+  proj: { label: "Projected final turnout vs model expected", val: (s) => (s.proj?.ok && s.proj.vs_expected != null ? 100 * s.proj.vs_expected : null), fmt: (v) => pc(v), fixed: [95, 99, 101, 105], colors: DIVG, short: (v) => `${Math.round(v)}%`,
     unit: "projected final votes as a share of the model's expected ballots (projection, 100 % = on the model's assumption)", asof: () => T.m.generated_utc,
     extra: (s) => `projection ${int(s.proj.proj_total)}, 80 % interval ${int(s.proj.low)} to ${int(s.proj.high)}; ${s.proj.heading}` },
   type: { label: "Data type", cat: true },
 };
 
-const T = { races: null, m: null, vol: null, st: null, metric: "expected", us: null, ev: new Map(), sort: { key: "exp", dir: -1 }, gen: "", drawn: false };
+const T = { scale: null, races: null, m: null, vol: null, st: null, metric: "expected", us: null, ev: new Map(), sort: { key: "exp", dir: -1 }, gen: "", drawn: false };
 
 function asOf(iso, genMs) {
   if (!iso) return { text: "as-of unclear", stale: false };
@@ -71,15 +74,20 @@ async function drawHist() {
 }
 
 // -------------------------------------------------------------------------------------------------------------------- map
-const seq = d3.scaleSequential(d3.interpolateGreens).domain([0, 100]);
-const seqColor = (v) => seq(Math.max(0, Math.min(100, v)) * 0.85 + 8);
 const NOFIG = "#e6e4dd";
+// breaks as on earlyvote.html: fixed ones, else quintiles of this measure's state values, rounded and de-duplicated (colours thin out with them)
+function scaleOf(M) {
+  if (M.cat) return null;
+  if (M.fixed) return { breaks: M.fixed, colors: M.colors };
+  const vs = Object.values(T.m.states).map(M.val).filter((v) => v != null).sort(d3.ascending);
+  if (!vs.length) return { breaks: [], colors: [M.colors[2]] };
+  const br = [...new Set([0.2, 0.4, 0.6, 0.8].map((q) => Math.round(d3.quantileSorted(vs, q))))];
+  const cols = br.length === 4 ? M.colors : br.map((_, i) => M.colors[Math.round(((i + 1) / (br.length + 1)) * 4)]).concat(M.colors[4]);
+  return { breaks: br, colors: cols };
+}
 // one colour for one value of the current measure, for a state or a county alike
 function colourOf(M, v) {
-  if (v == null) return null;
-  if (M.bins) return DIVP[d3.bisect(M.bins, v)];
-  if (M.div) return d3.interpolateRdBu(1 - Math.max(0, Math.min(1, (v - M.dom[0]) / (M.dom[1] - M.dom[0]))));
-  return seqColor(v);
+  return v == null || !T.scale ? null : T.scale.colors[d3.bisect(T.scale.breaks, v)];
 }
 function fillFor(s) {
   const M = METRICS[T.metric];
@@ -137,18 +145,24 @@ async function drawMap() {
     $("#tdd-legend-toggle").onclick = () => setLegend($("#tdd-legend").hidden);
     setLegend(matchMedia("(min-width: 701px)").matches); // the election page's key starts collapsed on a narrow screen
   }
+  T.scale = scaleOf(M);
   T.us.colour(new Map(Object.values(states).map((s) => [s.st.toLowerCase(), fillFor(s) ?? NOFIG])));
-  T.us.values(new Map(M.cat ? [] : Object.values(states).filter((s) => M.val(s) != null).map((s) => [s.st.toLowerCase(), M.short ? M.short(M.val(s)) : M.div ? `${M.val(s).toFixed(2)}×` : `${Math.round(M.val(s))}%`])));
+  T.us.values(new Map(M.cat ? [] : Object.values(states).filter((s) => M.val(s) != null).map((s) => [s.st.toLowerCase(), M.short ? M.short(M.val(s)) : `${Math.round(M.val(s))}%`])));
   T.us.counties(countyFill);
   T.us.select(T.st?.toLowerCase());
+  if (!T.st) drawSel();
   for (const s of Object.values(states)) T.us.label(s.st.toLowerCase(), tip(s));
   const none = `<li><i style="background:${NOFIG}"></i>no figure</li>`;
   $("#tdd-legend").innerHTML = M.cat
     ? `<ul class="party-legend">${["all_methods", "partial_methods", "counties_only", "blocked"].map((k) => `<li><i style="background:${STATUS_FILL[k]}"></i>${STATUS[k][0]}</li>`).join("")}<li><i style="background:${NOFIG}"></i>none found</li></ul>`
-    : M.bins
-      ? `<ul class="party-legend">${DIVP.map((c, i) => `<li><i style="background:${c}"></i>${i === 0 ? `Republican side by more than ${Math.abs(M.bins[0])} pt` : i === 4 ? `Democratic side by more than ${M.bins[3]} pt` : i === 2 ? `within ${M.bins[2]} pt` : `${sgn(M.bins[i - 1])} to ${sgn(M.bins[i])} pt`}</li>`).join("")}${none}</ul><p class="legend-note">${REG}</p>`
-      : `<ul class="party-legend"><li>${M.fmt(M.dom[0])}<span class="grad" style="background:linear-gradient(90deg,${M.div ? `${d3.interpolateRdBu(1)},${d3.interpolateRdBu(0.5)},${d3.interpolateRdBu(0)}` : `${seqColor(0)},${seqColor(100)}`})"></span>${M.fmt(M.dom[1])}</li>${none}</ul>`;
+    : legendHTML(M, none);
   $("#tdd-metric-note").textContent = M.cat ? "How much of the vote each state's published counts cover." : `${M.label}. ${M.cval ? "Click a state to see its counties on the same scale; counties with no figure are grey." : "Statewide figures only; there is no county version."} ${M.reg ? `${REG} ` : ""}Unvalidated context, not used by any model.`;
+}
+function legendHTML(M, none) {
+  const { breaks: b, colors } = T.scale, f = M.lab ?? M.short ?? M.fmt;
+  let labs = colors.map((_, i) => (i === 0 ? `below ${f(b[0])}` : i === b.length ? `${f(b[i - 1])} and above` : `${f(b[i - 1])} to ${f(b[i])}`));
+  if (M.reg) labs = colors.map((_, i) => (i === 0 ? `Republican side by more than ${Math.abs(b[0])} pt` : i === b.length ? `Democratic side by more than ${b[b.length - 1]} pt` : i === 2 ? `within ${b[2]} pt` : `${sgn(b[i - 1])} to ${sgn(b[i])} pt`));
+  return `<ul class="party-legend">${colors.map((c, i) => `<li><i style="background:${c}"></i>${esc(labs[i])}</li>`).join("")}${none}</ul>${M.reg ? `<p class="legend-note">${REG}</p>` : ""}`;
 }
 function drawMetric() {
   const tg = $("#tdd-metric");
@@ -158,9 +172,22 @@ function drawMetric() {
   }));
 }
 // the compact panel beside the map: the chosen state in a few figures (the full dashboard follows below)
+// no state chosen: the current measure across the states (highest and lowest five), as on earlyvote.html
+function nationalSummary() {
+  const M = METRICS[T.metric], all = Object.values(T.m.states);
+  const btn = (s, v) => `<li><button type="button" class="ev-name" data-st="${esc(s.st)}">${esc(s.name)}</button> <span class="n">${esc(v)}</span></li>`;
+  if (M.cat) {
+    const n = (k) => all.filter((s) => s.status === k).length;
+    return `<h3 class="side-h">All states</h3><p class="side-note">${n("all_methods")} have a statewide count of all methods, ${n("partial_methods")} pre-Election Day only, ${n("counties_only")} county sums only, ${n("none") + n("blocked") + n("excluded")} none usable.</p><p class="note">Click a state on the map for details.</p>`;
+  }
+  const have = all.filter((s) => M.val(s) != null).sort((a, b) => M.val(b) - M.val(a));
+  const list = (xs) => `<ol class="side-list">${xs.map((s) => btn(s, M.fmt(M.val(s)))).join("")}</ol>`;
+  return `<h3 class="side-h">${esc(M.label)}</h3><p class="side-note">${have.length} of ${all.length} states and DC have a figure. Click a state for details.</p>` +
+    (have.length ? `<p class="kf-k">Highest</p>${list(have.slice(0, 5))}` : "") + (have.length > 5 ? `<p class="kf-k">Lowest</p>${list(have.slice(Math.max(5, have.length - 5)).reverse())}` : "") + (M.reg ? `<p class="note">${REG}</p>` : "");
+}
 function drawSel() {
   const s = T.m.states[T.st], host = $("#tdd-sel");
-  if (!s) { host.innerHTML = `<p class="side-note">Click a state on the map for its counties and details.</p>`; return; }
+  if (!s) { host.innerHTML = nationalSummary(); host.querySelectorAll("[data-st]").forEach((el) => (el.onclick = () => select(el.dataset.st))); return; }
   const [label] = STATUS[s.status] ?? [s.status];
   const rows = [["Banked ballots", s.banked ? `${int(s.banked.value)}${s.banked.complete ? "" : " (lower bound)"}` : "–"], ["% of expected", pc(s.banked_pct_expected)], ["Party lead (registration)", leadOf(s.party?.[0]) == null ? "–" : `${sgn(leadOf(s.party[0]), 1)} pt`], ["Mail not yet returned", s.outstanding?.ok ? int(s.outstanding.value) : "–"], ["Projected final votes", s.proj?.ok ? int(s.proj.proj_total) : "–"]];
   host.innerHTML = `<h3 class="side-h">${esc(s.name)}</h3><p class="side-note"><span class="td-badge td-s-${s.status}">${esc(label)}</span> ${esc(s.verdict)}</p><ol class="side-list">${rows.map(([k, v]) => `<li>${esc(k)} <span class="n">${esc(v)}</span></li>`).join("")}</ol><p class="note">${s.counties.length} counties listed. ${REG} Full detail follows below the map.</p>`;
@@ -383,6 +410,8 @@ function projHtml(s) {
 
 async function drawPanel() {
   const s = T.m.states[T.st], genMs = Date.parse(T.m.generated_utc);
+  $("#tdd-panel").classList.toggle("td-none", !s);
+  if (!s) { document.title = "Turnout today"; return; }
   const [label, why] = STATUS[s.status];
   $("#tdd-title").textContent = s.name;
   $("#tdd-status").innerHTML = `<span class="td-badge td-s-${s.status}" title="${esc(why)}">${esc(label)}</span> ${esc(s.verdict)}`;
@@ -427,15 +456,15 @@ async function load(first) {
   const pick = $("#tdd-pick");
   if (!pick.options.length) {
     const names = Object.values(m.states).sort((a, b) => a.name.localeCompare(b.name));
-    pick.innerHTML = names.map((s) => `<option value="${s.st}">${esc(s.name)}${s.banked || s.counties.length ? "" : ` (${STATUS[s.status][0]})`}</option>`).join("");
-    pick.onchange = () => select(pick.value);
+    pick.innerHTML = `<option value="">Choose a state</option>` + names.map((s) => `<option value="${s.st}">${esc(s.name)}${s.banked || s.counties.length ? "" : ` (${STATUS[s.status][0]})`}</option>`).join("");
+    pick.onchange = () => { if (pick.value) select(pick.value); };
     const want = new URLSearchParams(location.search).get("st")?.toUpperCase();
-    const first1 = Object.values(m.states).filter((s) => s.banked?.complete).sort((a, b) => b.banked.value - a.banked.value)[0];
-    T.st = m.states[want] ? want : first1?.st ?? names[0].st;
+    T.st = m.states[want] ? want : null; // no state is open until one is chosen (a ?st= link opens it)
   }
   drawMetric();
   await drawMap();
-  await select(T.st, false);
+  if (T.st) await select(T.st, false);
+  else { drawSel(); await drawPanel(); }
   if (first) window.__tddReady = true;
 }
 

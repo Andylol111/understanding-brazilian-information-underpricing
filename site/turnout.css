@@ -98,3 +98,7 @@ body.td {
 .td-proj .td-label-sm { margin: 0 0 8px; font: 12px/1.4 var(--sans); color: var(--td-ctx); }
 .td-proj .td-proj-spark { max-width: 320px; }
 .td-proj-bt { margin-top: 10px; }
+
+.td-main.td-none > :not(.td-prompt) { display: none; }
+.td-main:not(.td-none) > .td-prompt { display: none; }
+.td-prompt { font-size: 15px; max-width: 720px; }

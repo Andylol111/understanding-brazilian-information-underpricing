@@ -877,7 +877,19 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
     model = await page.evaluate("fetch('data/ev2026/turnout_model.json').then((r) => r.ok ? r.json() : null)")
     if not model:
         return ["turnout_model.json is not published"]
-    if not p["ready"] or p["chips"] != 7 or p["picks"] != 51 or p["map"] != 51 or p["dc"] != 1 or p["metrics"] < 6 or p["cards"] != 10:
+    # on load no state is chosen: no ?st=, the picker is on its placeholder, the side panel is the national summary of the measure, the dashboard below a prompt
+    first = await page.evaluate("""() => ({ hasSt: new URLSearchParams(location.search).has('st'), pick: document.querySelector('#tdd-pick').value, none: document.querySelector('#tdd-panel').classList.contains('td-none'),
+        prompt: document.querySelector('#tdd-prompt')?.offsetParent !== null, title: document.querySelector('#tdd-title').offsetParent !== null, side: document.querySelector('#tdd-sel').textContent,
+        names: document.querySelectorAll('#tdd-sel li button[data-st]').length })""")
+    if first["hasSt"] or first["pick"] or not first["none"] or not first["prompt"] or first["title"]:
+        out.append(f"turnout dashboard opens with a state chosen or without its prompt: {first}")
+    if "Highest" not in first["side"] or "Lowest" not in first["side"] or "Click a state for details" not in first["side"] or first["names"] != 10:
+        out.append(f"the side panel is not the national summary (highest / lowest five, click a state): {first['side'][:200]!r}")
+    await page.select_option("#tdd-pick", "TX")
+    await page.wait_for_function("() => document.querySelector('#tdd-title').textContent === 'Texas'")
+    await page.wait_for_timeout(500)
+    p = await page.evaluate(probe)
+    if not p["ready"] or p["chips"] != 7 or p["picks"] != 52 or p["map"] != 51 or p["dc"] != 1 or p["metrics"] < 6 or p["cards"] != 10:
         out.append(f"turnout dashboard is missing its header strip, picker, map of 51 or the ten cards: {p}")
     if p["model"] != ["(a)", "(b)", "(c)", "(d)"] or not p["ctx"]:
         out.append(f"'how the model sees this' must have items (a) to (d) and the unvalidated-context label: {p}")
