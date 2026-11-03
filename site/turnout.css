@@ -65,6 +65,7 @@ body.td {
 .td-table { width: 100%; }
 .td-table td, .td-table th { vertical-align: top; padding: 6px 10px 6px 0; text-align: left; }
 .td-table th.n, .td-table td.n { text-align: right; font-variant-numeric: tabular-nums; }
+.td-nofig td { color: var(--muted); }
 .td-cty-scroll { max-height: 420px; overflow: auto; margin-top: 10px; }
 .td-cty-scroll thead th { position: sticky; top: 0; background: var(--paper); }
 .table-scroll:focus-visible, .td-st:focus-visible, .td-dc:focus-visible { outline: 2px solid var(--model); outline-offset: 2px; }

@@ -50,6 +50,8 @@ PROV_RANK = {"official": 4, "derived": 3, "official_post": 3, "manual": 2, "seco
 ORDER_CLASS = {"GA": "early_first", "NC": "early_first", "TX": "early_first", "FL": "early_first", "PA": "early_first",
                "CA": "late", "AZ": "late", "MN": "with_precincts", "NE": "with_precincts", "NM": "with_precincts", "SC": "with_precincts",
                "VT": "with_precincts"}
+NO_FIGURE_FRAC = 0.05         # a county count below this share of its expected votes ...
+NO_FIGURE_MEDIAN = 0.40       # ... while the state's median county is above this share is a feed gap, not turnout
 LEAN_MIN = 2.0                # points of D share of (D+R) away from 50 before the wording says "lean"
 
 
@@ -232,6 +234,16 @@ def bank(rows: list[dict[str, Any]], n_counties: int) -> dict[str, Any] | None:
 
 
 # ------------------------------------------------------------------------------------------------------------------ composition
+def flag_no_figure(cs: list[dict[str, Any]]) -> None:
+    """Mark counties whose count is a feed gap: a count of 0, or below NO_FIGURE_FRAC of the expected votes while the median county (over
+    counties with a count) is above NO_FIGURE_MEDIAN. They get no_figure=True and are left out of the scatter, the composition shift,
+    the bootstrap and the county threshold."""
+    ys = sorted(c["banked"] / c["exp"] for c in cs if c["banked"] > 0 and c["exp"] > 0)
+    med = (ys[len(ys) // 2] if len(ys) % 2 else (ys[len(ys) // 2 - 1] + ys[len(ys) // 2]) / 2) if ys else 0.0
+    for c in cs:
+        c["no_figure"] = bool(c["banked"] <= 0 or (c["exp"] > 0 and c["banked"] / c["exp"] < NO_FIGURE_FRAC and med > NO_FIGURE_MEDIAN))
+
+
 def composition(cs: list[dict[str, float]], swing: float | None = None, min_n: int = MIN_COUNTIES, n_boot: int = N_BOOT, seed: int = SEED) -> dict[str, Any]:
     """cs: counties with share (2024 D two-party, 0..1), banked, exp. D share as if every county voted like its baseline (+ swing),
     weighted by banked ballots vs by expected votes, over the same counties; bootstrap of the difference over counties."""
@@ -333,6 +345,7 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
                 counties.append({"fips": hit["fips"], "name": re.sub(rf",\s*{st}$", "", hit["name"]), "share": round(hit["share"], 4), "exp": round(exp_by.get(hit["unit_id"], EST_TURNOUT * hit["two"])),
                                  "banked": r["count"], "as_of": r.get("as_of_utc") or r.get("as_of_date"), "prov": r.get("prov")})
             counties.sort(key=lambda c: -c["exp"])
+            flag_no_figure(counties)
         # swing
         swing = None
         pl = polls.get(st)
@@ -341,10 +354,10 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
             if tot > 0:
                 state_base = sum(exp_by.get(c["unit_id"], 0) * c["share"] for c in cs) / tot
                 swing = sum(p["avg"] for p in pl) / len(pl) - state_base
-        comp = composition([{"share": c["share"], "banked": c["banked"], "exp": c["exp"]} for c in counties], swing) if counties else {"ok": False, "n": 0, "why": "no county counts"}
+        comp = composition([{"share": c["share"], "banked": c["banked"], "exp": c["exp"]} for c in counties if not c["no_figure"]], swing) if counties else {"ok": False, "n": 0, "why": "no county counts"}
         if comp["ok"]:
             comp["kind"] = ck
-            comp["coverage_pct"] = round(100 * sum(c["exp"] for c in counties) / exp_total, 1) if exp_total else None
+            comp["coverage_pct"] = round(100 * sum(c["exp"] for c in counties if not c["no_figure"]) / exp_total, 1) if exp_total else None
             comp["swing_races"] = [p["race"] for p in (pl or [])] if swing is not None else []
             tot_all = sum(exp_by.values())
             if tot_all:
@@ -375,7 +388,7 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
                "banked_pct_2022": round(100 * b["value"] / b["total_2022"], 1) if b and b["total_2022"] and b["complete"] else None,
                "banked_pct_2024": round(100 * b["value"] / b["total_2024"], 1) if b and b["total_2024"] and b["complete"] else None,
                "vs_2022_same_point": round(b["value"] / b["same_time_2022"], 3) if b and b["same_time_2022"] and b["complete"] else (b["same_time_2022_ratio"] if b and b["complete"] else None),
-               "county_kind": ck, "n_county_rows": len(counties), "counties": counties, "composition": comp, "order": order, "party": parties,
+               "county_kind": ck, "n_county_rows": len(counties), "n_county_no_figure": sum(1 for c in counties if c.get("no_figure")), "counties": counties, "composition": comp, "order": order, "party": parties,
                "lean": lean_text(main_party, oc) if order["class"] else lean_text(main_party, None),
                "swing_pt": None if swing is None else round(swing * 100, 2)}
         out_states[st] = rec

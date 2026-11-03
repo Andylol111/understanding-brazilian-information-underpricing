@@ -189,9 +189,14 @@ function drawCounties(s) {
   $("#tdd-cty-sec").hidden = !C.length;
   if (!C.length) return;
   const kind = KIND[s.county_kind] ?? s.county_kind;
-  $("#tdd-cty-sub").innerHTML = `${esc(s.name)}: ${C.length} counties with a count. Measure: <b>${esc(kind)}</b>, divided by the county's expected votes (${esc(s.expected.source === "units" ? "registered models' expected two-party votes" : "0.72 × 2024 president two-party votes")}). ${CTX}`;
-  const host = $("#tdd-scatter"), w = Math.max(300, host.clientWidth || 640), h = w < 520 ? 300 : 360, m = { l: 52, r: 16, t: 14, b: 42 };
-  const rows = C.map((c) => ({ ...c, y: c.exp ? (100 * c.banked) / c.exp : null, x: 100 * c.share })).filter((c) => c.y != null);
+  $("#tdd-cty-sub").innerHTML = `${esc(s.name)}: ${C.length} counties listed${C.some((c) => c.no_figure) ? `, ${C.filter((c) => c.no_figure).length} with no figure from the source (a count of 0 or a gap; left out of the chart and every calculation)` : ""}. Measure: <b>${esc(kind)}</b>, divided by the county's expected votes (${esc(s.expected.source === "units" ? "registered models' expected two-party votes" : "0.72 × 2024 president two-party votes")}). ${CTX}`;
+  const host = $("#tdd-scatter");
+  if (!C.some((c) => !c.no_figure)) { host.replaceChildren(); } else drawScatter(s, C, host);
+  drawTable(s, C);
+}
+function drawScatter(s, C, host) {
+  const w = Math.max(300, host.clientWidth || 640), h = w < 520 ? 300 : 360, m = { l: 52, r: 16, t: 14, b: 42 };
+  const rows = C.filter((c) => !c.no_figure).map((c) => ({ ...c, y: c.exp ? (100 * c.banked) / c.exp : null, x: 100 * c.share })).filter((c) => c.y != null);
   const X = d3.scaleLinear([Math.max(0, Math.floor(d3.min(rows, (c) => c.x) / 10) * 10 - 0), Math.min(100, Math.ceil(d3.max(rows, (c) => c.x) / 10) * 10)], [m.l, w - m.r]);
   const Y = d3.scaleLinear([0, Math.max(5, d3.max(rows, (c) => c.y)) * 1.08], [h - m.b, m.t]).nice();
   const R = d3.scaleSqrt([0, d3.max(rows, (c) => c.exp)], [2.5, w < 520 ? 16 : 24]);
@@ -204,13 +209,17 @@ function drawCounties(s) {
   svg.append("g").selectAll("circle").data(rows.sort((a, b) => b.exp - a.exp)).join("circle").attr("class", "td-bub").attr("cx", (c) => X(c.x)).attr("cy", (c) => Y(c.y)).attr("r", (c) => R(c.exp))
     .append("title").text((c) => `${c.name}: ${pc(c.y)} of expected (${int(c.banked)} of ${int(c.exp)}); 2024 D share ${pc(c.x)}`);
   host.replaceChildren(svg.node());
+}
+function drawTable(s, C) {
   const { key, dir } = T.sort, get = { name: (c) => c.name, banked: (c) => c.banked, exp: (c) => c.exp, y: (c) => (c.exp ? c.banked / c.exp : -1), x: (c) => c.share, as_of: (c) => c.as_of ?? "" };
   const sorted = [...C].sort((a, b) => (get[key](a) < get[key](b) ? -1 : get[key](a) > get[key](b) ? 1 : 0) * dir);
   const cols = [["name", "County"], ["banked", "So far", "n"], ["exp", "Expected votes", "n"], ["y", "% of expected", "n"], ["x", "2024 D share", "n"], ["as_of", "As of", "n"]];
   const gen = Date.parse(T.m.generated_utc);
   $("#tdd-cty-table").innerHTML = `<thead><tr>${cols.map(([k, t, c]) => `<th class="${c ?? ""}" ${key === k ? `aria-sort="${dir > 0 ? "ascending" : "descending"}"` : ""}><button type="button" data-k="${k}">${t}</button></th>`).join("")}</tr></thead><tbody>` +
-    sorted.map((c) => `<tr><td>${esc(c.name)}</td><td class="n">${int(c.banked)}</td><td class="n">${int(c.exp)}</td><td class="n">${c.exp ? pc((100 * c.banked) / c.exp) : "–"}</td><td class="n">${pc(100 * c.share)}</td><td class="n">${asOfHtml(c.as_of, gen)}</td></tr>`).join("") + `</tbody>`;
-  $("#tdd-cty-table").querySelectorAll("th button").forEach((b) => (b.onclick = () => { T.sort = { key: b.dataset.k, dir: key === b.dataset.k ? -dir : b.dataset.k === "name" ? 1 : -1 }; drawCounties(s); }));
+    sorted.map((c) => (c.no_figure
+      ? `<tr class="td-nofig"><td>${esc(c.name)}</td><td class="n" colspan="2">– (no figure from source)</td><td class="n">–</td><td class="n">${pc(100 * c.share)}</td><td class="n">${asOfHtml(c.as_of, gen)}</td></tr>`
+      : `<tr><td>${esc(c.name)}</td><td class="n">${int(c.banked)}</td><td class="n">${int(c.exp)}</td><td class="n">${c.exp ? pc((100 * c.banked) / c.exp) : "–"}</td><td class="n">${pc(100 * c.share)}</td><td class="n">${asOfHtml(c.as_of, gen)}</td></tr>`)).join("") + `</tbody>`;
+  $("#tdd-cty-table").querySelectorAll("th button").forEach((b) => (b.onclick = () => { T.sort = { key: b.dataset.k, dir: key === b.dataset.k ? -dir : b.dataset.k === "name" ? 1 : -1 }; drawTable(s, C); }));
 }
 
 // how the model sees this

@@ -660,7 +660,7 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
             ctyShown: !document.querySelector('#tdd-cty-sec').hidden, b: document.querySelectorAll('#tdd-model li')[1]?.textContent ?? '',
             series: document.querySelectorAll('#tdd-series svg path.td-line').length, seriesNote: document.querySelector('#tdd-series .note')?.textContent ?? '' })""")
         n = len(st["counties"])
-        if q["ctyShown"] != bool(n) or (n and (q["rows"] != n or q["bubbles"] != sum(1 for c in st["counties"] if c["exp"]))):
+        if q["ctyShown"] != bool(n) or (n and (q["rows"] != n or q["bubbles"] != sum(1 for c in st["counties"] if c["exp"] and not c.get("no_figure")))):
             out.append(f"{st['st']}: county panel shows {q['rows']} rows and {q['bubbles']} bubbles, expected {n}")
         if st["composition"]["ok"] and "95% interval" not in q["b"]:
             out.append(f"{st['st']}: composition shift has no interval: {q['b']!r}")

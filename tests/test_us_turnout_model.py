@@ -127,3 +127,32 @@ def test_history_accumulates_across_runs_without_duplicates():
     b = tm.build(day("2026-11-03T17:10:00Z", 150), ROOT, prev=a)
     c = tm.build(day("2026-11-03T17:10:00Z", 150), ROOT, prev=b)               # the same file again: no new point
     assert [h["v"] for h in b["history"]["AK"]] == [100, 150] and c["history"] == b["history"]
+
+
+def test_no_figure_counties_are_left_out():
+    # eleven counties, one a feed gap (0 so far): ten remain, which is exactly the threshold; the gap is not counted, not resampled
+    cs = [{"share": 0.3 + 0.03 * i, "banked": 60.0 + i, "exp": 100.0} for i in range(10)] + [{"share": 0.9, "banked": 0.0, "exp": 100.0}]
+    tm.flag_no_figure(cs)
+    assert [c["no_figure"] for c in cs] == [False] * 10 + [True]
+    ok = tm.composition([c for c in cs if not c["no_figure"]])
+    assert ok["ok"] and ok["n"] == 10 and ok["share_so_far"] < 60                        # the 90% county would have pulled it up
+    # with only nine real counties the threshold is not met, even though ten rows are listed
+    nine = cs[:9] + [cs[10]]
+    tm.flag_no_figure(nine)
+    assert not tm.composition([c for c in nine if not c["no_figure"]])["ok"]
+    # a tiny count (< 5% of expected) is a gap only where the state's median county is above 40%
+    hi = [{"share": 0.5, "banked": 50.0, "exp": 100.0}] * 5 + [{"share": 0.5, "banked": 3.0, "exp": 100.0}]
+    tm.flag_no_figure(hi)
+    assert [c["no_figure"] for c in hi] == [False] * 5 + [True]
+    lo = [{"share": 0.5, "banked": 10.0, "exp": 100.0}] * 5 + [{"share": 0.5, "banked": 3.0, "exp": 100.0}]
+    tm.flag_no_figure(lo)
+    assert not any(c["no_figure"] for c in lo)
+
+
+def test_build_flags_volusia_style_gap():
+    rows = [{"state": "FL", "jurisdiction": j, "level": "county", "kind": "total", "count": n, "prov": "official", "measure": "m"}
+            for j, n in [("Volusia County", 0), ("Miami-Dade County", 650000), ("Broward County", 500000)]]
+    day = {"generated_utc": "2026-11-03T17:00:00Z", "states": [{"st": "FL", "name": "Florida", "verdict": "x", "verdict_class": "none", "rows": [], "counties": rows}]}
+    fl = tm.build(day, ROOT)["states"]["FL"]
+    by = {c["name"]: c for c in fl["counties"]}
+    assert by["Volusia County"]["no_figure"] and not by["Broward County"]["no_figure"] and fl["n_county_no_figure"] == 1
