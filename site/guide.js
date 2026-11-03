@@ -519,7 +519,7 @@ function earlyHTML() {
   const list = top.length
     ? `<ol class="gd-list">${top.map((x) => `<li><span>${esc(x.state)}: ${esc(x.label)}</span><b>${x.diff > 0 ? "+" : "−"}${Math.abs(x.diff).toFixed(1)} pts</b><small>${x.share.toFixed(1)}% of early ballots, against the same day before the 2022 election</small></li>`).join("")}</ol>`
     : "";
-  return `<h3>Early vote</h3><div class="chips">${chips}</div>${top.length ? `<h3>Biggest changes in who has voted early</h3>${list}` : ""}<p class="gd-note"><a href="earlyvote.html">All states</a> · <a href="midterms.html">Who votes, by state</a></p>`;
+  return `<h3>Early vote</h3><div class="chips">${chips}</div>${top.length ? `<h3>Biggest changes in who has voted early</h3>${list}` : ""}<p class="gd-note"><a href="earlyvote.html">All states</a> · <a href="turnout.html">Turnout so far today</a> · <a href="midterms.html">Who votes, by state</a></p>`;
 }
 
 function scheduleHTML() {

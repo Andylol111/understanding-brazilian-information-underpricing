@@ -27,7 +27,7 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
 </head>
 <body class="ev">
 <main>
-<nav class="col sitenav" aria-label="Site"><a href="guide.html">Night guide</a> / <a href="./">Election nights</a> / <span aria-current="page">US early vote</span> / <a href="midterms.html">Electorate by state</a> / <a href="groups.html">Live by place</a> / <a href="scorecard.html">Track record</a></nav>
+<nav class="col sitenav" aria-label="Site"><a href="guide.html">Night guide</a> / <a href="./">Election nights</a> / <span aria-current="page">US early vote</span> / <a href="turnout.html">Turnout today</a> / <a href="midterms.html">Electorate by state</a> / <a href="groups.html">Live by place</a> / <a href="scorecard.html">Track record</a></nav>
 
 <header class="col">
   <p class="kicker">Ballots already cast</p>
@@ -53,18 +53,8 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
   <p class="td-label"><b>Turnout only: who voted, not how. Not used by any model.</b></p>
   <p class="chart-sub" id="td-asof">Loading…</p>
   <p class="note" id="td-hist"></p>
-  <div class="ev-pick"><label class="select">State <select id="td-pick"></select></label></div>
-  <div class="toggle" id="td-kinds" role="group" aria-label="Kind of count"></div>
   <p class="chart-sub" id="td-sum"></p>
-  <div class="table-scroll"><table class="compact td-table" id="td-table"></table></div>
-  <h3 id="td-none-h" hidden>States with no statewide count</h3>
-  <div class="table-scroll"><table class="compact td-table" id="td-none"></table></div>
-  <div id="td-cty-wrap" hidden>
-    <p class="note" id="td-state-note"></p>
-    <h3 id="td-cty-h"></h3>
-    <div class="table-scroll"><table class="compact td-table" id="td-cty"></table></div>
-  </div>
-  <p class="note">A count is only comparable with another of the same kind: Election Day check-ins, early in-person votes, mail or absentee ballots returned, all pre-Election Day ballots, and requests are each listed on their own. Sources are state and county election offices (official file; official via a post; a manual download we made in a browser), or news and compilers (secondary), each marked. Nothing is estimated here.</p>
+  <p class="note"><a href="turnout.html"><b>Open the turnout dashboard</b></a>: a map and a panel for every state with banked ballots against what the models expect and against 2022 and 2024, by method, by party registration, by county, with how the model sees it. Sources are state and county election offices, the UF Election Lab compile (marked secondary) and a few manual downloads.</p>
 </section>
 
 <section class="ev-wrap" id="cov-sec" aria-labelledby="cov-h">

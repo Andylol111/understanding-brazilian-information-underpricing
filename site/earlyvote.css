@@ -95,28 +95,5 @@ table.compact td.n { white-space: nowrap; }
 .ev-pace-list .n { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .ev-pace-list li { grid-template-columns: 110px minmax(80px, 1fr) 52px; } }
 
-/* Election Day turnout section */
+/* Election Day turnout summary (the viewer is on turnout.html, styled by turnout.css) */
 .td-label { font: 15px/1.5 var(--sans); margin: 4px 0 6px; }
-.td-table { width: 100%; }
-.td-table td, .td-table th { vertical-align: top; padding: 6px 10px 6px 0; text-align: left; }
-.td-table th.n, .td-table td.n { text-align: right; font-variant-numeric: tabular-nums; }
-.td-table .td-count { font-weight: 600; }
-.td-table .td-asof { white-space: normal; min-width: 11ch; }
-.td-table tr.td-group th { padding-top: 18px; border-bottom: 1px solid var(--rule); }
-.td-table tr.td-stale td { color: #8a8578; }
-.td-table tr.td-stale td a { color: #8a8578; }
-.td-table tr.td-stale .td-asof b { color: #9a3d0e; }
-.td-kind { display: inline-block; font: 600 12.5px/1 var(--sans); padding: 4px 9px; border-radius: 10px; background: #e9e6de; color: #2b2b2b; }
-.td-k-election_day { background: #f3e2cf; color: #7a3a0c; }
-.td-k-early_in_person { background: #dcefe6; color: #1f6a4f; }
-.td-k-mail_returned { background: #dde6f2; color: #2b4a73; }
-.td-k-advance { background: #e6def0; color: #52358a; }
-.td-k-total { background: #e4ebd2; color: #46561b; }
-.td-k-requests { background: #f0eadb; color: #6a5a1b; }
-.td-k-unclear { background: #f6e0d4; color: #9a3d0e; }
-.td-badge { display: inline-block; font: 600 11.5px/1 var(--sans); padding: 3px 7px; border-radius: 10px; white-space: nowrap; background: #e9e6de; color: #55524a; }
-.td-prov-official, .td-prov-derived { background: #dcefe6; color: #1f6a4f; }
-.td-prov-official_post { background: #e3eed5; color: #3f6a1f; }
-.td-prov-secondary { background: #e6def0; color: #52358a; }
-.td-prov-manual { background: #dde6f2; color: #2b4a73; }
-.td-v-blocked, .td-v-excluded { background: #f6e0d4; color: #9a3d0e; }

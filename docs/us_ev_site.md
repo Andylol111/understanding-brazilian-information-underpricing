@@ -119,3 +119,26 @@ data. `--no-push` stops after the local commit.
 
 Build by hand: `BRUNDER_DATA=~/brunder-data-local uv run python analysis/us_ev_site.py --db <copy of ev.sqlite> [--no-daily] [--strict]`.
 Server copy: `rsync -a --rsync-path="sudo -n rsync" oracle-slotbank:/srv/brunder/evdata/us_ev/ev.sqlite <path>`.
+
+## Turnout today (`site/turnout.html`)
+
+Election Day 2026 only; turnout, not vote choice. **Unvalidated context, not used by any model.** The early-vote page keeps a compact summary of
+`data/ev2026/turnout_day.json` (+ `turnout_volume.json`) and links here.
+
+- **Files.** `turnout_day.json` / `turnout_volume.json` come from `analysis/us_turnout_publish.py` (rows of the research file; kinds never mixed).
+  `turnout_model.json` comes from `analysis/us_turnout_model.py`, which `analysis/us_turnout_publish.sh` runs from the publish worktree after the
+  publisher; the three files are the commit allowlist of the loop. The page reads only `turnout_model.json`, `turnout_volume.json`, the geometry and
+  `ev2026/state_<st>.json` (daily series), and re-reads every 5 minutes.
+- **Banked ballots** (one rule): all pre-Election Day ballots (+ Election Day check-ins when a whole-state row has them), else a total of all methods,
+  else mail + early in person (+ Election Day); a row that only sums some counties is never added and makes the figure a lower bound.
+- **Expected final votes:** the registered live models' county inputs where a statewide race is modelled (`site/data/us2026/units/*.json`, `V0`,
+  expected two-party votes; mean of a state's races), otherwise `EST_TURNOUT` (0.72, `brunder.us`) x 2024 president two-party votes
+  (`data_public/us2026_county_baseline.csv`; state total from `us2026_state_pres24.csv`). Ballots include third-party and blank votes, so a share of
+  the two-party expectation runs a little high.
+- **Composition shift** (states with >= 10 counties with a count): statewide Democratic two-party share if every county voted like its 2024 president
+  two-party share (+ the mean poll-implied swing of the state's Senate / governor races, `overview.json`), weighted by banked ballots minus weighted by
+  expected votes, over the same counties; 95% interval from 2000 bootstrap resamples of the counties (seed 2026).
+- **Count order:** the first clause of the `[count]` comment of the state's newest registered config; no config, no sentence (unknown). "First returns
+  likely lean D/R" only for states whose config says early/mail is posted first AND a registration-based party split of banked ballots is published
+  (early-vote files or a party row in the turnout file), at least 2 points from even.
+- **History:** every run appends the banked total to `history` (read back from the committed file), drawn with the official daily series.

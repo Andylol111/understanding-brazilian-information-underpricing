@@ -81,7 +81,7 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def cases() -> list[Case]:
-    out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article"), Case("earlyvote", "earlyvote.html", "earlyvote"), Case("scorecard", "scorecard.html", "scorecard"), Case("midterms", "midterms.html", "midterms"),
+    out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article"), Case("earlyvote", "earlyvote.html", "earlyvote"), Case("turnout", "turnout.html", "turnout"), Case("scorecard", "scorecard.html", "scorecard"), Case("midterms", "midterms.html", "midterms"),
            Case("groups", "groups.html", "groups"), Case("groups-ga-sen", "groups.html?race=ga-sen", "groups"), Case("guide", "guide.html", "guide")]
     out.extend(Case(eid, f"election.html?{urlencode({'id': eid})}", "election") for eid in ELECTIONS)
     # Exercise the US county map as well as its default national state map.
@@ -131,6 +131,7 @@ async def state(page: Page, kind: str) -> dict[str, Any]:
             visibleCanvas,
             painted: window.__dashPerf?.firstRenderMs != null,
             evReady: !!window.__evReady,
+            tddReady: !!window.__tddReady,
             scReady: !!window.__scReady,
             mtReady: !!window.__mtReady,
             grReady: !!window.__groups?.ready,
@@ -151,6 +152,8 @@ def ready(s: dict[str, Any], mapless: bool = False) -> bool:
         return s["articlePaths"] > 10
     if s["kind"] == "earlyvote":
         return s["evReady"]
+    if s["kind"] == "turnout":
+        return s["tddReady"]
     if s["kind"] == "scorecard":
         return s["scReady"]
     if s["kind"] == "midterms":
@@ -498,7 +501,7 @@ async def check_home_mix(page: Page) -> list[str]:
     return fails
 
 
-NAV_EXPECT = ["Night guide", "Election nights", "US early vote", "Electorate by state", "Live by place", "Track record"]
+NAV_EXPECT = ["Night guide", "Election nights", "US early vote", "Turnout today", "Electorate by state", "Live by place", "Track record"]
 
 
 async def check_site_nav(page: Page) -> list[str]:
@@ -563,29 +566,24 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
         out.append(f"coverage map has {p['mapPaths']} states")
     if not p["c1"] or not p["c2"] or not p["chips"]:
         out.append(f"default state is missing charts or key figures: {p}")
-    # Election Day turnout section: every state and DC appears (a row or a verdict), rows are grouped by kind, labels present
-    td = await page.evaluate("""() => ({ ready: !!window.__tdReady, picks: document.querySelectorAll('#td-pick option').length,
-        groups: document.querySelectorAll('#td-table tbody[data-kind]').length, rows: document.querySelectorAll('#td-table tbody[data-kind] tr:not(.td-group)').length,
-        none: document.querySelectorAll('#td-none tbody tr').length, label: document.querySelector('#td-sec .td-label')?.textContent ?? '',
-        badges: document.querySelectorAll('#td-table .td-badge').length, asof: document.querySelector('#td-asof')?.textContent ?? '' })"""
+    # Election Day turnout summary: counts match turnout_day.json, the history line and the link to the dashboard are there, the long table is gone
+    td = await page.evaluate("""() => ({ ready: !!window.__tdReady, label: document.querySelector('#td-sec .td-label')?.textContent ?? '', asof: document.querySelector('#td-asof')?.textContent ?? '',
+        sum: document.querySelector('#td-sum')?.textContent ?? '', hist: document.querySelector('#td-hist')?.textContent ?? '',
+        link: document.querySelector('#td-sec a[href="turnout.html"]')?.textContent ?? '', tables: document.querySelectorAll('#td-sec table').length })"""
     )
     published = await page.evaluate("fetch('data/ev2026/turnout_day.json').then((r) => r.ok ? r.json() : null)")
+    if not td["ready"] or not td["link"] or td["tables"]:
+        out.append(f"turnout summary is not ready, lacks its link to turnout.html, or still has the long table: {td}")
+    if "not used by any model" not in td["label"].lower():
+        out.append("turnout section lacks its 'not used by any model' label")
     if published:
-        n_state_rows = sum(len(s["rows"]) for s in published["states"])
-        n_none = sum(1 for s in published["states"] if not s["rows"])
-        if td["picks"] != 52 or td["rows"] != n_state_rows or td["none"] != n_none or not td["groups"] or td["badges"] != n_state_rows:
-            out.append(f"turnout section does not match turnout_day.json (rows {n_state_rows}, states without one {n_none}): {td}")
-        if "not used by any model" not in td["label"].lower():
-            out.append("turnout section lacks its 'not used by any model' label")
-        await page.select_option("#td-pick", "TX")
-        await page.wait_for_timeout(300)
-        tx = await page.evaluate("() => ({ cty: document.querySelectorAll('#td-cty tbody[data-kind] tr:not(.td-group)').length, shown: !document.querySelector('#td-cty-wrap').hidden })")
-        want = len(next(s for s in published["states"] if s["st"] == "TX")["counties"])
-        if want and (tx["cty"] != want or not tx["shown"]):
-            out.append(f"TX county drill-down shows {tx['cty']} rows, expected {want}")
-        await page.select_option("#td-pick", "")
-    elif not td["ready"]:
-        out.append("turnout section never became ready")
+        with_rows = sum(1 for s_ in published["states"] if s_["rows"])
+        with_cty = sum(1 for s_ in published["states"] if s_["counties"])
+        want = f"{with_rows} of {len(published['states'])} states and DC have a statewide row; {with_cty} have county rows; {published['n_rows']} rows in all"
+        if want not in td["sum"]:
+            out.append(f"turnout summary does not match turnout_day.json (expected {want!r}): {td['sum']!r}")
+    if not td["hist"]:
+        out.append("turnout section has no history line")
     # a state with party detail, daily files and history; one with county data only; a compiled one and a blocked one if there are any
     index = await page.evaluate("fetch('data/ev2026/index.json').then((r) => r.json())")
     by = {c["status"]: c for c in reversed(index["states"]) if c.get("has_state") or c["status"] in ("blocked", "not_published")}
@@ -627,6 +625,66 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
         wide = await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 2")
         if wide:
             out.append("page scrolls sideways on mobile")
+    return out
+
+
+async def check_turnout(page: Page, viewport_name: str) -> list[str]:
+    """Turnout dashboard: header strip, map of all 51, state panel with its cards / bar / party / model section, county scatter and table, keyboard, wording."""
+    out: list[str] = []
+    probe = """() => ({ ready: !!window.__tddReady, chips: document.querySelectorAll('#tdd-chips .chip').length, picks: document.querySelectorAll('#tdd-pick option').length,
+        map: document.querySelectorAll('#tdd-map path[data-st]').length, dc: document.querySelectorAll('#tdd-map circle[data-st]').length, metrics: document.querySelectorAll('#tdd-metric button').length,
+        cards: document.querySelectorAll('#tdd-kpis .td-card').length, bar: document.querySelectorAll('#tdd-bar .td-seg').length || !!document.querySelector('#tdd-bar .note'),
+        model: [...document.querySelectorAll('#tdd-model li')].map((e) => e.textContent.trim().slice(0, 3)), hist: document.querySelector('#tdd-hist')?.textContent ?? '',
+        label: document.querySelector('.td-label')?.textContent ?? '', title: document.querySelector('#tdd-title')?.textContent ?? '', st: document.querySelector('#tdd-pick')?.value ?? '',
+        ctx: document.querySelectorAll('#tdd-model .td-ctx').length, sources: document.querySelectorAll('#tdd-sources tbody tr').length })"""
+    p = await page.evaluate(probe)
+    model = await page.evaluate("fetch('data/ev2026/turnout_model.json').then((r) => r.ok ? r.json() : null)")
+    if not model:
+        return ["turnout_model.json is not published"]
+    if not p["ready"] or p["chips"] != 7 or p["picks"] != 51 or p["map"] != 51 or p["dc"] != 1 or p["metrics"] != 4 or p["cards"] != 8:
+        out.append(f"turnout dashboard is missing its header strip, picker, map of 51 or the eight cards: {p}")
+    if p["model"] != ["(a)", "(b)", "(c)", "(d)"] or not p["ctx"]:
+        out.append(f"'how the model sees this' must have items (a) to (d) and the unvalidated-context label: {p}")
+    if "not used by any model" not in p["label"].lower() or not p["hist"]:
+        out.append("turnout dashboard lacks its label or the history verdict line")
+    if p["st"] not in model["states"] or model["states"][p["st"]]["name"] != p["title"]:
+        out.append(f"panel title {p['title']!r} does not match the selected state {p['st']}")
+    # every state can be opened; a state with counties draws the scatter and a table with one row per county; (b) says why when it is not computed
+    plan = [s_ for s_ in model["states"].values() if s_["counties"]][:2] + [s_ for s_ in model["states"].values() if s_["composition"]["ok"]][:1]
+    plan += [s_ for s_ in model["states"].values() if not s_["banked"] and not s_["counties"]][:1]
+    for st in {s_["st"]: s_ for s_ in plan}.values():
+        await page.select_option("#tdd-pick", st["st"])
+        await page.wait_for_function("(n) => document.querySelector('#tdd-title').textContent === n", arg=st["name"])
+        await page.wait_for_timeout(400)
+        q = await page.evaluate("""() => ({ bubbles: document.querySelectorAll('#tdd-scatter circle.td-bub').length, rows: document.querySelectorAll('#tdd-cty-table tbody tr').length,
+            ctyShown: !document.querySelector('#tdd-cty-sec').hidden, b: document.querySelectorAll('#tdd-model li')[1]?.textContent ?? '',
+            series: document.querySelectorAll('#tdd-series svg path.td-line').length, seriesNote: document.querySelector('#tdd-series .note')?.textContent ?? '' })""")
+        n = len(st["counties"])
+        if q["ctyShown"] != bool(n) or (n and (q["rows"] != n or q["bubbles"] != sum(1 for c in st["counties"] if c["exp"]))):
+            out.append(f"{st['st']}: county panel shows {q['rows']} rows and {q['bubbles']} bubbles, expected {n}")
+        if st["composition"]["ok"] and "95% interval" not in q["b"]:
+            out.append(f"{st['st']}: composition shift has no interval: {q['b']!r}")
+        if not st["composition"]["ok"] and "Not computed" not in q["b"]:
+            out.append(f"{st['st']}: composition shift is not computed, and the panel must say why: {q['b']!r}")
+        if st["banked"] is None and p["cards"] and "no count" not in await page.evaluate("document.querySelector('#tdd-kpis').textContent"):
+            out.append(f"{st['st']}: a state with no count should say so")
+    # the four map measures all redraw 51 shapes; the map is keyboard operable
+    for i in range(4):
+        await page.click(f"#tdd-metric button:nth-child({i + 1})")
+        n = await page.evaluate("document.querySelectorAll('#tdd-map path[data-st]').length")
+        if n != 51:
+            out.append(f"map measure {i + 1} drew {n} shapes")
+    await page.focus("#tdd-map path[data-st='TX']")
+    await page.keyboard.press("Enter")
+    await page.wait_for_function("() => document.querySelector('#tdd-title').textContent === 'Texas'")
+    text = await page.evaluate("document.body.innerText")
+    for bad in ("NaN", "undefined", "null", "[object"):
+        if bad in text:
+            out.append(f"page text contains {bad!r}")
+    if re.search(r"\b(forecast(?!\.)|probabilit|chance of winning|odds)\b", text, re.I):
+        out.append("page text mentions a forecast, probability or odds")
+    if viewport_name == "mobile" and await page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth + 2"):
+        out.append("page scrolls sideways on mobile")
     return out
 
 
@@ -762,6 +820,9 @@ async def check_page(
                 result.failures.append("article charts were not drawn")
             elif case.kind == "earlyvote":
                 result.failures.extend(await check_earlyvote(page, viewport_name))
+                result.failures.extend(await check_site_nav(page))
+            elif case.kind == "turnout":
+                result.failures.extend(await check_turnout(page, viewport_name))
                 result.failures.extend(await check_site_nav(page))
             elif case.kind == "scorecard":
                 result.failures.extend(await check_scorecard(page, viewport_name))
@@ -911,6 +972,9 @@ async def check_page(
             if screenshots and case.name == "midterms":
                 screenshots.mkdir(parents=True, exist_ok=True)
                 await page.screenshot(path=screenshots / f"47_context_{engine}_{viewport_name}.png", full_page=True)
+            if screenshots and case.name == "turnout":
+                screenshots.mkdir(parents=True, exist_ok=True)
+                await page.screenshot(path=screenshots / f"{engine}-turnout-{viewport_name}.png", full_page=True)
             if screenshots and case.name == "earlyvote":
                 screenshots.mkdir(parents=True, exist_ok=True)
                 await page.screenshot(path=screenshots / f"{engine}-earlyvote-{viewport_name}.png", full_page=True)
