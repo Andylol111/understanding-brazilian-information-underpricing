@@ -321,12 +321,11 @@ function drawPanel() {
   $("#state-panel").querySelectorAll("[data-st]").forEach((b) => (b.onclick = () => select(b.dataset.st, true)));
 }
 const richness = (st) => sections(st).filter(Boolean).length * 1e9 + (evOf(st)?.total ?? 0);
-function select(st, scroll) {
+function select(st) {
   if (st !== "us" && !S.ctx.states.some((s) => s.st === st)) st = S.st;
   S.st = st;
   if (location.hash !== `#st=${st}`) history.replaceState(null, "", `#st=${st}`);
   drawPicker(); drawPanel();
-  if (scroll) $("#state-sec").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // ------------------------------------------------------------------------------------------------------ compare states
