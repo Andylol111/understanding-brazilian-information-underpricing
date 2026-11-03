@@ -662,8 +662,8 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
         n = len(st["counties"])
         if q["ctyShown"] != bool(n) or (n and (q["rows"] != n or q["bubbles"] != sum(1 for c in st["counties"] if c["exp"] and not c.get("no_figure")))):
             out.append(f"{st['st']}: county panel shows {q['rows']} rows and {q['bubbles']} bubbles, expected {n}")
-        if st["composition"]["ok"] and "95% interval" not in q["b"]:
-            out.append(f"{st['st']}: composition shift has no interval: {q['b']!r}")
+        if st["composition"]["ok"] and "Partial-day figure" not in q["b"]:
+            out.append(f"{st['st']}: composition shift has no partial-day caption: {q['b']!r}")
         if not st["composition"]["ok"] and "Not computed" not in q["b"]:
             out.append(f"{st['st']}: composition shift is not computed, and the panel must say why: {q['b']!r}")
         if st["banked"] is None and p["cards"] and "no count" not in await page.evaluate("document.querySelector('#tdd-kpis').textContent"):

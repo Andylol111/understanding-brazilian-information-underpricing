@@ -27,7 +27,7 @@ body.td {
 .td-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .td-head { margin-bottom: 8px; }
 .td-label { font: 15px/1.5 var(--sans); margin: 4px 0 10px; }
-.td-dash { max-width: 1480px; margin: 0 auto; }
+.td-dash { max-width: 1400px; margin: 0 auto; }
 .td-strip { margin: 6px 0 12px; }
 .td-strip .chip { background: var(--td-card); }
 .td-hist { font-size: 14px; max-width: 980px; }

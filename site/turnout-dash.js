@@ -14,6 +14,7 @@ const day = (iso) => `${MON[+iso.slice(5, 7) - 1]} ${+iso.slice(8, 10)}`;
 const stamp = (iso) => (iso && iso.length > 10 ? `${day(iso)}, ${iso.slice(11, 16)} UTC` : iso ? `${day(iso)} (date only)` : "as-of unclear");
 const STALE_MS = 24 * 3600e3;
 const REFRESH_MS = 5 * 60e3;
+const COMP_CAPTION = "Partial-day figure: it weights counties by ballots banked so far, which are mostly mail and early votes. Republican-leaning counties vote more on Election Day, so this leans toward D until Election Day check-ins arrive and should drift toward R through the day. It measures method mix more than enthusiasm. Unvalidated context, not used by any model.";
 const CTX = `<span class="td-ctx">unvalidated context, not used by any model</span>`;
 const KIND = { election_day: "Election Day in person", early_in_person: "Early in person", mail_returned: "Mail / absentee returned", advance: "All pre-Election Day (early + mail)", total: "Total, all methods" };
 const KIND_COLOR = { election_day: "var(--td-ed)", early_in_person: "var(--td-early)", mail_returned: "var(--td-mail)", advance: "var(--td-adv)", total: "var(--td-total)" };
@@ -229,11 +230,10 @@ function modelHtml(s) {
     `${s.banked_pct_expected != null ? `Banked ballots are <b>${pc(s.banked_pct_expected)}</b> of that (${int(b.value)} banked; ballots include third-party and blank votes, so the share runs a little high).` : b ? `The banked figure (${int(b.value)}) is a lower bound from some counties, so no share is given.` : "There is no banked count to compare."} ${CTX}</li>`;
   let bb;
   if (c.ok) {
-    const zero = c.lo <= 0 && c.hi >= 0;
     bb = `<li><b>(b) Composition shift.</b> If every county voted like its 2024 president two-party share${c.swing_pt != null ? ` moved ${pt(c.swing_pt)} by the poll-implied swing (${esc(c.swing_races.join(", "))})` : " (no poll swing available, so no shift applied)"}, ` +
       `the statewide Democratic share would be <b>${pc(c.share_so_far, 2)}</b> weighted by the ballots counted so far (${esc((KIND[c.kind] ?? c.kind).toLowerCase())}) and <b>${pc(c.share_expected, 2)}</b> weighted by expected turnout, over the ${c.n} counties with a count. ` +
-      `Difference: <b>${pt(c.diff_pt)}</b> (95% interval ${pt(c.lo)} to ${pt(c.hi)}, bootstrap of ${c.boot} resamples of the ${c.n} counties)${zero ? "; the interval includes zero, so the counties voting so far are not clearly more Democratic or Republican than expected turnout" : c.diff_pt > 0 ? "; the counties voting so far lean more Democratic than their expected-turnout weight" : "; the counties voting so far lean more Republican than their expected-turnout weight"}. ` +
-      `These counties are ${c.coverage_pct != null ? pc(c.coverage_pct, 0) : "–"} of the state's expected votes. This compares places only, not people. ${CTX}</li>`;
+      `Difference: <b>${pt(c.diff_pt)}</b>.<span class="td-comp-cap">${COMP_CAPTION}</span> ` +
+      `These counties are ${c.coverage_pct != null ? pc(c.coverage_pct, 0) : "–"} of the state's expected votes. This compares places only, not people.</li>`;
   } else bb = `<li><b>(b) Composition shift.</b> Not computed for ${esc(s.name)}: ${esc(c.why)}. It needs at least ${T.m.min_counties} counties with a count.</li>`;
   const cc = `<li><b>(c) Count order.</b> ${o.text ? `The registered configuration says: “${esc(o.text)}” (${esc(o.config)}).` : "Unknown: no registered configuration states the order for this state."} ` +
     `${L?.text ? `By party registration, ${pc(L.d_share_of_dr)} of the banked ballots from registered Democrats or Republicans are Democratic: ${esc(L.text)}. Registration-based, not a vote count. ${CTX}` : L ? `Registered Democrats are ${pc(L.d_share_of_dr)} of banked ballots from registered Democrats or Republicans (registration-based); with no stated count order, no first-returns wording is given.` : "No party split of banked ballots is published, so no first-returns wording is given."}</li>`;

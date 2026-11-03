@@ -11,7 +11,7 @@
 <link id="page-css" rel="stylesheet">
 <link id="ev-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103a1";
+window.__BUILD = "20261103b1";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
@@ -29,7 +29,8 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
 <main>
 <nav class="col sitenav" aria-label="Site"><a href="guide.html">Night guide</a> / <a href="./">Election nights</a> / <span aria-current="page">US early vote</span> / <a href="turnout.html">Turnout today</a> / <a href="midterms.html">Electorate by state</a> / <a href="groups.html">Live by place</a> / <a href="scorecard.html">Track record</a></nav>
 
-<header class="col">
+<div class="ev-hero">
+<header class="ev-lead">
   <p class="kicker">Ballots already cast</p>
   <h1>US early vote 2026</h1>
   <p class="dek">What the states have published about mail and early in-person ballots that are already in, with the same day before past general elections. It counts ballots. It does not say who will win.</p>
@@ -47,28 +48,35 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
     </ul>
   </details>
 </header>
+<aside class="ev-kf" aria-labelledby="kf-h">
+  <h2 id="kf-h">Key findings</h2>
+  <p class="chart-sub" id="kf-asof">Loading…</p>
+  <div class="kf-cards" id="kf-cards"></div>
+  <ul class="kf-list" id="kf-list"></ul>
+  <details class="ev-explain" id="kf-details"><summary>Details: which states are in each number</summary><div id="kf-more"></div></details>
+</aside>
+</div>
 
-<section class="ev-wrap" id="td-sec" aria-labelledby="td-h">
-  <h2 id="td-h">Turnout so far: early, absentee and Election Day</h2>
-  <p class="td-label"><b>Turnout only: who voted, not how. Not used by any model.</b></p>
-  <p class="chart-sub" id="td-asof">Loading…</p>
-  <p class="note" id="td-hist"></p>
-  <p class="chart-sub" id="td-sum"></p>
-  <p class="note"><a href="turnout.html"><b>Open the turnout dashboard</b></a>: a map and a panel for every state with banked ballots against what the models expect and against 2022 and 2024, by method, by party registration, by county, with how the model sees it. Sources are state and county election offices, the UF Election Lab compile (marked secondary) and a few manual downloads.</p>
-</section>
 
 <section class="ev-wrap" id="cov-sec" aria-labelledby="cov-h">
-  <h2 id="cov-h">Which states publish, and what we have</h2>
+  <h2 id="cov-h">Early vote on the map</h2>
   <p class="chart-sub" id="cov-sum">Loading…</p>
-  <div class="ev-covgrid">
+  <div class="toggle" id="cov-metric" role="group" aria-label="Map shading"></div>
+  <div class="ev-mapgrid">
     <figure class="ev-mapfig">
-      <div id="cov-map" class="ev-map" role="img" aria-label="Map of the states by data status"></div>
+      <div id="cov-map" class="ev-map" role="group" aria-label="Map of the states, shaded by the chosen early-vote measure"></div>
+      <div class="ev-tip" id="cov-tip" role="status" hidden></div>
       <div class="ev-legend" id="cov-legend"></div>
     </figure>
-    <div class="ev-covtable">
-      <div class="toggle" id="cov-filter" role="group" aria-label="Filter the table"></div>
-      <div class="table-scroll"><table class="ev-cov" id="cov-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
+    <div class="ev-mapside">
+      <div class="ev-selcard" id="cov-sel" aria-live="polite"></div>
+      <p class="note" id="cov-metric-note"></p>
     </div>
+  </div>
+  <h3 id="cov-th">Which states publish, and what we have</h3>
+  <div class="ev-covtable">
+    <div class="toggle" id="cov-filter" role="group" aria-label="Filter the table"></div>
+    <div class="table-scroll"><table class="ev-cov" id="cov-table"><thead></thead><tbody><tr><td>Loading…</td></tr></tbody></table></div>
   </div>
   <p class="note" id="cov-note"></p>
   <figure class="ev-fig" id="pace-fig">
@@ -77,6 +85,17 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
     <ul class="ev-pace-list" id="pace-list"></ul>
     <p class="note" id="pace-note"></p>
   </figure>
+</section>
+
+<section class="ev-wrap" id="td-sec" aria-labelledby="td-h">
+  <h2 id="td-h">Turnout so far: early, absentee and Election Day</h2>
+  <p class="td-label"><b>Turnout only: who voted, not how. Not used by any model.</b></p>
+  <p class="chart-sub" id="td-asof">Loading…</p>
+  <details class="ev-explain"><summary>Details: what the turnout file covers, and the history test</summary>
+    <p class="chart-sub" id="td-sum"></p>
+    <p class="note" id="td-hist"></p>
+  </details>
+  <p class="note"><a href="turnout.html"><b>Open the turnout dashboard</b></a>: a map and a panel for every state with banked ballots against what the models expect and against 2022 and 2024, by method, by party registration, by county, with how the model sees it. Sources are state and county election offices, the UF Election Lab compile (marked secondary) and a few manual downloads.</p>
 </section>
 
 <section class="ev-wrap" id="st-sec" aria-labelledby="st-h" hidden>
