@@ -88,8 +88,8 @@ for u in __UNITS__; do
   eval "$($S systemctl show $u -p ActiveState -p SubState -p NRestarts -p Result -p ActiveEnterTimestamp | sed 's/=/="/;s/$/"/')"
   echo "U $u $ActiveState $SubState ${NRestarts:-0} $Result $(ts "$ActiveEnterTimestamp")"
   n=$($S journalctl -u $u --since '-5min' -o cat --no-pager 2>/dev/null | grep -c -E 'Traceback|MemoryError|Killed')
-  e=$($S journalctl -u $u --since '-5min' -o cat --no-pager 2>/dev/null | grep -c -i -E 'error|exception')
-  s=$($S journalctl -u $u --since '-5min' -o cat --no-pager 2>/dev/null | grep -i -E 'Traceback|error|exception|MemoryError' | tail -1 | cut -c1-160 | tr '\t' ' ')
+  e=$($S journalctl -u $u --since '-5min' -o cat --no-pager 2>/dev/null | grep -v ' 0 errors/throttled' | grep -c -i -E 'error|exception')
+  s=$($S journalctl -u $u --since '-5min' -o cat --no-pager 2>/dev/null | grep -v ' 0 errors/throttled' | grep -i -E 'Traceback|error|exception|MemoryError' | tail -1 | cut -c1-160 | tr '\t' ' ')
   echo "J $u ${n:-0} ${e:-0} $s"
 done
 for t in __TIMERS__; do
@@ -102,18 +102,18 @@ echo "LOAD $(cut -d' ' -f1-3 /proc/loadavg) $(nproc) $(awk '/MemAvailable/{print
 echo "TUNNEL $($S journalctl -u brunder-tunnel --since '3 days ago' -o cat --no-pager 2>/dev/null | grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' | tail -1)"
 for n in snap kalshi civic; do
   f=$T/.poll/$n.json
-  [ -f $f ] && echo "PJ $n $($S stat -c %Y $f) $($S cat $f | tr -d '\n')"
+  $S test -f $f && echo "PJ $n $($S stat -c %Y $f) $($S cat $f | tr -d '\n')"
 done
 X=$SN/__TAG___extra
 for n in extra mac; do
   f=$X/.poll/$n.json
-  [ -f $f ] && echo "PJX $n $($S stat -c %Y $f)"
+  $S test -f $f && echo "PJX $n $($S stat -c %Y $f)"
 done
-if [ -d $T ]; then
+if $S test -d $T; then
   $S tail -n 6000 $T/index.jsonl 2>/dev/null | awk '{match($0,/"key": "[^"]*"/); k=substr($0,RSTART+8,RLENGTH-9); match($0,/"t": "[^"]*"/); t=substr($0,RSTART+6,RLENGTH-7); L[k]=t} END{for(k in L)print "F",k,L[k]}'
 fi
 W=$SN/__TAG___ws
-[ -d $W/polymarket_ws ] && echo "WS $($S find $W/polymarket_ws -maxdepth 1 -type f -printf '%T@\n' | sort -n | tail -1)"
+$S test -d $W/polymarket_ws && echo "WS $($S find $W/polymarket_ws -maxdepth 1 -type f -printf '%T@\n' | sort -n | tail -1)"
 for kv in __OUTPUTS__; do
   n=${kv%%=*}; p=$D/${kv#*=}
   if $S test -f $p; then echo "O $n $($S stat -c %Y $p)"; echo "OJ $n $($S head -c 4000000 $p | tr -d '\n')"; fi
