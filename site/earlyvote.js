@@ -409,9 +409,12 @@ function barChart(host, read, { bars, colors, x, xTitle = "Days before Election 
 const col = (s, k) => s.series[k] ?? [];
 const pts = (s, k) => col(s, "db").map((d, i) => [d, col(s, k)[i]]);
 
+// the history section (earlyvote.history.js) chooses a state through this event; the page tells it back with ev:state. Neither scrolls.
+document.addEventListener("ev:pick", (e) => { if (window.__evReady && e.detail !== S.st) select(e.detail); });
 async function select(st) {
   S.st = st || null;
   if (!st) return;
+  document.dispatchEvent(new CustomEvent("ev:state", { detail: st }));
   const u = new URL(location.href); u.searchParams.set("st", st); history.replaceState(null, "", u);
   $("#st-pick").value = st;
   $("#cov-table tbody").querySelectorAll("tr").forEach((r) => r.classList.toggle("sel", r.dataset.st === st));

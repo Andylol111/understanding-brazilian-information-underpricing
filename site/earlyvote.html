@@ -11,7 +11,7 @@
 <link id="page-css" rel="stylesheet">
 <link id="ev-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103m1";
+window.__BUILD = "20261103m2";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
@@ -102,6 +102,37 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
   <p class="note"><a href="turnout.html"><b>Open the turnout dashboard</b></a>: a map and a panel for every state with banked ballots against what the models expect and against 2022 and 2024, by method, by party registration, by county, with how the model sees it. Sources are state and county election offices, the UF Election Lab compile (marked secondary) and a few manual downloads.</p>
 </section>
 
+<section class="ev-wrap" id="eh-sec" aria-labelledby="eh-h">
+  <h2 id="eh-h">Has the early vote tracked the result? 2016-2024, every state</h2>
+  <p class="td-label"><b>Past elections, descriptive. Registration-based. Not a projection and not used by any model.</b></p>
+  <p class="chart-sub" id="eh-sum">Loading…</p>
+  <div class="eh-strip" id="eh-strip" aria-label="National summary"></div>
+  <div class="kf-cards" id="eh-cards"></div>
+  <p class="note" id="eh-caveat"></p>
+  <details class="ev-explain"><summary>How this is measured, and what is left out</summary><div id="eh-method"></div></details>
+
+  <h3 id="eh-th">State by state: the early vote against the result</h3>
+  <p class="chart-sub">One panel per state that reports party registration for its early voters. Across: the Democratic share of the result. Up: registered Democrats' share of Democratic plus Republican early ballots. A dot on the dashed line is an early vote that matched the result; above it, the early vote looked more Democratic than the result.</p>
+  <div class="ev-key" id="eh-key"></div>
+  <div class="eh-tiles" id="eh-tiles" role="group" aria-label="Early-vote share against result, one panel per state"></div>
+
+  <div class="ev-pick eh-pick"><label class="select">State <select id="eh-pick"></select></label> <span class="ev-status">Chooses the state on the map and below too.</span></div>
+  <div id="eh-detail" class="eh-detail" aria-live="polite"></div>
+
+  <h3 id="eh-ch">Did a state's change in early voting go with the change in its result?</h3>
+  <div class="toggle" id="eh-measure" role="group" aria-label="Which early-vote measure"></div>
+  <div class="toggle" id="eh-dm" role="group" aria-label="Raw or cycle-adjusted"></div>
+  <div class="ev-key" id="eh-chart-key"></div>
+  <div class="ev-chart" id="eh-chart"></div>
+  <p class="chart-sub" id="eh-chart-read"></p>
+
+  <h3 id="eh-tbh">Every state, sortable</h3>
+  <div class="toggle" id="eh-filter" role="group" aria-label="Which states"></div>
+  <div class="table-scroll"><table class="ev-cov eh-table" id="eh-table"><thead></thead><tbody></tbody></table></div>
+  <p class="note">Gap in points (early-vote registered-D share minus the D two-party result). “Winner right” counts cycles where both were on the same side of 50. “Direction of change” counts state pairs where the early-vote share and the result moved the same way, cycle average removed. “Cycles” are the last two digits of each cycle with a gap. 2026 early-vote D share is today's registered-D share of D+R; “D result if the past gaps held” is that figure minus the state's smallest and largest past gap, a description of the past and not a projection (it needs two past cycles).</p>
+  <p class="ev-uf" id="eh-lic"></p>
+</section>
+
 <section class="ev-wrap" id="st-sec" aria-labelledby="st-h" hidden>
   <h2 id="st-h">One state</h2>
   <div class="ev-pick"><label class="select">State <select id="st-pick"></select></label> <span id="st-status" class="ev-status"></span></div>
@@ -163,5 +194,6 @@ document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
 </main>
 <script src="load-error.js"></script>
 <script type="module">import("./earlyvote.js?v=" + window.__V).catch(window.__showLoadError);</script>
+<script type="module">import("./earlyvote.history.js?v=" + window.__V).catch((e) => console.error(e));</script>
 </body>
 </html>

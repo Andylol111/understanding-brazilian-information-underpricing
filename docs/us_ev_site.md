@@ -154,3 +154,36 @@ Election Day 2026 only; turnout, not vote choice. **Unvalidated context, not use
   likely lean D/R" only for states whose config says early/mail is posted first AND a registration-based party split of banked ballots is published
   (early-vote files or a party row in the turnout file), at least 2 points from even.
 - **History:** every run appends the banked total to `history` (read back from the committed file), drawn with the official daily series.
+
+## Has the early vote tracked the result? (`site/earlyvote.html`, section `#eh-sec`)
+
+Past elections only: how well the registered-party mix and the size of the early vote tracked the certified result, every state the UF Election Lab /
+US Elections Project trackers covered. **Descriptive, registration-based, not a projection, not used by any model.** The registered early-vote-gap test
+([us_ev_gap.md](us_ev_gap.md): 24 races, direction 14/23 = 61 %, Wilson lower bound 0.41, polls made worse out of sample) still stands; the section
+says so next to every 2026 range.
+
+| piece | file |
+|---|---|
+| collection: raw pages -> one row per state x cycle | `brunder-research/scripts/session/ev_history_fetch.py`, `ev_history_all.py` -> `data/ev_history_all.csv` (local only; raw pages under `data/raw/ev_history/`) |
+| analysis + publisher (no network) | `analysis/us_ev_history_all.py --csv <ev_history_all.csv>` -> `site/data/ev2026/ev_history_all.json` |
+| page | `site/earlyvote.history.js` (own module; talks to `earlyvote.js` only through the `ev:state` / `ev:pick` events, never scrolls), block at the end of `earlyvote.css` |
+| tests | `tests/test_us_ev_history_all.py` (gap, winner, demeaning, direction counts, change pairs, row building), `analysis/site_check.py --only earlyvote` |
+
+**Sources** (secondary, aggregates only; honest user agent, <= 1 request/s, robots honoured; licence line on the page): 2024 `election.lab.ufl.edu/data-downloads/earlyvote/2024/US.csv`
+(one snapshot per state); 2022 the Lab's RPubs state pages; 2020 `electproject.github.io/Early-Vote-2020G`; 2018 the Internet Archive copy of the 2018 Early Vote
+sheet (2018-11-06 19:33 UTC; the only archived copy of its data tab). **2016: no data.** The 2016 sheet's data tab is not in the Internet Archive (only the empty shell), and
+the Lab and the Elections Project publish no other 2016 file, so the section covers 2018-2024. For every state-cycle the report used is the last one dated on or before Election Day
+(a live page when its own "Last update" is on or before Election Day, else the latest archived copy that is; the date and days before are in the file). Reports dated on Election Day
+itself count ballots through the previous day or that morning (2018: 9 of 49, 2020: 12 of 51, 2022: 12 of 45, 2024: 20 of 49).
+
+**Definitions.** `ev_d2` = registered D / (D + R) among early ballots (only where the source gives party for the whole early vote: 84 state-cycles); `act` = mean D two-party
+share of the state-cycle's certified polled Senate / governor / president races (`us_ev_party_misses.csv`; the county panel fills the president where that table has none, and
+every race of a state-cycle it does not cover, never a race with a D share outside 5-95 %); `gap` = `ev_d2` - `act`. 78 state-cycles in 27 states have both. Early % of final votes
+= total early ballots / the largest statewide race total of the county panel (not in it: AK, CT, DC), left blank when the report is more than 7 days before Election Day, covers
+part of a state (ID 2020: Ada County only; OH 2020: 80 of 88 counties; five partial 2018 reports) or exceeds the final total. Changes between cycles are compared only where the
+tracker's early-vote definition (mail only / in-person only / both) is the same; the cycle-demeaned version subtracts each (cycle pair)'s mean change over the states first.
+Age: share of the oldest group (65+ in 2020 and 2022, "60+" in 2018, which has two states); 2024's file does not state its four age groups, so none is taken from it.
+
+**Headline (generated numbers, `pooled` in the file).** Gap: n = 78, mean +3.8 pt, mean absolute 7.0 pt, same side of 50 as the result in 67 of 78; cycle means 2018 +1.7, 2020 +6.6, 2022 +6.3, 2024 +0.9.
+Change against change (same type, 23 states): direction agrees 18/23, 15/23 with the cycle average removed (95 % interval 45-81 %), correlation +0.28; against any previous cycle 25/36 after
+the adjustment, +0.31. Early-vote share of the final vote (same type, 44 pairs): 25/44 after the adjustment (42-70 %), correlation +0.17; any previous cycle 40/72, -0.06. Age: 3 states (GA, MI, PA, 2020 to 2022).

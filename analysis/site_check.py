@@ -626,6 +626,7 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
             continue
         if not q["c1"] or q["partyShown"] != want["party"] or q["ctyShown"] != want["county"] or bool(q["cmpCharts"]) != want["compare"]:
             out.append(f"{st}: unexpected panels {q}")
+    out.extend(await check_ev_history(page))
     text = await page.evaluate("document.body.innerText")
     for bad in ("NaN", "undefined", "null", "[object"):
         if bad in text:
@@ -717,6 +718,88 @@ async def check_county_zoom(page: Page, box: str, tip: str, legend: str, metric:
     if await level() != "states":
         out.append(f"{name}: Back to US did not return to the states (level {await level()})")
     await still("Back to US")
+    return out
+
+
+async def check_ev_history(page: Page) -> list[str]:
+    """'Has the early vote tracked the result?' section: file and page agree, picker syncs with the page's state choice in place (no scrolling), table sorts, chart toggles."""
+    out: list[str] = []
+    await page.wait_for_function("window.__ehReady === true", timeout=15000)
+    h = await page.evaluate("fetch('data/ev2026/ev_history_all.json').then((r) => r.ok ? r.json() : null)")
+    if not h:
+        return ["ev_history_all.json is not published"]
+    withp = [s_ for s_ in h["states"] if s_["n"] > 0]
+    q = await page.evaluate("""() => ({ strip: document.querySelectorAll('#eh-strip .eh-s').length, cards: document.querySelectorAll('#eh-cards .kf-card').length, tiles: document.querySelectorAll('#eh-tiles .eh-tile').length,
+        dots: document.querySelectorAll('#eh-tiles .eh-tile circle').length, rows: document.querySelectorAll('#eh-table tbody tr').length, picks: document.querySelectorAll('#eh-pick option').length,
+        chart: document.querySelectorAll('#eh-chart circle.eh-dot').length, caveat: document.querySelector('#eh-caveat')?.textContent ?? '', lic: document.querySelector('#eh-lic')?.textContent ?? '',
+        strip0: document.querySelector('#eh-strip')?.textContent ?? '', head: document.querySelector('#eh-h')?.textContent ?? '' })""")
+    n_dots = sum(1 for r in h["rows"] if r.get("gap") is not None)
+    n_pairs = sum(1 for p_ in h["pairs"]["party_same"] if "skipped" not in p_)
+    if q["strip"] != 5 or q["cards"] != 6 or q["tiles"] != len(withp) or q["dots"] != n_dots or q["rows"] != len(withp) or q["picks"] != len(h["states"]) + 1 or q["chart"] != n_pairs:
+        out.append(f"history section does not match ev_history_all.json (states with party {len(withp)}, dots {n_dots}, pairs {n_pairs}): {q}")
+    if "Has the early vote tracked the result" not in q["head"] or "not used by any model" not in q["caveat"] or "permission" not in q["lic"]:
+        out.append(f"history section lacks its heading, the registered-test caveat or the licence line: {q}")
+    g = h["pooled"]["gap"]
+    if f"{g['n']}" not in q["strip0"] or f"{g['right']} of {g['right_n']}" not in q["strip0"]:
+        out.append(f"national strip does not show the pooled counts of the file ({g['n']}, {g['right']} of {g['right_n']}): {q['strip0'][:200]}")
+    # picking a state here updates the page's state and the section in place, without scrolling; so does the reverse
+    await page.evaluate("document.querySelector('#eh-sec').scrollIntoView({block: 'start'})")
+    await page.wait_for_timeout(200)
+    probe = """() => ({ url: new URLSearchParams(location.search).get('st'), pageSel: document.querySelector('#st-pick').value, mine: document.querySelector('#eh-pick').value,
+        detail: document.querySelector('#eh-detail').textContent, pressed: [...document.querySelectorAll('#eh-tiles .eh-tile[aria-pressed=true]')].map((e) => e.dataset.st), y: window.scrollY, sel: document.querySelectorAll('#eh-table tbody tr.sel').length, dotsSel: document.querySelectorAll('#eh-chart circle.eh-dot.sel').length })"""
+    pick_name = {s_["st"]: s_["name"] for s_ in h["states"]}
+    for how, st in (("section picker", "nc"), ("tile", "pa"), ("table row", "co"), ("page picker", "az")):
+        target = {"tile": f"#eh-tiles .eh-tile[data-st='{st}']", "table row": f"#eh-table tbody tr[data-st='{st}'] button.ev-name"}.get(how)
+        if target:
+            await page.locator(target).scroll_into_view_if_needed()  # the test's own scrolling comes first; only the page's reaction is measured
+            await page.wait_for_timeout(150)
+        anchor = target or ("#eh-pick" if how == "section picker" else "#eh-table tbody tr[data-st='co']")  # something in view: it must stay where it is
+        topq = "(a) => document.querySelector(a).getBoundingClientRect().top"
+        t0 = await page.evaluate(topq, anchor)
+        if how == "section picker":
+            await page.select_option("#eh-pick", st)
+        elif target:
+            await page.click(target)
+        else:
+            await page.evaluate("(s) => { const e = document.querySelector('#st-pick'); e.value = s; e.dispatchEvent(new Event('change')); }", st)
+        await page.wait_for_function("(s) => new URLSearchParams(location.search).get('st') === s && document.querySelector('#st-pick').value === s && document.querySelector('#eh-pick').value === s", arg=st)
+        await page.wait_for_timeout(600)
+        r = await page.evaluate(probe)
+        if r["pageSel"] != st or r["mine"] != st or pick_name[st] not in r["detail"] or r["pressed"] != [st]:
+            out.append(f"history {how} {st}: page and section are not in step: {r}")
+        t1 = await page.evaluate(topq, anchor)
+        if abs(t1 - t0) > 2:  # what the viewer is looking at must not move (browser scroll anchoring keeps it still when the map panel above changes height)
+            out.append(f"history {how} {st}: {anchor} jumped in the viewport from {t0:.0f} to {t1:.0f}")
+        if r["sel"] != 1:
+            out.append(f"history {how} {st}: {r['sel']} highlighted table rows")
+    # the state view shows the early-vote share behind the gap and the 2026 context row
+    az = next(s_ for s_ in h["states"] if s_["st"] == "az")
+    row = next((r_ for r_ in h["rows"] if r_["st"] == "az" and r_.get("gap") is not None), None)
+    det = await page.evaluate("document.querySelector('#eh-detail').textContent")
+    if row and (f"{row['ev_d2']:.1f}%" not in det or "2026" not in det):
+        out.append(f"state view lacks the early-vote share of {row['ev_d2']:.1f}% or the 2026 row: {det[:300]}")
+    if (az.get("ev26") or {}).get("range") and "descriptive, not a projection" not in det:
+        out.append("state view gives a range from the past gaps without the 'descriptive, not a projection' label")
+    # sorting: mean |gap| high to low, then back to the full list of states
+    await page.click("#eh-table thead button[data-k='abs']")
+    first = await page.evaluate("[...document.querySelectorAll('#eh-table tbody tr')].map((r) => r.dataset.st)")
+    order = [s_["st"] for s_ in sorted(withp, key=lambda s_: (-s_["mean_abs_gap"], s_["name"]))]
+    if first != order:
+        out.append(f"table sort by mean |gap| gives {first[:6]}, expected {order[:6]}")
+    await page.click("#eh-filter button:nth-child(2)")
+    n_all = await page.evaluate("document.querySelectorAll('#eh-table tbody tr').length")
+    if n_all != len(h["states"]):
+        out.append(f"'All states' shows {n_all} rows, expected {len(h['states'])}")
+    await page.click("#eh-filter button:nth-child(1)")
+    # the change chart: both measures, raw and cycle-adjusted
+    for mi, key in ((2, "volume_same"), (1, "party_same")):
+        await page.click(f"#eh-measure button:nth-child({mi})")
+        for di in (2, 1):
+            await page.click(f"#eh-dm button:nth-child({di})")
+            c = await page.evaluate("document.querySelectorAll('#eh-chart circle.eh-dot').length")
+            want = sum(1 for p_ in h["pairs"][key] if "skipped" not in p_)
+            if c != want:
+                out.append(f"change chart {key} has {c} dots, expected {want}")
     return out
 
 
