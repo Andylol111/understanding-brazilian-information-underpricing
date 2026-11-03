@@ -105,7 +105,7 @@ class Recorder:
             self.stats["requests"] += 1
             self.log(ts=t.isoformat(), source=source, url=ru, status=r.status_code, bytes=len(r.content), note="robots")
             rp = urllib.robotparser.RobotFileParser()
-            if r.status_code in (404, 410):
+            if 400 <= r.status_code < 500 and r.status_code not in (401, 403, 429):   # RFC 9309 2.3.1.3: unavailable = no rules
                 rp.parse([])
             elif r.status_code == 200 and not self.challenge(r, "text"):
                 rp.parse(r.text.splitlines())
