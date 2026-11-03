@@ -7,6 +7,6 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 echo "$(date -u +%FT%TZ) turnout loop started, pid $$, until ${STOP}"
 while [ "$(date -u +%Y%m%d%H%M)" -lt "$STOP" ]; do
   sh "$HERE/us_turnout_publish.sh" "$@" || echo "$(date -u +%FT%TZ) run failed (exit $?)"
-  sleep 1200
+  sleep 600
 done
 echo "$(date -u +%FT%TZ) stop time reached: loop ends"
