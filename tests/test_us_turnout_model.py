@@ -225,3 +225,30 @@ def test_age_block_needs_coverage_and_keeps_comparison_year():
     assert tm.age_block("ID", g, None) is None                                                      # under 90% of ballots have an age
     ks = tm.age_block("KS", None, {"source": "ike", "as_of_date": "2026-11-02", "bands": ["a", "b"], "note": "n", "counts": {"2026": {"a": 25, "b": 75}, "2022": {"a": 10, "b": 90}}})
     assert ks["bands"][0] == {"band": "a", "share": 25.0, "past": {"2022": 10.0}}
+
+
+# ---- newer official file than the UF early-vote file (latest_official)
+def _lat(date, **kw):
+    return {"kind": "advance", "total": 498951, "as_of": f"{date} 08:00", "as_of_date": date, "prov": "manual", "source": "src",
+            "party": {"D": 224734, "R": 171220, "U": 101001, "other": 1996}, **kw}
+
+
+def test_official_latest_only_where_strictly_newer_than_the_uf_file():
+    o = tm.official_latest(ROOT, "IA", _lat("2026-11-03"))              # state_ia.json latest.date is earlier
+    uf = tm.json.loads((ROOT / "site/data/ev2026/state_ia.json").read_text())["latest"]["date"]
+    assert uf < "2026-11-03" and o["total"] == 498951 and o["party"]["D"] == 224734 and o["uf"]["date"] == uf and "Newer official file" in o["note"]
+    assert o["lead"] == round(100 * (224734 - 171220) / 498951, 3) and o["d_share_dr"] == round(100 * 224734 / (224734 + 171220), 2)
+    assert tm.official_latest(ROOT, "IA", _lat(uf)) is None              # same day: the early-vote file stays
+    assert tm.official_latest(ROOT, "IA", _lat("2026-10-01")) is None    # older: never used
+    assert tm.official_latest(ROOT, "IA", _lat("2026-11-03", kind="election_day")) is None     # an Election Day-only count is never swapped in
+    assert tm.official_latest(ROOT, "IA", None) is None
+    assert tm.official_latest(ROOT, "WI", _lat("2026-11-03", party=None))["party"] is None
+
+
+def test_build_puts_the_official_party_first_and_keeps_the_uf_one():
+    day = {"generated_utc": "2026-11-03T17:00:00Z", "states": [{"st": "IA", "name": "Iowa", "verdict": "x", "verdict_class": "none", "counties": [], "rows": []}]}
+    ia = tm.build(day, ROOT, extra={"state_extra": {"IA": {"latest": _lat("2026-11-03")}}})["states"]["IA"]
+    assert ia["latest_official"]["total"] == 498951
+    assert ia["party"][0]["source"] == "newer official file" and ia["party"][0]["D"] == 224734 and ia["party"][0]["other"] == 101001 + 1996
+    assert any(p["source"] == "early-vote files" for p in ia["party"][1:])
+    assert ia["lean"] is None or ia["lean"]["d_share_of_dr"] == round(100 * 224734 / (224734 + 171220), 1)

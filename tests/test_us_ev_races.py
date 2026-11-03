@@ -123,3 +123,16 @@ def test_no_poll_version_falls_back_to_past_share_and_says_so():
     ov = {"as_of": "x", "offices": {"senate": {"races": [_race("aa-sen", "aa", "senate", share=0.47)]}, "governor": {"races": []}}}
     imp = er.build(ov, _tm("AA", 550, 450, 300), _panel("aa", 600, 400, 200), _miss("aa", 52.0))["races"][0]["implied"]
     assert "past-results-only" in imp["note"]
+
+
+def test_newer_official_party_is_the_headline_and_the_stage_match_uses_the_older_figure():
+    ts = _tm("ia", 600, 400, 100, as_of="2026-11-03")["states"]["ia"]
+    ts["party"] = [{"kind": "pre_election_day", "as_of": "2026-11-03", "D": 600, "R": 400, "other": 100, "source": "newer official file"},
+                   {"kind": "pre_election_day", "as_of": "2026-11-02", "D": 540, "R": 400, "other": 90, "source": "early-vote files"}]
+    ts["latest_official"] = {"total": 1100, "as_of": "x", "as_of_date": "2026-11-03", "source": "s", "note": "n"}
+    b = er.state_block("ia", ts, _panel("ia", 450, 350, 100))                 # 2022-11-07 = one day before Election Day: the 11-02 figure's stage
+    assert b["party"]["D"] == 600 and b["party"]["source"] == "newer official file" and b["latest_official"]["as_of_date"] == "2026-11-03"
+    assert b["party_same_stage"]["as_of"] == "2026-11-02" and b["shift_as_of"] == "2026-11-02" and b["shift"] is not None
+    assert b["shift"]["d_share_dr_pt"] == pytest.approx(100 * 540 / 940 - 100 * 450 / 800)
+    im = er.implied_block("ia", "Sen", _race("ia-sen", "ia", "Sen"), b, _miss("ia", 45.0), er.race_view(_race("ia-sen", "ia", "Sen")))
+    assert im["ok"] and im["ev26_d_share_dr"] == pytest.approx(100 * 540 / 940) and "one day before Election Day" in im["note"]

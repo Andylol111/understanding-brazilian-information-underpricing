@@ -135,6 +135,13 @@ Election Day 2026 only; turnout, not vote choice. **Unvalidated context, not use
   expected two-party votes; mean of a state's races), otherwise `EST_TURNOUT` (0.72, `brunder.us`) x 2024 president two-party votes
   (`data_public/us2026_county_baseline.csv`; state total from `us2026_state_pres24.csv`). Ballots include third-party and blank votes, so a share of
   the two-party expectation runs a little high.
+- **Newer official file** (`states.<st>.latest_official`): where an official file (a manual download or an official report) has an as-of date strictly later
+  than the UF early-vote file's last day (IA SOS 08:00 Nov 3, WI WEC, MT SOS; KS via IKE Lab, secondary), its statewide total, method split and
+  registration party counts replace the UF "latest" figures on the early-vote page (map metrics, state panel, party lead, table) with an as-of and a
+  "newer official file" note; the UF series is kept for the history charts. Its party counts come first in `party`, so `ev_races.json` and the lean
+  wording use them; 2022 has a party figure only one day before Election Day, so the shift and EV-implied value use the early-vote file's party
+  figure of that stage (`party_same_stage`, `shift_as_of`) and say so. An Election Day-only count (Nevada VIVID) and an older or same-day file are never swapped in.
+  `analysis/us_turnout_publish.sh` runs `analysis/us_ev_races.py` after the model and commits `ev_races.json` with the turnout files.
 - **Outstanding mail ballots** (`states.<st>.outstanding`, county `mail`): ballots sent (else requested) minus ballots returned, from one source with
   both figures (WI WEC, IA SOS, MT SOS, KS SOS via IKE Lab, MI SOS, a state-file mail row such as PA's; else the UF requested-vs-mail-accepted pair).
   Not computed when a figure is missing, returned exceeds sent, or the two are as of dates more than a day apart. In a state that mails every active

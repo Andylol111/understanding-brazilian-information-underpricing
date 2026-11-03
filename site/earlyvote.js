@@ -98,7 +98,7 @@ function drawCoverage() {
     const stale = c.stale ? ` <span class="ev-detail" style="display:inline">(older than the rest)</span>` : "";
     return `<tr data-st="${c.st}" class="${c.st === S.st ? "sel" : ""}"><td><button type="button" class="ev-name" data-st="${c.st}">${esc(c.name)}</button></td>` +
       `<td><span class="ev-pill s-${c.status}">${STATUS[c.status]}</span>${detail}</td><td>${level(c)}</td><td>${c.status === "collected" || c.status === "compiled" ? (c.party ? "yes" : "no") : "–"}</td>` +
-      `<td class="n">${dayShort(c.as_of)}${stale}</td><td class="n ev-hide-sm">${stamp(c.last_fetch)}</td><td class="n">${num(c.total)}</td>${paceCell(c)}<td class="n"${c.pct22 > 100 ? ` title="the 2022 total in the source looks too low"` : ""}>${pct22Of(c) != null ? pc(c.pct22) : "–"}</td><td class="n">${pt(c.lead)}</td>` +
+      `<td class="n">${dayShort(c.as_of)}${stale}${c.official ? ` <span class="ev-detail" style="display:inline">(newer official file)</span>` : ""}</td><td class="n ev-hide-sm">${stamp(c.last_fetch)}</td><td class="n">${num(c.total)}</td>${paceCell(c)}<td class="n"${c.pct22 > 100 ? ` title="the 2022 total in the source looks too low"` : ""}>${pct22Of(c) != null ? pc(c.pct22) : "–"}</td><td class="n">${pt(c.lead)}</td>` +
       `<td class="n ev-hide-sm">${c.hist.length ? c.hist.join(", ") : "–"}</td><td class="ev-links ev-hide-sm">${c.links.slice(0, 2).map((l) => `<a href="${esc(l.url)}" rel="noopener">${esc(l.label)}</a>`).join("")}</td></tr>`;
   }).join("");
   $("#cov-table tbody").querySelectorAll("[data-st]").forEach((el) => el.addEventListener("click", (e) => { if (e.target.closest("a")) return; select(el.dataset.st); }));
@@ -116,18 +116,43 @@ const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec"; // the national map
 const DIVP = [d3.interpolateLab(NEUTRAL, REP)(0.95), d3.interpolateLab(NEUTRAL, REP)(0.5), NEUTRAL, d3.interpolateLab(NEUTRAL, DEM)(0.5), d3.interpolateLab(NEUTRAL, DEM)(0.95)];
 const NOFIG = "#e6e4dd";
 const modelOf = (c) => S.model?.states?.[c.st.toUpperCase()];
+// Newer official file than the UF compile (turnout_model.json states.<st>.latest_official: statewide aggregates, as-of strictly later than the UF file's last day).
+// It replaces the UF "latest" figures on the map, the panel, the table and the party lead; the UF series stays for the history charts.
+const officialOf = (st) => S.model?.states?.[st.toUpperCase()]?.latest_official ?? null;
+const officialDay = (o) => (o.as_of_utc ? o.as_of_utc.slice(0, 10) : o.as_of_date);
+function applyOfficial() {
+  for (const c of S.index.states) {
+    const o = officialOf(c.st);
+    if (!o) continue;
+    const cert = c.pct22 ? (c.total * 100) / c.pct22 : null;
+    c.uf = { total: c.total, as_of: c.as_of, lead: c.lead };
+    c.total = o.total; c.as_of = officialDay(o); c.added = null; c.official = o;
+    if (o.mail != null) c.mail = o.mail;
+    if (o.in_person != null) c.inperson = o.in_person;
+    if (cert) c.pct22 = (100 * c.total) / cert;
+    if (o.party) { c.lead = o.lead; c.party = true; }
+  }
+}
+// the state file's latest row with the newer official figures laid over it (same shape); the party counts stay the UF's where the official file has none
+const latestOf = (s, st) => {
+  const o = officialOf(st), L = s.latest;
+  if (!o) return L;
+  return { ...L, date: officialDay(o), total: o.total, mail: o.mail ?? null, inperson: o.in_person ?? null, added: null, span: null, official: o,
+    ...(o.party ? { lead: o.lead, party: { D: o.party.D, R: o.party.R, U: o.party.U, other: o.party.other } } : {}) };
+};
+const srcOf = (c) => (c.official ? `newer ${c.official.prov === "secondary" ? "secondary" : "official"} file than the UF compile (${dayShort(officialDay(c.official))})` : SRC[c.status]);
 // A share above 100% of the 2022 total means the 2022 total in the source is too low (all of 2022's votes cannot be fewer than the early ballots of this year), so it is not mapped.
 const pct22Of = (c) => (c.pct22 != null && c.pct22 <= 100 ? c.pct22 : null);
 const suspect22 = () => S.index.states.filter((c) => c.pct22 != null && c.pct22 > 100);
 const SRC = { collected: "official count", compiled: "UF Election Lab compile (secondary)", blocked: "none collected (blocked)", not_published: "none published" };
 const MAPM = {
-  pct22: { label: "% of 2022 total votes", val: pct22Of, fmt: pc, short: (v) => `${Math.round(v)}%`, colors: SEQ, unit: "of 2022's total votes", asof: (c) => dayShort(c.as_of), src: (c) => SRC[c.status],
+  pct22: { label: "% of 2022 total votes", val: pct22Of, fmt: pc, short: (v) => `${Math.round(v)}%`, colors: SEQ, unit: "of 2022's total votes", asof: (c) => dayShort(c.as_of), src: srcOf,
     note: () => `Ballots counted so far divided by the certified 2022 total vote in the same state; breaks are quintiles of the states shown. Definitions differ by state (some count only mail or only in-person).${suspect22().map((c) => ` ${c.name} is not shown: its ${num(c.total)} ballots already exceed the 2022 total of ${num(c.pace?.cert22 ?? (c.total * 100) / c.pct22)} in the source, so that 2022 total looks too low.`).join("")}` },
   pace: { label: "vs 2022 same point", val: (c) => c.pace?.pace, fmt: x2, short: (v) => `${v.toFixed(2)}×`, fixed: [0.95, 1.05, 1.15, 1.3], colors: DIVG, unit: "of 2022 at this point", asof: (c) => (c.pace?.now ? dayShort(c.pace.now.date) : "–"), src: (c) => (c.pace?.now ? paceSrc(c.pace) : SRC[c.status]),
     note: () => "This year's ballots divided by the 2022 ballots on the same number of days before Election Day. 1.00× is level with 2022. Shown only where a state published a comparable 2022 figure; the rest are grey." },
   expected: { label: "% of model's expected", val: (c) => modelOf(c)?.banked_pct_expected, fmt: pc, short: (v) => `${Math.round(v)}%`, colors: SEQ, unit: "of expected", derived: true, asof: () => (S.model ? stamp(S.model.generated_utc) : "–"), src: () => "turnout_model.json (banked ballots over the models' expected votes)",
     note: () => "Banked ballots (early, mail, and Election Day check-ins where published) over the total votes the registered models expect; breaks are quintiles. Unvalidated context, not used by any model. Ballots include third-party and blank votes, so shares run a little high." },
-  lead: { label: "Party lead of banked ballots (registration)", val: (c) => c.lead, fmt: pt, short: (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(0)}`, fixed: [-10, -3, 3, 10], colors: DIVP, unit: "D minus R", asof: (c) => dayShort(c.as_of), src: (c) => `${SRC[c.status]}; party registration`,
+  lead: { label: "Party lead of banked ballots (registration)", val: (c) => c.lead, fmt: pt, short: (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(0)}`, fixed: [-10, -3, 3, 10], colors: DIVP, unit: "D minus R", asof: (c) => dayShort(c.as_of), src: (c) => `${srcOf(c)}; party registration`,
     note: () => "Democratic minus Republican share of returned ballots, by the voter's party registration, only where a state publishes it; at county level, the county's own party figures where its state publishes them. Registration, not votes; unaffiliated and crossover voters are large." },
   shift: { label: "Party shift vs 2022 (registration)", val: (c) => S.races?.[c.st.toUpperCase()]?.shift?.d_share_dr_pt ?? null, fmt: pt, short: (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(1)}`, fixed: [-3, -1, 1, 3], colors: DIVP, unit: "change in the Democratic share of D+R ballots vs 2022 at the same point", asof: (c) => dayShort(S.races?.[c.st.toUpperCase()]?.party?.as_of), src: () => "ev_races.json: party registration of returned ballots, this year against the 2022 final pre-election report",
     note: () => "Change in the Democratic share of Democratic plus Republican returned ballots (by party registration) against the same measure in 2022, only where both years' party figures exist; there is no county version. Registration, not votes; unaffiliated and crossover voters are large." },
@@ -200,12 +225,12 @@ function spark(s) {
 const bar = (parts) => { const t = d3.sum(parts, (p) => p[1] ?? 0) || 1; return `<div class="side-bar">${parts.filter((p) => p[1]).map(([n, v, c]) => `<span style="flex:${v};background:${c}" title="${esc(n)}: ${num(v)}"></span>`).join("")}</div><p class="kf-a">${parts.filter((p) => p[1]).map(([n, v, c]) => `<i style="background:${c}"></i>${esc(n)} ${pc((100 * v) / t, 0)}`).join(" · ")}</p>`; };
 async function sideState(c) {
   const [s, cty] = await Promise.all([get(`state_${c.st}`, c.has_state), get(`counties_${c.st}`, c.has_counties)]);
-  const mo = modelOf(c), L = s?.latest, pace = c.pace?.pace;
+  const mo = modelOf(c), L = s ? latestOf(s, c.st) : null, pace = c.pace?.pace;
   const head = `<h3 class="side-h">${esc(c.name)} <span class="ev-pill s-${c.status}">${STATUS[c.status]}</span></h3>`;
   if (!s) return `${head}<p class="side-note">${esc(c.detail || "No official counts are collected for this state.")}</p><p class="note">${c.links.map((l) => `<a href="${esc(l.url)}" rel="noopener">${esc(l.label)}</a>`).join(", ")}</p>`;
   const pcts = pct22Of(c);
   const cards = [
-    kpi("Ballots so far", num(L.total), `counted through ${dayShort(L.date)}`),
+    kpi("Ballots so far", num(L.total), `counted through ${dayShort(L.date)}${L.official ? " (newer official file)" : ""}`),
     kpi("Of 2022's total", pcts != null ? pc(pcts) : "–", c.pct22 != null && pcts == null ? "2022 total in the source looks too low" : "certified 2022 total votes"),
     kpi("Vs 2022, same point", pace != null ? x2(pace) : "–", pace != null ? esc(paceSrc(c.pace)) : "no comparable 2022 figure"),
     mo?.banked_pct_expected != null ? kpi("Of the model's expected", pc(mo.banked_pct_expected), `generated ${esc(stamp(S.model.generated_utc))}`, true) : "",
@@ -216,7 +241,7 @@ async function sideState(c) {
   const method = L.mail != null && L.inperson != null ? `<p class="kf-k">By method</p>${bar([[s.mail_label, L.mail, COLORS.mail], ["In-person early", L.inperson, COLORS.inperson]])}` : L.mail != null ? `<p class="kf-a">All counted as ${esc(s.mail_label.toLowerCase())}.</p>` : "";
   const party = P ? `<p class="kf-k">By party registration (not votes)</p>${bar([["Democratic", P.D, COLORS.D], ["Republican", P.R, COLORS.R], ["Unaffiliated", P.U, COLORS.U], ["Other", P.other, COLORS.other]])}` : "";
   const top = cty ? `<p class="kf-k">Largest counties</p><ol class="side-list">${[...cty.counties].sort((a, b) => (b.total ?? 0) - (a.total ?? 0)).slice(0, 5).map((r) => `<li>${esc(r.name)} <span class="n">${num(r.total)}</span></li>`).join("")}</ol>` : "";
-  return `${head}<div class="side-cards">${cards}</div>${method}${party}<p class="kf-k">Over time</p>${spark(s)}${top}<p class="note">Source: ${esc(s.sources.map((x) => x.what || x.id).join("; "))}. ${esc(SRC[c.status])}. Full charts and the county table are further down and update with this panel.</p>`;
+  return `${head}<div class="side-cards">${cards}</div>${method}${party}<p class="kf-k">Over time</p>${spark(s)}${top}${L.official ? `<p class="note"><b>${esc(L.official.note)}</b> Source: ${esc(L.official.source)}.</p>` : ""}<p class="note">Source: ${esc(s.sources.map((x) => x.what || x.id).join("; "))}. ${esc(SRC[c.status])}. Full charts and the county table are further down and update with this panel.</p>`;
 }
 async function updateSel() {
   const host = $("#cov-sel");
@@ -444,16 +469,16 @@ async function drawState() {
     drawCounties(cty);
     return;
   }
-  const L = s.latest, ed = s.election_day;
-  $("#st-chips").innerHTML = [chip("Ballots so far", num(L.total), `counted through ${dayShort(L.date)}`), L.mail != null ? chip(s.mail_label, num(L.mail)) : "", L.inperson != null ? chip("In-person early votes", num(L.inperson)) : "",
+  const L = latestOf(s, st), ed = s.election_day;
+  $("#st-chips").innerHTML = [chip("Ballots so far", num(L.total), `counted through ${dayShort(L.date)}${L.official ? " (newer official file)" : ""}`), L.mail != null ? chip(s.mail_label, num(L.mail)) : "", L.inperson != null ? chip("In-person early votes", num(L.inperson)) : "",
     L.added != null ? chip(L.span > 1 ? `Added in ${L.span} days` : "Added in the last day", num(L.added), `to ${dayShort(L.date)}`) : "",
     L.lead != null ? chip("Democratic minus Republican", pt(L.lead), "share of returned ballots, by registration") : "",
-    s.requested ? chip("Mail ballots requested", num(s.requested.value), `as of ${dayShort(s.requested.date)}`) : ""].join("");
+    s.requested && !L.official ? chip("Mail ballots requested", num(s.requested.value), `as of ${dayShort(s.requested.date)}`) : ""].join("");
   const tr = S.index.tracker, ufNote = (extra) => `<p class="ev-uf"><b>${esc(tr.label)}.</b> ${extra} <a href="${esc(tr.url)}" rel="noopener">UF Election Lab early-vote tracker</a>. ${esc(tr.licence)}.</p>`;
   $("#st-uf").innerHTML = !tr ? "" : s.compiled ? ufNote(`These figures are the Lab's, not an official count${cov.official ? `; the state's own count is ${OFFICIAL[cov.official.status] ?? "not collected"}` : ""}. Counted through the Lab's own update date for the state.`)
     : s.uf_check ? ufNote(`Cross-check: the Lab's count is ${num(s.uf_check.uf_total)} (through ${dayShort(s.uf_check.uf_date)}); the official count is ${num(s.uf_check.official_total)} (through ${dayShort(s.uf_check.official_date)}); the Lab is ${s.uf_check.diff === 0 ? "equal" : `${num(Math.abs(s.uf_check.diff))} ${s.uf_check.diff > 0 ? "above" : "below"} (${Math.abs(s.uf_check.diff_pct).toFixed(2)}%)`}. The official count is the one shown on this page.`) : "";
   const kindNote = s.compiled ? "One point per update the Lab published; days it did not update have no point." : s.daily_file ? "Day by day from the return date of every ballot in the official file." : "One point per official report; days a state did not publish have no point.";
-  $("#st-basis").textContent = `${s.basis} ${kindNote}`;
+  $("#st-basis").textContent = `${s.basis} ${kindNote}${L.official ? ` ${L.official.note} Source of the figures above: ${L.official.source}.` : ""}`;
   $("#st-sources").innerHTML = `<b>${s.compiled ? "Source" : "Official sources"}.</b> ${s.sources.map((x) => (x.url ? `<a href="${esc(x.url)}" rel="noopener">${esc(x.what || x.id)}</a>` : esc(x.what || x.id))).join("; ")}.`;
   drawCharts(s);
   drawCompare(s);
@@ -496,8 +521,8 @@ function drawCharts(s) {
     $("#c3-sub").textContent = `${s.name}: the Democratic share minus the Republican share of all returned ballots, in percentage points. Above zero: more ballots from registered Democrats.`;
     const r3 = $("#c3-read"), say3 = (d) => { if (d == null) { r3.textContent = ""; return; } const i = dayRow(d); r3.textContent = i == null ? `${d} days before Election Day: no report.` : `${dateLabel(db[i])}: ${pt(col(s, "lead")[i])}`; };
     lineChart($("#c3"), say3, { series: [{ name: "D minus R", color: "#1b1b1b", width: 2.4, pts: ld }], x, yFmt: (v) => `${v > 0 ? "+" : ""}${v}`, zero: true }); say3(null);
-    const P = s.latest.party, tot = d3.sum(Object.values(P), (v) => v ?? 0);
-    $("#party-table").innerHTML = `<thead><tr><th>Registration</th><th class="n">Returned ballots</th><th class="n">Share</th></tr></thead><tbody>${[["D", "Democratic"], ["R", "Republican"], ["U", "Unaffiliated"], ["other", "Other parties"]].filter(([k]) => P[k] != null).map(([k, t]) => `<tr><td><span style="color:${COLORS[k]}">■</span> ${t}</td><td class="n">${num(P[k])}</td><td class="n">${pc((100 * P[k]) / tot)}</td></tr>`).join("")}</tbody>`;
+    const Lp = latestOf(s, S.st), P = Lp.party, tot = d3.sum(Object.values(P), (v) => v ?? 0);
+    $("#party-table").innerHTML = `<thead><tr><th>Registration</th><th class="n">Returned ballots, ${dayShort(Lp.official?.party ? officialDay(Lp.official) : s.latest.date)}${Lp.official?.party ? " (newer official file)" : ""}</th><th class="n">Share</th></tr></thead><tbody>${[["D", "Democratic"], ["R", "Republican"], ["U", "Unaffiliated"], ["other", "Other parties"]].filter(([k]) => P[k] != null).map(([k, t]) => `<tr><td><span style="color:${COLORS[k]}">■</span> ${t}</td><td class="n">${num(P[k])}</td><td class="n">${pc((100 * P[k]) / tot)}</td></tr>`).join("")}</tbody>`;
   }
 }
 
@@ -586,6 +611,7 @@ async function boot() {
   pick.innerHTML = `<option value="">Choose a state</option>` + idx.states.map((c) => `<option value="${c.st}">${esc(c.name)}${c.status === "collected" ? "" : ` (${STATUS[c.status]})`}</option>`).join("");
   pick.onchange = () => { if (pick.value) select(pick.value); };
   S.model = await getJSON("ev2026/turnout_model.json", { optional: true }).catch(() => null);
+  applyOfficial();
   S.races = (await getJSON("ev2026/ev_races.json", { optional: true }).catch(() => null))?.states ?? null; // party_2022 / shift per state, for the shift map
   drawCoverage();
   const td = initTurnout(drawFindings);

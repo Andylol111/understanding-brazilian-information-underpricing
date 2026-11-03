@@ -234,6 +234,34 @@ def uf_outstanding(root: Path, st: str) -> dict[str, Any] | None:
     return r
 
 
+OFFICIAL_KINDS = ("advance", "mail_returned", "total")   # cumulative pre-Election Day counts; an Election Day-only count is never swapped in
+
+
+def official_latest(root: Path, st: str, lat: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The newest official (or official-compiled) cumulative count of a state, used in place of the UF early-vote file only where its as-of
+    date is strictly later than the UF file's last day. lat: the research extra's "latest" for the state (statewide, aggregates only).
+    Returns {total, party, mail, in_person, lead, as_of, source, ...} or None when there is none or it is not newer."""
+    if not lat or lat.get("kind") not in OFFICIAL_KINDS or not num(lat.get("total")) or not lat.get("as_of_date"):
+        return None
+    p = root / "site" / "data" / "ev2026" / f"state_{st.lower()}.json"
+    uf = (json.loads(p.read_text()).get("latest") or {}) if p.exists() else {}
+    uf_date = uf.get("date")
+    if uf_date and str(lat["as_of_date"]) <= str(uf_date):
+        return None
+    party = lat.get("party")
+    if party and (num(party.get("D")) is None or num(party.get("R")) is None):
+        party = None
+    tot = float(lat["total"])
+    out = {k: lat[k] for k in ("kind", "total", "mail", "in_person", "other_method", "method_published", "as_of", "as_of_date", "as_of_utc", "prov", "source", "source_url", "checks") if lat.get(k) is not None}
+    out["party"] = party
+    out["lead"] = round(100 * (party["D"] - party["R"]) / tot, 3) if party else None
+    out["d_share_dr"] = round(100 * party["D"] / (party["D"] + party["R"]), 2) if party and party["D"] + party["R"] > 0 else None
+    out["uf"] = {"date": uf_date, "total": uf.get("total"), "lead": uf.get("lead")}
+    out["note"] = (f"Newer official file than the early-vote file: {lat['as_of']} against the early-vote file's last day {uf_date or 'not available'}"
+                   f"{f' ({int(uf['total']):,} ballots)' if num(uf.get('total')) else ''}. The early-vote series is kept for the history charts.")
+    return out
+
+
 def county_files(root: Path, st: str) -> dict[str, Any] | None:
     p = root / "site" / "data" / "ev2026" / f"counties_{st.lower()}.json"
     return json.loads(p.read_text()) if p.exists() else None
@@ -496,7 +524,12 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
             if tot_all:
                 comp["share_all_expected"] = round(100 * float(np.clip(np.array([c["share"] for c in cs]) + (swing or 0), 0, 1) @ np.array([exp_by.get(c["unit_id"], 0) for c in cs]) / tot_all), 2)
         # party
+        lo = official_latest(root, st, ((extra.get("state_extra") or {}).get(st) or {}).get("latest"))
         parties = []
+        if lo and lo["party"]:
+            P_ = lo["party"]
+            parties.append({"source": "newer official file", "label": lo["source"], "as_of": lo.get("as_of_utc") or lo["as_of_date"], "kind": "pre_election_day",
+                            "D": P_["D"], "R": P_["R"], "other": (num(P_.get("U")) or 0) + (num(P_.get("other")) or 0) or None})
         evp = party_from_ev(root, st)
         if evp:
             parties.append(evp)
@@ -565,7 +598,7 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
                "county_kind": ck, "n_county_rows": len(counties), "n_county_no_figure": sum(1 for c in counties if c.get("no_figure")), "counties": counties, "composition": comp, "order": order, "party": parties,
                "lean": lean_text(main_party, oc) if order["class"] else lean_text(main_party, None),
                "swing_pt": None if swing is None else round(swing * 100, 2),
-               "outstanding": outst, "vs_2022_final": vs22f, "who": who, "county_unmatched": unmatched or None,
+               "latest_official": lo, "outstanding": outst, "vs_2022_final": vs22f, "who": who, "county_unmatched": unmatched or None,
                "county_party": bool(pcounty)}
         out_states[st] = rec
         if b and gen:
@@ -583,6 +616,7 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
                     "complete": sum(1 for r in out_states.values() if r["status"] == "all_methods"),
                     "with_expected_pct": sum(1 for r in out_states.values() if r["banked_pct_expected"] is not None),
                     "composition_states": sorted(r["st"] for r in out_states.values() if r["composition"]["ok"]),
+                    "latest_official_states": sorted(r["st"] for r in out_states.values() if r["latest_official"]),
                     "outstanding_states": sorted(r["st"] for r in out_states.values() if r["outstanding"] and r["outstanding"]["ok"]),
                     "vs_2022_final_states": sorted(r["st"] for r in out_states.values() if r["vs_2022_final"] and r["vs_2022_final"].get("ok"))},
         "states": out_states, "history": history, "proj_summary": proj_summary,

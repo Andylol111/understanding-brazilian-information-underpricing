@@ -1,8 +1,10 @@
 #!/bin/sh
-# One data-only refresh of the public Election Day turnout files (site/data/ev2026/turnout_day.json, turnout_volume.json, turnout_model.json).
+# One data-only refresh of the public Election Day turnout files (site/data/ev2026/turnout_day.json, turnout_volume.json, turnout_model.json, ev_races.json).
 #   research turnout_day.json -> us_turnout_publish.py -> us_turnout_model.py (run from the publish worktree, so it is the version on
-#   origin/main; skipped if that is not there yet; a failure keeps the last turnout_model.json) -> site_check on earlyvote.html and
-#   turnout.html (chromium + webkit) -> commit ONLY the three turnout_*.json files -> fetch + rebase on origin/main -> push (up to 3
+#   origin/main; skipped if that is not there yet; a failure keeps the last turnout_model.json) -> us_ev_races.py (run from the publish
+#   worktree on the model file just written: the registration party mix of each race's state, from the newer official file where there is one;
+#   a failure keeps the last ev_races.json) -> site_check on earlyvote.html and
+#   turnout.html (chromium + webkit) -> commit ONLY the four files below (the three turnout_*.json and ev_races.json) -> fetch + rebase on origin/main -> push (up to 3
 #   tries, never --force).
 # It never touches html / js / css / __BUILD: the page ships once, in its reviewed commit, and must already be on origin/main.
 # Runs in its own worktree (default ~/.cache/brunder-turnout-publish, branch turnout-publish, reset to origin/main each run),
@@ -10,7 +12,7 @@
 #   - after 2026-11-04T03:00Z: does nothing
 #   - 22:25Z to 22:40Z on 2026-11-03 (night stack start): does nothing
 #   - JSON byte-identical to what is on origin/main: no commit, no push
-#   - anything other than the three turnout_*.json files changed or staged: aborts, no push
+#   - anything other than those four files changed or staged: aborts, no push
 #   analysis/us_turnout_publish.sh [--no-push] [--engines chromium,webkit] [--src PATH] [--volume-src PATH]
 set -eu
 
@@ -20,7 +22,7 @@ BASE="${TURNOUT_PUBLISH_BASE:-origin/main}"
 STOP="${TURNOUT_STOP_UTC:-202611040300}"          # YYYYMMDDHHMM, UTC
 NOPUSH_FROM="${TURNOUT_BLACKOUT_FROM:-202611032225}"; NOPUSH_TO="${TURNOUT_BLACKOUT_TO:-202611032240}"
 DATA=site/data/ev2026
-ALLOW="turnout_day.json turnout_volume.json turnout_model.json"      # the commit allowlist (names under $DATA)
+ALLOW="turnout_day.json turnout_volume.json turnout_model.json ev_races.json"      # the commit allowlist (names under $DATA)
 PUSH=1; ENGINES="chromium,webkit"; SRC=""; VSRC=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -58,6 +60,11 @@ ARGS="--out-dir $WT/$DATA"
 if [ -f "$WT/analysis/us_turnout_model.py" ]; then
   # shellcheck disable=SC2086
   (cd "$REPO" && uv run python "$WT/analysis/us_turnout_model.py" --root "$WT" --out-dir "$WT/$DATA" ${SRC:+--src "$SRC"}) || say "us_turnout_model.py failed: keeping the last turnout_model.json"
+fi
+
+# the race panel's party figures, from the model file just written (newer official file where there is one)
+if [ -f "$WT/analysis/us_ev_races.py" ]; then
+  (cd "$WT" && uv run python analysis/us_ev_races.py >/dev/null) || say "us_ev_races.py failed: keeping the last ev_races.json"
 fi
 
 CHANGED="$(git -C "$WT" status --porcelain)"

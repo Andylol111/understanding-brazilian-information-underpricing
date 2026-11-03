@@ -144,7 +144,8 @@ def num(x: Any) -> float | None:
 def state_block(st: str, ts: dict[str, Any], panel: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Early-vote facts of one state from turnout_model.json plus the 2022 comparison at the same stage."""
     banked = (ts.get("banked") or {}).get("value")
-    party = next((p for p in ts.get("party") or [] if p.get("kind") == "pre_election_day"), None)
+    parties = [p for p in ts.get("party") or [] if p.get("kind") == "pre_election_day"]
+    party = parties[0] if parties else None        # the newer official file's party counts come first where the model has one (latest_official)
     if banked is None and party is None:
         return None
     exp = (ts.get("expected") or {}).get("votes")
@@ -154,7 +155,8 @@ def state_block(st: str, ts: dict[str, Any], panel: list[dict[str, Any]]) -> dic
         "expected": exp, "pct_expected": ts.get("banked_pct_expected"),
         "total_2022": (ts.get("banked") or {}).get("total_2022"), "pct_2022_final": ts.get("banked_pct_2022"),
         "same_point_2022": ts.get("vs_2022_same_point"),
-        "party": None, "party_2022": None, "shift": None,
+        "party": None, "party_2022": None, "shift": None, "party_same_stage": None, "shift_as_of": None,
+        "latest_official": ({k: (ts.get("latest_official") or {}).get(k) for k in ("total", "as_of", "as_of_date", "source", "source_url", "prov", "note")} if ts.get("latest_official") else None),
         "composition": None, "order": None, "lean": (ts.get("lean") or {}).get("text"),
     }
     comp = ts.get("composition") or {}
@@ -173,6 +175,19 @@ def state_block(st: str, ts: dict[str, Any], panel: list[dict[str, Any]]) -> dic
             if p22:
                 out["party_2022"] = p22
                 out["shift"] = {"d_pt": mix["D"] - p22["d_pct"], "r_pt": mix["R"] - p22["r_pct"], "d_share_dr_pt": out["party"]["d_share_dr"] - p22["d_share_dr"]}
+            elif party.get("source") == "newer official file":
+                # 2022 has a party figure only at an earlier stage (one day before Election Day): the shift and the EV-implied value use the
+                # older early-vote-file party figure that matches it, and say so; the headline party mix stays the newer official one
+                for q in parties[1:]:
+                    p22 = party_2022(panel, st, q.get("as_of"))
+                    qd, qr, qo = float(q["D"] or 0), float(q["R"] or 0), float(q.get("other") or 0)
+                    qm = mix_pct(qd, qr, qo)
+                    if p22 and qm:
+                        out["party_2022"] = p22
+                        out["party_same_stage"] = {"as_of": q.get("as_of"), "n": qd + qr + qo, "D": qd, "R": qr, "O": qo, "d_share_dr": ev_dshare(qd, qr), "source": q.get("source")}
+                        out["shift_as_of"] = q.get("as_of")
+                        out["shift"] = {"d_pt": qm["D"] - p22["d_pct"], "r_pt": qm["R"] - p22["r_pct"], "d_share_dr_pt": out["party_same_stage"]["d_share_dr"] - p22["d_share_dr"]}
+                        break
     return out
 
 
@@ -215,14 +230,16 @@ def implied_block(st: str, office: str, race: dict[str, Any], blk: dict[str, Any
     act, a_office = a
     ev22 = blk["party_2022"]["d_share_dr"]
     off = offset(act, ev22)
-    ev26 = blk["party"]["d_share_dr"]
+    ev26 = (blk.get("party_same_stage") or blk["party"])["d_share_dr"]      # same stage as the 2022 figure
     imp = ev26 + off
     out = {"ok": True, "ev26_d_share_dr": ev26, "ev22_d_share_dr": ev22, "act22": act, "act22_office": a_office, "offset": off, "implied": imp,
            "vs_model": verdict(imp, view["model_share"]), "vs_polls": None}
+    if blk.get("party_same_stage"):
+        out["note"] = f"2022 has a party figure one day before Election Day only, so the early-vote file's party mix of {str(blk['party_same_stage']['as_of'])[:10]} is used here; the headline party mix is the newer official file"
     if view["polls_avg"] is not None:
         out["vs_polls"] = verdict(imp, view["polls_avg"])
     if view["compared"] == "past":
-        out["note"] = "no poll-informed registered model for this race: compared with the past-results-only share"
+        out["note"] = (out.get("note", "") + " no poll-informed registered model for this race: compared with the past-results-only share").strip()
     d_party = (race.get("dem_side") or {}).get("party")
     if d_party and d_party != "D":
         out["note"] = (out.get("note", "") + f" the D-side candidate is {d_party}: registered D share is a rougher guide").strip()

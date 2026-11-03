@@ -57,9 +57,9 @@ function earlyTable(rec, E) {
     st.same_point_2022 != null ? `${fix(st.same_point_2022, 2)}× the same point in 2022` : st.pct_2022_final != null ? `${fix(st.pct_2022_final)} % of the 2022 final total` : "–"));
   if (st.party) {
     const p = st.party, q = st.party_2022, s = st.shift;
-    rows.push(row("Registered party mix", `${mixText(p)}<br><small>as of ${esc(p.as_of)}, ${cnt(p.n)} ballots with a party</small>`,
+    rows.push(row("Registered party mix", `${mixText(p)}<br><small>as of ${esc(p.as_of)}, ${cnt(p.n)} ballots with a party${p.source === "newer official file" ? "; newer official file than the early-vote file" : ""}</small>`,
       q ? `${mixText(q)}<br><small>${esc(q.date)} (${q.prov === "official" ? "official files" : "secondary"})</small>` : "no same-stage figure",
-      s ? `D ${sgn(s.d_pt)} · R ${sgn(s.r_pt)}` : "–"));
+      s ? `D ${sgn(s.d_pt)} · R ${sgn(s.r_pt)}${st.shift_as_of ? `<br><small>vs the early-vote file's figure of ${esc(String(st.shift_as_of).slice(0, 10))}, the stage 2022 has</small>` : ""}` : "–"));
     rows.push(row("D share of D + R", fix(p.d_share_dr), q ? fix(q.d_share_dr) : "–", s ? `${sgn(s.d_share_dr_pt)} pts` : "–"));
   }
   return `<div class="table-scroll"><table class="compact evr-t"><thead><tr><th></th><th>2026</th><th>2022, same stage</th><th>Change</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
