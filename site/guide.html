@@ -10,13 +10,13 @@
 <link id="page-css" rel="stylesheet">
 <link id="gd-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261102d5";
+window.__BUILD = "20261103a1";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("gd-css").href = "guide.css?v=" + window.__V;
 (() => {
   const imports = {};
-  for (const f of ["common.js", "groups-agg.js", "guide-rules.js", "dash-events.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  for (const f of ["common.js", "groups-agg.js", "guide-rules.js", "dash-events.js", "dash-bop.js", "inky.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
   const m = document.createElement("script");
   m.type = "importmap";
   m.textContent = JSON.stringify({ imports });
@@ -38,6 +38,10 @@ document.getElementById("gd-css").href = "guide.css?v=" + window.__V;
 <section class="gd-wrap" id="gd-bop-sec" aria-labelledby="gd-bop-h">
   <h2 id="gd-bop-h">Balance of power</h2>
   <div class="hemis" id="gd-bop"></div>
+</section>
+
+<section class="gd-wrap inky" id="gd-inky-sec" aria-label="Early signal: Indiana and Kentucky" hidden>
+  <div id="gd-inky"></div>
 </section>
 
 <section class="gd-wrap" id="gd-feed-sec" aria-labelledby="gd-feed-h">

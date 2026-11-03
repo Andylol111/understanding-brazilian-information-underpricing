@@ -20,7 +20,7 @@ export function tier(p) {
 // who caucus with them): solid, at the two ends. races: [{ key, name, p }] the seats up, p the chance of the Democratic side
 // (null: no figure; the seat counts as 0.5). The seats up run from the safest Democratic (p highest) to the safest Republican.
 export function seatOrder(notUp, races) {
-  const up = races.map((r) => ({ key: r.key ?? null, name: r.name, p: r.p == null || !Number.isFinite(r.p) ? 0.5 : Math.min(1, Math.max(0, r.p)), noModel: r.p == null, up: true }))
+  const up = races.map((r) => ({ key: r.key ?? null, name: r.name, p: r.p == null || !Number.isFinite(r.p) ? 0.5 : Math.min(1, Math.max(0, r.p)), noModel: r.p == null, live: !!r.live, up: true }))
     .sort((a, b) => b.p - a.p || String(a.name).localeCompare(String(b.name)));
   const fixed = (n, p, name) => Array.from({ length: Math.max(0, n) }, () => ({ key: null, name, p, noModel: false, up: false }));
   return [...fixed(notUp?.D ?? 0, 1, "Democratic seat not up in 2026"), ...up, ...fixed(notUp?.R ?? 0, 0, "Republican seat not up in 2026")];
@@ -118,15 +118,15 @@ function closestHTML(proj) {
   return rows ? `<p class="hemi-label">Closest seats</p><ol class="hemi-close">${rows}</ol>` : "";
 }
 
-export const hemicycleShell = (title) => `<h3 class="tab-h">${esc(title)}</h3><div class="hemi-top"></div><div class="hemi-body"><div><div class="hemi-chart"></div><p class="hemi-hover"></p></div><div class="hemi-keys"></div></div>`;
+export const hemicycleShell = (title) => `<h3 class="tab-h">${esc(title)}</h3><div class="hemi-top"></div><p class="hemi-sub hemi-adj" hidden></p><div class="hemi-body"><div><div class="hemi-chart"></div><p class="hemi-hover"></p></div><div class="hemi-keys"></div></div>`;
 
 // Fill a shell (hemicycleShell) with a projection; each part is replaced only when its markup changed, so a hovered dot's readout
-// survives a refresh that changes nothing.
-export function renderHemicycle(el, proj) {
+// survives a refresh that changes nothing. adjHTML: the secondary line under the headline (inky.js, early-signal adjusted), "" hides it.
+export function renderHemicycle(el, proj, adjHTML = "") {
   const { head, svg, key } = hemicycleParts(proj);
-  for (const [sel, html] of [[".hemi-top", head], [".hemi-chart", svg], [".hemi-keys", key]]) {
+  for (const [sel, html] of [[".hemi-top", head], [".hemi-chart", svg], [".hemi-keys", key], [".hemi-adj", adjHTML]]) {
     const box = el.querySelector(sel);
-    if (box && box.__html !== html) { box.innerHTML = html; box.__html = html; }
+    if (box && box.__html !== html) { box.innerHTML = html; box.__html = html; if (sel === ".hemi-adj") box.hidden = !html; }
   }
 }
 

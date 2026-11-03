@@ -2,7 +2,7 @@
 # Own process and checkout (/srv/brunder/usextra), isolated from brunder-us-live / -civic-live / -house-live. Reads its
 # own archive us_midterms_2026_extra; the civicAPI race documents (civic_87188 ME-Sen, civic_87260 NV-Gov,
 # civic_87283/87284 NH, civic_87524 House) and market books of the shared archive are symlinked into it at start
-# (read only). Writes only /srv/brunder/repo/site/data/extra/us2026/ (statewide files + house_live/), served by
+# (read only). Writes only /srv/brunder/repo/site/data/extra/us2026/ (statewide files + house_live/ + inky.json, the early-signal display), served by
 # brunder-site with --election extra. Later model versions (*_v2.toml) next to each v1 config are attached automatically.
 [Unit]
 Description=brunder added-source live models (secondary, unregistered): US midterms 2026-11-03

@@ -9,12 +9,12 @@
      a failed load adds a fresh ?_r stamp, which refetches all of it. -->
 <link id="page-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261102d5";
+window.__BUILD = "20261103a1";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 (() => {
   const imports = {};
-  for (const f of ["common.js", "decided.js", "dash-agg.js", "dash-map.js", "dash-timeline.js", "dash-layers.js", "dash-scrubber.js", "dash-panels.js", "dash-precount.js", "dash-national.js", "dash-house.js", "dash-us-tabs.js", "dash-ux.js", "dash-events.js", "dash-engine.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
+  for (const f of ["common.js", "decided.js", "dash-agg.js", "dash-map.js", "dash-timeline.js", "dash-layers.js", "dash-scrubber.js", "dash-panels.js", "dash-precount.js", "dash-national.js", "dash-house.js", "dash-us-tabs.js", "dash-ux.js", "dash-events.js", "dash-engine.js", "dash-bop.js", "inky.js"]) imports[new URL("./" + f, location.href).href] = "./" + f + "?v=" + window.__V;
   const m = document.createElement("script");
   m.type = "importmap";
   m.textContent = JSON.stringify({ imports });
@@ -105,6 +105,7 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
       <button type="button" role="tab" id="tab-pollsters" aria-controls="pane-pollsters" aria-selected="false" hidden>Pollsters</button>
       <button type="button" role="tab" id="tab-markets" aria-controls="pane-markets" aria-selected="false" hidden>Markets</button>
       <button type="button" role="tab" id="tab-track" aria-controls="pane-track" aria-selected="false" hidden>Track record</button>
+      <button type="button" role="tab" id="tab-inky" aria-controls="pane-inky" aria-selected="false" hidden>Early signal</button>
     </div>
     <div class="tab-panes">
       <div role="tabpanel" id="pane-races" aria-labelledby="tab-races"></div>
@@ -114,6 +115,7 @@ window.__afterReveal = () => new Promise((r) => { const go = () => (window.__vtD
       <div role="tabpanel" id="pane-pollsters" aria-labelledby="tab-pollsters" hidden></div>
       <div role="tabpanel" id="pane-markets" aria-labelledby="tab-markets" hidden></div>
       <div role="tabpanel" id="pane-track" aria-labelledby="tab-track" hidden></div>
+      <div role="tabpanel" id="pane-inky" class="inky" aria-labelledby="tab-inky" hidden></div>
     </div>
   </section>
 </main>

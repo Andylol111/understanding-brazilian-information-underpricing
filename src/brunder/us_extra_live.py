@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import extra_markets, us, us_house_night
+from . import extra_markets, us, us_extra_inky, us_house_night
 from .paths import RAW, ROOT
 from .us_extra_sources import MODULES
 
@@ -308,7 +308,16 @@ async def run(configs: list[Path], out: Path, snap_root: Path, interval: float,
                                        max(interval, 60.0), stop_ts))
     if not tasks:
         raise ValueError("no configs")
+    tasks.append(asyncio.to_thread(_inky, out, snap_root, shared_root, interval, stop_at))
     await asyncio.gather(*tasks)
+
+
+def _inky(out: Path, snap_root: Path, shared_root: Path | None, interval: float, stop_at: datetime | None) -> None:
+    """The early-signal file (brunder.us_extra_inky): crash-isolated, whatever happens here the models above keep running."""
+    try:
+        us_extra_inky.run_loop(out, snap_root, shared_root, interval, stop_at)
+    except BaseException as e:                       # noqa: BLE001  (also a failed import / baseline file)
+        print(f"inky stopped: {type(e).__name__}: {e}", flush=True)
 
 
 def main(argv: list[str] | None = None) -> int:

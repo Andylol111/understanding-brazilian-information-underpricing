@@ -15,6 +15,7 @@ import { renderReadout, createRaceList, renderStats, renderMethod } from "./dash
 import { untilText, polymarketYes } from "./dash-precount.js";
 import { createNational, stateName as usStateName } from "./dash-national.js";
 import { seatProjection, hemicycleShell, renderHemicycle, bindHemicycle } from "./dash-bop.js";
+import { createInky, loadInky, panelHTML, adjustedHTML, INKY_MS } from "./inky.js";
 import { createOverlay, setLiveDistricts, houseDistricts, houseList, houseRaceTable, districtReadout, districtChart, loadHouse, houseDistrictIds, houseModelP, ourModelHTML, CENSUS } from "./dash-house.js";
 import { loadUsHub, renderUsTab } from "./dash-us-tabs.js";
 import { createUx } from "./dash-ux.js";
@@ -28,6 +29,7 @@ let ux = null; // the map's controls: keys, search, layers, selection, the addre
 const MIN = 60000;
 const WIDE = window.matchMedia("(min-width: 1100px)");
 const S = {
+  inky: createInky(), // extra/us2026/inky.json (inky.js)
   mode: "margin", t: 0, preview: null, playing: false, speed: 1, followLatest: false, userMoved: false,
   region: null, shownKey: null, hover: -1, pinned: -1,
   perf: { firstPaintMs: null, firstRenderMs: null, tickMs: [], frameDrawMs: [], transitionFrames: [] },
@@ -1987,8 +1989,25 @@ function renderTopbar() {
 // The tab set under the chart. For the US the polls, pollsters, markets and track-record tabs
 // (dash-us-tabs.js) join it, drawn for the selected race or state (all races at the country level).
 const US_TABS = ["polls", "pollsters", "markets", "track"];
+// The early-signal tab (inky.js, live US pages only): the file is read every 30 s and the tab redrawn when it changes.
+async function refreshInky() {
+  const changed = await loadInky(S.inky);
+  const html = panelHTML(S.inky.data), el = $("pane-inky");
+  if (el.__html !== html) {
+    const open = el.querySelector("details")?.open;
+    el.innerHTML = html;
+    el.__html = html;
+    if (open) el.querySelector("details")?.setAttribute("open", "");
+  }
+  if (changed) scheduleHemi();
+}
 function initTabs() {
   if (S.nat) for (const t of US_TABS) $(`tab-${t}`).hidden = false;
+  if (S.nat && LIVE && EID === "us2026") {
+    $("tab-inky").hidden = false;
+    refreshInky();
+    setInterval(() => { if (!document.hidden) refreshInky(); }, INKY_MS);
+  }
   else $("tab-markets").textContent = ""; // no hidden market wording on a non-US page
   const tabs = [...document.querySelectorAll('[role="tab"]')].filter((t) => !t.hidden);
   // a tab change keeps the page where it is: the panes hold their height until the new content is
@@ -2376,7 +2395,7 @@ function senateProjection(at = S.preview ?? S.t) {
     let p = modelP(row);
     if (p != null && r.b?.id === "dem") p = 1 - p;
     if (row?.counted != null) counted.push(row.counted);
-    return { key: o.race_key, name: `${o.state_name ?? usStateName(o.state)} Senate${o.special ? " (special)" : ""}`, p: p ?? o.estimate?.P ?? o.polls?.p_win ?? null };
+    return { key: o.race_key, name: `${o.state_name ?? usStateName(o.state)} Senate${o.special ? " (special)" : ""}`, p: p ?? o.estimate?.P ?? o.polls?.p_win ?? null, live: (row?.counted ?? 0) > 0 };
   });
   const total = sen.seats_total ?? 100, notUpD = (hold.D ?? 0) + (hold.I ?? 0);
   return seatProjection({ chamber: "Senate", notUp: { D: notUpD, R: hold.R ?? total - notUpD - ups.length }, races, majority: sen.majority ?? null, counted: meanCounted(counted) });
@@ -2388,7 +2407,7 @@ function houseProjection(at) {
   const races = ids.map((id) => {
     const model = at == null ? districtModel(id) : districtModel(id, at);
     if (model?.row?.counted != null) counted.push(model.row.counted);
-    return { key: id, name: `${id} (House)`, p: houseModelP(id, model) };
+    return { key: id, name: `${id} (House)`, p: houseModelP(id, model), live: (model?.row?.counted ?? 0) > 0 };
   });
   return seatProjection({ chamber: "House", notUp: { D: 0, R: 0 }, races, counted: meanCounted(counted) });
 }
@@ -2399,7 +2418,8 @@ function renderHemi() {
   const proj = box.dataset.chamber === "house" ? houseProjection() : senateProjection();
   if (!proj) { box.replaceChildren(); return; }
   if (!box.firstElementChild) box.innerHTML = hemicycleShell(`${proj.chamber} balance of power`);
-  renderHemicycle(box, proj);
+  // the early-signal adjusted line (inky.js): only for the latest time shown, never while the slider shows an earlier one
+  renderHemicycle(box, proj, S.preview == null && S.followLatest ? adjustedHTML(proj, S.inky.data, proj.chamber.toLowerCase()) : "");
 }
 let hemiFrame = 0;
 const scheduleHemi = () => { if (!hemiFrame) hemiFrame = requestAnimationFrame(() => { hemiFrame = 0; renderHemi(); }); };

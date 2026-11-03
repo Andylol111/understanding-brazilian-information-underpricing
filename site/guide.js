@@ -7,6 +7,7 @@ import { LIVE, STATIC, getJSON, esc, param, votesShort } from "./common.js";
 import { prepRace, nationalPick } from "./groups-agg.js";
 import { partialOf, addedLabel, createEvents, renderBanner, bindBanner, loadSaved, save, controlChance, SENATE_NEED, HOUSE_NEED } from "./dash-events.js";
 import { seatProjection, hemicycleShell, renderHemicycle, bindHemicycle } from "./dash-bop.js";
+import { createInky, loadInky, panelHTML, adjustedHTML } from "./inky.js";
 import {
   GATE, LEVELS, GAP_OPEN, GAP_CLOSE, COUNTED_STEPS, SHIFT_MIN, TURNOUT_MIN, COOL_MIN, normRows, forSide, letter, createEngine, feedRows, feedGroups, feedOf,
   boardRow, overviewRow, sortBoard, disagreements, groupHeadlines, leadOf, clockET, raceLink,
@@ -26,6 +27,7 @@ const S = {
   sort: { key: param("sort") ?? "close", dir: 1 }, showAll: false, showMini: false, gstate: param("st"),
   districts: null, houseP: new Map(), houseC: new Map(), civicMeta: null, civicLast: new Map(), houseT: new Map(), houseRow: new Map(), extraMeta: new Map(), extraLast: new Map(), houseXMeta: new Map(), houseMainIds: new Set(), houseAdded: new Set(),
   liveGet: Object.fromEntries(["house", "civicMeta", "civicTail", "extraMeta", "extraTail", "extraHouseMeta", "extraHouseTail"].map((k) => [k, { miss: 0, skip: 0, at: 0 }])),
+  inky: createInky(),         // extra/us2026/inky.json: the early signal (inky.js), live pages only
   ticks: 0, lastOk: null, failed: false, lastT: null, rowsFull: false, board: [],
 };
 window.__guide = { ready: false, live: !!LIVE, build: window.__BUILD, ticks: 0, events: 0, races: 0, counting: 0, leads: 0, lastT: null };
@@ -230,7 +232,7 @@ function senateProjection() {
     let p = last?.p ?? null;
     if (p != null && r.b?.id === "dem") p = 1 - p;
     if (last?.c != null) counted.push(last.c);
-    return { key: o.race_key, name: `${o.state_name ?? S.names.get(o.state) ?? o.state.toUpperCase()} Senate${o.special ? " (special)" : ""}`, p: p ?? o.estimate?.P ?? o.polls?.p_win ?? null };
+    return { key: o.race_key, name: `${o.state_name ?? S.names.get(o.state) ?? o.state.toUpperCase()} Senate${o.special ? " (special)" : ""}`, p: p ?? o.estimate?.P ?? o.polls?.p_win ?? null, live: (last?.c ?? 0) > 0 };
   });
   return seatProjection({ chamber: "Senate", notUp: { D: notUpD, R: hold.R ?? total - notUpD - ups.length }, races, majority: sen.majority ?? null, counted: meanCounted(counted) });
 }
@@ -240,14 +242,29 @@ function houseProjection() {
   const counted = [];
   const races = keys.map((k) => {
     if (S.houseC.has(`house:${k}`)) counted.push(S.houseC.get(`house:${k}`));
-    return { key: `house:${k}`, name: `${k} (House)`, p: S.houseP.get(`house:${k}`) ?? S.districts[k]?.baseline?.p_d ?? null };
+    return { key: `house:${k}`, name: `${k} (House)`, p: S.houseP.get(`house:${k}`) ?? S.districts[k]?.baseline?.p_d ?? null, live: (S.houseC.get(`house:${k}`) ?? 0) > 0 };
   });
   return seatProjection({ chamber: "House", notUp: { D: 0, R: 0 }, races, counted: meanCounted(counted) });
+}
+// The early-signal panel (inky.js): live pages only; "waiting for 6 pm ET" until the first districts report. The details element keeps
+// its open state across refreshes.
+function renderInky() {
+  const sec = $("gd-inky-sec");
+  if (!LIVE) { sec.hidden = true; return; }
+  const html = panelHTML(S.inky.data);
+  sec.hidden = false;
+  const box = $("gd-inky");
+  if (box.__html === html) return;
+  const open = box.querySelector("details")?.open;
+  box.innerHTML = html;
+  box.__html = html;
+  if (open) box.querySelector("details")?.setAttribute("open", "");
+  window.__guide.inky = { status: S.inky.data?.status ?? "none", n: S.inky.data?.aggregates?.in_ky?.n ?? 0, applied: !!S.inky.data?.adjusted?.applied };
 }
 function renderBop() {
   const box = $("gd-bop"), projs = [senateProjection(), houseProjection()].filter(Boolean);
   if (box.children.length !== projs.length) box.innerHTML = projs.map(() => `<div class="hemi">${hemicycleShell("")}</div>`).join("");
-  projs.forEach((proj, i) => { const el = box.children[i]; el.querySelector(".tab-h").textContent = proj.chamber; renderHemicycle(el, proj); });
+  projs.forEach((proj, i) => { const el = box.children[i]; el.querySelector(".tab-h").textContent = proj.chamber; renderHemicycle(el, proj, adjustedHTML(proj, S.inky.data, proj.chamber.toLowerCase())); });
   window.__guide.bop = Object.fromEntries(projs.map((p) => [p.chamber.toLowerCase(), { dots: p.seats.length, d: p.d, r: p.r, expectedD: p.expectedD, dLeads: p.dLeads, rLeads: p.rLeads, counted: p.counted }]));
 }
 
@@ -561,6 +578,7 @@ function renderAll() {
   feedEvents();
   renderEvents();
   renderBop();
+  renderInky();
   renderFeed();
   renderBoard();
   renderMM();
@@ -593,6 +611,7 @@ async function tick(first = false) {
     changed = (await loadOverview()) || changed;
     changed = (await refreshUnits()) || changed;
     changed = (await loadBop().catch((e) => { console.warn("guide: balance of power read failed", e?.message ?? e); return false; })) || changed;
+    changed = (await loadInky(S.inky).catch(() => false)) || changed;
     S.failed = false;
     S.lastOk = Date.now();
   } catch (e) {

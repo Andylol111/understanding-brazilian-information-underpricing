@@ -143,6 +143,36 @@ next write without staleness drops them. Model numbers are unchanged. Test: synt
   Output `<out>/us2026/{meta,timeline,timeline_tail,stats,units}.json` and `<out>/us2026/house_live/…` (same layout as
   `site/data/civic/us2026/`).
 
+## Early signal from Indiana and Kentucky (display only, unregistered; added 2026-11-03)
+
+`src/brunder/us_extra_inky.py`, run as one more thread of `brunder.us_extra_live` (crash-isolated: an exception is printed and the
+cycle skipped, never raised into the models), writes `<out>/us2026/inky.json` every 30 s from files already on disk: the shared
+archive's `civic_87524` (civicAPI House race, 435 districts: candidate votes + percent reporting; newest valid snapshot, a partial or
+corrupt file falls back to the previous one), the added recorder's `in_house` (IN-05 county detail) and the committed baselines
+(`site/data/us2026/house/districts.json`, `overview.json`, `data_public/us2026_extra_priors_in.csv`). No request to any host.
+
+* Per district (IN, KY always; others from 20 % reporting): D two-party share so far D / (D + R) of the top Democrat and top Republican,
+  2024 president D share and 2024 House D share on the 2026 lines (House: not for redrawn states), swing vs each, **swing vs expected**
+  (counted share minus the district's pre-count expectation `baseline.share` = 2024 president on the 2026 lines + the poll-implied
+  national swing; IN-05: minus the 2024 president of the counties that have reported + the same swing), counted votes vs expected votes
+  at the reported % (expected = 0.72 x 2024 two-party votes x reporting %), an uncontested flag (no D-R pair on the ballot; no signal).
+* Raw swings vs 2024 are labelled **composition-biased**: the first precincts to report, and early / mail ballots counted first, are
+  not a random sample. The reporting % is shown with every figure.
+* Aggregates, vote-weighted over contested districts with >= 10 % reporting: Indiana, Kentucky, both, and the nation
+  (a national read only once 20 districts have >= 25 % reporting: "too early for a national read" before). `polls.text` compares with
+  the swings the polls imply in the 7 Senate states (poll average of the dem side minus the state's 2024 two-party president share,
+  `overview.json` and `state_check`).
+* **Early-signal adjusted** (unregistered, not validated): the aggregate swing vs expected (national once ready, else IN + KY; at least
+  5 districts) x n / (n + 20) is added to the pre-count share of every Senate and House race (a probit shift `dz` = shift / the race's sd;
+  independent-aligned Senate seats, certain and uncontested seats stay). The site applies `dz` to the chance it shows for each race not
+  yet counted and shows "Early-signal adjusted (unregistered, not validated): D N . R M" under each hemicycle; `adjusted.seats` is the
+  same tally with every race at its pre-count chance. Nothing here is a model: `docs/us_crossrace.md` tested the sharing of information
+  between races on the same ballot (small gain only with lagged reporting, bar not met); cross-state learning of a national swing was
+  not tested.
+* Pages: the night guide (section "Early signal") and the election page (tab "Early signal"), live pages only, read
+  `extra/us2026/inky.json`; before the polls close they say "Waiting for 6 pm ET". Tests: `tests/test_us_extra_inky.py`,
+  `tests/test_us_inky_js.py`.
+
 ## Test evidence
 
 * `uv run --frozen pytest tests/test_us_extra.py tests/test_extra_ne.py tests/test_extra_mw.py tests/test_civic.py
