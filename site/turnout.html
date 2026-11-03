@@ -11,7 +11,7 @@
 <link id="ev-css" rel="stylesheet">
 <link id="td-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261103m1";
+window.__BUILD = "20261103p1";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("ev-css").href = "earlyvote.css?v=" + window.__V;
@@ -62,6 +62,8 @@ document.getElementById("td-css").href = "turnout.css?v=" + window.__V;
       <h2 id="tdd-title" tabindex="-1">State</h2>
       <p class="td-statusline" id="tdd-status"></p>
       <div class="td-kpis" id="tdd-kpis"></div>
+
+      <section class="td-proj" id="tdd-proj" aria-labelledby="tdd-proj-h"></section>
 
       <div class="td-two">
         <figure class="ev-fig td-fig">

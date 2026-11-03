@@ -580,6 +580,11 @@ async def check_earlyvote(page: Page, viewport_name: str) -> list[str]:
         out.append("key findings lack the 'Mail ballots not yet returned' card")
     if tm_ and tm_["summary"].get("vs_2022_final_states") and "final pre-election report (not same day)" not in kf:
         out.append("key findings lack the 2022 final pre-election comparison")
+    ps = (tm_ or {}).get("proj_summary")
+    if ps and (ps["above"] or ps["below"]):
+        want = f"{len(ps['above'])} states above, {len(ps['below'])} below"
+        if "Turnout heading vs the model" not in kf or want not in kf or "Unregistered" not in kf:
+            out.append(f"key findings lack the 'Turnout heading vs the model: {want} (unregistered)' card")
     # Election Day turnout summary: counts match turnout_day.json, the history line and the link to the dashboard are there, the long table is gone
     td = await page.evaluate("""() => ({ ready: !!window.__tdReady, label: document.querySelector('#td-sec .td-label')?.textContent ?? '', asof: document.querySelector('#td-asof')?.textContent ?? '',
         sum: document.querySelector('#td-sum')?.textContent ?? '', hist: document.querySelector('#td-hist')?.textContent ?? '',
@@ -824,6 +829,33 @@ async def check_turnout(page: Page, viewport_name: str) -> list[str]:
         out.append("turnout dashboard lacks its label or the history verdict line")
     if p["st"] not in model["states"] or model["states"][p["st"]]["name"] != p["title"]:
         out.append(f"panel title {p['title']!r} does not match the selected state {p['st']}")
+    # projected final turnout: the map measure, the panel block (number, interval, against the model, sparkline, inputs, backtest table), the no-history wording
+    ps = model.get("proj_summary")
+    if not ps:
+        out.append("turnout_model.json has no proj_summary")
+    else:
+        if not await page.evaluate("[...document.querySelectorAll('#tdd-metric button')].some((b) => b.textContent === 'Projected final turnout vs model expected')"):
+            out.append("map has no 'Projected final turnout vs model expected' measure")
+        ok_st = next((s_ for s_ in model["states"].values() if s_["proj"]["ok"]), None)
+        bad_st = next((s_ for s_ in model["states"].values() if not s_["proj"]["ok"] and s_["proj"]["why"] == "no history for this state"), None)
+        for st, want_ok in ((ok_st, True), (bad_st, False)):
+            if not st:
+                continue
+            await page.select_option("#tdd-pick", st["st"])
+            await page.wait_for_function("(n) => document.querySelector('#tdd-title').textContent === n", arg=st["name"])
+            await page.wait_for_timeout(300)
+            q = await page.evaluate("""() => ({ t: document.querySelector('#tdd-proj')?.textContent ?? '', spark: !!document.querySelector('#tdd-proj svg.td-proj-spark') || /One refresh so far/.test(document.querySelector('#tdd-proj')?.textContent ?? ''),
+                rows: document.querySelectorAll('#tdd-proj .td-proj-bt tbody tr').length, cards: document.querySelectorAll('#tdd-proj .td-card').length, items: document.querySelectorAll('#tdd-proj .td-model li').length })""")
+            if "Projected final turnout" not in q["t"] or "Unregistered, updates with incoming data; the registered models do not use it" not in q["t"]:
+                out.append(f"{st['st']}: projection block lacks its title or the 'Unregistered' label: {q['t'][:120]!r}")
+            if want_ok:
+                p_ = st["proj"]
+                if f"{p_['proj_total']:,}" not in q["t"] or f"{p_['low']:,}" not in q["t"] or f"{p_['high']:,}" not in q["t"] or "the model" not in q["t"] or not q["spark"] or q["cards"] != 4 or not q["items"]:
+                    out.append(f"{st['st']}: projection block does not show the number, interval, comparison with the model, sparkline and inputs of turnout_model.json: {q}")
+                if q["rows"] != len(ps["backtest"]["rows"]):
+                    out.append(f"{st['st']}: backtest table has {q['rows']} rows, expected {len(ps['backtest']['rows'])}")
+            elif "no history for this state" not in q["t"]:
+                out.append(f"{st['st']}: a state without history must say 'no history for this state'")
     # every state can be opened; a state with counties draws the scatter and a table with one row per county; (b) says why when it is not computed
     plan = [s_ for s_ in model["states"].values() if s_["counties"]][:2] + [s_ for s_ in model["states"].values() if s_["composition"]["ok"]][:1]
     plan += [s_ for s_ in model["states"].values() if not s_["banked"] and not s_["counties"]][:1]

@@ -92,3 +92,9 @@ body.td {
 .td-age th[scope="row"] { font-weight: 600; white-space: nowrap; }
 .td-agecell { width: 40%; min-width: 80px; }
 .td-agebar { display: block; height: 10px; background: var(--td-line); border-radius: 1px; }
+
+.td-proj { margin: 18px 0 14px; }
+.td-proj h3 { margin: 0 0 2px; }
+.td-proj .td-label-sm { margin: 0 0 8px; font: 12px/1.4 var(--sans); color: var(--td-ctx); }
+.td-proj .td-proj-spark { max-width: 320px; }
+.td-proj-bt { margin-top: 10px; }

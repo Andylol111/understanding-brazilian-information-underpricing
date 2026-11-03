@@ -155,6 +155,18 @@ Election Day 2026 only; turnout, not vote choice. **Unvalidated context, not use
   (early-vote files or a party row in the turnout file), at least 2 points from even.
 - **History:** every run appends the banked total to `history` (read back from the committed file), drawn with the official daily series.
 
+## Projected final turnout (`analysis/us_turnout_proj.py`, on `site/turnout.html` and one card on `site/earlyvote.html`)
+
+Unregistered, updates with incoming data; the registered models do not use it. `us_turnout_model.py` calls it on every refresh; the output is `states.<st>.proj` and `proj_summary` in `turnout_model.json`.
+
+- **A**: pre-Election Day ballots / the state's early share of its final total in the previous same-type cycle (2022, else 2018; fallback: the previous cycle of the other type), share clipped to 0.15 to 0.98. A floor applies: the projection is never below the ballots already banked (incl. Election Day check-ins) nor below banked + r x mail not yet returned (r = 0.5; no state late-return rate is on disk; this floor is not backtested).
+- **B**: A blended in log space with the model's expected votes (two-party, scaled to ballots by the state's 2024 total/two-party ratio) by precision, weight on A = (1/vA) / (1/vA + 1/vM) from the mean squared log errors of A and the naive baseline over earlier backtest cycles only.
+- **C** (Election Day check-ins x 1 / share in by this clock hour): not available. No prior-cycle hour curve is on disk, so none is invented. County projections: not available (no county early-share history on disk).
+- **Backtest** (`ev_history_all.json` + the county panel's president totals): 2022 on 2018 shares, 2024 on 2020, 2020 on 2016 (no 2016 file: n = 0), plus fallback pairs one cycle back. Error = log(projected / actual final). Baseline = 0.72 x the previous presidential total (midterms) or the previous same-type total (president years). B, its weight and the 80 % interval (exp(+-1.2816 x sd)) are fitted on earlier cycles only, so B is tested on 2024 only (weights from 2022). Selection: lowest out-of-sample MAE of A and B.
+- **Result at build**: 2024 out of sample, 42 states: A 25.7 %, B 6.7 %, naive baseline 4.8 %; 80 % interval coverage of B 95 %. The projection does not beat the naive baseline; the page says so and presents the projection as a cross-check on the model's expected total. Early-vote definitions differ between years, which is most of A's error.
+- Per state: `proj_total` with `low`/`high`, `vs_expected` (ratio to the ballot-scaled expected votes) and `heading` text, `banked_share`, `delta` against the previous refresh (the `history` array of `{t, v, b, e}`, capped at 120), `inputs`. States without history: `no history for this state`.
+- Page: map measure "Projected final turnout vs model expected" (diverging around 100 %), a state-panel block with a sparkline and a backtest details block; earlyvote Key findings card "Turnout heading vs the model (unregistered)".
+
 ## Has the early vote tracked the result? (`site/earlyvote.html`, section `#eh-sec`)
 
 Past elections only: how well the registered-party mix and the size of the early vote tracked the certified result, every state the UF Election Lab /

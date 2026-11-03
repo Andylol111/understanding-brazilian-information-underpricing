@@ -310,6 +310,7 @@ function drawFindings() {
   const outTot = d3.sum(out, (m) => m.outstanding.value), outNew = d3.max(out, (m) => m.outstanding.as_of_date), outOld = d3.min(out, (m) => m.outstanding.as_of_date);
   const f22 = Object.values(S.model?.states ?? {}).filter((m) => m.vs_2022_final?.ok).sort((a, b) => b.vs_2022_final.ratio - a.vs_2022_final.ratio);
   const f22Text = f22.length ? `Against the 2022 final pre-election report (not same day): ${f22.map((m) => `${m.st} ${x2(m.vs_2022_final.ratio)} (${dayShort(m.vs_2022_final.now_date)} vs ${dayShort(m.vs_2022_final.date_2022)})`).join(", ")}.` : "";
+  const PJ = S.model?.proj_summary, pj = PJ && (PJ.above.length + PJ.below.length) ? PJ : null;
   const cards = [
     card("Ballots already cast", bigNum(tot), `${int(tot)} early and mail ballots counted by ${have.length} of ${cs.length} states and DC.`, `Counted through ${dayShort(newest)}${oldest !== newest ? ` (oldest state: ${dayShort(oldest)})` : ""}`),
     w22.length ? card("Against 2022's final total", pc(100 * now22 / cert), `Those ballots, in the ${w22.length} states with a 2022 total, are ${bigNum(now22)} of ${bigNum(cert)} votes cast in those states in 2022.`, `As of ${dayShort(newest)}`) : "",
@@ -319,6 +320,7 @@ function drawFindings() {
     TD.day ? card("Election Day check-ins so far", edTot ? bigNum(edTot) : "none yet", edTot ? `${int(edTot)} people checked in on Election Day, in the ${days.length} states that publish it.` : "No state has published an Election Day count in the file yet.", `Checked ${esc(stamp(edAt || TD.day.published_utc))}`) : "",
     party.length ? card("Party mix of banked ballots", `${dl.length} D · ${rl.length} R`, `Of ${party.length} states that publish party registration, registered Democrats hold the larger share of returned ballots in ${dl.length} and registered Republicans in ${rl.length}. Registration, not votes.`, `Through ${dayShort(d3.max(party, (c) => c.as_of))}`) : "",
     mod.length ? card("Against the models' expected total", pc(100 * mB / mE), `Banked ballots are ${bigNum(mB)} of the ${bigNum(mE)} votes the models expect in the ${mod.length} states with both figures.`, `As of ${esc(stamp(S.model.generated_utc))}`, true) : "",
+    pj ? card("Turnout heading vs the model (unregistered)", `${pj.above.length} states above, ${pj.below.length} below`, `Projected final votes against the models' expected ballots, in ${pj.n_vs_expected} states: above in ${esc(pj.above.slice(0, 8).join(", "))}${pj.above.length > 8 ? ", …" : ""}; below in ${esc(pj.below.join(", ") || "none")}. Together ${bigNum(pj.total_proj)} projected against ${bigNum(pj.total_expected)} expected. ${esc(pj.backtest.selection.verdict)}`, `Unregistered, updates with incoming data; the registered models do not use it · as of ${esc(stamp(S.model.generated_utc))}`) : "",
   ].join("");
   $("#kf-cards").innerHTML = cards;
   const top = (k, dir) => w22.slice().sort((a, b) => dir * (b[k] - a[k])).slice(0, 3).map((c) => `${c.name} ${pc(c.pct22)}`).join(", ");

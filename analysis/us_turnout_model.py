@@ -33,6 +33,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import us_turnout_publish as tp  # noqa: E402  (STATES, clean_row: the same drop rules, incl. no Redistricting Data Hub rows)
+import us_turnout_proj as tproj  # noqa: E402  (projection of the final total votes: states.<st>.proj, proj_summary)
 
 ROOT = HERE.parent
 EST_TURNOUT = 0.72            # brunder.us.EST_TURNOUT (a test pins it to the source)
@@ -573,6 +574,7 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
                 h.append({"t": gen, "v": b["value"], "complete": b["complete"]})
             history[st] = sorted(h, key=lambda x: x["t"])[-HISTORY_MAX:]
     n = lambda k: len(kinds_seen[k])  # noqa: E731
+    proj_summary = tproj.project(out_states, prev, gen, root)
     return {
         "label": LABEL, "generated_utc": gen, "published_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "est_turnout": EST_TURNOUT, "min_counties": MIN_COUNTIES, "bootstrap": {"n": N_BOOT, "seed": SEED},
@@ -583,7 +585,7 @@ def build(day: dict[str, Any], root: Path, party_rows: dict[str, list[dict[str, 
                     "composition_states": sorted(r["st"] for r in out_states.values() if r["composition"]["ok"]),
                     "outstanding_states": sorted(r["st"] for r in out_states.values() if r["outstanding"] and r["outstanding"]["ok"]),
                     "vs_2022_final_states": sorted(r["st"] for r in out_states.values() if r["vs_2022_final"] and r["vs_2022_final"].get("ok"))},
-        "states": out_states, "history": history,
+        "states": out_states, "history": history, "proj_summary": proj_summary,
     }
 
 

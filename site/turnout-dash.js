@@ -39,6 +39,9 @@ const METRICS = {
   lead: { label: "Party lead of banked ballots (registration)", val: (s) => leadOf(s.party?.[0]), fmt: (v) => `${sgn(v, 1)} pt`, bins: [-10, -3, 3, 10], unit: "D minus R, by party registration", reg: true, short: (v) => sgn(v), asof: (s) => s.party?.[0]?.as_of, cval: (r) => { const v = leadOf(r.party); return v == null ? null : { v, asof: r.party.as_of }; }, csrc: "county party registration of returned ballots" },
   shift: { label: "Party shift vs 2022 (registration)", val: (s) => T.races?.[s.st]?.shift?.d_share_dr_pt ?? null, fmt: (v) => `${sgn(v, 1)} pt`, bins: [-3, -1, 1, 3], unit: "change in the Democratic share of D+R ballots vs 2022, same point", reg: true, short: (v) => sgn(v, 1), asof: (s) => T.races?.[s.st]?.party?.as_of, src: "ev_races.json, party registration of returned ballots against the 2022 final pre-election report; no county version" },
   out: { label: "Mail ballots not yet returned", val: (s) => (s.outstanding?.ok && s.outstanding.pct_returned != null ? 100 - s.outstanding.pct_returned : null), fmt: (v) => pc(v), dom: [0, 100], unit: "of ballots sent or requested, not yet returned", asof: (s) => s.outstanding?.as_of_utc ?? s.outstanding?.as_of_date, extra: (s) => `${int(s.outstanding.value)} not yet returned of ${int(s.outstanding.issued)} ${s.outstanding.issued_label}`, cval: (r) => (r.mail && r.mail.issued > 0 ? { v: (100 * r.mail.outstanding) / r.mail.issued, asof: r.mail.as_of, extra: `${int(r.mail.outstanding)} not yet returned of ${int(r.mail.issued)} ${r.mail.label ?? "sent"}` } : null), csrc: "county mail table, sent minus returned" },
+  proj: { label: "Projected final turnout vs model expected", val: (s) => (s.proj?.ok && s.proj.vs_expected != null ? 100 * s.proj.vs_expected : null), fmt: (v) => pc(v), dom: [90, 110], div: true, short: (v) => `${Math.round(v)}%`,
+    unit: "projected final votes as a share of the model's expected ballots (projection, 100 % = on the model's assumption)", asof: () => T.m.generated_utc,
+    extra: (s) => `projection ${int(s.proj.proj_total)}, 80 % interval ${int(s.proj.low)} to ${int(s.proj.high)}; ${s.proj.heading}` },
   type: { label: "Data type", cat: true },
 };
 
@@ -159,7 +162,7 @@ function drawSel() {
   const s = T.m.states[T.st], host = $("#tdd-sel");
   if (!s) { host.innerHTML = `<p class="side-note">Click a state on the map for its counties and details.</p>`; return; }
   const [label] = STATUS[s.status] ?? [s.status];
-  const rows = [["Banked ballots", s.banked ? `${int(s.banked.value)}${s.banked.complete ? "" : " (lower bound)"}` : "–"], ["% of expected", pc(s.banked_pct_expected)], ["Party lead (registration)", leadOf(s.party?.[0]) == null ? "–" : `${sgn(leadOf(s.party[0]), 1)} pt`], ["Mail not yet returned", s.outstanding?.ok ? int(s.outstanding.value) : "–"]];
+  const rows = [["Banked ballots", s.banked ? `${int(s.banked.value)}${s.banked.complete ? "" : " (lower bound)"}` : "–"], ["% of expected", pc(s.banked_pct_expected)], ["Party lead (registration)", leadOf(s.party?.[0]) == null ? "–" : `${sgn(leadOf(s.party[0]), 1)} pt`], ["Mail not yet returned", s.outstanding?.ok ? int(s.outstanding.value) : "–"], ["Projected final votes", s.proj?.ok ? int(s.proj.proj_total) : "–"]];
   host.innerHTML = `<h3 class="side-h">${esc(s.name)}</h3><p class="side-note"><span class="td-badge td-s-${s.status}">${esc(label)}</span> ${esc(s.verdict)}</p><ol class="side-list">${rows.map(([k, v]) => `<li>${esc(k)} <span class="n">${esc(v)}</span></li>`).join("")}</ol><p class="note">${s.counties.length} counties listed. ${REG} Full detail follows below the map.</p>`;
 }
 
@@ -337,12 +340,54 @@ function whoHtml(s) {
     `<p class="note">Shares of the ballots counted so far, not of voters. Age comes from the voter record, so it describes who has voted, not how.${cmp}</p>${newv}`;
 }
 
+// projected final turnout (analysis/us_turnout_proj.py): number, interval, against the model, sparkline over today's refreshes, inputs, backtest
+const PROJ_LABEL = "Unregistered, updates with incoming data; the registered models do not use it";
+function projSpark(h) {
+  if (!h || h.length < 2) return `<p class="note">One refresh so far; the line starts with the next.</p>`;
+  const W = 260, H = 46, P = 5, t = h.map((x) => Date.parse(x.t)), v = h.map((x) => x.v);
+  const lo = Math.min(...v), hi = Math.max(...v), pad = Math.max((hi - lo) * 0.15, hi * 0.002, 1);
+  const x = d3.scaleLinear([t[0], t[t.length - 1]], [P, W - P]), y = d3.scaleLinear([lo - pad, hi + pad], [H - P, P]);
+  const d = h.map((_, i) => `${i ? "L" : "M"}${x(t[i]).toFixed(1)},${y(v[i]).toFixed(1)}`).join("");
+  return `<svg class="side-spark td-proj-spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Projected final turnout at each refresh, ${h.length} points, from ${int(v[0])} to ${int(v[v.length - 1])}"><path d="${d}" fill="none" stroke="#1b1b1b" stroke-width="1.5"/><circle cx="${x(t[t.length - 1]).toFixed(1)}" cy="${y(v[v.length - 1]).toFixed(1)}" r="2.6" fill="#1b1b1b"/></svg>` +
+    `<p class="note">${esc(stamp(h[0].t))} to ${esc(stamp(h[h.length - 1].t))}: ${int(lo)} to ${int(hi)} (${h.length} refreshes).</p>`;
+}
+function projBacktest(s) {
+  const S = T.m.proj_summary, B = S?.backtest;
+  if (!B) return "";
+  const f = (v, d = 1) => (v == null ? "–" : v.toFixed(d));
+  const rows = B.rows.map((r) => `<tr><th scope="row">${r.cycle}</th><td>${r.share_from}${r.kind === "any" ? " (fallback, other type)" : ""}</td><td class="n">${r.n || "no early-vote file for " + r.share_from}</td><td class="n">${f(r.mae_A)}</td><td class="n">${f(r.mae_B)}</td><td class="n">${f(r.mae_M)}</td><td class="n">${r.bias_A == null ? "–" : sgn(r.bias_A, 1)}</td><td class="n">${r.cov_B == null ? "–" : `${f(r.cov_B, 0)} %`}</td></tr>`).join("");
+  const mine = B.errors.filter((e) => e.st === s.st && e.kind === "same").map((e) => `${e.cycle}: projection method A ${sgn(e.err_A_pct, 1)} %, blend ${e.err_B_pct == null ? "n/a" : `${sgn(e.err_B_pct, 1)} %`}, naive baseline ${sgn(e.err_M_pct, 1)} %`);
+  return `<details class="ev-explain td-proj-bt"><summary>Backtest: how this projection did in 2020 to 2024</summary>` +
+    `<p><b>${esc(S.backtest.selection.verdict)}</b> Shown: variant ${esc(S.variant)} (${esc(S.selection)}).</p>` +
+    `<div class="table-scroll" tabindex="0" role="region" aria-label="Backtest of the projection"><table class="compact td-table"><thead><tr><th>Cycle</th><th>Early share from</th><th class="n">States</th><th class="n">A: banked ÷ share, MAE %</th><th class="n">B: blend, MAE %</th><th class="n">Naive baseline, MAE %</th><th class="n">A bias %</th><th class="n">${B.level} % interval coverage (B)</th></tr></thead><tbody>${rows}</tbody></table></div>` +
+    `<p class="note">MAE % is the mean of |projected ÷ actual final total − 1| over the states of the cycle. A uses the state's last pre-election early-vote count of the cycle and the early share of its final total in the earlier cycle (clipped to 15 to 98 %). B blends A with the naive baseline by precision, with the weights and the interval fitted on earlier cycles only, so B and its coverage need an earlier cycle to fit on. The naive baseline is ${esc(B.baseline)}. Same-type pairs are 2022 on 2018 and 2024 on 2020; 2020 on 2016 has no 2016 early-vote file. The fallback rows pair each cycle with the one two years before. Early-vote definitions differ by state and year, so the errors include those changes.</p>` +
+    (mine.length ? `<p class="note"><b>${esc(s.name)} in the backtest:</b> ${esc(mine.join("; "))}.</p>` : `<p class="note">${esc(s.name)} has no same-type backtest pair.</p>`) +
+    `<p class="note"><b>Election Day check-in estimate (C): not available.</b> ${esc(S.estimator_C.why)}. <b>Counties:</b> ${esc(S.county.why)}.</p></details>`;
+}
+function projHtml(s) {
+  const p = s.proj, head = `<h3 id="tdd-proj-h">Projected final turnout</h3><p class="td-label-sm"><b>${PROJ_LABEL}.</b></p>`;
+  if (!p) return head + `<p class="note">No projection in this data file.</p>`;
+  if (!p.ok) return head + `<p class="note">${esc(p.why)}.</p>` + projBacktest(s);
+  const dl = p.delta, E = p.expected;
+  const cards = [
+    card("Projected final votes", int(p.proj_total), `${p.level} % interval ${int(p.low)} to ${int(p.high)} · variant ${esc(p.variant)} · ${CTX}`, "td-card-main"),
+    card("Against the model", p.vs_expected != null ? pc(100 * p.vs_expected) : "–", p.heading ? `${esc(p.heading)} (model: ${int(E)} ballots)` : "no model figure"),
+    card("Banked share of the projection", p.banked_share != null ? pc(100 * p.banked_share) : "–", `${int(s.banked?.value)} banked of ${int(p.proj_total)}`),
+    card("Since the previous refresh", dl ? `${dl.d_total > 0 ? "+" : dl.d_total < 0 ? "−" : ""}${int(Math.abs(dl.d_total))}` : "–", dl ? esc(dl.text) : "first refresh with a projection"),
+  ].join("");
+  const inputs = p.inputs.map((x) => `<li>${esc(x)}</li>`).join("");
+  return head + `<div class="td-kpis">${cards}</div><figure class="ev-fig td-fig"><p class="chart-title">Projection at each refresh today</p>${projSpark(p.history)}</figure>` +
+    `<p class="note">Inputs, all available now:</p><ul class="td-model">${inputs}</ul>` +
+    `<p class="note">A projection from ballots banked so far and last cycle's early share; it counts votes, not who wins. Election Day check-ins are not used (no hour curve on disk).</p>` + projBacktest(s);
+}
+
 async function drawPanel() {
   const s = T.m.states[T.st], genMs = Date.parse(T.m.generated_utc);
   const [label, why] = STATUS[s.status];
   $("#tdd-title").textContent = s.name;
   $("#tdd-status").innerHTML = `<span class="td-badge td-s-${s.status}" title="${esc(why)}">${esc(label)}</span> ${esc(s.verdict)}`;
   $("#tdd-kpis").innerHTML = kpis(s, genMs);
+  $("#tdd-proj").innerHTML = projHtml(s);
   $("#tdd-bar").innerHTML = methodBar(s);
   $("#tdd-party").innerHTML = partyHtml(s);
   $("#tdd-who").innerHTML = whoHtml(s);
