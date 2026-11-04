@@ -19,7 +19,7 @@
   const show = (reason) => {
     const message = messageOf(reason);
     const mapEmpty = document.getElementById("map-empty");
-    const mapWaiting = mapEmpty?.textContent.trim() === "Loading the map…";
+    const mapWaiting = !mapEmpty?.hidden && mapEmpty?.textContent.trim() === "Loading the map…";
     if (mapWaiting) {
       mapEmpty.replaceChildren("The map could not load. Reload the page. ", reloadButton());
       mapEmpty.title = message;
@@ -44,8 +44,9 @@
   // never hang silently: a map still "loading" after 45 s of VISIBLE time has failed (a stalled fetch or module).
   // Only visible seconds count: browsers pause animation frames in background tabs and the map waits for one,
   // so a page opened in a background tab is not stalled. If the map draws after the note was shown
-  // (election.js empties and hides #map-empty), the note is withdrawn.
-  const waiting = () => document.getElementById("map-empty")?.textContent.trim() === "Loading the map…";
+  // (election.js empties and hides #map-empty), the note is withdrawn. A hidden #map-empty means drawn whatever its text:
+  // count.js hides it and leaves "Loading the map…" in place, which read as stalled after 45 s (Nov 4).
+  const waiting = () => { const m = document.getElementById("map-empty"); return !!m && !m.hidden && m.textContent.trim() === "Loading the map…"; };
   let visibleMs = 0;
   const tick = setInterval(() => {
     if (document.hidden) return;
