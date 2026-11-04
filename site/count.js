@@ -55,7 +55,7 @@ async function resolveBase() {
     const j = await r.json();
     if (typeof j?.url !== "string" || !TUNNEL.test(j.url)) throw new Error("bad url");
     const next = j.url.endsWith("/") ? j.url : `${j.url}/`;
-    if (next !== S.base) { S.base = next; S.txt = {}; S.hist = null; S.histState = "idle"; }
+    if (next !== S.base) { S.base = next; S.txt = {}; S.hist = null; S.histState = "idle"; S.auxNext = 0; }
   } catch (_) { if (live && TUNNEL.test(live)) S.base = live.endsWith("/") ? live : `${live}/`; }
   return S.base;
 }
@@ -63,6 +63,19 @@ async function fetchText(f) {
   const r = await fetch(S.base + f.p, { cache: "no-cache" });
   if (!r.ok) throw new Error(`${f.p}: HTTP ${r.status}`);
   return r.text();
+}
+// the official-source count recorder (extra/us2026/aux_counts.json): may not exist yet, so a miss is retried only every 5 minutes
+async function fetchAux() {
+  if (Date.now() < (S.auxNext ?? 0)) return false;
+  try {
+    const r = await fetch(`${S.base}extra/us2026/aux_counts.json`, { cache: "no-cache" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const text = await r.text();
+    S.auxNext = 0;
+    if (text === S.txt.aux) return false;
+    S.json.aux = JSON.parse(text); S.txt.aux = text;
+    return true;
+  } catch (_) { S.auxNext = Date.now() + 300000; return false; }
 }
 async function cycle() {
   try {
@@ -78,6 +91,7 @@ async function cycle() {
         try { S.json[f.k] = JSON.parse(r.value); S.txt[f.k] = r.value; changed = true; ok++; } catch (_) { /* keep the last good file */ }
       });
       if (ok === 0) S.errs++; else { S.errs = 0; S.lastOk = Date.now(); }
+      if (ok > 0 && (await fetchAux())) changed = true;
       if (changed) rebuild();
     }
   } catch (_) { S.errs++; }
@@ -103,7 +117,7 @@ function metaRaces(metaKey) {
   for (const r of S.json[metaKey]?.races ?? []) m.set(r.race_id, r);
   return m;
 }
-const mkUnit = (office, id, st, name) => ({ key: `${office}:${id}`, office, id, st, name, tier: "estimate only", rows: null, inky: null, est: null, mkt0: null, cand: { d: null, r: null }, model: null, alt: null, v: null });
+const mkUnit = (office, id, st, name) => ({ key: `${office}:${id}`, office, id, st, name, tier: "estimate only", rows: null, inky: null, aux: null, est: null, mkt0: null, cand: { d: null, r: null }, model: null, alt: null, v: null });
 
 function rebuild() {
   const { dist, markets, overview } = S;
@@ -115,7 +129,7 @@ function rebuild() {
     u.mkt0 = d.market_p_d ?? null;
     const mk = markets.districts[id];
     u.cand = { d: mk?.pm?.cands?.D ?? mk?.kalshi?.cands?.D ?? null, r: mk?.pm?.cands?.R ?? mk?.kalshi?.cands?.R ?? null };
-    u.tier = "estimate only"; u.rows = null; u.inky = null; u.model = null;
+    u.tier = "estimate only"; u.rows = null; u.inky = null; u.aux = null; u.model = null;
   }
   const inky = S.json.inky;
   S.inkyT = inky?.t ? Date.parse(inky.t) : null;
@@ -149,7 +163,7 @@ function rebuild() {
       u.est = pm0;
       u.mkt0 = { pm: r.pm?.price ?? null, kalshi: r.kalshi?.price ?? null };
       u.cand = { d: r.candidates?.D ?? r.dem_side?.name ?? null, r: r.candidates?.R ?? (r.incumbent_party === "R" ? r.incumbent : null) };
-      u.tier = "estimate only"; u.rows = null; u.model = null; u.alt = null; u.inky = null;
+      u.tier = "estimate only"; u.rows = null; u.model = null; u.alt = null; u.inky = null; u.aux = null;
     }
   }
   // live model per statewide race: registered > added > civicAPI; the next-ranked model of the same race is kept for the panel
@@ -177,11 +191,30 @@ function rebuild() {
     for (const c of list) if (c.tier !== "civicAPI" || list.length === 1) evSrc.set(c.id, { id: c.id, race: c.race, tier: c.tier, rows: c.rows, unitKey: u.key });
   }
   S.evSrc = evSrc;
+  applyAux();
   feedEvents();
   computeAll();
   refreshAll();
 }
 
+// Official-source counts (aux_counts.json) for a race nothing else counts: no live model and no civicAPI count. Never feeds projections.
+function applyAux() {
+  const aux = S.json.aux;
+  if (!aux?.races) return;
+  for (const [key, a] of Object.entries(aux.races)) {
+    let u = null;
+    const h = /^house:(.+)$/.exec(key), m = /^([a-z]{2})-(sen|gov)$/.exec(key);
+    if (h) u = S.units.house.get(h[1]);
+    else if (m) u = S.units[m[2] === "sen" ? "senate" : "governor"].get(m[1].toUpperCase());
+    if (!u || u.tier !== "estimate only" || !(a?.D >= 0) || !(a?.R >= 0)) continue;
+    const prec = Array.isArray(a.precincts) && a.precincts[1] > 0 ? a.precincts[0] / a.precincts[1] : null;
+    let c = typeof a.pct_reporting === "number" ? a.pct_reporting : null;
+    if (c != null) c = c > 1 ? c / 100 : prec != null && Math.abs(c / 100 - prec) < Math.abs(c - prec) ? c / 100 : c;
+    c ??= prec;
+    u.aux = { ...a, counted: c, src: aux.sources?.[a.st ?? u.st] ?? null, t: Date.parse(a.as_of) };
+    u.tier = "count only (official)";
+  }
+}
 function rowAt(rows, T) {
   if (!rows?.length) return null;
   if (T == null) return rows[rows.length - 1];
@@ -207,6 +240,8 @@ function compute(u) {
     if (k.counted != null) v.votes = k.counted;
     v.t ??= S.inkyT;
   }
+  const x = u.aux;
+  if (x && S.t == null && x.D + x.R > 0) { v.counted = x.counted; v.raw = x.D / (x.D + x.R); v.votes = x.D + x.R + (x.other ?? 0); v.t = Number.isFinite(x.t) ? x.t : null; }
   if (v.counted != null && v.counted <= 0) { v.counted = 0; v.raw = null; }
   const ref = v.P ?? u.est?.P ?? null;
   const pre = !v.live;
@@ -227,11 +262,12 @@ const mixTo = (c, base, t) => d3.interpolateRgb(base, c)(t);
 function fillOf(u) {
   const v = u.v;
   if (S.mode === "count") {
-    if (v.raw == null || !(v.counted > 0)) return { fill: GREY, hatch: 0 };
+    if (v.raw == null || (v.counted != null && !(v.counted > 0))) return { fill: GREY, hatch: 0 };
+    const cc = v.counted ?? 0.25;
     const m = Math.abs(v.raw - 0.5) * 2, c = v.raw >= 0.5 ? D : R;
     const strong = mixTo(c, NEUTRAL, 0.45 + 0.55 * Math.min(1, m / 0.2));
-    const f = 0.45 + 0.55 * Math.min(1, v.counted / 0.4);
-    return { fill: mixTo(strong, GREY, f), hatch: v.counted < 0.4 ? 0.7 * (1 - v.counted / 0.4) : 0 };
+    const f = 0.45 + 0.55 * Math.min(1, cc / 0.4);
+    return { fill: mixTo(strong, GREY, f), hatch: cc < 0.4 ? 0.7 * (1 - cc / 0.4) : 0 };
   }
   if (S.mode === "proj") {
     const P = v.projP;
@@ -340,7 +376,7 @@ function tipHTML(u) {
   const v = u.v;
   const lead = v.raw == null ? "no count yet" : `${v.raw >= 0.5 ? "D" : "R"} leads, ${marginText(v.raw)}`;
   const mk = v.mkt != null ? `${pc(v.mkt)} (${v.mktSrc})` : v.onesided ? ONESIDED : "–";
-  return `<b>${esc(u.name)}</b><span>${esc(u.tier)}</span><div>Counted: ${v.counted != null && v.raw != null ? pc(v.counted) : "–"} · ${lead}</div><div>Model chance D: ${v.P != null ? pc(v.P) : v.projP != null ? `${pc(v.projP)} (pre-count)` : "–"}</div><div>Market: ${mk}</div>`;
+  return `<b>${esc(u.name)}</b><span>${esc(u.tier)}</span><div>Counted: ${v.counted != null && v.raw != null ? pc(v.counted) : "–"} · ${lead}</div><div>Model chance D: ${v.P != null ? pc(v.P) : v.projP != null ? `${pc(v.projP)} (pre-count)` : "–"}</div><div>Market: ${mk}</div>${u.aux && S.t == null ? `<div>D ${fmtVotes(u.aux.D)} · R ${fmtVotes(u.aux.R)}${Array.isArray(u.aux.precincts) ? ` · precincts ${u.aux.precincts[0]} of ${u.aux.precincts[1]}` : ""} · count only, no model</div>` : ""}`;
 }
 function bboxOf(list) {
   const b = [[Infinity, Infinity], [-Infinity, -Infinity]];
@@ -382,14 +418,16 @@ const tierNote = {
   added: "Added live model (county results)",
   civicAPI: "civicAPI model (statewide results)",
   "count only": "Count only: no live model; the counted vote from civicAPI",
+  "count only (official)": "Count only, no model: official-source totals from the secondary recorder",
   "estimate only": "Estimate only: pre-count estimate, no live data",
 };
 function caveatsFor(u) {
   const v = u.v, out = [];
-  if (NOSPLIT[u.st] && u.tier !== "estimate only" && u.tier !== "count only") out.push(`${NOSPLIT[u.st]}: no early / Election Day split in this model. Early and mail ballots counted first distort the share counted and the chance until Election Day precincts report.`);
+  if (NOSPLIT[u.st] && u.tier !== "estimate only" && !u.tier.startsWith("count only")) out.push(`${NOSPLIT[u.st]}: no early / Election Day split in this model. Early and mail ballots counted first distort the share counted and the chance until Election Day precincts report.`);
   if (u.office === "house" && (u.st === "NC" || u.st === "GA") && v.live) out.push(`NC and GA House models are far more Democratic than markets at 50–70% counted; cause not yet verified. Read with caution.`);
   if (v.onesided) out.push("This market price comes from a one-sided order book and reads inverted on a near-certain race, so it is not shown.");
   if (u.tier === "count only") out.push("No live model for this district: only the counted vote is shown. Partial counts can mislead.");
+  if (u.aux) out.push("Count only, no model: totals from an official source via a secondary recorder. They do not enter any projection.");
   if (u.tier === "estimate only") out.push("No votes in yet or no live source: shaded by the pre-count estimate.");
   out.push("Not an official call; not financial advice.");
   return out;
@@ -403,7 +441,14 @@ function renderPanel() {
   const v = u.v, mkRow = (name, x) => `<div class="kv"><span>${name}</span><b>${x}</b></div>`;
   const stName = S.stateName.get(u.st) ?? (S.json.hreg ? u.st : u.st);
   const cand = `<div class="cnt-cands"><span class="c-d"><i></i>${esc(u.cand.d ?? "Democratic candidate")}</span><span class="c-r"><i></i>${esc(u.cand.r ?? "Republican candidate")}</span></div>`;
-  const counted = v.counted != null && v.raw != null
+  const xa = u.aux;
+  const auxBlock = () => {
+    const link = xa.src?.url ? `<a href="${esc(xa.src.url)}" target="_blank" rel="noopener">${esc(xa.src.name ?? xa.source ?? "source")}</a>` : esc(xa.src?.name ?? xa.source ?? "official source");
+    return `${mkRow("Democrat", fmtVotes(xa.D))}${mkRow("Republican", fmtVotes(xa.R))}${xa.other ? mkRow("Other", fmtVotes(xa.other)) : ""}${mkRow("Counted D share", `${pc(v.raw, 1)} <small>${marginText(v.raw)}</small>`)}`
+      + `${mkRow("Reporting", v.counted != null ? pc(v.counted) : "not given")}${Array.isArray(xa.precincts) ? mkRow("Precincts", `${xa.precincts[0].toLocaleString("en-US")} of ${xa.precincts[1].toLocaleString("en-US")}`) : ""}`
+      + `<div class="kv"><span>Source</span><b>${link}</b></div>${xa.as_of ? mkRow("As of", esc(Number.isFinite(xa.t) ? clockText(xa.t) : xa.as_of)) : ""}<div class="kv"><span>Tag</span><b><span class="pb-tag t-early">count only, no model</span></b></div>`;
+  };
+  const counted = xa && S.t == null && v.raw != null ? auxBlock() : v.counted != null && v.raw != null
     ? `${mkRow("Counted", `${pc(v.counted)} <small>of expected votes</small>`)}<div class="bar"><i style="width:${Math.min(100, 100 * v.counted)}%"></i></div>${mkRow("Counted D share", `${pc(v.raw, 1)} <small>${marginText(v.raw)}</small>`)}${mkRow("Votes counted", fmtVotes(v.votes))}`
     : mkRow("Counted", "no count yet");
   const proj = v.P != null
@@ -413,7 +458,7 @@ function renderPanel() {
   const pmLine = `${mkRow("Market chance D wins", mkt)}${v.live && v.pmU.v != null && v.kU.v != null ? mkRow("Other market", `${pc(v.mktSrc === "Polymarket" ? v.kU.v : v.pmU.v)} <small>${v.mktSrc === "Polymarket" ? "Kalshi" : "Polymarket"}</small>`) : ""}${v.gap != null ? mkRow("Model − market", `${v.gap >= 0 ? "+" : "−"}${Math.abs(100 * v.gap).toFixed(0)} pts`) : ""}`;
   const alt = u.alt ? (() => { const r = rowAt(u.alt.rows, S.t); return r ? mkRow(`${u.alt.tier} model`, `${pc(r.P)} chance, ${pc(r.share, 1)} D`) : ""; })() : "";
   const upd = v.t ? `${clockText(v.t)}${S.t != null ? " (replay)" : ""}` : "no live update";
-  el.innerHTML = `<h2 class="cnt-ph">${esc(u.name)}</h2><p class="cnt-sub">${esc(stName)} · <span class="tier t-${u.tier.replace(/\s/g, "-")}">${esc(u.tier)}</span></p>${cand}
+  el.innerHTML = `<h2 class="cnt-ph">${esc(u.name)}</h2><p class="cnt-sub">${esc(stName)} · <span class="tier t-${u.tier.replace(/\W+/g, "-").replace(/-$/, "")}">${esc(u.tier)}</span></p>${cand}
     <div class="blk">${counted}</div><div class="blk">${proj}${alt}</div><div class="blk">${pmLine}</div>
     <p class="cnt-sub">${esc(tierNote[u.tier])}. Last update ${esc(upd)}.</p>
     <ul class="cnt-cavs">${caveatsFor(u).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>`;
@@ -518,7 +563,7 @@ function renderSummary() {
     const live = { D: 0, R: 0, T: 0 }, pre = { D: 0, R: 0, T: 0 };
     for (const u of m.values()) {
       tot++;
-      if (u.v.counted > 0 && u.v.counted < 0.995) cnt++;
+      if ((u.v.counted > 0 && u.v.counted < 0.995) || (u.aux && u.v.raw != null && u.v.counted == null)) cnt++;
       const a = lean(u.v.projP), b = lean(u.est?.P);
       if (a) live[a]++; if (b) pre[b]++;
     }
@@ -557,7 +602,7 @@ const COLS = [
 function tableRows() {
   let list = [...S.units[S.tab].values()];
   const f = S.filter;
-  if (f === "counting") list = list.filter((u) => u.v.counted > 0 && u.v.raw != null);
+  if (f === "counting") list = list.filter((u) => u.v.raw != null && (u.v.counted == null || u.v.counted > 0));
   else if (f === "close") list = list.filter((u) => u.v.projP != null).sort((a, b) => Math.abs(a.v.projP - 0.5) - Math.abs(b.v.projP - 0.5)).slice(0, 40);
   else if (f === "gap") list = list.filter((u) => u.v.gap != null).sort((a, b) => Math.abs(b.v.gap) - Math.abs(a.v.gap)).slice(0, 40);
   const col = COLS.find((c) => c.k === S.sort.col);

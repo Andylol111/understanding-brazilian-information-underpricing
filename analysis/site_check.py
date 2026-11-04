@@ -1255,6 +1255,14 @@ async def check_count(page: Page, viewport_name: str) -> list[str]:
         selected = await page.evaluate("window.__cnt.S.sel")
         if selected != ban["key"] or abs(await page.evaluate("window.scrollY") - y3) > 1:
             out.append(f"clicking a projection did not select {ban['key']} in place (selected {selected})")
+    # official-source count-only race (aux_counts.json): a count-only row with its totals and tag, not in the projections banner
+    await page.evaluate("document.querySelector('#cnt-svg .u[data-key=\"house:OK-01\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))")
+    await page.wait_for_timeout(500)
+    aux = await page.inner_text("#panel")
+    if "count only, no model" not in aux or "310" not in aux or "Oklahoma State Election Board" not in aux:
+        out.append(f"the official-count race OK-01 shows no totals, precincts, source or tag: {aux[:200]!r}")
+    if "OK-01" in await page.inner_text("#proj-list"):
+        out.append("a count-only race appears in the projections banner")
     # replay slider
     await page.evaluate("() => { const r = document.querySelector('#t-range'); r.value = '0'; r.dispatchEvent(new Event('input', { bubbles: true })); }")
     await page.wait_for_timeout(400)
