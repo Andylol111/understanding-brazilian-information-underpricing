@@ -222,9 +222,9 @@ function fillOf(u) {
   if (S.mode === "count") {
     if (v.raw == null || !(v.counted > 0)) return { fill: GREY, hatch: 0 };
     const m = Math.abs(v.raw - 0.5) * 2, c = v.raw >= 0.5 ? D : R;
-    const strong = mixTo(c, NEUTRAL, 0.22 + 0.78 * Math.min(1, m / 0.3));
-    const f = 0.4 + 0.6 * Math.min(1, v.counted / 0.5);
-    return { fill: mixTo(strong, GREY, f), hatch: v.counted < 0.5 ? 0.85 * (1 - v.counted / 0.5) : 0 };
+    const strong = mixTo(c, NEUTRAL, 0.45 + 0.55 * Math.min(1, m / 0.2));
+    const f = 0.45 + 0.55 * Math.min(1, v.counted / 0.4);
+    return { fill: mixTo(strong, GREY, f), hatch: v.counted < 0.4 ? 0.7 * (1 - v.counted / 0.4) : 0 };
   }
   if (S.mode === "proj") {
     const P = v.projP;
