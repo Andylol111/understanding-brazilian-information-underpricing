@@ -529,7 +529,7 @@ function extraRow(r) {
   const o = r?.ov;
   if (!o) return null;
   const e = r.estimate ?? {}, m = o.margins ?? {};
-  const kx = o.kalshi?.price ?? null, pm = pmUsable(S.nat?.price(o.race_key) ?? o.pm?.price ?? null, [kx], [o.polls?.p_win, e.P]);
+  const kx = o.kalshi?.price ?? null, pm = pmUsable(S.nat?.price(o.race_key) ?? o.pm?.price ?? null, [kx], [o.polls?.p_win]);
   const mk = (p) => (m.market_sd_used && p > 0 && p < 1 ? probit(p) * m.market_sd_used : null);
   return {
     estimate: true, share: e.share ?? null, sd: e.sd ?? null, P: e.P ?? null, pm, kalshi: kx,
@@ -1040,9 +1040,11 @@ function updateLists(t) {
   lastList = performance.now();
   const sens = sensitivitiesOf(S.meta);
   if (S.list) {
+    // Kalshi for the one-sided Polymarket guard: the row's own, else the overview's for the same contest (civicAPI rows carry none)
+    const ovKalshi = (id) => { const k = id.replace(/-civic$/, ""); for (const o of Object.values(S.overview?.offices ?? {})) { const x = (o.races ?? []).find((y) => (y.race_id ?? y.race_key) === k); if (x) return x.kalshi?.price ?? null; } return null; };
     S.list.update(new Map([...races(), ...(S.extra?.values() ?? [])].map((r) => {
       const row = raceRow(r, t);
-      return [r.race_id, { P: modelP(row), sens: Object.fromEntries(sens.map((s) => [s.key, sensP(row, s)])), pm: pmUsable(row?.pm ?? null, [row?.kalshi ?? null, modelP(row)]), k: row?.kalshi ?? null }];
+      return [r.race_id, { P: modelP(row), sens: Object.fromEntries(sens.map((s) => [s.key, sensP(row, s)])), pm: pmUsable(row?.pm ?? null, [row?.kalshi ?? ovKalshi(r.race_id)]), k: row?.kalshi ?? null }];
     })));
   }
   updatePicker(t);
