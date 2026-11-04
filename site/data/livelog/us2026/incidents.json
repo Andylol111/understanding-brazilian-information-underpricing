@@ -202,6 +202,19 @@
    "what": "This log was started at 03:52Z. Rows before the first live row in each file were rebuilt afterwards from the server's timeline files, only keeping rows where a published value changed. They are tagged 'backfilled'.",
    "effect_on_model": "Backfilled rows may differ from what the page showed at the time (see the restart incident).",
    "evidence": "recorded/rebuilt_from fields."
+  },
+  {
+   "id": "me-sen-civic-stale",
+   "from": "2026-11-04T02:43:35Z",
+   "to": null,
+   "scope": [
+    "me-sen"
+   ],
+   "scope_text": "Maine Senate",
+   "kind": "stale source",
+   "what": "civicAPI's Maine Senate data stopped changing at 02:43Z (newest recorded civic_87188 snapshot 20261104T024335Z; other civicAPI races kept updating). Count stuck at 20.7% counted, Jackson 48.95%; model P 0.6167 frozen with it. Maine's official site blocks our recorder (CloudFront 403).",
+   "effect_on_model": "me-sen rows after 02:43Z repeat stale data; the feed's stale flag did not fire because the stale rule uses recorder poll success, not data change. Model-vs-market gap (P 0.62 vs pm ~0.97) after 02:43Z is not comparable.",
+   "evidence": "server civic_87188 newest snapshot 20261104T024335.164142Z.json.gz, age 79 min at 04:02Z"
   }
  ]
 }
