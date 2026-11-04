@@ -2391,9 +2391,16 @@ function senateProjection(at = S.preview ?? S.t) {
   const t = at, hold = sen.holdovers ?? {}, ups = sen.races ?? [], counted = [];
   const races = ups.map((o) => {
     const r = statewide().find((x) => x.race_id === (o.race_id ?? o.race_key)) ?? S.extra?.get(o.race_key);
-    const row = r ? raceRow(r, t) : null;
+    let row = r ? raceRow(r, t) : null;
     let p = modelP(row);
     if (p != null && r.b?.id === "dem") p = 1 - p;
+    // the civicAPI race (secondary source) when the registered/added race has nothing counted (SC: official feed blocked all
+    // night, so its race sat at the pre-count chance while civicAPI counted 90%); civicAPI chances are the Democratic side's
+    if (!((row?.counted ?? 0) > 0)) {
+      const c = S.civic?.races.find((x) => x.race_id.replace(/-civic$/, "") === o.race_key);
+      const cr = c ? rowAt(c.race_id, t) : null, cp = modelP(cr);
+      if (cp != null && (cr?.counted ?? 0) > 0) { row = cr; p = cp; }
+    }
     if (row?.counted != null) counted.push(row.counted);
     return { key: o.race_key, name: `${o.state_name ?? usStateName(o.state)} Senate${o.special ? " (special)" : ""}`, p: p ?? o.estimate?.P ?? o.polls?.p_win ?? null, live: (row?.counted ?? 0) > 0 };
   });
