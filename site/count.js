@@ -2,6 +2,7 @@
 // Live files come from the tunnel (?live= or data/live_link.json); geometry and pre-count numbers are static (data/).
 import * as d3 from "./vendor/d3.js";
 import * as topojson from "./vendor/topojson-client.js";
+import { createEvents, loadSaved, save, partialOf, partyOf, addedLabel, etClock } from "./dash-events.js";
 
 const STATIC = "data/";
 const TUNNEL = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/;
@@ -87,7 +88,7 @@ async function cycle() {
 // ---- units ----
 const slim = (rows, pmv) => rows.map((r) => ({
   t: Date.parse(r.t), counted: r.counted, raw: r.raw, share: r[`share_${pmv}`] ?? r.share, sd: r[`sd_${pmv}`] ?? r.sd, P: r[`P_${pmv}`] ?? r.P,
-  pm: r.pm, kalshi: r.kalshi, vp: r.votes_proj, rem: r.rem_total,
+  pm: r.pm, kalshi: r.kalshi, vp: r.votes_proj, rem: r.rem_total, exp: r.turnout_exp_total,
 }));
 function rowsOf(tailKey, key, pmv) {
   const tail = S.json[tailKey]?.[key];
@@ -124,6 +125,7 @@ function rebuild() {
     u.inky = k; u.tier = "count only";
     u.cand = { d: k.d_cand ?? u.cand.d, r: k.r_cand ?? u.cand.r };
   }
+  const evSrc = new Map(); // race id -> { id, race (meta), tier, rows }: what the projection rules are fed
   for (const [tail, meta, tier] of [["hadd", "haddMeta", "added"], ["hreg", "hregMeta", "registered"]]) {
     const mr = metaRaces(meta);
     for (const [key, r] of mr) {
@@ -133,6 +135,7 @@ function rebuild() {
       if (!rows.length) continue;
       u.rows = rows; u.tier = tier; u.model = r.poll_model ?? "v2";
       u.cand = { d: r.a?.name ?? u.cand.d, r: r.b?.name ?? u.cand.r };
+      evSrc.set(key, { id: key, race: tier === "added" ? { ...r, added: true } : r, tier, rows, unitKey: u.key });
     }
   }
   // Senate and governor: every race of overview.json; live model from registered > added > civicAPI
@@ -160,7 +163,7 @@ function rebuild() {
       const rows = rowsOf(tail, key, r.poll_model ?? "v2");
       if (!rows.length) continue;
       const list = found.get(u) ?? [];
-      list.push({ tier, rank, rows, model: r.poll_model ?? "v2", cand: { d: r.a?.name ?? null, r: r.b?.name ?? null } });
+      list.push({ tier, rank, rows, model: r.poll_model ?? "v2", cand: { d: r.a?.name ?? null, r: r.b?.name ?? null }, id: key, race: tier === "added" ? { ...r, added: true } : r });
       found.set(u, list);
     }
   }
@@ -170,7 +173,11 @@ function rebuild() {
     u.rows = best.rows; u.tier = best.tier; u.model = best.model;
     u.cand = { d: best.cand.d ?? u.cand.d, r: best.cand.r ?? u.cand.r };
     u.alt = next ? { tier: next.tier, rows: next.rows } : null;
+    // the election page's rule: registered and added races always; a civicAPI race only where no registered / added model covers the race
+    for (const c of list) if (c.tier !== "civicAPI" || list.length === 1) evSrc.set(c.id, { id: c.id, race: c.race, tier: c.tier, rows: c.rows, unitKey: u.key });
   }
+  S.evSrc = evSrc;
+  feedEvents();
   computeAll();
   refreshAll();
 }
@@ -412,6 +419,98 @@ function renderPanel() {
     <ul class="cnt-cavs">${caveatsFor(u).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>`;
 }
 
+// ---- projections banner: the election page's rules (dash-events.js), fed the same rows ----
+const EV_KEY = `ubiu.count.events.${window.__BUILD ?? ""}`;
+let EV = null;
+const evSample = (r) => ({ t: r.t, p: r.P ?? null, c: r.counted ?? null, pm: r.pm ?? null, k: r.kalshi ?? null, raw: r.raw ?? null, vp: r.vp ?? null, rem: r.rem ?? null, exp: r.exp ?? null });
+function feedEvents() {
+  if (!S.evSrc) return;
+  EV ??= createEvents(loadSaved(EV_KEY));
+  for (const src of S.evSrc.values()) {
+    const r = src.race, from = EV.lastT(`race:${src.id}`), fresh = src.rows.filter((d) => d.t > from);
+    if (!fresh.length || r.stale) continue;
+    EV.feedRace({ id: src.id, label: r.name ?? src.id, a: r.a, b: r.b, secondary: src.tier === "civicAPI" ? true : src.tier === "added" ? addedLabel(r) : false, partial: partialOf(r) }, fresh.map(evSample));
+  }
+  save(EV_KEY, EV);
+}
+const EARLY_RISK = new Set(["FL", "SC", "OH", "NE", "NH"]), SPLIT_RISK = new Set(["NC", "GA", "TX", "AZ"]);
+const TAGS = {
+  stale: { label: "stale feed", cls: "t-stale" },
+  disagree: { label: "disagrees with market", cls: "t-dis" },
+  split: { label: "split model under-corrects", cls: "t-split" },
+  early: { label: "early-ballot risk", cls: "t-early" },
+  ok: { label: "holds up so far", cls: "t-ok" },
+};
+// reliability tags of a projected race, from the rows the page holds now. Returns [{tag, why}] most severe first.
+function reliabilityOf(src, unit, side, mk) {
+  const out = [], rows = src.rows, last = rows[rows.length - 1], st = unit.st;
+  if (last && last.counted != null && last.counted < 0.99) {
+    let i = rows.length - 1;
+    while (i > 0 && rows[i - 1].counted === last.counted) i--;
+    const mins = Math.round((last.t - rows[i].t) / 60000);
+    const silent = Math.round((Date.now() - last.t) / 60000);
+    if (src.race.stale || mins >= 10) out.push({ tag: "stale", why: src.race.stale ? "The feed for this race has stopped updating." : `Share counted unchanged for ${mins} min: the feed may have stalled.` });
+    else if (silent >= 10 && S.lastOk && Date.now() - S.lastOk < 120000) out.push({ tag: "stale", why: `No new row for this race for ${silent} min.` });
+  }
+  if (mk.v != null && last?.P != null) {
+    const mine = side === "a" ? last.P : 1 - last.P, gap = Math.abs(mine - mk.v);
+    if (gap > 0.3) out.push({ tag: "disagree", why: `Model ${pc(mine)} and market ${pc(mk.v)} differ by ${Math.round(100 * gap)} pts.` });
+  }
+  if (unit.office === "house" && SPLIT_RISK.has(st)) out.push({ tag: "split", why: "Calibrated on 2024, when early and Election Day votes ran alike; tonight's gap is far larger." });
+  if (EARLY_RISK.has(st) || src.tier === "civicAPI" || src.tier === "added") out.push({ tag: "early", why: "No early / Election Day split here: early ballots counted first can read as a swing." });
+  if (!out.length) out.push({ tag: "ok", why: "None of the known risks apply so far." });
+  return out;
+}
+// the market's price for the side the model projects, now; a price at or under 1 cent for that side is opposite a near-certain model: one-sided book
+function sideMarket(last, side) {
+  let one = false;
+  for (const [v, name] of [[last?.pm, "Polymarket"], [last?.kalshi, "Kalshi"]]) {
+    if (v == null) continue;
+    const x = side === "a" ? v : 1 - v;
+    if (x <= 0.01) { one = true; continue; }
+    return { v: x, name, one };
+  }
+  return { v: null, name: null, one };
+}
+let pbSeen = null, pbOpen = false, pbSig = "";
+function renderProjections() {
+  const host = $("proj-list");
+  if (!host || !EV || !S.evSrc) return;
+  const all = EV.items().filter((i) => i.kind === "call" || i.kind === "withdrawn" || i.kind === "decided");
+  const decided = EV.toJSON().decided ?? {}, byId = new Map(all.map((i) => [i.id, i]));
+  const rowsHTML = all.map((i) => {
+    const raceId = i.key.replace(/^(race:|decided:)/, ""), src = S.evSrc.get(raceId);
+    if (!src) return null;
+    const unit = unitOfKey(src.unitKey);
+    if (!unit) return null;
+    const call = i.kind === "withdrawn" ? byId.get(i.ref) : i;
+    const side = i.kind === "decided" ? decided[raceId]?.side : call?.side, party = i.kind === "decided" ? decided[raceId]?.party : partyOf(src.race[side]);
+    const at = rowAt(src.rows, i.ts), last = src.rows[src.rows.length - 1];
+    const cls = `pb-item${party ? ` pb-${party.toLowerCase()}` : ""}${i.kind === "withdrawn" ? " pb-wd" : ""}${i.struck ? " pb-struck" : ""}`;
+    let meta = "";
+    if (i.kind !== "withdrawn" && side) {
+      const mk = sideMarket(last, side), rel = reliabilityOf(src, unit, side, mk), main = rel[0];
+      const mtxt = mk.v != null ? `market now ${pc(mk.v)} (${mk.name})` : mk.one ? "market unavailable (one-sided book)" : "no market price";
+      meta = `<span class="pb-meta">${at?.counted != null ? `${pc(at.counted)} counted then` : ""} · ${esc(mtxt)}</span>` + rel.map((r, n) => `<span class="pb-tag ${TAGS[r.tag].cls}" title="${esc(r.why)}">${TAGS[r.tag].label}</span>${n === 0 ? `<span class="pb-why">${esc(r.why)}</span>` : ""}`).join("");
+    }
+    return { id: i.id, html: `<li class="${cls}" data-key="${unit.key}" data-id="${esc(i.id)}" tabindex="0" role="button"><span class="pb-t">${etClock(i.ts)}</span><span class="pb-x">${esc(i.text)}</span>${meta}</li>` };
+  }).filter(Boolean);
+  const sig = rowsHTML.map((r) => r.html).join("") + pbOpen;
+  if (sig === pbSig) return;
+  pbSig = sig;
+  const fresh = pbSeen ? new Set(rowsHTML.filter((r) => !pbSeen.has(r.id)).map((r) => r.id)) : new Set();
+  pbSeen = new Set(rowsHTML.map((r) => r.id));
+  const show = pbOpen ? rowsHTML : rowsHTML.slice(0, 3);
+  host.innerHTML = rowsHTML.length
+    ? show.map((r) => (fresh.has(r.id) ? r.html.replace('class="pb-item', 'class="pb-item pb-new') : r.html)).join("")
+    : `<li class="pb-none">No projections yet. A race appears here when the model's chance for one side is 99% or more on two refreshes in a row with at least 20% of the vote counted.</li>`;
+  const more = $("proj-more");
+  more.hidden = rowsHTML.length <= 3;
+  more.textContent = pbOpen ? "Show fewer" : `Show all (${rowsHTML.length})`;
+  more.setAttribute("aria-expanded", String(pbOpen));
+  $("proj-n").textContent = rowsHTML.length ? `${rowsHTML.length} so far` : "";
+}
+
 // ---- summary and status ----
 function renderSummary() {
   const card = (title, m) => {
@@ -616,7 +715,7 @@ function refreshAll() {
   if (!S.units.house.size) return;
   paint();
   $("legend").innerHTML = legendHTML();
-  renderSummary(); renderStatus(); renderPanel(); syncSlider();
+  renderSummary(); renderStatus(); renderPanel(); syncSlider(); renderProjections();
   if (!S.playing) renderTable();
 }
 
@@ -656,6 +755,10 @@ async function boot() {
   tbl.addEventListener("pointerover", (e) => { const tr = e.target.closest("tr[data-key]"); if (tr && e.pointerType !== "touch") hover(tr.dataset.key, null); });
   tbl.addEventListener("pointerleave", () => hover(null));
   $("flt").addEventListener("change", (e) => { S.filter = e.target.value; S.sortAuto = S.filter === "close" || S.filter === "gap"; renderTable(); });
+  $("proj-more").addEventListener("click", () => { pbOpen = !pbOpen; renderProjections(); });
+  const pbPick = (el) => { const li = el.closest?.("li[data-key]"); if (!li) return; const u = unitOfKey(li.dataset.key); if (!u) return; if (u.office !== S.tab) setTab(u.office, false); choose(u.key, {}); refreshAll(); zoomToState(u.st, u.office); };
+  $("proj-list").addEventListener("click", (e) => pbPick(e.target));
+  $("proj-list").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pbPick(e.target); } });
   $("t-play").addEventListener("click", play);
   $("t-live").addEventListener("click", () => { stop(); setTime(null); });
   $("t-range").addEventListener("input", (e) => {

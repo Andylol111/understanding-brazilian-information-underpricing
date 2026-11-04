@@ -1244,6 +1244,17 @@ async def check_count(page: Page, viewport_name: str) -> list[str]:
     await page.wait_for_timeout(900)
     if "NC-05" not in await page.inner_text("#panel") or abs(await page.evaluate("window.scrollY") - y2) > 1:
         out.append("search did not select NC-05 in place")
+    # projections banner: the mock's projected race is listed with a reliability tag; clicking it selects the race without scrolling
+    ban = await page.evaluate("() => ({ n: document.querySelectorAll('#proj-list .pb-item').length, tags: document.querySelectorAll('#proj-list .pb-tag').length, key: document.querySelector('#proj-list .pb-item')?.dataset.key ?? '' })")
+    if ban["n"] < 1 or ban["tags"] < 1:
+        out.append(f"projections banner shows no projected race with a reliability tag: {ban}")
+    else:
+        y3 = await page.evaluate("window.scrollY")
+        await page.evaluate("document.querySelector('#proj-list .pb-item').dispatchEvent(new MouseEvent('click', { bubbles: true }))")
+        await page.wait_for_timeout(700)
+        selected = await page.evaluate("window.__cnt.S.sel")
+        if selected != ban["key"] or abs(await page.evaluate("window.scrollY") - y3) > 1:
+            out.append(f"clicking a projection did not select {ban['key']} in place (selected {selected})")
     # replay slider
     await page.evaluate("() => { const r = document.querySelector('#t-range'); r.value = '0'; r.dispatchEvent(new Event('input', { bubbles: true })); }")
     await page.wait_for_timeout(400)

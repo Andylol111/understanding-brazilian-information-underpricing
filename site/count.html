@@ -23,6 +23,12 @@ document.getElementById("cnt-css").href = "count.css?v=" + window.__V;
   <p class="kicker">US midterms 2026 · election night</p>
   <h1>Live count: every 2026 House district, Senate and governor race</h1>
   <p class="cnt-statusline"><span class="cnt-chip" id="status" role="status" data-state="wait"><span class="dot" aria-hidden="true"></span><span id="status-text">Waiting for the live feed…</span></span> <span id="status-note" class="cnt-muted"></span></p>
+  <section class="cnt-proj" id="proj" aria-labelledby="proj-h">
+    <h2 id="proj-h">Model projections <span id="proj-n" class="cnt-muted"></span></h2>
+    <p class="cnt-muted">Newest first. Same rule as the election page: the model’s chance is 99% or more for one side on two refreshes in a row with 20% or more counted, or the counted lead is larger than any plausible remaining vote. Not an official call. Click one to select the race.</p>
+    <ol id="proj-list" class="pb-list"><li class="pb-none">Waiting for the live feed…</li></ol>
+    <button type="button" id="proj-more" class="cnt-btn cnt-btn-ghost" aria-expanded="false" hidden>Show all</button>
+  </section>
   <details class="cnt-cav" id="caveats" open>
     <summary>Read before you rely on any number</summary>
     <ul>
