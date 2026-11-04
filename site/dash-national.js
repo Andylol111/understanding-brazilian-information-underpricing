@@ -56,8 +56,8 @@ export function createNational(root, { overview, office = "senate", summary = nu
 
   const races = () => st.overview?.offices?.[st.office]?.races ?? [];
   // P(Democratic side): live Polymarket price, else the file's Polymarket price, else Kalshi's. A one-sided-book price
-  // (pmUsable: an extreme that Kalshi and the polls both contradict) is dropped, so Kalshi is used.
-  const pmP = (r) => (r.pm ? pmUsable(st.live.has(r.race_key) ? st.live.get(r.race_key) : r.pm.price, r.kalshi?.price, r.polls?.p_win) : null);
+  // (pmUsable: an extreme that Kalshi and the live model contradict, or the polls when neither exists) is dropped, so Kalshi is used.
+  const pmP = (r) => (r.pm ? pmUsable(st.live.has(r.race_key) ? st.live.get(r.race_key) : r.pm.price, [r.kalshi?.price, st.model.get(r.race_id ?? r.race_key) ?? st.model.get(r.race_key)], [r.polls?.p_win]) : null);
   const priceOf = (r) => pmP(r) ?? r.kalshi?.price ?? null;
   const raceIn = (s) => races().filter((r) => r.state === s);
 

@@ -529,7 +529,7 @@ function extraRow(r) {
   const o = r?.ov;
   if (!o) return null;
   const e = r.estimate ?? {}, m = o.margins ?? {};
-  const kx = o.kalshi?.price ?? null, pm = pmUsable(S.nat?.price(o.race_key) ?? o.pm?.price ?? null, kx, o.polls?.p_win, e.P);
+  const kx = o.kalshi?.price ?? null, pm = pmUsable(S.nat?.price(o.race_key) ?? o.pm?.price ?? null, [kx], [o.polls?.p_win, e.P]);
   const mk = (p) => (m.market_sd_used && p > 0 && p < 1 ? probit(p) * m.market_sd_used : null);
   return {
     estimate: true, share: e.share ?? null, sd: e.sd ?? null, P: e.P ?? null, pm, kalshi: kx,
@@ -1042,7 +1042,7 @@ function updateLists(t) {
   if (S.list) {
     S.list.update(new Map([...races(), ...(S.extra?.values() ?? [])].map((r) => {
       const row = raceRow(r, t);
-      return [r.race_id, { P: modelP(row), sens: Object.fromEntries(sens.map((s) => [s.key, sensP(row, s)])), pm: row?.pm ?? null, k: row?.kalshi ?? null }];
+      return [r.race_id, { P: modelP(row), sens: Object.fromEntries(sens.map((s) => [s.key, sensP(row, s)])), pm: pmUsable(row?.pm ?? null, [row?.kalshi ?? null, modelP(row)]), k: row?.kalshi ?? null }];
     })));
   }
   updatePicker(t);

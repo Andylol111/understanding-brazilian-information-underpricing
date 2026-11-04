@@ -377,7 +377,7 @@ export function boardRow(race, rows, names) {
 
 // A race known only from the overview (no county count): market prices of its Democratic side.
 export function overviewRow(o, names) {
-  const k = o.kalshi?.price ?? null, pm = pmUsable(o.pm?.price ?? null, k, o.polls?.p_win);
+  const k = o.kalshi?.price ?? null, pm = pmUsable(o.pm?.price ?? null, [k], [o.polls?.p_win]);
   const ref = pm ?? k ?? o.polls?.p_win ?? null;
   const side = ref == null ? null : sideOf(ref);
   const a = { id: "dem", name: o.dem_side?.name ?? "Democratic", color: "#1f5fbf" }, b = { id: "rep", name: o.candidates?.R ?? "Republican", color: "#c8102e" };

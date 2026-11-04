@@ -477,7 +477,7 @@ export function createWorldMap(root, { topo, elections, href, countryName, dataR
       // else the polls, else the market-implied margin
       const ov = await getJSON(`${e.id}/${meta.overview}`, opt);
       for (const [o, off] of Object.entries(ov?.offices ?? {})) for (const r of off.races ?? []) {
-        const mg = r.margins ?? {}, p = pmUsable(r.pm?.price ?? null, r.kalshi?.price, r.polls?.p_win) ?? r.kalshi?.price ?? null;
+        const mg = r.margins ?? {}, p = pmUsable(r.pm?.price ?? null, [r.kalshi?.price], [r.polls?.p_win]) ?? r.kalshi?.price ?? null;
         const m = mg.model_polls ?? mg.model_v2 ?? mg.model ?? mg.estimate ?? mg.polls ?? mg.market ?? null;
         const name = `${r.state_name} ${o === "governor" ? "governor" : "Senate"}${r.special ? " (special)" : ""}`;
         const lead = p == null ? null : p >= 0.5 ? r.dem_side?.name ?? "Democratic side" : r.candidates?.R ?? "Republican side";
