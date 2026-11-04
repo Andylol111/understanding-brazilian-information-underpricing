@@ -3,6 +3,9 @@ name: tests
 on:
   push:
     branches: [main]
+    # data-only commits (the live log's 10-minute pushes) change no code: nothing to test
+    paths-ignore:
+      - "site/data/livelog/**"
   pull_request:
 
 jobs:
