@@ -89,8 +89,10 @@
   // ---- incidents ------------------------------------------------------------
   function incHTML(i) {
     const span = i.to ? `${et(i.from)} to ${et(i.to)} ET (${utcShort(i.from)} to ${utcShort(i.to)} UTC)` : `from ${et(i.from)} ET (${utcShort(i.from)} UTC), ongoing or not yet resolved`;
-    return `<article class="lg-inc"><h3><span class="kind">${esc(i.kind)}</span>${esc(i.scope_text)}</h3><p class="when">${esc(span)}</p>` +
-      `<p><b>What happened:</b> ${esc(i.what)}</p><p><b>Effect on the model:</b> ${esc(i.effect_on_model)}</p><p><b>Evidence:</b> ${esc(i.evidence)}</p></article>`;
+    const ap = i.approx ? " (start time approximate)" : "";
+    const cor = i.correction ? `<p><b>Correction (${esc(et(i.corrected_at))} ET):</b> ${esc(i.correction)}${i.previous_from ? ` Previous start time: ${esc(utcShort(i.previous_from))} UTC.` : ""}${i.previous_to ? ` Previous end time: ${esc(utcShort(i.previous_to))} UTC.` : ""}</p>` : "";
+    return `<article class="lg-inc"><h3><span class="kind">${esc(i.kind)}</span>${esc(i.scope_text)}</h3><p class="when">${esc(span + ap)}</p>` +
+      `<p><b>What happened:</b> ${esc(i.what)}</p><p><b>Effect on the model:</b> ${esc(i.effect_on_model)}</p><p><b>Evidence:</b> ${esc(i.evidence)}</p>${cor}</article>`;
   }
   function renderAllIncidents() {
     const list = [...incidents].sort((a, b) => ms(a.from) - ms(b.from));
