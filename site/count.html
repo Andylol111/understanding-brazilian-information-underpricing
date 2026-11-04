@@ -9,7 +9,7 @@
 <link id="page-css" rel="stylesheet">
 <link id="cnt-css" rel="stylesheet">
 <script>
-window.__BUILD = "20261104c2";
+window.__BUILD = "20261104c3";
 window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
 document.getElementById("page-css").href = "style.css?v=" + window.__V;
 document.getElementById("cnt-css").href = "count.css?v=" + window.__V;
@@ -26,7 +26,7 @@ document.getElementById("cnt-css").href = "count.css?v=" + window.__V;
   <p class="cnt-statusline"><a class="cnt-chip" href="log.html" title="Every model reading as published tonight, unedited, with known problems listed">Live log: every reading, unedited →</a></p>
   <section class="cnt-proj" id="proj" aria-labelledby="proj-h">
     <h2 id="proj-h">Model projections <span id="proj-n" class="cnt-muted"></span></h2>
-    <p class="cnt-muted">Newest first. Same rule as the election page: the model’s chance is 99% or more for one side on two refreshes in a row with 20% or more counted, or the counted lead is larger than any plausible remaining vote. Not an official call. Click one to select the race.</p>
+    <p class="cnt-muted">Newest first. Same rule as the election page: the model’s chance is 99% or more for one side on two refreshes in a row with 20% or more counted; a race within 6 points needs 99.5% on three refreshes with 80% counted, and within 3 points 99.9% on three refreshes with 95% counted (stricter rule from Nov 4, 10 am ET). Or the counted lead is larger than any plausible remaining vote. Not an official call. Click one to select the race.</p>
     <ol id="proj-list" class="pb-list"><li class="pb-none">Waiting for the live feed…</li></ol>
     <button type="button" id="proj-more" class="cnt-btn cnt-btn-ghost" aria-expanded="false" hidden>Show all</button>
   </section>

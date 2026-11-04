@@ -2440,7 +2440,7 @@ const scheduleHemi = () => { if (!hemiFrame) hemiFrame = requestAnimationFrame((
 // items up to the time shown, so playing the slider from the start reveals them in order.
 const EV_KEY = `ubiu.events.${EID}.${window.__BUILD}`;
 let EV = null;
-const evSample = (d) => ({ t: d.tms, p: modelP(d), c: d.counted ?? null, pm: d.pm ?? null, k: d.kalshi ?? null, raw: d.raw ?? null, vp: d.votes_proj ?? null, rem: d.rem_total ?? null, exp: d.turnout_exp_total ?? null });
+const evSample = (d) => ({ t: d.tms, p: modelP(d), c: d.counted ?? null, pm: d.pm ?? null, k: d.kalshi ?? null, raw: d.raw ?? null, sh: d.share_v2 ?? d.share ?? null, vp: d.votes_proj ?? null, rem: d.rem_total ?? null, exp: d.turnout_exp_total ?? null });
 function feedEvents() {
   if (EID !== "us2026" || PRE() || !S.meta) return;
   EV ??= createEvents(loadSaved(EV_KEY));

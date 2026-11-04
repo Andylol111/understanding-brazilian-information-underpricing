@@ -58,6 +58,26 @@ def test_side_b_names_second_side():
     assert out[0][1].startswith("Model projects B Rep (R) wins")
 
 
+
+def test_close_race_needs_three_rows_at_999_and_95_counted():
+    # within 3 points (counted 50.8 % D, projected 51.0 %): 99.5 % on many rows and 99.9 % at 90 % counted never fire
+    close = {"raw": 0.508, "sh": 0.51}
+    assert feed([{"m": i * 5, "p": 0.995, "c": 0.97, **close} for i in range(5)]) == []
+    assert feed([{"m": i * 5, "p": 0.9995, "c": 0.9, **close} for i in range(5)]) == []
+    out = feed([{"m": i * 5, "p": 0.9995, "c": 0.96, **close} for i in range(3)])
+    assert [i[0] for i in out] == ["call"] and "(close race)" in out[0][1]
+    assert feed([{"m": i * 5, "p": 0.9995, "c": 0.96, **close} for i in range(2)]) == []
+
+
+def test_narrow_race_tier_and_the_smaller_margin_decides():
+    # projected 54 % (8 pts) but counted 51.5 % (3 pts): the narrow tier applies (99.5 %, 3 rows, 80 % counted)
+    row = {"raw": 0.515, "sh": 0.54}
+    assert feed([{"m": i * 5, "p": 0.993, "c": 0.9, **row} for i in range(4)]) == []
+    out = feed([{"m": i * 5, "p": 0.996, "c": 0.85, **row} for i in range(3)])
+    assert [i[0] for i in out] == ["call"] and "(narrow race)" in out[0][1]
+    # a wide race keeps the standard rule
+    assert [i[0] for i in feed([{"m": i * 5, "p": 0.992, "c": 0.3, "raw": 0.6, "sh": 0.6} for i in range(2)])] == ["call"]
+
 def test_drop_below_95_withdraws_and_strikes():
     out = feed([{"m": 0, "p": 0.995, "c": 0.5}, {"m": 5, "p": 0.995, "c": 0.5}, {"m": 10, "p": 0.97, "c": 0.5}, {"m": 15, "p": 0.9, "c": 0.5}])
     assert [i[0] for i in out] == ["withdrawn", "call"]

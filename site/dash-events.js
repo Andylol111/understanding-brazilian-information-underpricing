@@ -17,6 +17,16 @@ import { clock } from "./common.js";
 
 export const DECIDED_COUNTED = 0.8, DECIDED_HEADROOM = 1.5;
 export const CALL = 0.99, WITHDRAW = 0.95, MIN_COUNTED = 0.2, NEED_ROWS = 2, MARKET_LEVEL = 0.9;
+// Close races need more (set Nov 4 morning, after the night's wrong projections came in races within a few points): the margin is
+// the smaller of the projected (sample.sh) and the counted (sample.raw) two-party margins; a race within `max` of even needs a
+// chance of at least `p` on `rows` consecutive rows with `c` or more counted. Withdrawal stays at WITHDRAW for every tier.
+export const TIERS = [{ name: "close", max: 0.03, p: 0.999, rows: 3, c: 0.95 }, { name: "narrow", max: 0.06, p: 0.995, rows: 3, c: 0.8 }];
+export function tierOf(sample) {
+  const m = [sample?.sh, sample?.raw].filter((x) => x != null && Number.isFinite(x)).map((x) => Math.abs(x - 0.5) * 2);
+  if (!m.length) return null;
+  const margin = Math.min(...m);
+  return TIERS.find((t) => margin < t.max) ?? null;
+}
 const TZ = "America/New_York";
 // An added (extra/us2026) race whose live feed covers only part of its district / state is "partial": no projection, no decided item.
 // The meta says so with partial (true/false) or a coverage share (coverage_share, coverage: 0 to 1; full = 1); a missing field counts as partial.
@@ -89,14 +99,15 @@ export function createEvents(saved = null) {
         s.active = null; s.run = 0; s.runSide = null;
       }
     }
-    const lead = p >= CALL ? "a" : p <= 1 - CALL ? "b" : null;
-    const qualifies = lead && c >= MIN_COUNTED;
+    const tr = tierOf(sample), callP = tr?.p ?? CALL, need = tr?.rows ?? NEED_ROWS, minC = tr?.c ?? MIN_COUNTED;
+    const lead = p >= callP ? "a" : p <= 1 - callP ? "b" : null;
+    const qualifies = lead && c >= minC;
     if (!qualifies) { s.run = 0; s.runSide = null; return; }
     if (s.runSide === lead) s.run++; else { s.runSide = lead; s.run = 1; }
-    if (s.run >= NEED_ROWS && !s.active) {
+    if (s.run >= need && !s.active) {
       s.n++;
       s.active = { side: lead, n: s.n, t: sample.t, mk: {} };
-      add({ id: `${key}|c|${s.n}`, kind: "call", ts: sample.t, key, side: lead, text: d.call(lead), tip: d.tip });
+      add({ id: `${key}|c|${s.n}`, kind: "call", ts: sample.t, key, side: lead, text: d.call(lead, tr), tip: d.tip });
     }
   }
 
@@ -134,9 +145,9 @@ export function createEvents(saved = null) {
       const label = race.label + (typeof race.secondary === "string" ? ` (${race.secondary})` : race.secondary ? " (secondary source, civicAPI)" : "");
       const who = (side) => { const x = race[side]; const pty = partyOf(x); return `${x?.name ?? (side === "a" ? "first side" : "second side")}${pty ? ` (${pty})` : ""}`; };
       const d = {
-        call: (side) => `Model projects ${who(side)} wins ${label} · ≥99%`,
+        call: (side, tr) => `Model projects ${who(side)} wins ${label} · ≥${tr ? `${100 * tr.p}% (${tr.name} race)` : "99%"}`,
         withdrawn: (side, cur) => `Projection withdrawn: ${label} back to ${pct(cur)}`,
-        tip: `Model chance ≥99% for one side on 2 refreshes in a row, with ${pct(MIN_COUNTED)} or more of the expected vote counted. Not an official call.`,
+        tip: `Model chance ≥99% for one side on 2 refreshes in a row, with ${pct(MIN_COUNTED)} or more of the expected vote counted; a race within 6 points needs ≥99.5% on 3 refreshes with 80% counted, within 3 points ≥99.9% on 3 refreshes with 95% counted. Not an official call.`,
       };
       for (const r of rows) {
         if (!(r.t > s.lastT)) continue;
