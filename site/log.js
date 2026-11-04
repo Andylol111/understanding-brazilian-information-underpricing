@@ -37,7 +37,7 @@
   }
   function touches(inc, r) {
     return (inc.scope || []).some((p) => {
-      if (p === "*") return true;
+      if (p === "*" || p === "all") return true;
       if (p === "national") return false;
       if (p.startsWith("src:")) return r.source === p.slice(4);
       if (/^[A-Z]{2}$/.test(p)) return r.state === p;

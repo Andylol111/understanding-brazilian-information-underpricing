@@ -215,6 +215,32 @@
    "what": "civicAPI's Maine Senate data stopped changing at 02:43Z (newest recorded civic_87188 snapshot 20261104T024335Z; other civicAPI races kept updating). Count stuck at 20.7% counted, Jackson 48.95%; model P 0.6167 frozen with it. Maine's official site blocks our recorder (CloudFront 403).",
    "effect_on_model": "me-sen rows after 02:43Z repeat stale data; the feed's stale flag did not fire because the stale rule uses recorder poll success, not data change. Model-vs-market gap (P 0.62 vs pm ~0.97) after 02:43Z is not comparable.",
    "evidence": "server civic_87188 newest snapshot 20261104T024335.164142Z.json.gz, age 79 min at 04:02Z"
+  },
+  {
+   "id": "log-gap-12z-1451z",
+   "from": "2026-11-04T12:01:34Z",
+   "to": "2026-11-04T14:51:00Z",
+   "scope": [
+    "all"
+   ],
+   "scope_text": "Whole log",
+   "kind": "log gap",
+   "what": "The live log loop stopped at its planned end (12:00Z) and was restarted at ~14:51Z to keep recording the late count (now until 2026-11-11T00:00Z). Model rows from 12:01Z to the restart that changed and were not in the tail window at restart are missing from the log.",
+   "effect_on_model": "No model output changed; the log has a gap. The full minute rows remain in the server timelines.",
+   "evidence": "~/brunder-night/livelog.log"
+  },
+  {
+   "id": "close-race-rule-change",
+   "from": "2026-11-04T15:05:00Z",
+   "to": null,
+   "scope": [
+    "all"
+   ],
+   "scope_text": "Projection rule for close races (all races)",
+   "kind": "rule change",
+   "what": "Stricter projection rule for close races (user request): margin = smaller of the projected and the counted two-party margin; within 6 pts a projection needs P>=0.995 on 3 consecutive refreshes with >=80% counted; within 3 pts P>=0.999 on 3 refreshes with >=95% counted; others unchanged (0.99, 2 refreshes, 20%). Withdrawal unchanged (below 0.95 on the pages). Commit af0f1ff; phone notifier same tiers.",
+   "effect_on_model": "Projections from this time on in close races come later or not at all; earlier projections are unchanged.",
+   "evidence": "commit af0f1ff"
   }
  ]
 }
