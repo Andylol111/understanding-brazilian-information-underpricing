@@ -41,8 +41,27 @@
     note.hidden = false;
   };
   window.__showLoadError = show;
-  // never hang silently: a map still "loading" after this long has failed (a stalled fetch or module)
-  setTimeout(() => { if (document.getElementById("map-empty")?.textContent.trim() === "Loading the map…") show(new Error("the map did not finish loading")); }, 45000);
+  // never hang silently: a map still "loading" after 45 s of VISIBLE time has failed (a stalled fetch or module).
+  // Only visible seconds count: browsers pause animation frames in background tabs and the map waits for one,
+  // so a page opened in a background tab is not stalled. If the map draws after the note was shown
+  // (election.js empties and hides #map-empty), the note is withdrawn.
+  const waiting = () => document.getElementById("map-empty")?.textContent.trim() === "Loading the map…";
+  let visibleMs = 0;
+  const tick = setInterval(() => {
+    if (document.hidden) return;
+    visibleMs += 1000;
+    if (!waiting()) { clearInterval(tick); return; } // drawn, or another final message ("No map for this race.")
+    if (visibleMs < 45000) return;
+    clearInterval(tick);
+    show(new Error("the map did not finish loading"));
+    const recover = setInterval(() => {
+      const m = document.getElementById("map-empty");
+      if (!m || !(m.hidden || m.textContent.trim() === "")) return;
+      clearInterval(recover);
+      const note = document.getElementById("load-error");
+      if (note?.textContent.endsWith("the map did not finish loading")) note.hidden = true;
+    }, 1000);
+  }, 1000);
   window.addEventListener("error", (event) => show(event));
   window.addEventListener("unhandledrejection", (event) => show(event));
 })();
