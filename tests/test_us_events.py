@@ -78,6 +78,14 @@ def test_narrow_race_tier_and_the_smaller_margin_decides():
     # a wide race keeps the standard rule
     assert [i[0] for i in feed([{"m": i * 5, "p": 0.992, "c": 0.3, "raw": 0.6, "sh": 0.6} for i in range(2)])] == ["call"]
 
+
+def test_feed_fault_with_nothing_counted_never_withdraws():
+    # projected at 50 % counted; the feed then reads 0 % counted and the model falls back to its pre-count chance (Iowa,
+    # Nov 4): the projection stands; a real drop with votes counted still withdraws
+    rows = [{"m": 0, "p": 0.995, "c": 0.5}, {"m": 5, "p": 0.995, "c": 0.5}, {"m": 10, "p": 0.15, "c": 0}, {"m": 15, "p": 0.15, "c": 0}]
+    assert [i[0] for i in feed(rows)] == ["call"]
+    assert [i[0] for i in feed(rows + [{"m": 20, "p": 0.9, "c": 0.6}])] == ["withdrawn", "call"]
+
 def test_drop_below_95_withdraws_and_strikes():
     out = feed([{"m": 0, "p": 0.995, "c": 0.5}, {"m": 5, "p": 0.995, "c": 0.5}, {"m": 10, "p": 0.97, "c": 0.5}, {"m": 15, "p": 0.9, "c": 0.5}])
     assert [i[0] for i in out] == ["withdrawn", "call"]

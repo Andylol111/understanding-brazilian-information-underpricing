@@ -92,6 +92,9 @@ export function createEvents(saved = null) {
     if (p == null || !Number.isFinite(p)) return;
     const c = sample.c ?? 0;
     const chance = { a: p, b: 1 - p };
+    // a projected race cannot go back to nothing counted: such a row is a feed fault (Iowa's added models read 0 % from
+    // 05:30Z Nov 4; Virginia's incomplete files), so the projection stands and the row is skipped
+    if (s.active && !(c > 0)) return;
     if (s.active) {
       const cur = chance[s.active.side];
       if (cur < WITHDRAW) {
