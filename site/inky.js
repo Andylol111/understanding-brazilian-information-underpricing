@@ -10,6 +10,11 @@ export const INKY_PATH = "extra/us2026/inky.json";
 export const INKY_MS = 30000;
 export const WARN = "early signal, not validated; partial counts can mislead";
 export const ADJ_NOTE = "Early-signal adjusted (unregistered, not validated): applies the swing seen in counted districts to races not yet counted.";
+// Paused on election night 2026-11-03 (01:20 UTC): nearly every early-reporting state posts early / mail ballots first, so the
+// counted-vs-expected swing measured the count order, not the vote (it moved the public Senate line from 51 to 55 D). The
+// panel keeps showing the measured swing; the adjusted seat line is not drawn.
+export const ADJ_PAUSED = true;
+const ADJ_PAUSED_NOTE = "Early-signal seat adjustment paused: most states report early and mail ballots first, so the swing seen so far reflects the order of the count, not the vote.";
 
 export const createInky = () => ({ data: null, miss: 0, skip: 0, at: 0, loaded: false });
 
@@ -69,7 +74,7 @@ export function adjustedTally(proj, inky, chamber) {
 
 export function adjustedHTML(proj, inky, chamber) {
   const t = adjustedTally(proj, inky, chamber);
-  if (!t) return "";
+  if (!t || ADJ_PAUSED) return "";
   const a = inky.adjusted;
   return `<span class="hemi-adj-t" title="${esc(`${ADJ_NOTE} Shift ${fmt(a.shift_pts)} pts = ${fmt(a.aggregate_swing_expected)} pts counted vs expected x weight ${a.weight} (${a.n} districts, ${a.basis === "national" ? "national" : "Indiana + Kentucky"}).`)}">Early-signal adjusted (unregistered, not validated): <span class="hd">D <b>${t.d}</b></span> · <span class="hr">R <b>${t.r}</b></span></span>`;
 }
@@ -115,7 +120,7 @@ export function panelHTML(d) {
   const rows = Object.values(d.districts ?? {});
   const focus = rows.filter((r) => r.st === "IN" || r.st === "KY"), rest = rows.filter((r) => r.st !== "IN" && r.st !== "KY");
   const missing = d.focus_missing?.length ? `<p class="inky-note">Not in the feed yet: ${esc(d.focus_missing.join(", "))}.</p>` : "";
-  const adj = d.adjusted?.applied
+  const adj = ADJ_PAUSED ? `<p class="inky-adj">${esc(ADJ_PAUSED_NOTE)}</p>` : d.adjusted?.applied
     ? `<p class="inky-adj"><b>Early-signal adjusted</b> (unregistered, not validated): shift ${fmt(d.adjusted.shift_pts)} pts on races not yet counted = ${fmt(d.adjusted.aggregate_swing_expected)} pts counted vs expected × weight ${d.adjusted.weight} (${d.adjusted.n} districts, ${d.adjusted.basis === "national" ? "national" : "Indiana + Kentucky"}). Pre-count seats (every race, no live chance) Senate D ${d.adjusted.seats.senate.pre.d} → ${d.adjusted.seats.senate.adj.d}, House D ${d.adjusted.seats.house.pre.d} → ${d.adjusted.seats.house.adj.d}; the hemicycles show the same shift on the races not yet counted.</p>`
     : `<p class="inky-adj">Early-signal adjustment: not applied yet (needs ${d.adjusted?.n ?? 0} of at least 5 contested districts with 10% reporting).</p>`;
   const snap = d.snapshot ? `Counts as of ${esc(d.snapshot.t.slice(11, 16))} UTC${d.snapshot.age_s > 900 ? ` <span class="inky-flag">snapshot ${Math.round(d.snapshot.age_s / 60)} min old</span>` : ""}.` : "";
