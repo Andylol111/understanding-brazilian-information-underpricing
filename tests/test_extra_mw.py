@@ -178,3 +178,15 @@ def test_michigan_mi04_ottawa_clarity_summary():
     listing = json.dumps([{"EID": "127391", "Date": "11/3/2026 12:00:00 AM", "County": "Ottawa"}]).encode()
     url = spec["resolve"](lambda u: listing if u.endswith("elections.json") else b"382400")
     assert url == f"{MI.OTTAWA}/127391/382400/json/en/summary.json"
+
+
+def test_iowa_null_write_in_cell_does_not_empty_the_file():
+    """Real shape (Iowa SoS ENR, 2026-11-04 05:24Z, reduced to Linn/Polk/Pottawattamie and the four House contests):
+    Pottawattamie's District 4 row had a null write-in cell. That raised a TypeError that parse() treats as a
+    half-written upload, so every district (IA-01/02/03 included) read no rows from 05:30Z on."""
+    df = C.parse("ia_house", _clarity("ia", "2026null"))
+    assert set(df["race"]) == {"house-02", "house-03", "house-04"}
+    pot = df[df["unit_id"] == "us-ia-19155"]
+    assert len(pot) == 2 and set(pot["party"]) == {"REP", "DEM"} and pot["votes"].sum() == 17328 + 15900
+    d3 = df[(df["race"] == "house-03") & df["party"].isin(["DEM", "REP"])].set_index("party")["votes"]
+    assert (d3["DEM"], d3["REP"]) == (132979, 85972)

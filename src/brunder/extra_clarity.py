@@ -155,6 +155,8 @@ def parse_house(all_json: bytes, summary: bytes, status: bytes | None, st: str) 
                 continue
             race, ch, parties = contests[key]
             for choice, party, v in zip(ch, parties, votes):
+                if v is None:                                # null cell (seen on a write-in, Pottawattamie, 2026-11-04 05:24Z): skip it, not the whole file
+                    continue
                 rows.append({"level": "county", "unit_id": uid, "name": name, "race": race, "candidate": choice,
                              "party": us.party_code(party), "votes": float(v), "early": np.nan, "reporting": rep,
                              "units": tot, "ballots": bal, "registered": reg, "outstanding": np.nan})
