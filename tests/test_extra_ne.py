@@ -49,6 +49,16 @@ def test_va_non_house_item_is_ignored():
     assert extra_va.parse("va_house", {"x": json.dumps(doc).encode()}).empty
 
 
+def test_va_incomplete_file_raises_so_the_feed_keeps_its_last_state():
+    # The state's server sometimes answers with votes in summaryResults but an empty breakdownResults (election
+    # night 2026, VA-01). An empty frame would read as "no votes" and reset the district to its pre-count estimate;
+    # a parse error makes the live loop keep the feed's last parsed state.
+    doc = json.loads(_gz("extra_va_2024_cd01.json.gz"))
+    doc["ballotItemWithBreakdown"]["breakdownResults"] = []
+    with pytest.raises(ValueError, match="incomplete file"):
+        extra_va.parse("va_house", {"d01": json.dumps(doc).encode()})
+
+
 def test_va_record_urls_and_feeds():
     assert all(r["url"].startswith("https://enr.elections.virginia.gov/") and r["interval"] >= 30
                and re.fullmatch(r"[A-Za-z0-9._-]+", r["key"]) for r in extra_va.RECORD)

@@ -55,7 +55,10 @@ def _party(abbr: str | None) -> str:
 
 def parse_item(blob: bytes) -> pd.DataFrame:
     """One House ballot item -> county rows (race "house-NN"). Empty frame for a file without a House contest, an
-    unparsable body or a contest with no vote yet."""
+    unparsable body or a contest with no vote yet. Raises ValueError for an incomplete file: the state's server now
+    and then answers with the statewide summary carrying votes but an empty breakdownResults (reporting 0 of 0, seen
+    for VA-01 at 03:20:50Z and 03:44:54Z on election night); read as "no votes" it reset the district to its
+    pre-count estimate for one cycle, so the feed must keep its last complete file instead (a parse error does)."""
     try:
         b = json.loads(blob)["ballotItemWithBreakdown"]
         m = _DISTRICT.search(_en(b["name"]))
@@ -63,6 +66,9 @@ def parse_item(blob: bytes) -> pd.DataFrame:
         return us._frame([])
     if not m:
         return us._frame([])
+    summary = sum((o.get("voteCount") or 0) for o in (b.get("summaryResults") or {}).get("ballotOptions") or [])
+    if summary > 0 and not b.get("breakdownResults"):
+        raise ValueError(f"house-{int(m.group(1)):02d}: incomplete file (summary has {summary} votes, no breakdownResults)")
     race, rows = f"house-{int(m.group(1)):02d}", []
     for br in b.get("breakdownResults") or []:
         fips = (br["locality"].get("mapFeatureId") or "").strip()
