@@ -260,6 +260,18 @@
    "evidence": "Recorded clarity_ia_all file 20261104T052438Z onward has null vote cells (Pottawattamie, contest keys 1000, 1400-2000, 5600, 6000, 6100) that 20261104T050716Z and earlier do not; parsing each recorded file with the old code returns no rows from 05:24Z; regression test test_iowa_null_write_in_cell_does_not_empty_the_file; commit 89f2fac.",
    "corrected_at": "2026-11-04T19:58:00Z",
    "correction": "The original projection times first given here (IA-02 ~03:58Z, IA-03 ~03:29Z, IA-01 ~04:20Z) were estimates. From the full minute timelines, with the rule in force at the time (P>=0.99 on two consecutive rows, >=20% counted): IA-01 projected D at 04:20Z; IA-02 projected D at 03:10Z, withdrawn 03:30Z on real count data, projected again at 04:10Z; IA-03 projected D at 03:40Z. The standing projections date from 04:20Z, 04:10Z and 03:40Z."
+  },
+  {
+   "id": "az02-single-batch-projection",
+   "from": "2026-11-04T21:30:10Z",
+   "to": null,
+   "scope": [
+    "house:AZ-02"
+   ],
+   "kind": "rule gap",
+   "what": "The registered House model projected Crane (R) in AZ-02 at 21:30Z, three minutes after one Yavapai batch (3,565 early ballots, 34.9% Nez) moved the count from Nez +86 to Crane +991. The close-race rule's three readings all came from that single batch, and the model's 97.6% 'counted' ignores Arizona's late early ballots (0 counted in every county's Late Early column).",
+   "effect": "The projection is withdrawn on the phone notifier (notice sent 21:35Z) and treated as void. From 21:45Z, close and narrow races need their qualifying readings to span at least 30 minutes and include a further count update (notifier and page banners). The model also projected AZ-02 for Crane at 07:03Z and withdrew it at 09:19Z.",
+   "evidence": "Arizona file 20261104T212752Z vs 20261104T212352Z (Yavapai +1,244 D / +2,321 R); notifier log 21:30:10Z"
   }
  ]
 }
