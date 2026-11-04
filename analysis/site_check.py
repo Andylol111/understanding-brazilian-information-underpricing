@@ -82,7 +82,8 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 def cases() -> list[Case]:
     out = [Case("index", "index.html", "index"), Case("brazil-2026", "brazil-2026.html", "article"), Case("earlyvote", "earlyvote.html", "earlyvote"), Case("turnout", "turnout.html", "turnout"), Case("scorecard", "scorecard.html", "scorecard"), Case("midterms", "midterms.html", "midterms"),
-           Case("groups", "groups.html", "groups"), Case("groups-ga-sen", "groups.html?race=ga-sen", "groups"), Case("guide", "guide.html", "guide")]
+           Case("groups", "groups.html", "groups"), Case("groups-ga-sen", "groups.html?race=ga-sen", "groups"), Case("guide", "guide.html", "guide"),
+           Case("count", f"count.html?{urlencode({'live': COUNT_MOCK})}", "count"), Case("count-link", "count.html", "count")]
     out.extend(Case(eid, f"election.html?{urlencode({'id': eid})}", "election") for eid in ELECTIONS)
     # Exercise the US county map as well as its default national state map.
     out.append(Case("us2026-ca-gov", f"election.html?{urlencode({'id': 'us2026', 'race': 'ca-gov'})}", "election"))
@@ -136,6 +137,7 @@ async def state(page: Page, kind: str) -> dict[str, Any]:
             mtReady: !!window.__mtReady,
             grReady: !!window.__groups?.ready,
             gdReady: !!window.__guide?.ready,
+            cntReady: document.body.dataset.ready === "1" && document.querySelectorAll("#cnt-svg .u").length > 400 && ["live", "stale"].includes(document.querySelector("#status")?.dataset.state),
             kind,
           };
         }""",
@@ -162,6 +164,8 @@ def ready(s: dict[str, Any], mapless: bool = False) -> bool:
         return s["grReady"]
     if s["kind"] == "guide":
         return s["gdReady"]
+    if s["kind"] == "count":
+        return s["cntReady"]
     return bool(s["title"] and s["raceOptions"] and s["readout"] and (mapless or s["visiblePaths"] or (s["visibleCanvas"] and s["painted"])))
 
 
@@ -1158,6 +1162,97 @@ async def check_scorecard(page: Page, viewport_name: str) -> list[str]:
     return out
 
 
+COUNT_MOCK = "https://count-mock.trycloudflare.com/"
+COUNT_FIXTURE = ROOT / "tests" / "fixtures" / "count_live"
+
+
+async def install_count_routes(page: Page) -> None:
+    """count.html against a mock live dir (tests/fixtures/count_live, the tunnel's layout with a few rows); live_link.json points at it."""
+
+    async def live(route: Any) -> None:
+        rel = route.request.url.split("trycloudflare.com/", 1)[1].split("?", 1)[0]
+        f = COUNT_FIXTURE / rel
+        if not f.is_file():
+            await route.fulfill(status=404, body="missing", headers={"access-control-allow-origin": "*"})
+            return
+        await route.fulfill(status=200, body=f.read_text(), content_type="application/json", headers={"access-control-allow-origin": "*"})
+
+    async def link(route: Any) -> None:
+        await route.fulfill(status=200, json={"url": COUNT_MOCK, "id": "us2026"})
+
+    await page.route(re.compile(r"https://count-mock\.trycloudflare\.com/.*"), live)
+    await page.route(re.compile(r".*/data/live_link\.json.*"), link)
+
+
+async def check_count(page: Page, viewport_name: str) -> list[str]:
+    """The live count map: it draws, its three modes and tabs switch, a click or a table row selects without scrolling, search and the replay slider work."""
+    out: list[str] = []
+    info = await page.evaluate(
+        """() => ({ paths: document.querySelectorAll('#cnt-svg .lay-house .u').length, states: document.querySelectorAll('#cnt-svg .lay-state .u').length,
+          fills: new Set([...document.querySelectorAll('#cnt-svg .lay-house .u')].map((p) => p.style.fill)).size,
+          caveats: !!document.querySelector('#caveats'), summary: document.querySelector('#summary').innerText.length, rows: document.querySelectorAll('#race-table tbody tr[data-key]').length })"""
+    )
+    if info["paths"] != 435 or info["states"] < 50 or info["fills"] < 3:
+        out.append(f"count map is not drawn (districts, states, distinct fills): {info}")
+    if not info["caveats"] or not info["summary"] or not info["rows"]:
+        out.append(f"count page lacks its caveats, summary or table: {info}")
+    legends = set()
+    for mode in ("proj", "gap", "count"):
+        await page.click(f"#modes [data-mode={mode}]")
+        await page.wait_for_timeout(600)
+        pressed = await page.evaluate("(m) => document.querySelector(`#modes [data-mode=${m}]`).getAttribute('aria-pressed')", mode)
+        legends.add(await page.inner_text("#legend"))
+        fills = await page.evaluate("() => new Set([...document.querySelectorAll('#cnt-svg .lay-house .u')].map((p) => p.style.fill)).size")
+        if pressed != "true" or fills < 2:
+            out.append(f"mode {mode}: pressed={pressed}, fills={fills}")
+    if len(legends) != 3:
+        out.append("the three colour modes do not change the legend")
+    for tab in ("senate", "governor", "house"):
+        await page.click(f"#tabs [data-tab={tab}]")
+        await page.wait_for_timeout(500)
+        shown = await page.evaluate("(t) => { const h = document.querySelector('#cnt-svg .lay-house').classList.contains('off'); return t === 'house' ? !h : h; }", tab)
+        if not shown:
+            out.append(f"tab {tab} did not switch the map layer")
+    # click a district: the panel fills in and the page does not scroll
+    await page.evaluate("window.scrollTo(0, 120)")
+    y0 = await page.evaluate("window.scrollY")
+    await page.evaluate("document.querySelector('#cnt-svg .u[data-key=\"house:FL-02\"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))")
+    await page.wait_for_timeout(900)
+    panel = await page.inner_text("#panel")
+    y1 = await page.evaluate("window.scrollY")
+    if "FL-02" not in panel or "Counted" not in panel:
+        out.append(f"clicking a district did not fill the panel: {panel[:120]!r}")
+    if abs(y1 - y0) > 1:
+        out.append(f"clicking a district scrolled the page ({y0} -> {y1})")
+    # hover tooltip
+    box = await page.evaluate("() => { const r = document.querySelector('#cnt-svg .u[data-key=\"house:FL-02\"]').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }")
+    if viewport_name == "desktop" and 0 <= box[1] <= 900:
+        await page.mouse.move(box[0] - 3, box[1] - 3)
+        await page.mouse.move(box[0], box[1], steps=4)
+        await page.wait_for_timeout(500)
+        if not await page.evaluate("() => !document.querySelector('#tip').hidden && document.querySelector('#tip').innerText.includes('FL-02')"):
+            out.append("hovering a district shows no tooltip")
+    # table row selects in place
+    await page.evaluate("() => document.querySelector('#race-table tbody tr[data-key=\"house:GA-12\"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))")
+    await page.wait_for_timeout(300)
+    if "GA-12" not in await page.inner_text("#panel") or abs(await page.evaluate("window.scrollY") - y0) > 1:
+        out.append("a table row did not select its race in place")
+    # search selects and zooms
+    await page.fill("#q", "NC-05")  # typing scrolls the field into view; the selection itself must not scroll
+    y2 = await page.evaluate("window.scrollY")
+    await page.keyboard.press("Enter")
+    await page.wait_for_timeout(900)
+    if "NC-05" not in await page.inner_text("#panel") or abs(await page.evaluate("window.scrollY") - y2) > 1:
+        out.append("search did not select NC-05 in place")
+    # replay slider
+    await page.evaluate("() => { const r = document.querySelector('#t-range'); r.value = '0'; r.dispatchEvent(new Event('input', { bubbles: true })); }")
+    await page.wait_for_timeout(400)
+    if not (await page.inner_text("#t-label")).startswith("As of"):
+        out.append("the time slider did not enter replay")
+    await page.click("#t-live")
+    return out
+
+
 async def check_page(
     browser: Browser,
     engine: str,
@@ -1179,6 +1274,8 @@ async def check_page(
         page.on("requestfailed", lambda request: result.diagnostics.append(f"request failed: {request.url} ({request.failure})"))
         page.on("response", lambda response: result.diagnostics.append(f"HTTP {response.status}: {response.url}") if response.status >= 400 else None)
         await install_sens_routes(page, case)
+        if case.kind == "count":
+            await install_count_routes(page)
         try:
             if case.kind == "maps":
                 entry = next((e for e in map_audit.elections() if e["id"] == case.path), None)
@@ -1224,6 +1321,9 @@ async def check_page(
             elif case.kind == "guide":
                 result.failures.extend(await check_guide(page, viewport_name))
                 result.failures.extend(await check_site_nav(page))
+            elif case.kind == "count":
+                result.failures.extend(await check_count(page, viewport_name))
+                result.failures.extend(d for d in result.diagnostics if d.startswith(("console.error", "HTTP", "request failed")))
             elif case.kind == "election":
                 if not current["title"] or current["title"].startswith("Loading"):
                     result.failures.append("election title was not set")

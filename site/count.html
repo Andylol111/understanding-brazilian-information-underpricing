@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live count: every 2026 House district, Senate and governor race</title>
+<meta name="description" content="Election night 2026, live: a map of every US House district, Senate race and governor race. Who leads the count, the model's projection, and the market price, with the share counted. Not an official call; not financial advice.">
+<!-- BUILD: the one version constant of this page; it versions count.js and count.css. Live data comes from the night's tunnel (data/live_link.json or ?live=). -->
+<link id="page-css" rel="stylesheet">
+<link id="cnt-css" rel="stylesheet">
+<script>
+window.__BUILD = "20261104c1";
+window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
+document.getElementById("page-css").href = "style.css?v=" + window.__V;
+document.getElementById("cnt-css").href = "count.css?v=" + window.__V;
+</script>
+</head>
+<body class="cnt">
+<main>
+<nav class="sitenav cnt-wrap" aria-label="Site"><a href="guide.html">Night guide</a> / <a href="./">Election nights</a> / <a href="election.html?id=us2026">US midterms dashboard</a> / <span aria-current="page">Live count map</span> / <a href="groups.html">Live by place</a> / <a href="scorecard.html">Track record</a></nav>
+
+<header class="cnt-wrap cnt-head">
+  <p class="kicker">US midterms 2026 · election night</p>
+  <h1>Live count: every 2026 House district, Senate and governor race</h1>
+  <p class="cnt-statusline"><span class="cnt-chip" id="status" role="status" data-state="wait"><span class="dot" aria-hidden="true"></span><span id="status-text">Waiting for the live feed…</span></span> <span id="status-note" class="cnt-muted"></span></p>
+  <details class="cnt-cav" id="caveats" open>
+    <summary>Read before you rely on any number</summary>
+    <ul>
+      <li><b>No early / Election Day split:</b> the Florida, South Carolina and Ohio statewide and House models do not separate early and mail ballots from Election Day. Early ballots, counted first, distort the share counted and the chance until Election Day precincts report.</li>
+      <li><b>NC and GA House:</b> the models are far more Democratic than markets at 50–70% counted; cause not yet verified. Read with caution.</li>
+      <li><b>Markets:</b> some Polymarket prices on safe races come from one-sided order books and read inverted; those are shown as “unavailable (one-sided book)”.</li>
+      <li><b>Not an official call; not financial advice.</b> Shares are of the two-party vote; “counted” is the model’s estimate of the share of votes in.</li>
+    </ul>
+  </details>
+  <div class="cnt-summary" id="summary" aria-live="off"></div>
+</header>
+
+<section class="cnt-wrap cnt-controls" aria-label="Map controls">
+  <div class="cnt-tabs" role="tablist" aria-label="Office" id="tabs">
+    <button type="button" role="tab" data-tab="house" aria-selected="true">House</button>
+    <button type="button" role="tab" data-tab="senate" aria-selected="false">Senate</button>
+    <button type="button" role="tab" data-tab="governor" aria-selected="false">Governor</button>
+  </div>
+  <div class="cnt-seg" role="group" aria-label="Colour the map by" id="modes">
+    <button type="button" data-mode="count" aria-pressed="true" title="The leader of the vote counted so far; stronger = bigger margin; faded and hatched where little is in">Count now</button>
+    <button type="button" data-mode="proj" aria-pressed="false" title="The model's chance the Democrat wins; where there is no live model, the pre-count estimate (lighter, dotted outline)">Projection</button>
+    <button type="button" data-mode="gap" aria-pressed="false" title="The model's chance minus the market's, where both exist">Model vs market</button>
+  </div>
+  <div class="cnt-search">
+    <label for="q" class="visually-hidden">Find a district, state or candidate</label>
+    <input id="q" type="search" placeholder="Find NC-05, a state or a candidate" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="q-list" aria-autocomplete="list">
+    <ul id="q-list" role="listbox" hidden></ul>
+  </div>
+</section>
+
+<section class="cnt-wrap cnt-stage">
+  <div class="cnt-map" id="map-box">
+    <svg id="cnt-svg" role="img" aria-label="Map of the United States coloured by the selected mode. Use the search box or the table below to pick a race with the keyboard." viewBox="0 0 975 610" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="cnt-tools" role="toolbar" aria-label="Map view">
+      <button type="button" data-act="in" aria-label="Zoom in" title="Zoom in">+</button>
+      <button type="button" data-act="out" aria-label="Zoom out" title="Zoom out">−</button>
+      <button type="button" data-act="fit" aria-label="Fit the whole map" title="Fit the whole map">Fit</button>
+      <button type="button" data-act="back" hidden>Back to US</button>
+    </div>
+    <div class="cnt-legend" id="legend" aria-hidden="true"></div>
+    <div class="cnt-map-empty" id="map-empty">Loading the map…</div>
+    <div class="cnt-tip" id="tip" role="presentation" hidden></div>
+  </div>
+  <aside class="cnt-panel" id="panel" aria-label="Selected race" aria-live="polite"></aside>
+</section>
+
+<section class="cnt-wrap cnt-time" aria-label="Replay the night">
+  <button type="button" id="t-play" class="cnt-btn" aria-label="Play the night">Play</button>
+  <label class="visually-hidden" for="t-range">As of</label>
+  <input id="t-range" type="range" min="0" max="0" step="1" value="0">
+  <output id="t-label" for="t-range">Live</output>
+  <label class="cnt-speed">Speed <select id="t-speed" aria-label="Replay speed"><option value="1">1 min / s</option><option value="3" selected>3 min / s</option><option value="10">10 min / s</option></select></label>
+  <button type="button" id="t-live" class="cnt-btn cnt-btn-ghost">Back to live</button>
+  <span id="t-note" class="cnt-muted"></span>
+</section>
+
+<section class="cnt-wrap cnt-tablewrap" aria-labelledby="tbl-h">
+  <div class="cnt-tablehead">
+    <h2 id="tbl-h">Every race</h2>
+    <label class="cnt-filter">Show <select id="flt"><option value="counting">Counting now</option><option value="all">All races</option><option value="close">Closest by projection</option><option value="gap">Biggest model vs market gap</option></select></label>
+    <span id="tbl-n" class="cnt-muted"></span>
+  </div>
+  <div class="cnt-tscroll"><table id="race-table"><thead></thead><tbody></tbody></table></div>
+  <p class="cnt-foot">The table lists the races of the tab above. Click a row to select it on the map. Sources: the project’s live models (registered and added races), civicAPI counts and models, Polymarket and Kalshi prices. “Model” is the race’s live model with polls where it has one. D/R = chance of 65% or more / 35% or less; in between = toss-up. Not an official call; not financial advice.</p>
+</section>
+</main>
+<script src="load-error.js"></script>
+<script type="module">import("./count.js?v=" + window.__V).catch(window.__showLoadError);</script>
+<script src="live-link.js?v=20261103L1" defer></script>
+</body>
+</html>
