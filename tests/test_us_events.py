@@ -64,16 +64,17 @@ def test_close_race_needs_three_rows_at_999_and_95_counted():
     close = {"raw": 0.508, "sh": 0.51}
     assert feed([{"m": i * 5, "p": 0.995, "c": 0.97, **close} for i in range(5)]) == []
     assert feed([{"m": i * 5, "p": 0.9995, "c": 0.9, **close} for i in range(5)]) == []
-    out = feed([{"m": i * 5, "p": 0.9995, "c": 0.96, **close} for i in range(3)])
+    # fires once the qualifying readings span 30 minutes with a further count update
+    out = feed([{"m": i * 15, "p": 0.9995, "c": 0.96 + 0.005 * i, **close} for i in range(3)])
     assert [i[0] for i in out] == ["call"] and "(close race)" in out[0][1]
-    assert feed([{"m": i * 5, "p": 0.9995, "c": 0.96, **close} for i in range(2)]) == []
+    assert feed([{"m": i * 15, "p": 0.9995, "c": 0.96 + 0.005 * i, **close} for i in range(2)]) == []
 
 
 def test_narrow_race_tier_and_the_smaller_margin_decides():
     # projected 54 % (8 pts) but counted 51.5 % (3 pts): the narrow tier applies (99.5 %, 3 rows, 80 % counted)
     row = {"raw": 0.515, "sh": 0.54}
     assert feed([{"m": i * 5, "p": 0.993, "c": 0.9, **row} for i in range(4)]) == []
-    out = feed([{"m": i * 5, "p": 0.996, "c": 0.85, **row} for i in range(3)])
+    out = feed([{"m": i * 15, "p": 0.996, "c": 0.85 + 0.01 * i, **row} for i in range(3)])
     assert [i[0] for i in out] == ["call"] and "(narrow race)" in out[0][1]
     # a wide race keeps the standard rule
     assert [i[0] for i in feed([{"m": i * 5, "p": 0.992, "c": 0.3, "raw": 0.6, "sh": 0.6} for i in range(2)])] == ["call"]
@@ -85,6 +86,19 @@ def test_feed_fault_with_nothing_counted_never_withdraws():
     rows = [{"m": 0, "p": 0.995, "c": 0.5}, {"m": 5, "p": 0.995, "c": 0.5}, {"m": 10, "p": 0.15, "c": 0}, {"m": 15, "p": 0.15, "c": 0}]
     assert [i[0] for i in feed(rows)] == ["call"]
     assert [i[0] for i in feed(rows + [{"m": 20, "p": 0.9, "c": 0.6}])] == ["withdrawn", "call"]
+
+
+def test_close_race_needs_thirty_minutes_and_a_further_count_update():
+    # AZ-02, Nov 4: three qualifying readings minutes apart from one batch fired a projection; now they must span 30 min
+    # and include a new count after the first
+    close = {"raw": 0.498, "sh": 0.497}
+    one_batch = [{"m": i, "p": 0.0005, "c": 0.976, **close} for i in range(40)]           # 40 min, but no new count
+    assert feed(one_batch) == []
+    quick = [{"m": 0, "p": 0.0005, "c": 0.976, **close}, {"m": 2, "p": 0.0005, "c": 0.977, **close}, {"m": 4, "p": 0.0005, "c": 0.978, **close}]
+    assert feed(quick) == []                                                                # new counts, but only 4 minutes
+    held = [{"m": 0, "p": 0.0005, "c": 0.976, **close}, {"m": 15, "p": 0.0005, "c": 0.976, **close}, {"m": 31, "p": 0.0005, "c": 0.981, **close}]
+    out = feed(held)
+    assert [i[0] for i in out] == ["call"] and "(close race)" in out[0][1]
 
 def test_drop_below_95_withdraws_and_strikes():
     out = feed([{"m": 0, "p": 0.995, "c": 0.5}, {"m": 5, "p": 0.995, "c": 0.5}, {"m": 10, "p": 0.97, "c": 0.5}, {"m": 15, "p": 0.9, "c": 0.5}])

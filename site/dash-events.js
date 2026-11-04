@@ -19,8 +19,11 @@ export const DECIDED_COUNTED = 0.8, DECIDED_HEADROOM = 1.5;
 export const CALL = 0.99, WITHDRAW = 0.95, MIN_COUNTED = 0.2, NEED_ROWS = 2, MARKET_LEVEL = 0.9;
 // Close races need more (set Nov 4 morning, after the night's wrong projections came in races within a few points): the margin is
 // the smaller of the projected (sample.sh) and the counted (sample.raw) two-party margins; a race within `max` of even needs a
-// chance of at least `p` on `rows` consecutive rows with `c` or more counted. Withdrawal stays at WITHDRAW for every tier.
+// chance of at least `p` on `rows` consecutive rows with `c` or more counted, and (from Nov 4, 4:30 pm ET, after AZ-02 fired three
+// minutes after one batch) those qualifying rows must span at least SPAN_MS and include a further count update after the first.
+// Withdrawal stays at WITHDRAW for every tier.
 export const TIERS = [{ name: "close", max: 0.03, p: 0.999, rows: 3, c: 0.95 }, { name: "narrow", max: 0.06, p: 0.995, rows: 3, c: 0.8 }];
+export const SPAN_MS = 30 * 60000;
 export function tierOf(sample) {
   const m = [sample?.sh, sample?.raw].filter((x) => x != null && Number.isFinite(x)).map((x) => Math.abs(x - 0.5) * 2);
   if (!m.length) return null;
@@ -106,7 +109,11 @@ export function createEvents(saved = null) {
     const lead = p >= callP ? "a" : p <= 1 - callP ? "b" : null;
     const qualifies = lead && c >= minC;
     if (!qualifies) { s.run = 0; s.runSide = null; return; }
-    if (s.runSide === lead) s.run++; else { s.runSide = lead; s.run = 1; }
+    const val = `${c}|${sample.raw ?? ""}`;
+    if (s.runSide === lead) { s.run++; if (val !== s.runVal) { s.runUpd = (s.runUpd ?? 0) + 1; s.runVal = val; } }
+    else { s.runSide = lead; s.run = 1; s.runT = sample.t; s.runVal = val; s.runUpd = 0; }
+    // close / narrow: the run must last SPAN_MS and see at least one new count after its first row
+    if (tr && (sample.t - (s.runT ?? sample.t) < SPAN_MS || !(s.runUpd > 0))) return;
     if (s.run >= need && !s.active) {
       s.n++;
       s.active = { side: lead, n: s.n, t: sample.t, mk: {} };
