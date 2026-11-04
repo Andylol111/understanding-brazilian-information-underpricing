@@ -81,6 +81,7 @@ export const THIN_POLLS = 3;
 export const thinPolls = (n) => (n >= 1 && n <= THIN_POLLS ? n : null);
 export const thinLabel = (n) => `thin polling (${n} poll${n === 1 ? "" : "s"})`;
 export const modelP = (row) => row?.P_v2 ?? row?.P ?? null;
+export { pmUsable } from "./pm-guard.js";              // one-sided Polymarket book guard (no browser globals: node-safe)
 // Model sensitivities (thin dashed lines next to the headline model: settings or mixtures chosen after the
 // result was known). The legacy single one is key "v2" (meta.sensitivity; timeline columns P_sensitivity, ...);
 // later ones are meta.sensitivities[] = {key, label, config, note} with columns P_sens_<key>, share_sens_<key>, sd_sens_<key>.

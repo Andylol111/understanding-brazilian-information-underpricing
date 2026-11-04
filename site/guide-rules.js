@@ -10,6 +10,7 @@
 // Nothing counts before a race has 1% of its vote counted: what the prices and the model said before the count is the
 // starting point of each rule, never an event.
 import { aggregate, frameAt, membersOf, nationalPick } from "./groups-agg.js";
+import { pmUsable } from "./pm-guard.js";
 
 export const GATE = 0.01;                       // share counted from which a race has a count
 export const LEVELS = [0.9, 0.95, 0.99];       // confidence levels of the model and the markets
@@ -376,7 +377,7 @@ export function boardRow(race, rows, names) {
 
 // A race known only from the overview (no county count): market prices of its Democratic side.
 export function overviewRow(o, names) {
-  const pm = o.pm?.price ?? null, k = o.kalshi?.price ?? null;
+  const k = o.kalshi?.price ?? null, pm = pmUsable(o.pm?.price ?? null, k, o.polls?.p_win);
   const ref = pm ?? k ?? o.polls?.p_win ?? null;
   const side = ref == null ? null : sideOf(ref);
   const a = { id: "dem", name: o.dem_side?.name ?? "Democratic", color: "#1f5fbf" }, b = { id: "rep", name: o.candidates?.R ?? "Republican", color: "#c8102e" };

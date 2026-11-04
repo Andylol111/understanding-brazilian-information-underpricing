@@ -6,7 +6,7 @@
 // map: the office toggle, the legend, the hover card, the race panel with
 // price history and the office summary beside the map (the Senate's control chances, and the seat hemicycle the page draws). Clicking a state drills into its county view.
 import * as d3 from "./vendor/d3.js";
-import { C, esc, num, fmtDate } from "./common.js";
+import { C, esc, num, fmtDate, pmUsable } from "./common.js";
 
 const DEM = "#1f5fbf", REP = "#c8102e", NEUTRAL = "#f4f2ec", NORACE = "#e6e4dd";
 // House: the page draws it (dash-house.js); this module only offers the button and steps aside
@@ -55,8 +55,9 @@ export function createNational(root, { overview, office = "senate", summary = nu
   root.querySelector(".nat-layer select")?.addEventListener("change", (ev) => onLayer?.(ev.target.value));
 
   const races = () => st.overview?.offices?.[st.office]?.races ?? [];
-  // P(Democratic side): live Polymarket price, else the file's Polymarket price, else Kalshi's
-  const pmP = (r) => (r.pm ? (st.live.has(r.race_key) ? st.live.get(r.race_key) : r.pm.price) : null);
+  // P(Democratic side): live Polymarket price, else the file's Polymarket price, else Kalshi's. A one-sided-book price
+  // (pmUsable: an extreme that Kalshi and the polls both contradict) is dropped, so Kalshi is used.
+  const pmP = (r) => (r.pm ? pmUsable(st.live.has(r.race_key) ? st.live.get(r.race_key) : r.pm.price, r.kalshi?.price, r.polls?.p_win) : null);
   const priceOf = (r) => pmP(r) ?? r.kalshi?.price ?? null;
   const raceIn = (s) => races().filter((r) => r.state === s);
 

@@ -213,7 +213,8 @@ function applyAux() {
     let c = typeof a.pct_reporting === "number" ? a.pct_reporting : null;
     if (c != null) c = c > 1 ? c / 100 : prec != null && Math.abs(c / 100 - prec) < Math.abs(c - prec) ? c / 100 : c;
     c ??= prec;
-    u.aux = { ...a, counted: c, src: aux.sources?.[a.st ?? u.st] ?? null, t: Date.parse(a.as_of) };
+    const stKey = a.st ?? u.st;
+    u.aux = { ...a, counted: c, src: aux.sources?.[stKey] ?? aux.sources?.[String(stKey).toLowerCase()] ?? null, t: Date.parse(a.as_of) };
     u.tier = "count only (official)";
   }
 }
@@ -243,7 +244,8 @@ function compute(u) {
     v.t ??= S.inkyT;
   }
   const x = u.aux;
-  if (x && S.t == null && x.D + x.R > 0) { v.counted = x.counted; v.raw = x.D / (x.D + x.R); v.votes = x.D + x.R + (x.other ?? 0); v.t = Number.isFinite(x.t) ? x.t : null; }
+  // votes in while the source says 0 % reporting (CA counts mail before any precinct is complete): the reporting share is unknown, not zero
+  if (x && S.t == null && x.D + x.R > 0) { v.counted = x.counted > 0 ? x.counted : null; v.raw = x.D / (x.D + x.R); v.votes = x.D + x.R + (x.other ?? 0); v.t = Number.isFinite(x.t) ? x.t : null; }
   if (v.counted != null && v.counted <= 0) { v.counted = 0; v.raw = null; }
   const ref = v.P ?? u.est?.P ?? null;
   const pre = !v.live;

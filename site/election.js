@@ -6,7 +6,7 @@
 // (dash-worker.js) fetches, parses and projects the geometry and the map frames; the map appears
 // when both arrive. While playing, colours are interpolated between map frames every animation frame.
 import * as d3 from "./vendor/d3.js";
-import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, sensitivitiesOf, sensP, probit, marginText, clock, dayLabel, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes, crossDocTransitions } from "./common.js";
+import { C, LIVE, STATIC, param, getJSON, absUrl, esc, pct, num, votesShort, modelP, sensitivitiesOf, sensP, probit, marginText, clock, dayLabel, tzName, tzOffsetMin, evidenceLabel, EVIDENCE, STATUS, fmtDate, plural, REPO, gatedSettle, leadMinutes, crossDocTransitions, pmUsable } from "./common.js";
 import { createMap } from "./dash-map.js";
 import { drawTimeline, timelineViews, drawTurnout, POLLS } from "./dash-timeline.js";
 import { layerOn as showLayer, setLayers, mountLayers, onLayersChange } from "./dash-layers.js";
@@ -529,7 +529,7 @@ function extraRow(r) {
   const o = r?.ov;
   if (!o) return null;
   const e = r.estimate ?? {}, m = o.margins ?? {};
-  const pm = S.nat?.price(o.race_key) ?? o.pm?.price ?? null, kx = o.kalshi?.price ?? null;
+  const kx = o.kalshi?.price ?? null, pm = pmUsable(S.nat?.price(o.race_key) ?? o.pm?.price ?? null, kx, o.polls?.p_win, e.P);
   const mk = (p) => (m.market_sd_used && p > 0 && p < 1 ? probit(p) * m.market_sd_used : null);
   return {
     estimate: true, share: e.share ?? null, sd: e.sd ?? null, P: e.P ?? null, pm, kalshi: kx,
