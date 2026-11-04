@@ -29,7 +29,7 @@ EXTRA_KEEP = ["stale_since"]  # kept only when the feed supplies it
 GENESIS = "0" * 64
 LOOP_SECS = 120
 PUSH_SECS = 600
-UNTIL = datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc)
+UNTIL = datetime(2026, 11, 11, 0, 0, tzinfo=timezone.utc)   # extended (user, Nov 4 morning): late count
 UA = "brunder-livelog/1.0 (+https://github.com/Andylol111/understanding-brazilian-information-underpricing)"
 TRANSCRIBED = "hand-transcribed from a printout of extra/us2026/house_live/timeline_tail.json fetched via the live tunnel at ~03:46Z, before the 03:48Z restart; times to the minute"
 CAPTURED = os.path.expanduser("~/brunder-night/va01_as_published_pre_fb24c61.json")
