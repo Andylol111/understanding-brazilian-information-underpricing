@@ -2,7 +2,7 @@
 """Election-night public live log of model readings (hash-chained JSONL).
 
   backfill : one-off rebuild from the full timeline.json of the five model sources (rows tagged "recorded":"backfilled"),
-             plus the as-published VA-01 rows captured before fb24c61 ("recorded":"captured-live").
+             plus the VA-01 rows hand-transcribed from what the page served before fb24c61 ("recorded":"transcribed_as_published").
   live     : every 2 min fetch each source's timeline_tail.json, append rows whose published fields changed
              ("recorded":"live"); every 10 min commit + pull --rebase + push the log files only.
 
@@ -31,6 +31,7 @@ LOOP_SECS = 120
 PUSH_SECS = 600
 UNTIL = datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc)
 UA = "brunder-livelog/1.0 (+https://github.com/Andylol111/understanding-brazilian-information-underpricing)"
+TRANSCRIBED = "hand-transcribed from a printout of extra/us2026/house_live/timeline_tail.json fetched via the live tunnel at ~03:46Z, before the 03:48Z restart; times to the minute"
 CAPTURED = os.path.expanduser("~/brunder-night/va01_as_published_pre_fb24c61.json")
 
 
@@ -165,9 +166,9 @@ def backfill(repo, outdir, base):
             for r in cap["rows"]:
                 s = sig(r)
                 if s != prevsig:
-                    objs.append(row_obj(r, cap["race"], source, "captured-live", read_at=cap["read_at"]))
+                    objs.append(row_obj(r, cap["race"], source, "transcribed_as_published", read_at=cap["read_at"], sourced=TRANSCRIBED))
                     prevsig = s
-        objs.sort(key=lambda o: (parse_t(o["t"]), o["race"], o["recorded"] == "captured-live"))
+        objs.sort(key=lambda o: (parse_t(o["t"]), o["race"], o["recorded"] == "transcribed_as_published"))
         ch.last = {}
         ch.rows = 0
         ch.races = {}

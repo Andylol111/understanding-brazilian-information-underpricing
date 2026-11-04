@@ -166,14 +166,14 @@
     $("lg-race-sub").textContent = `${SRC_LABEL[r.source] || r.source} · race key ${r.key} · ${curRows.length.toLocaleString("en-US")} logged rows. A row is logged only when a published value changed.`;
     const mine = incidents.filter((i) => touches(i, r)).sort((a, b) => ms(a.from) - ms(b.from));
     $("lg-race-inc").innerHTML = mine.length ? `<h3 class="lg-h" style="font-size:16px">Incidents that touch this race (${mine.length})</h3>` + mine.map(incHTML).join("") : '<p class="cnt-muted">No listed incident touches this race.</p>';
-    const hasBack = curRows.some((x) => x.recorded === "backfilled"), hasCap = curRows.some((x) => x.recorded === "captured-live");
+    const hasBack = curRows.some((x) => x.recorded === "backfilled"), hasCap = curRows.some((x) => x.recorded === "transcribed_as_published");
     let note = "";
     if (hasBack) {
       note = f.first_live_t
         ? `Rows before ${et(f.first_live_t)} ET (${utc(f.first_live_t)}) were rebuilt afterwards from the server's timeline files and may differ from what the page showed at the time.`
         : "No live row has been written yet for this source: every row was rebuilt afterwards from the server's timeline files and may differ from what the page showed at the time.";
     }
-    if (hasCap) note += " Rows shaded orange were captured from the public feed as it was published, before a restart rebuilt the history.";
+    if (hasCap) note += " Rows shaded orange were transcribed by hand from what the page served (a printout of the feed at about 03:46Z), before a restart rebuilt the history; they are not a machine capture.";
     $("lg-backfill-note").textContent = note;
     $("lg-backfill-note").hidden = !note;
     drawChart(r);
@@ -188,7 +188,7 @@
     tb.innerHTML = rows.map((x) => {
       const share = x.share == null ? "–" : `${pct(x.share, 2)}${x.sd == null ? "" : ` ± ${(x.sd * 100).toFixed(2)}`}`;
       const stale = x.stale ? `yes${x.stale_since ? ` since ${esc(x.stale_since)}` : ""}` : "";
-      const cls = (x.stale ? "stale " : "") + (x.recorded === "captured-live" ? "cap" : "");
+      const cls = (x.stale ? "stale " : "") + (x.recorded === "transcribed_as_published" ? "cap" : "");
       return `<tr class="${cls.trim()}"><td>${esc(et(x.t))}</td><td>${esc(utc(x.t))}</td><td>${cpct(x.counted)}</td><td>${pct(x.raw, 2)}</td><td>${share}</td><td>${pct(x.P)}</td><td>${pct(x.P_v2)}</td><td>${pct(x.pm)}</td><td>${pct(x.kalshi)}</td><td>${stale}</td><td>${esc(x.recorded || "")}</td></tr>`;
     }).join("");
   }
@@ -216,11 +216,11 @@
       tx.textContent = etShort.format(new Date(t)) + " ET"; svg.append(tx);
     }
     const series = [
-      { k: "P", c: "#1f5fbf", name: "Model P(D)", w: 2, f: (x) => x.recorded !== "captured-live" },
-      { k: "P_v2", c: "#1f5fbf", name: "Model with polls", w: 1.5, d: "5 3", f: (x) => x.recorded !== "captured-live" },
-      { k: "pm", c: "#c4501b", name: "Polymarket", w: 2, f: (x) => x.recorded !== "captured-live" },
-      { k: "kalshi", c: "#2a8a4a", name: "Kalshi", w: 2, f: (x) => x.recorded !== "captured-live" },
-      { k: "P", c: "#b3261e", name: "Model as published (captured live)", w: 2, d: "2 3", f: (x) => x.recorded === "captured-live" },
+      { k: "P", c: "#1f5fbf", name: "Model P(D)", w: 2, f: (x) => x.recorded !== "transcribed_as_published" },
+      { k: "P_v2", c: "#1f5fbf", name: "Model with polls", w: 1.5, d: "5 3", f: (x) => x.recorded !== "transcribed_as_published" },
+      { k: "pm", c: "#c4501b", name: "Polymarket", w: 2, f: (x) => x.recorded !== "transcribed_as_published" },
+      { k: "kalshi", c: "#2a8a4a", name: "Kalshi", w: 2, f: (x) => x.recorded !== "transcribed_as_published" },
+      { k: "P", c: "#b3261e", name: "Model as served (hand-transcribed)", w: 2, d: "2 3", f: (x) => x.recorded === "transcribed_as_published" },
     ];
     const used = [];
     for (const s of series) {
@@ -229,7 +229,7 @@
       let d = "", prevY = null;
       p.forEach((x, i) => { const px = X(ms(x.t)), py = Y(x[s.k]); d += i === 0 ? `M${px.toFixed(1)} ${py.toFixed(1)}` : `H${px.toFixed(1)}V${py.toFixed(1)}`; prevY = py; });
       d += `H${X(x1).toFixed(1)}`;
-      if (s.name.includes("captured")) d = d.replace(/H[\d.]+$/, "");
+      if (s.name.includes("transcribed")) d = d.replace(/H[\d.]+$/, "");
       svg.append(mk("path", { d, fill: "none", stroke: s.c, "stroke-width": s.w, ...(s.d ? { "stroke-dasharray": s.d } : {}) }));
       used.push(s);
     }

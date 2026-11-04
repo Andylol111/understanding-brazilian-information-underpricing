@@ -28,7 +28,7 @@
    "effect_on_model": "Registered SC Senate/governor models show 0% counted and are not informed by the count. Civic SC models use civicAPI counts, which were stuck at 36.18% (SC Senate) from 01:25Z until about 03:12Z, when it jumped to 90.1%.",
    "evidence": "Log rows: sc-sen (registered) counted 0.0; sc-sen-civic counted 0.3618 from 01:25Z to ~03:00Z and 0.9012 from 03:12Z.",
    "approx": true,
-   "corrected_at": "2026-11-04T04:05:00Z",
+   "corrected_at": "2026-11-04T03:59:00Z",
    "correction": "The start time is approximate (poll close); the exact first occurrence was not recorded."
   },
   {
@@ -43,7 +43,7 @@
    "what": "Ohio's official results feed returned HTTP 429 (too many requests) from 00:13Z (7:13 pm ET); recovered by about 03:00Z (10:00 pm ET).",
    "effect_on_model": "Ohio counts were not updating during the gap; model readings in that window carry the last count that was received.",
    "evidence": "Operator report of the 429 responses; see Ohio rows' counted over the window.",
-   "corrected_at": "2026-11-04T04:05:00Z",
+   "corrected_at": "2026-11-04T03:59:00Z",
    "correction": "Sourced times from the monitor log (alerts_new.log): first HTTP 429 from liveresults.ohiosos.gov at 00:13Z. The monitor showed the feed CLEARED at 02:17Z/02:19Z and a new problem again at 02:25Z. The registered Ohio model was counting again (57% counted) by about 02:58Z. The earlier end time of 03:00Z was approximate.",
    "previous_to": "2026-11-04T03:00:00Z"
   },
@@ -59,8 +59,10 @@
    "scope_text": "Virginia House (added model), VA-01 most visibly",
    "kind": "parser bug",
    "what": "The added-source Virginia parser read an incomplete state file as zero votes at 03:20:50Z and again at 03:44:54Z (10:20 pm and 10:44 pm ET). Each time the VA-01 projection was withdrawn (count reset to 0%, P back near the prior). Fixed in commit fb24c61, deployed about 03:50Z.",
-   "effect_on_model": "VA-01 showed two false resets on the public page (03:21Z and 03:45Z). The rebuilt history after the restart no longer shows them, because the service rebuilds from recorded files with the fixed code. The as-published rows are included in this log as 'captured-live'.",
-   "evidence": "Rows with recorded='captured-live' for house:VA-01 in added-house.jsonl, read from the live tunnel at ~03:46Z before the restart."
+   "effect_on_model": "VA-01 showed two false resets on the public page (03:21Z and 03:45Z). The rebuilt history after the restart no longer shows them, because the service rebuilds from recorded files with the fixed code. The as-published rows are included in this log as 'transcribed_as_published'.",
+   "evidence": "Rows with recorded='transcribed_as_published' for house:VA-01 in added-house.jsonl, hand-transcribed from a printout of extra/us2026/house_live/timeline_tail.json fetched via the live tunnel at ~03:46Z, before the restart. Raw evidence of the incomplete files: the server's recorded state files va_house_d01/20261104T032050.537678Z.json.gz (sha256 38190fa298a18c96e58ecd8f275bf2736329108d6de10b65053785e47ea90590) and va_house_d01/20261104T034454.479396Z.json.gz (sha256 51620e5ea67e7cb5bec5a4b2cd7e5d38b00f150de3927c09bec97546c5a1f310). Both have a summary voteTotal (384,893 and 397,676), empty breakdownResults and reportingStatus 0/0.",
+   "corrected_at": "2026-11-04T03:59:00Z",
+   "correction": "These rows were first published tagged 'captured-live'. That was wrong: they were transcribed by hand from printed output, not captured by software. They are now tagged 'transcribed_as_published', and the added-house.jsonl chain was re-hashed from the first changed line on (the earlier version is in git history). Raw evidence for the two resets was added."
   },
   {
    "id": "added-restart-rebuild",
@@ -73,8 +75,10 @@
    "scope_text": "All added-source races (added, added-house)",
    "kind": "history rebuilt",
    "what": "The added-source service was restarted several times tonight, most recently about 03:50Z for fix fb24c61. Each restart rebuilds its history from recorded files using the current code, so the added-source history in this log (recorded='backfilled') may differ from what the public page showed at the time. The registered sources were never restarted tonight; their backfill is still tagged 'backfilled'.",
-   "effect_on_model": "Added-source history before the last restart is a re-computation, not a contemporaneous reading. Only rows tagged 'live' or 'captured-live' were recorded as published.",
-   "evidence": "recorded and rebuilt_from fields on every row of the log."
+   "effect_on_model": "Added-source history before the last restart is a re-computation, not a contemporaneous reading. Only rows tagged 'live' (the VA-01 'transcribed_as_published' rows were copied by hand from what the page served) were recorded as published.",
+   "evidence": "recorded and rebuilt_from fields on every row of the log.",
+   "corrected_at": "2026-11-04T03:59:00Z",
+   "correction": "Wording changed from 'captured-live' to 'transcribed_as_published' for the VA-01 rows (see the Virginia incident)."
   },
   {
    "id": "va-added-overconfident",
@@ -111,7 +115,7 @@
    "effect_on_model": "Early projections in states that count early ballots first are biased toward the Democrat and drift back as Election-Day votes arrive.",
    "evidence": "Model design; compare raw (share counted) with projected share in the rows.",
    "approx": true,
-   "corrected_at": "2026-11-04T04:05:00Z",
+   "corrected_at": "2026-11-04T03:59:00Z",
    "correction": "The start time is approximate (poll close); the exact first occurrence was not recorded."
   },
   {
@@ -133,7 +137,7 @@
    "what": "The early/Election-Day split House models for NC, GA, TX and AZ were calibrated on 2024. Tonight's early-versus-Election-Day gap in North Carolina is about 15-17 points, which the models under-correct.",
    "effect_on_model": "NC-05 and NC-07 model P is too Democratic. Other NC/GA/TX/AZ House readings may lean the same way.",
    "evidence": "Operator analysis of the NC early vs Election-Day count gap; see NC-05 and NC-07 rows.",
-   "corrected_at": "2026-11-04T04:05:00Z",
+   "corrected_at": "2026-11-04T03:59:00Z",
    "correction": "Sourced evidence, 02:30-02:50Z: the NC-07 early-versus-Election-Day gap was 15.5 points and NC-05 13.3 points (the 2024 calibration had 0-4). Election-Day counted votes were 27% D in NC-05 and 29% D in NC-07, against an implied remaining 47-53%. The earlier start time of 00:30Z was a guess.",
    "previous_from": "2026-11-04T00:30:00Z"
   },
@@ -149,7 +153,7 @@
    "what": "One-sided Polymarket order books read inverted: for example the Florida governor pm value was 0.999 at about 03:15Z while Donalds (R) leads. 102 of 353 books were one-sided.",
    "effect_on_model": "Polymarket values (the pm column) on such races are not market consensus. Use with care; Kalshi is shown alongside where available.",
    "evidence": "fl-gov rows around 03:15Z: pm 0.999.",
-   "corrected_at": "2026-11-04T04:05:00Z",
+   "corrected_at": "2026-11-04T03:59:00Z",
    "correction": "The 102-of-353 count is from our edge feed at 01:35Z (it is not a night-long figure). The start time is when it was observed, not when the books first went one-sided.",
    "previous_from": "2026-11-04T00:00:00Z"
   },
@@ -165,7 +169,7 @@
    "what": "The early-signal adjusted seat line was paused at commit 5820051 because of a count-order bias. (Time shown is when this entry was written; the exact pause time was not recorded.)",
    "effect_on_model": "No effect on race rows in this log; the national seat line is not logged here.",
    "evidence": "Commit 5820051.",
-   "corrected_at": "2026-11-04T04:05:00Z",
+   "corrected_at": "2026-11-04T03:59:00Z",
    "correction": "The pause time is commit 5820051 at 01:19:18Z. The first version of this entry used the time the entry was written (03:52Z).",
    "previous_from": "2026-11-04T03:52:00Z"
   },
@@ -182,7 +186,7 @@
    "what": "The models overreacted to the earliest counts: with 0.33% counted in Minnesota, the governor model P moved from 71% to 38%.",
    "effect_on_model": "Minnesota and Wisconsin projections during the first few percent counted are unreliable.",
    "evidence": "mn-gov rows at the first counted values.",
-   "corrected_at": "2026-11-04T04:05:00Z",
+   "corrected_at": "2026-11-04T03:59:00Z",
    "correction": "Sourced figures: registered mn-gov at 02:40Z had 0.33% counted (about 8,000 votes) and P 0.382 against 0.7118 pre-count; mn-sen P was 0.304; markets were at 98-99%. WI civic at 02:33Z had 8.6% counted and P 0.333 against a market of 0.965. Start time moved from the 02:00Z poll close to the first of these readings.",
    "previous_from": "2026-11-04T02:00:00Z"
   },

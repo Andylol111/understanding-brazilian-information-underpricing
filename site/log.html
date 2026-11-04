@@ -60,7 +60,7 @@ document.getElementById("log-css").href = "log.css?v=" + window.__V;
         <th scope="col" title="Polymarket price for the Democrat">Polymarket</th>
         <th scope="col" title="Kalshi price for the Democrat">Kalshi</th>
         <th scope="col" title="The feed marked this reading stale">Stale</th>
-        <th scope="col" title="live = written as it happened; captured-live = read from the public feed before a restart; backfilled = rebuilt afterwards from the server's timeline files">Recorded</th>
+        <th scope="col" title="live = written as it happened; transcribed_as_published = transcribed by hand from what the page served before a restart; backfilled = rebuilt afterwards from the server's timeline files">Recorded</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -81,7 +81,7 @@ document.getElementById("log-css").href = "log.css?v=" + window.__V;
   <p id="lg-verify-out" role="status" class="lg-verify-out"></p>
   <details class="lg-det"><summary>How the hash is computed</summary>
     <p>Each file is one chain. Every line is JSON with sorted keys and a final <code>"hash"</code> field. The hash is <code>sha256(prev_hash + line text without the hash field)</code>, where <code>prev_hash</code> is the previous line's hash (64 zeros for the first line). The check re-hashes the raw line text, so nothing is re-formatted.</p>
-    <p>Rows tagged <code>backfilled</code> were rebuilt afterwards from the server's timeline files; rows tagged <code>live</code> were written as they were published; <code>captured-live</code> rows were read from the public feed before a restart rebuilt the history.</p>
+    <p>Rows tagged <code>backfilled</code> were rebuilt afterwards from the server's timeline files; rows tagged <code>live</code> were written as they were published; <code>transcribed_as_published</code> rows were transcribed by hand from a printout of what the page served at about 03:46Z, before a restart rebuilt the history</p>
   </details>
 </section>
 
