@@ -85,15 +85,17 @@ def test_national_read_needs_twenty_districts_at_25_percent(bases):
     few = inky.build(house_doc(bases, {"IN", "KY"}, pct=40.0), bases, NOW)
     nat = few["aggregates"]["national"]
     assert nat["ready"] is False and nat["n_reporting_25"] == 15
-    assert "too early" in nat["note"] and few["adjusted"]["basis"] == "in_ky"
+    assert "too early" in nat["note"] and few["adjusted"]["applied"] is False and few["adjusted"]["basis"] is None   # IN / KY alone never move seats
     many = inky.build(house_doc(bases, set("IN KY OH TX FL GA NC".split()), pct=40.0), bases, NOW)
     assert many["aggregates"]["national"]["ready"] is True and many["adjusted"]["basis"] == "national"
 
 
 def test_adjusted_projection_shrinks_and_moves_only_movable_races(bases):
-    out = inky.build(house_doc(bases, {"IN", "KY"}, tilt=0.0), bases, NOW)           # counted at 2024 president: 5.5 pts below expected
+    states = set("IN KY OH TX FL GA NC".split())
+    out = inky.build(house_doc(bases, states, tilt=0.0), bases, NOW)                 # counted at 2024 president: 5.5 pts below expected
     adj = out["adjusted"]
-    a = out["aggregates"]["in_ky"]
+    a = out["aggregates"]["national"]
+    assert a["ready"] and adj["basis"] == "national"
     assert adj["applied"] and adj["n"] == a["n"] and adj["weight"] == pytest.approx(a["n"] / (a["n"] + 20), abs=0.001)
     assert adj["shift_pts"] == pytest.approx(adj["weight"] * a["swing_expected"], abs=0.02) and adj["shift_pts"] < 0
     for k, e in adj["house"].items():
@@ -104,7 +106,7 @@ def test_adjusted_projection_shrinks_and_moves_only_movable_races(bases):
     pres = [e for e in adj["house"].values() if e["pre"] in (0.0, 1.0)]
     assert all(e["adj"] == e["pre"] and e["dz"] == 0 for e in pres)                  # certain seats stay put
     small = inky.build(house_doc(bases, {"IN"}, tilt=0.0, skip={"IN-01", "IN-02", "IN-03", "IN-04", "IN-05"}), bases, NOW)
-    assert small["adjusted"]["applied"] is False and small["adjusted"]["shift_pts"] == 0.0     # fewer than 5 contested districts
+    assert small["adjusted"]["applied"] is False and small["adjusted"]["shift_pts"] == 0.0     # no national read yet
 
 
 def test_senate_poll_comparison_line_is_derived_from_the_overview(bases):

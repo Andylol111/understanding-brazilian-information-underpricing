@@ -340,8 +340,9 @@ def build(doc: dict | None, bases: dict, now: datetime, snap_time: datetime | No
     out["districts"] = {r["id"]: r for r in sorted(shown, key=lambda r: r["id"])}
     out["focus_missing"] = sorted(f"{s}-{n:02d}" for s, k in (("IN", 9), ("KY", 6)) for n in range(1, k + 1)
                                   if f"{s}-{n:02d}" not in {r["id"] for r in rows})
-    basis, name = (nat, "national") if nat["ready"] else (ink, "in_ky")
-    out["adjusted"] = adjustment(basis, name, bases)
+    # the seat adjustment waits for the national read: early IN / KY returns are early ballots first (composition-biased),
+    # so a shift from them alone moved the public seat line by the count order, not by the vote (seen live 2026-11-03)
+    out["adjusted"] = adjustment(nat, "national", bases) if nat["ready"] else adjustment(None, None, bases)
     return out
 
 
