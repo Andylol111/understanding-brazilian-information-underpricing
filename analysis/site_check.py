@@ -1227,10 +1227,15 @@ async def check_count(page: Page, viewport_name: str) -> list[str]:
     # hover tooltip
     box = await page.evaluate("() => { const r = document.querySelector('#cnt-svg .u[data-key=\"house:FL-02\"]').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }")
     if viewport_name == "desktop" and 0 <= box[1] <= 900:
-        await page.mouse.move(box[0] - 3, box[1] - 3)
-        await page.mouse.move(box[0], box[1], steps=4)
-        await page.wait_for_timeout(500)
-        if not await page.evaluate("() => !document.querySelector('#tip').hidden && document.querySelector('#tip').innerText.includes('FL-02')"):
+        shown = False
+        for dx in (0, 4, -4):  # WebKit sometimes drops the first pointerenter after a zoom animation: nudge and retry
+            await page.mouse.move(box[0] - 3 + dx, box[1] - 3)
+            await page.mouse.move(box[0] + dx, box[1], steps=4)
+            await page.wait_for_timeout(500)
+            shown = await page.evaluate("() => !document.querySelector('#tip').hidden && document.querySelector('#tip').innerText.includes('FL-02')")
+            if shown:
+                break
+        if not shown:
             out.append("hovering a district shows no tooltip")
     # table row selects in place
     await page.evaluate("() => document.querySelector('#race-table tbody tr[data-key=\"house:GA-12\"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))")
@@ -1263,6 +1268,15 @@ async def check_count(page: Page, viewport_name: str) -> list[str]:
         out.append(f"the official-count race OK-01 shows no totals, precincts, source or tag: {aux[:200]!r}")
     if "OK-01" in await page.inner_text("#proj-list"):
         out.append("a count-only race appears in the projections banner")
+    # a registered race with no count (SC feed blocked) falls back to the civicAPI race that is counting; its stale counted share is tagged
+    sc = await page.evaluate("() => { const u = window.__cnt.S.units.senate.get('SC'); return { tier: u.tier, counted: u.v.counted }; }")
+    if sc["tier"] != "civicAPI" or not (sc["counted"] or 0) > 0:
+        out.append(f"SC Senate (registered 0 %, civicAPI counting) did not fall back to civicAPI: {sc}")
+    else:
+        await page.evaluate("window.__cnt.choose('senate:SC', { tabSwitch: true })")
+        panel_sc = await page.inner_text("#panel")
+        if "civicAPI (secondary)" not in panel_sc or "Stale feed" not in panel_sc:
+            out.append(f"SC Senate panel lacks the civicAPI (secondary) label or the stale-feed note: {panel_sc[:300]!r}")
     # replay slider
     await page.evaluate("() => { const r = document.querySelector('#t-range'); r.value = '0'; r.dispatchEvent(new Event('input', { bubbles: true })); }")
     await page.wait_for_timeout(400)

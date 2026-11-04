@@ -37,6 +37,7 @@ const fmtVotes = (n) => (n == null ? "–" : n >= 1e6 ? `${(n / 1e6).toFixed(2)}
 const ET = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
 const clockUTC = (ms) => new Date(ms).toISOString().slice(11, 16);
 const clockText = (ms) => `${clockUTC(ms)} UTC · ${ET.format(ms)} ET`;
+const tierLabel = (t) => (t === "civicAPI" ? "civicAPI (secondary)" : t);
 const lean = (P) => (P == null ? null : P >= 0.65 ? "D" : P <= 0.35 ? "R" : "T");
 const marginText = (raw) => (raw == null ? "–" : Math.abs(raw - 0.5) < 0.0005 ? "even" : `${raw > 0.5 ? "D" : "R"}+${(Math.abs(raw - 0.5) * 200).toFixed(1)}`);
 
@@ -183,12 +184,13 @@ function rebuild() {
   }
   for (const [u, list] of found) {
     list.sort((a, b) => b.rank - a.rank);
-    const [best, next] = list;
+    // the highest-ranked source that is counting; the civicAPI race stands in where the registered / added one has no count (feed blocked)
+    const best = list.find((c) => (c.rows[c.rows.length - 1]?.counted ?? 0) > 0) ?? list[0], next = list.find((c) => c !== best);
     u.rows = best.rows; u.tier = best.tier; u.model = best.model;
     u.cand = { d: best.cand.d ?? u.cand.d, r: best.cand.r ?? u.cand.r };
     u.alt = next ? { tier: next.tier, rows: next.rows } : null;
-    // the election page's rule: registered and added races always; a civicAPI race only where no registered / added model covers the race
-    for (const c of list) if (c.tier !== "civicAPI" || list.length === 1) evSrc.set(c.id, { id: c.id, race: c.race, tier: c.tier, rows: c.rows, unitKey: u.key });
+    // projections: registered and added races always; a civicAPI race only while it is the source the page shows (the others have no count)
+    for (const c of list) evSrc.set(c.id, { id: c.id, race: c.race, tier: c.tier, rows: c.rows, unitKey: u.key, feed: c.tier !== "civicAPI" || c === best });
   }
   S.evSrc = evSrc;
   applyAux();
@@ -376,7 +378,7 @@ function tipHTML(u) {
   const v = u.v;
   const lead = v.raw == null ? "no count yet" : `${v.raw >= 0.5 ? "D" : "R"} leads, ${marginText(v.raw)}`;
   const mk = v.mkt != null ? `${pc(v.mkt)} (${v.mktSrc})` : v.onesided ? ONESIDED : "–";
-  return `<b>${esc(u.name)}</b><span>${esc(u.tier)}</span><div>Counted: ${v.counted != null && v.raw != null ? pc(v.counted) : "–"} · ${lead}</div><div>Model chance D: ${v.P != null ? pc(v.P) : v.projP != null ? `${pc(v.projP)} (pre-count)` : "–"}</div><div>Market: ${mk}</div>${u.aux && S.t == null ? `<div>D ${fmtVotes(u.aux.D)} · R ${fmtVotes(u.aux.R)}${Array.isArray(u.aux.precincts) ? ` · precincts ${u.aux.precincts[0]} of ${u.aux.precincts[1]}` : ""} · count only, no model</div>` : ""}`;
+  return `<b>${esc(u.name)}</b><span>${esc(tierLabel(u.tier))}</span><div>Counted: ${v.counted != null && v.raw != null ? pc(v.counted) : "–"} · ${lead}</div><div>Model chance D: ${v.P != null ? pc(v.P) : v.projP != null ? `${pc(v.projP)} (pre-count)` : "–"}</div><div>Market: ${mk}</div>${u.aux && S.t == null ? `<div>D ${fmtVotes(u.aux.D)} · R ${fmtVotes(u.aux.R)}${Array.isArray(u.aux.precincts) ? ` · precincts ${u.aux.precincts[0]} of ${u.aux.precincts[1]}` : ""} · count only, no model</div>` : ""}`;
 }
 function bboxOf(list) {
   const b = [[Infinity, Infinity], [-Infinity, -Infinity]];
@@ -416,7 +418,7 @@ function choose(key, { zoomTo = false, tabSwitch = false } = {}) {
 const tierNote = {
   registered: "Registered live model (county results)",
   added: "Added live model (county results)",
-  civicAPI: "civicAPI model (statewide results)",
+  civicAPI: "civicAPI model (secondary source; statewide results)",
   "count only": "Count only: no live model; the counted vote from civicAPI",
   "count only (official)": "Count only, no model: official-source totals from the secondary recorder",
   "estimate only": "Estimate only: pre-count estimate, no live data",
@@ -427,6 +429,8 @@ function caveatsFor(u) {
   if (u.office === "house" && (u.st === "NC" || u.st === "GA") && v.live) out.push(`NC and GA House models are far more Democratic than markets at 50–70% counted; cause not yet verified. Read with caution.`);
   if (v.onesided) out.push("This market price comes from a one-sided order book and reads inverted on a near-certain race, so it is not shown.");
   if (u.tier === "count only") out.push("No live model for this district: only the counted vote is shown. Partial counts can mislead.");
+  const stale = S.t == null ? staleMins(u.rows) : null;
+  if (stale != null) out.unshift(`Stale feed: the share counted has not changed for ${stale} min.`);
   if (u.aux) out.push("Count only, no model: totals from an official source via a secondary recorder. They do not enter any projection.");
   if (u.tier === "estimate only") out.push("No votes in yet or no live source: shaded by the pre-count estimate.");
   out.push("Not an official call; not financial advice.");
@@ -456,9 +460,9 @@ function renderPanel() {
     : u.est ? `${mkRow("Pre-count estimate", `${pc(u.est.share, 1)} D <small>chance ${pc(u.est.P)}</small>`)}` : mkRow("Projection", "none");
   const mkt = v.mkt != null ? `${pc(v.mkt)} <small>${v.mktSrc}</small>` : v.onesided ? `<span class="cnt-warn">${ONESIDED}</span>` : "–";
   const pmLine = `${mkRow("Market chance D wins", mkt)}${v.live && v.pmU.v != null && v.kU.v != null ? mkRow("Other market", `${pc(v.mktSrc === "Polymarket" ? v.kU.v : v.pmU.v)} <small>${v.mktSrc === "Polymarket" ? "Kalshi" : "Polymarket"}</small>`) : ""}${v.gap != null ? mkRow("Model − market", `${v.gap >= 0 ? "+" : "−"}${Math.abs(100 * v.gap).toFixed(0)} pts`) : ""}`;
-  const alt = u.alt ? (() => { const r = rowAt(u.alt.rows, S.t); return r ? mkRow(`${u.alt.tier} model`, `${pc(r.P)} chance, ${pc(r.share, 1)} D`) : ""; })() : "";
+  const alt = u.alt ? (() => { const r = rowAt(u.alt.rows, S.t); return r && r.counted > 0 ? mkRow(`${u.alt.tier} model`, `${pc(r.P)} chance, ${pc(r.share, 1)} D`) : ""; })() : "";
   const upd = v.t ? `${clockText(v.t)}${S.t != null ? " (replay)" : ""}` : "no live update";
-  el.innerHTML = `<h2 class="cnt-ph">${esc(u.name)}</h2><p class="cnt-sub">${esc(stName)} · <span class="tier t-${u.tier.replace(/\W+/g, "-").replace(/-$/, "")}">${esc(u.tier)}</span></p>${cand}
+  el.innerHTML = `<h2 class="cnt-ph">${esc(u.name)}</h2><p class="cnt-sub">${esc(stName)} · <span class="tier t-${u.tier.replace(/\W+/g, "-").replace(/-$/, "")}">${esc(tierLabel(u.tier))}</span></p>${cand}
     <div class="blk">${counted}</div><div class="blk">${proj}${alt}</div><div class="blk">${pmLine}</div>
     <p class="cnt-sub">${esc(tierNote[u.tier])}. Last update ${esc(upd)}.</p>
     <ul class="cnt-cavs">${caveatsFor(u).map((c) => `<li>${esc(c)}</li>`).join("")}</ul>`;
@@ -473,10 +477,19 @@ function feedEvents() {
   EV ??= createEvents(loadSaved(EV_KEY));
   for (const src of S.evSrc.values()) {
     const r = src.race, from = EV.lastT(`race:${src.id}`), fresh = src.rows.filter((d) => d.t > from);
-    if (!fresh.length || r.stale) continue;
+    if (!fresh.length || r.stale || src.feed === false) continue;
     EV.feedRace({ id: src.id, label: r.name ?? src.id, a: r.a, b: r.b, secondary: src.tier === "civicAPI" ? true : src.tier === "added" ? addedLabel(r) : false, partial: partialOf(r) }, fresh.map(evSample));
   }
   save(EV_KEY, EV);
+}
+// minutes the counted share has been unchanged (a race still counting), or null
+function staleMins(rows) {
+  const last = rows?.[rows.length - 1];
+  if (!last || last.counted == null || !(last.counted > 0) || last.counted >= 0.99) return null;
+  let i = rows.length - 1;
+  while (i > 0 && rows[i - 1].counted === last.counted) i--;
+  const m = Math.round((last.t - rows[i].t) / 60000);
+  return m >= 10 ? m : null;
 }
 const EARLY_RISK = new Set(["FL", "SC", "OH", "NE", "NH"]), SPLIT_RISK = new Set(["NC", "GA", "TX", "AZ"]);
 const TAGS = {
