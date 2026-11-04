@@ -473,7 +473,7 @@ function renderPanel() {
 // ---- projections banner: the election page's rules (dash-events.js), fed the same rows ----
 const EV_KEY = `ubiu.count.events.${window.__BUILD ?? ""}`;
 let EV = null;
-const evSample = (r) => ({ t: r.t, p: r.P ?? null, c: r.counted ?? null, pm: r.pm ?? null, k: r.kalshi ?? null, raw: r.raw ?? null, vp: r.vp ?? null, rem: r.rem ?? null, exp: r.exp ?? null });
+const evSample = (r) => ({ t: r.t, p: r.P ?? null, c: r.counted ?? null, pm: r.pm ?? null, k: r.kalshi ?? null, raw: r.raw ?? null, sh: r.share ?? null, vp: r.vp ?? null, rem: r.rem ?? null, exp: r.exp ?? null });
 function feedEvents() {
   if (!S.evSrc) return;
   EV ??= createEvents(loadSaved(EV_KEY));
