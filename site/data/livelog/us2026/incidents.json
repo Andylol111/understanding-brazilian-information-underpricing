@@ -1,0 +1,182 @@
+{
+ "note": "Append-only. Entries are added; none are edited or deleted. Times are UTC (ET = UTC-5 tonight). Scope patterns: '*' every race; 'ST' two-letter state; 'house:GA-*' prefix; 'src:added' source; exact race key; 'national' = not tied to a race.",
+ "incidents": [
+  {
+   "id": "ga-house-frozen",
+   "from": "2026-11-04T01:32:00Z",
+   "to": null,
+   "scope": [
+    "house:GA-*"
+   ],
+   "scope_text": "Georgia House races (registered model)",
+   "kind": "model frozen",
+   "what": "From 01:32Z (9:32 pm ET) the registered House model stopped updating Georgia districts: a parse TypeError in the registered code. Georgia House rows after that time are stale. Not fixed as of this entry.",
+   "effect_on_model": "Georgia House counted/share/P values stay at their 01:32Z reading (e.g. GA-12 counted 51.62%) while only the market columns keep moving. They do not reflect later counting.",
+   "evidence": "Operator report of the TypeError; log rows: GA-12 in registered-house.jsonl shows counted 0.5162 unchanged from 01:32Z. The rows are not flagged stale in the feed itself."
+  },
+  {
+   "id": "sc-official-blocked",
+   "from": "2026-11-04T00:00:00Z",
+   "to": null,
+   "scope": [
+    "SC",
+    "src:civic"
+   ],
+   "scope_text": "South Carolina (registered models and civic fallback)",
+   "kind": "feed blocked",
+   "what": "The official South Carolina results feed was blocked for the whole night, so the registered SC models read 0% counted. The civicAPI secondary models were used as a fallback. The civic SC Senate count stuck at 36.2% from about 01:25Z.",
+   "effect_on_model": "Registered SC Senate/governor models show 0% counted and are not informed by the count. Civic SC models use civicAPI counts, which were stuck at 36.18% (SC Senate) from 01:25Z until about 03:12Z, when it jumped to 90.1%.",
+   "evidence": "Log rows: sc-sen (registered) counted 0.0; sc-sen-civic counted 0.3618 from 01:25Z to ~03:00Z and 0.9012 from 03:12Z."
+  },
+  {
+   "id": "oh-429",
+   "from": "2026-11-04T00:13:00Z",
+   "to": "2026-11-04T03:00:00Z",
+   "scope": [
+    "OH"
+   ],
+   "scope_text": "Ohio (registered and civic models)",
+   "kind": "feed rate-limited",
+   "what": "Ohio's official results feed returned HTTP 429 (too many requests) from 00:13Z (7:13 pm ET); recovered by about 03:00Z (10:00 pm ET).",
+   "effect_on_model": "Ohio counts were not updating during the gap; model readings in that window carry the last count that was received.",
+   "evidence": "Operator report of the 429 responses; see Ohio rows' counted over the window."
+  },
+  {
+   "id": "va-added-parser-zero",
+   "from": "2026-11-04T03:20:50Z",
+   "to": "2026-11-04T03:50:00Z",
+   "scope": [
+    "house:VA-01",
+    "VA",
+    "src:added-house"
+   ],
+   "scope_text": "Virginia House (added model), VA-01 most visibly",
+   "kind": "parser bug",
+   "what": "The added-source Virginia parser read an incomplete state file as zero votes at 03:20:50Z and again at 03:44:54Z (10:20 pm and 10:44 pm ET). Each time the VA-01 projection was withdrawn (count reset to 0%, P back near the prior). Fixed in commit fb24c61, deployed about 03:50Z.",
+   "effect_on_model": "VA-01 showed two false resets on the public page (03:21Z and 03:45Z). The rebuilt history after the restart no longer shows them, because the service rebuilds from recorded files with the fixed code. The as-published rows are included in this log as 'captured-live'.",
+   "evidence": "Rows with recorded='captured-live' for house:VA-01 in added-house.jsonl, read from the live tunnel at ~03:46Z before the restart."
+  },
+  {
+   "id": "added-restart-rebuild",
+   "from": "2026-11-04T03:50:00Z",
+   "to": null,
+   "scope": [
+    "src:added",
+    "src:added-house"
+   ],
+   "scope_text": "All added-source races (added, added-house)",
+   "kind": "history rebuilt",
+   "what": "The added-source service was restarted several times tonight, most recently about 03:50Z for fix fb24c61. Each restart rebuilds its history from recorded files using the current code, so the added-source history in this log (recorded='backfilled') may differ from what the public page showed at the time. The registered sources were never restarted tonight; their backfill is still tagged 'backfilled'.",
+   "effect_on_model": "Added-source history before the last restart is a re-computation, not a contemporaneous reading. Only rows tagged 'live' or 'captured-live' were recorded as published.",
+   "evidence": "recorded and rebuilt_from fields on every row of the log."
+  },
+  {
+   "id": "va-added-overconfident",
+   "from": "2026-11-04T02:46:00Z",
+   "to": null,
+   "scope": [
+    "house:VA-01",
+    "VA",
+    "src:added-house"
+   ],
+   "scope_text": "Virginia House (added model)",
+   "kind": "overconfident model",
+   "what": "The added Virginia model reported a spread of about 0.0005 (a vote-share standard deviation of 0.05 points) while batches were still outstanding, so P went to 0 or 1 on small count moves.",
+   "effect_on_model": "VA P values near 0.00 or 1.00 are overconfident; the model's stated uncertainty was too small.",
+   "evidence": "VA-01 rows: sd 0.0005 with P 0.0 and 1.0 on consecutive minutes (02:46Z and 02:47Z)."
+  },
+  {
+   "id": "no-early-ed-split",
+   "from": "2026-11-04T00:00:00Z",
+   "to": null,
+   "scope": [
+    "FL",
+    "NE",
+    "SC",
+    "OH",
+    "NH",
+    "src:civic",
+    "src:added",
+    "src:added-house"
+   ],
+   "scope_text": "Florida, Nebraska, South Carolina, Ohio, New Hampshire, civic and added models",
+   "kind": "model limitation",
+   "what": "These models have no early-ballot versus Election-Day split, so early-ballot counts read as a swing to the Democrat.",
+   "effect_on_model": "Early projections in states that count early ballots first are biased toward the Democrat and drift back as Election-Day votes arrive.",
+   "evidence": "Model design; compare raw (share counted) with projected share in the rows."
+  },
+  {
+   "id": "split-calibration-2024",
+   "from": "2026-11-04T00:30:00Z",
+   "to": null,
+   "scope": [
+    "house:NC-*",
+    "house:GA-*",
+    "house:TX-*",
+    "house:AZ-*",
+    "NC",
+    "GA",
+    "TX",
+    "AZ"
+   ],
+   "scope_text": "North Carolina, Georgia, Texas, Arizona House (split models)",
+   "kind": "calibration",
+   "what": "The early/Election-Day split House models for NC, GA, TX and AZ were calibrated on 2024. Tonight's early-versus-Election-Day gap in North Carolina is about 15-17 points, which the models under-correct.",
+   "effect_on_model": "NC-05 and NC-07 model P is too Democratic. Other NC/GA/TX/AZ House readings may lean the same way.",
+   "evidence": "Operator analysis of the NC early vs Election-Day count gap; see NC-05 and NC-07 rows."
+  },
+  {
+   "id": "pm-one-sided-books",
+   "from": "2026-11-04T00:00:00Z",
+   "to": null,
+   "scope": [
+    "*"
+   ],
+   "scope_text": "Any race's Polymarket column",
+   "kind": "bad market data",
+   "what": "One-sided Polymarket order books read inverted: for example the Florida governor pm value was 0.999 at about 03:15Z while Donalds (R) leads. 102 of 353 books were one-sided.",
+   "effect_on_model": "Polymarket values (the pm column) on such races are not market consensus. Use with care; Kalshi is shown alongside where available.",
+   "evidence": "fl-gov rows around 03:15Z: pm 0.999."
+  },
+  {
+   "id": "early-signal-seatline-paused",
+   "from": "2026-11-04T03:52:00Z",
+   "to": null,
+   "scope": [
+    "national"
+   ],
+   "scope_text": "National seat count (not a single race)",
+   "kind": "paused",
+   "what": "The early-signal adjusted seat line was paused at commit 5820051 because of a count-order bias. (Time shown is when this entry was written; the exact pause time was not recorded.)",
+   "effect_on_model": "No effect on race rows in this log; the national seat line is not logged here.",
+   "evidence": "Commit 5820051."
+  },
+  {
+   "id": "mn-wi-early-overreaction",
+   "from": "2026-11-04T02:00:00Z",
+   "to": null,
+   "scope": [
+    "MN",
+    "WI"
+   ],
+   "scope_text": "Minnesota and Wisconsin",
+   "kind": "model overreaction",
+   "what": "The models overreacted to the earliest counts: with 0.33% counted in Minnesota, the governor model P moved from 71% to 38%.",
+   "effect_on_model": "Minnesota and Wisconsin projections during the first few percent counted are unreliable.",
+   "evidence": "mn-gov rows at the first counted values."
+  },
+  {
+   "id": "backfill-note",
+   "from": "2026-11-04T03:52:00Z",
+   "to": null,
+   "scope": [
+    "*"
+   ],
+   "scope_text": "Whole log",
+   "kind": "how this log was built",
+   "what": "This log was started at 03:52Z. Rows before the first live row in each file were rebuilt afterwards from the server's timeline files, only keeping rows where a published value changed. They are tagged 'backfilled'.",
+   "effect_on_model": "Backfilled rows may differ from what the page showed at the time (see the restart incident).",
+   "evidence": "recorded/rebuilt_from fields."
+  }
+ ]
+}

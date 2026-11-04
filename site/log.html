@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live log: every model reading, as published</title>
+<meta name="description" content="Election night 2026: a public log of every model reading, race by race, with market prices alongside and a dated list of known problems. Not an official call; not financial advice.">
+<!-- BUILD: versions log.js and log.css. Data: data/livelog/us2026/*.jsonl, written by scripts/live/livelog.py. -->
+<link id="page-css" rel="stylesheet">
+<link id="cnt-css" rel="stylesheet">
+<link id="log-css" rel="stylesheet">
+<script>
+window.__BUILD = "20261104L1";
+window.__V = window.__BUILD + (new URLSearchParams(location.search).get("_r") ?? "");
+document.getElementById("page-css").href = "style.css?v=" + window.__V;
+document.getElementById("cnt-css").href = "count.css?v=" + window.__V;
+document.getElementById("log-css").href = "log.css?v=" + window.__V;
+</script>
+</head>
+<body class="cnt lg">
+<main>
+<nav class="sitenav cnt-wrap" aria-label="Site"><a href="guide.html">Night guide</a> / <a href="./">Election nights</a> / <a href="election.html?id=us2026">US midterms dashboard</a> / <a href="count.html">Live count map</a> / <span aria-current="page">Live log</span> / <a href="scorecard.html">Track record</a></nav>
+
+<header class="cnt-wrap cnt-head">
+  <p class="kicker">US midterms 2026 · election night</p>
+  <h1>Live log: every model reading, as published</h1>
+  <p class="lg-lede">Every model reading as published tonight, unedited. Known problems are listed with times.</p>
+  <p class="cnt-statusline"><span class="cnt-chip" id="lg-status" role="status" data-state="wait"><span class="dot" aria-hidden="true"></span><span id="lg-status-text">Loading the log…</span></span> <span id="lg-status-note" class="cnt-muted"></span></p>
+</header>
+
+<section class="cnt-wrap" aria-labelledby="pick-h">
+  <h2 id="pick-h" class="lg-h">Pick a race</h2>
+  <div class="lg-pick">
+    <div class="cnt-search lg-search">
+      <label for="lg-q" class="visually-hidden">Search races</label>
+      <input id="lg-q" type="search" placeholder="Search a race, e.g. VA-01, GA Senate, ohio governor" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="lg-list" aria-autocomplete="list">
+      <ul id="lg-list" role="listbox" hidden></ul>
+    </div>
+    <button type="button" id="lg-reload" class="cnt-btn cnt-btn-ghost">Reload log</button>
+  </div>
+  <p class="cnt-muted" id="lg-pick-note">Races are listed once per model source. Choosing a race does not move the page.</p>
+</section>
+
+<section class="cnt-wrap" id="lg-race" aria-labelledby="race-h" aria-live="polite" hidden>
+  <h2 id="race-h" class="lg-h">Race</h2>
+  <p class="cnt-sub" id="lg-race-sub"></p>
+  <div id="lg-race-inc"></div>
+  <p class="lg-note" id="lg-backfill-note"></p>
+  <figure class="lg-chart"><div id="lg-chart"></div><figcaption id="lg-chart-cap" class="cnt-muted"></figcaption></figure>
+  <div class="lg-tools"><button type="button" id="lg-order" class="cnt-btn cnt-btn-ghost">Showing newest first</button> <span class="cnt-muted" id="lg-rowcount"></span></div>
+  <div class="lg-tablewrap" tabindex="0" role="region" aria-label="Logged rows for this race">
+    <table class="lg-table" id="lg-table">
+      <thead><tr>
+        <th scope="col">Time (ET)</th><th scope="col">Time (UTC)</th>
+        <th scope="col" title="Share of the expected vote that has been counted">Counted</th>
+        <th scope="col" title="Democratic share of the votes counted so far">D share counted</th>
+        <th scope="col" title="The model's projected final Democratic share, plus or minus one standard deviation">Projected D share ± sd</th>
+        <th scope="col" title="The model's chance the Democrat wins">Model P(D)</th>
+        <th scope="col" title="The model's chance with polls blended in, where it has one">P(D) with polls</th>
+        <th scope="col" title="Polymarket price for the Democrat">Polymarket</th>
+        <th scope="col" title="Kalshi price for the Democrat">Kalshi</th>
+        <th scope="col" title="The feed marked this reading stale">Stale</th>
+        <th scope="col" title="live = written as it happened; captured-live = read from the public feed before a restart; backfilled = rebuilt afterwards from the server's timeline files">Recorded</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="cnt-wrap" aria-labelledby="inc-h">
+  <h2 id="inc-h" class="lg-h">All incidents</h2>
+  <p class="cnt-muted">Known feed and model problems, with times. Entries are added, never edited or removed. Times are UTC; ET is UTC minus 5 hours tonight.</p>
+  <div id="lg-all-inc"><p class="cnt-muted">Loading…</p></div>
+</section>
+
+<section class="cnt-wrap" aria-labelledby="ver-h">
+  <h2 id="ver-h" class="lg-h">Verify</h2>
+  <p>Each row links to the one before it by a hash (SHA-256 of the previous row's hash plus the row's own text), so accidental edits or gaps within a file show up. GitHub's commit history records when each batch of rows was published. The log's files are in <a href="https://github.com/Andylol111/understanding-brazilian-information-underpricing/tree/main/site/data/livelog/us2026">the repository</a>.</p>
+  <p>The button below downloads the file for the race you picked and recomputes its chain in your browser. It checks that the chain is consistent; it does not prove who wrote the rows or when.</p>
+  <p><button type="button" id="lg-verify" class="cnt-btn" disabled>Check chain consistency of the loaded file</button></p>
+  <p id="lg-verify-out" role="status" class="lg-verify-out"></p>
+  <details class="lg-det"><summary>How the hash is computed</summary>
+    <p>Each file is one chain. Every line is JSON with sorted keys and a final <code>"hash"</code> field. The hash is <code>sha256(prev_hash + line text without the hash field)</code>, where <code>prev_hash</code> is the previous line's hash (64 zeros for the first line). The check re-hashes the raw line text, so nothing is re-formatted.</p>
+    <p>Rows tagged <code>backfilled</code> were rebuilt afterwards from the server's timeline files; rows tagged <code>live</code> were written as they were published; <code>captured-live</code> rows were read from the public feed before a restart rebuilt the history.</p>
+  </details>
+</section>
+
+<p class="cnt-wrap cnt-foot">The log records each model's output as produced and is not an official result. “P(D)” is the model's chance the Democrat wins. Prices are Polymarket and Kalshi as read at the time; a one-sided Polymarket book can read inverted (see the incident list). Not an official call; not financial advice.</p>
+</main>
+<script src="log.js?v=20261104L1" defer></script>
+</body>
+</html>
